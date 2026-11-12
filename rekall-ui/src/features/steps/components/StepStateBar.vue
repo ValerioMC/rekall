@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import AppButton from '@/components/ui/AppButton.vue'
 import LogCommitButton from '@/features/commits/components/LogCommitButton.vue'
-import type { Task, TaskStep } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 
 /**
  * What an open step's state lets a person do, above its detail: log a commit while a session

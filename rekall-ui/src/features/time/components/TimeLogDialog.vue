@@ -9,7 +9,8 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useNow } from '@/composables/useNow'
 import { formatDuration } from '@/common/format/duration'
 import AppDialog from '@/components/ui/AppDialog.vue'
-import type { Task, TimeEntry } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TimeEntry } from '@/features/time/model/time-entry'
 import type { TimeEntryId } from '@/model/branded'
 
 const props = defineProps<{ task: Task; entries: readonly TimeEntry[] }>()

@@ -1,7 +1,7 @@
 import { reactive, ref, watch, type Ref } from 'vue'
 import { loadPersistedSet, savePersistedSet, toggledSet } from '@/common/config/persisted-set'
 import { scopeKey } from '@/features/notes/model/note-scope'
-import type { RekallDocument } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
 
 const COLLAPSE_KEY = 'rekall.nav.collapsed-note-groups'
 

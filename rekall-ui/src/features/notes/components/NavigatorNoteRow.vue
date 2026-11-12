@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import NoteKindGlyph from '@/components/ui/NoteKindGlyph.vue'
-import type { RekallDocument } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
 import type { IdentityHue } from '@/common/identity'
 
 /**

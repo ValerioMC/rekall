@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { TASK_STATUS_COLOR, TASK_STATUS_LABEL } from '@/features/catalog/model/catalog'
+import { TASK_STATUS_COLOR, TASK_STATUS_LABEL } from '@/features/catalog/model/task-status'
 import type { Task } from '@/features/catalog/model/catalog'
 
 /**

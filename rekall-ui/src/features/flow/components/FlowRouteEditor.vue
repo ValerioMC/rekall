@@ -3,7 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import AppSelect, { type SelectOption } from '@/components/ui/AppSelect.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { FLOW_END, isFlowEnd, type RouteTarget } from '@/features/flow/lib/route-target'
-import type { StepLink, TaskStep } from '@/features/catalog/model/catalog'
+import type { StepLink, TaskStep } from '@/features/steps/model/task-step'
 import type { StepLinkId, TaskStepId } from '@/model/branded'
 
 /**

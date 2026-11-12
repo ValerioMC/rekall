@@ -1,4 +1,4 @@
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 
 /** The steps that run in one Claude session, in checklist order. */
 export interface StepSession {

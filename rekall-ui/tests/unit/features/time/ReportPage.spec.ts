@@ -6,7 +6,9 @@ import ReportPage from '@/features/time/components/ReportPage.vue'
 import { router } from '@/router'
 import { useConsoleStore } from '@/stores/console.store'
 import { mountWithHeaderChrome } from '../../support/mountWithHeaderChrome'
-import type { Company, Task, TaskStep, TimeEntry } from '@/features/catalog/model/catalog'
+import type { Company, Task } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
+import type { TimeEntry } from '@/features/time/model/time-entry'
 import type { CompanyId, ProjectId, TaskId, TaskStepId, TimeEntryId } from '@/model/branded'
 
 /**

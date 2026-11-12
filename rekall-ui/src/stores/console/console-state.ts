@@ -1,15 +1,10 @@
 import { ref } from 'vue'
 import type { CommitReference } from '@/features/commits/model/commitReference'
-import type {
-  Company,
-  Project,
-  RekallDocument,
-  Tag,
-  Task,
-  TaskStep,
-  TimeEntry,
-  Wrapup
-} from '@/features/catalog/model/catalog'
+import type { Company, Project, Tag, Task } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
+import type { TaskStep } from '@/features/steps/model/task-step'
+import type { TimeEntry } from '@/features/time/model/time-entry'
+import type { Wrapup } from '@/features/wrapup/model/wrapup'
 import type { TagSkill, TaskSkill } from '@/features/skills/model/skill-assignment'
 import type { CompanyId, DocumentId, ProjectId, TaskId, TaskStepId } from '@/model/branded'
 import type { NavMode, PaneFocus } from '@/model/console-location'

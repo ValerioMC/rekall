@@ -17,7 +17,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { excerpt } from '@/common/format/excerpt'
-import type { RekallDocument } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
 import { scopeAdmits } from '@/features/notes/model/note-scope'
 import type { DocumentId } from '@/model/branded'
 

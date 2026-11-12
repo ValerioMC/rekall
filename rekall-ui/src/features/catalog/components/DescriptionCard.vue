@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { excerpt as previewOf } from '@/common/format/excerpt'
-import type { TaskStepState } from '@/features/catalog/model/catalog'
+import type { TaskStepState } from '@/features/steps/model/task-step'
 
 const props = defineProps<{
   description: string | null

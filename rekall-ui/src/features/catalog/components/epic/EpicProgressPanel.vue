@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import StatusMixBar from '@/components/ui/StatusMixBar.vue'
-import { TASK_STATUS_COLOR, TASK_STATUS_LABEL, TASK_STATUS_ORDER } from '@/features/catalog/model/catalog'
+import { TASK_STATUS_COLOR, TASK_STATUS_LABEL, TASK_STATUS_ORDER } from '@/features/catalog/model/task-status'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { EpicProgress } from '@/features/catalog/model/epic'
 

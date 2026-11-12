@@ -4,7 +4,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 import NoteListPane from '@/features/notes/components/NoteListPane.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useToastStore } from '@/stores/toast.store'
-import type { RekallDocument, Task, TaskRef } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
+import type { Task, TaskRef } from '@/features/catalog/model/catalog'
 import type { DocumentId, ProjectId, TaskId } from '@/model/branded'
 
 /**

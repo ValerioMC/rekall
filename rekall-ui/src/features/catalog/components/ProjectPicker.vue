@@ -4,8 +4,9 @@ import AppBadge from '@/components/ui/AppBadge.vue'
 import ProjectIcon from '@/components/ui/ProjectIcon.vue'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
 import { groupProjectsByCompany, matchesProjectQuery } from '@/features/catalog/lib/project-picker'
-import { PROJECT_STATUS_LABEL } from '@/features/catalog/model/catalog'
-import type { Project, ProjectStatus } from '@/features/catalog/model/catalog'
+import { PROJECT_STATUS_LABEL } from '@/features/catalog/model/project-status'
+import type { Project } from '@/features/catalog/model/catalog'
+import type { ProjectStatus } from '@/features/catalog/model/project-status'
 
 /**
  * Chooses the project a task belongs to. Closed, it is a card describing the current project; open,

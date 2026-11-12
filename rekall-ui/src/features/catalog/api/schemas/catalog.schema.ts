@@ -12,7 +12,10 @@ import {
   asTimeEntryId,
   asWrapupId
 } from '@/model/branded'
-import { PROJECT_STATUSES, TASK_KINDS, TASK_STATUSES, TASK_STEP_STATES } from '@/features/catalog/model/catalog'
+import { PROJECT_STATUSES } from '@/features/catalog/model/project-status'
+import { TASK_KINDS } from '@/features/catalog/model/catalog'
+import { TASK_STATUSES } from '@/features/catalog/model/task-status'
+import { TASK_STEP_STATES } from '@/features/steps/model/task-step'
 
 const companyId = z.string().uuid().transform(asCompanyId)
 const projectId = z.string().uuid().transform(asProjectId)

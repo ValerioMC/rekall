@@ -4,7 +4,7 @@ import { describePermission } from '@/features/chat/lib/describe-permission'
 import { matchingCommands } from '@/features/chat/lib/slash-commands'
 import { stepChip } from '@/features/chat/lib/step-chip'
 import { emptyTimeline } from '@/features/chat/lib/timeline'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TaskStepId } from '@/model/branded'
 import { chatSession } from './support'
 

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { enterDialog, leaveDialog } from '@/common/a11y/dialog-stack'
-import { TASK_STATUS_COLOR, TASK_STATUS_LABEL, type Task } from '@/features/catalog/model/catalog'
+import { TASK_STATUS_COLOR, TASK_STATUS_LABEL } from '@/features/catalog/model/task-status'
+import { type Task } from '@/features/catalog/model/catalog'
 import type { TaskId } from '@/model/branded'
 
 /**

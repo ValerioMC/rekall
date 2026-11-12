@@ -1,6 +1,6 @@
 import { apiClient, request } from '../../../api/client'
 import { TaskStepListSchema, TaskStepSchema } from '../../catalog/api/schemas/catalog.schema'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
 export interface TaskStepPatch {

@@ -2,7 +2,8 @@ import { computed, type Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
 import { stepSkills, taskSkills } from '@/features/skills/model/skill-assignment'
-import type { Task, TaskStep } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 
 /** What a step is worked with: its own skills, then the task's and the tag's. */
 export function useStepSkills(step: Ref<TaskStep>, task: Ref<Task>) {

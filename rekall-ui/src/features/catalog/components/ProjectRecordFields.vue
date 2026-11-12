@@ -6,7 +6,7 @@ import ProjectIconField from '@/features/catalog/components/record/ProjectIconFi
 import RecordDescriptionField from '@/features/catalog/components/record/RecordDescriptionField.vue'
 import RecordIdentityFields from '@/features/catalog/components/record/RecordIdentityFields.vue'
 import RecordStatusField from '@/features/catalog/components/record/RecordStatusField.vue'
-import { PROJECT_STATUSES, PROJECT_STATUS_LABEL } from '@/features/catalog/model/catalog'
+import { PROJECT_STATUSES, PROJECT_STATUS_LABEL } from '@/features/catalog/model/project-status'
 import type { ProjectDraft } from '@/features/catalog/model/record-draft'
 import { useConsoleStore } from '@/stores/console.store'
 import type { CompanyId, ProjectId } from '@/model/branded'

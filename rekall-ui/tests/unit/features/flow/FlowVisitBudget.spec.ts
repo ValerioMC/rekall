@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import FlowVisitBudget from '@/features/flow/components/FlowVisitBudget.vue'
-import type { StepVisit } from '@/features/catalog/model/catalog'
+import type { StepVisit } from '@/features/steps/model/task-step'
 import type { StepVisitId, TaskStepId } from '@/model/branded'
 import { flowStep } from './flow.fixtures'
 

@@ -3,7 +3,9 @@ import { capitalised, dateKey } from '@/features/time/lib/month-grid'
 import { formatDuration } from '@/common/format/duration'
 import { isWithin } from './period'
 import type { PeriodRange } from './period'
-import type { Company, Task, TaskStep, TimeEntry } from '@/features/catalog/model/catalog'
+import type { Company, Task } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
+import type { TimeEntry } from '@/features/time/model/time-entry'
 import type { CompanyId, ProjectId, TaskId, TaskStepId } from '@/model/branded'
 
 export interface ReportStepRow {

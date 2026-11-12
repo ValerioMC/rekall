@@ -4,7 +4,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { useToastStore } from '@/stores/toast.store'
 import NotePlacementsPane from '@/features/notes/components/NotePlacementsPane.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Company, RekallDocument, Task, TaskRef } from '@/features/catalog/model/catalog'
+import type { Company, Task, TaskRef } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
 import type { CompanyId, DocumentId, ProjectId, TaskId } from '@/model/branded'
 
 /**

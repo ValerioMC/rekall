@@ -10,7 +10,7 @@ import {
   type StepLinkPatch
 } from '@/features/flow/api/step-flow.api'
 import type { RouteTarget } from '@/features/flow/lib/route-target'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { StepLinkId, TaskId, TaskStepId } from '@/model/branded'
 import type { useStepWrites } from '../../steps/store/useStepWrites'
 

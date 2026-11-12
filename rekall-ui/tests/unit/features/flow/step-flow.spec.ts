@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import {
   readFlow,
   routeDestination,

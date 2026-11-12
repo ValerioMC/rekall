@@ -2,7 +2,8 @@ import type { Completion, CompletionContext, CompletionResult, CompletionSource 
 import { insertReference, isInsideCode } from '@/common/markdown/component-completion'
 import { referenceCompletionType } from '@/common/markdown/reference-completion-icon'
 import { TASK_REFERENCE_PREFIX } from '@/common/markdown/task-reference'
-import { TASK_STATUS_LABEL, type Task } from '@/features/catalog/model/catalog'
+import { TASK_STATUS_LABEL } from '@/features/catalog/model/task-status'
+import { type Task } from '@/features/catalog/model/catalog'
 
 /** Only `[[task:` opens the list: a project holds too many tasks to offer them after a bare `[[`. */
 const TASK_OPENING = /\[\[task:[^[\]\n]*$/i

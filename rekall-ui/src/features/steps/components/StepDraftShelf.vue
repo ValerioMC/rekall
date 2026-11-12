@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { Task, TaskStep } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TaskStepId } from '@/model/branded'
 import StepDraftRow from './StepDraftRow.vue'
 

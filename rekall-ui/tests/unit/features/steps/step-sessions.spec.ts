@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { groupBySession, opensSession } from '@/features/steps/lib/step-sessions'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
 function step(id: string, startsSession: boolean): TaskStep {

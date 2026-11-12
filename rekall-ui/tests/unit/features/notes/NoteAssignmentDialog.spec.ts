@@ -3,7 +3,9 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import NoteAssignmentDialog from '@/features/notes/components/NoteAssignmentDialog.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Company, Project, RekallDocument, Task, TaskStatus } from '@/features/catalog/model/catalog'
+import type { Company, Project, Task } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
+import type { TaskStatus } from '@/features/catalog/model/task-status'
 import type { CompanyId, DocumentId, ProjectId, TaskId } from '@/model/branded'
 
 /**

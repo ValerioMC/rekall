@@ -1,6 +1,7 @@
 import { partitionTasks, type PartitionedTasks } from '@/features/catalog/lib/partition-tasks'
 import { compareProjects } from '@/features/catalog/lib/project-group-order'
-import type { Project, ProjectStatus, Task } from '@/features/catalog/model/catalog'
+import type { Project, Task } from '@/features/catalog/model/catalog'
+import type { ProjectStatus } from '@/features/catalog/model/project-status'
 import type { ProjectId } from '@/model/branded'
 
 /** The navigator's card for one project: what it is, and its tasks split into live, parked and filed. */

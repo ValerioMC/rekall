@@ -1,4 +1,4 @@
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 
 export const ADHERENCE_HELP = 'A high share of steps sent back usually means steps are too large or their detail too vague.'
 

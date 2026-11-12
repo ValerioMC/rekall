@@ -1,5 +1,6 @@
 import { dateKey } from './month-grid'
-import type { Task, TimeEntry } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TimeEntry } from '@/features/time/model/time-entry'
 import type { ProjectId, TaskId } from '@/model/branded'
 
 export interface DaySummaryRow {

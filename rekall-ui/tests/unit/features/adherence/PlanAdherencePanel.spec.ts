@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import PlanAdherencePanel from '@/features/adherence/components/PlanAdherencePanel.vue'
 import * as api from '@/features/adherence/api/adherence.api'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import { TASK, adherence, step } from './fixtures'
 
 vi.mock('@/features/adherence/api/adherence.api')

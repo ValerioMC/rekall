@@ -5,7 +5,11 @@ import { fetchTimeEntries, startTimeEntry } from '@/features/time/api/time-entri
 import { setActivePinia, createPinia } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
 import type { TaskInput } from '@/features/catalog/api/catalog.api'
-import type { Company, Project, RekallDocument, Task, TaskStep, TimeEntry, Wrapup } from '@/features/catalog/model/catalog'
+import type { Company, Project, Task } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
+import type { TaskStep } from '@/features/steps/model/task-step'
+import type { TimeEntry } from '@/features/time/model/time-entry'
+import type { Wrapup } from '@/features/wrapup/model/wrapup'
 import type {
   CompanyId,
   DocumentId,

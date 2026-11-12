@@ -1,5 +1,5 @@
 import type { PlanAdherence, ProjectAdherence } from '@/features/adherence/model/adherence'
-import type { TaskStep, TaskStepState } from '@/features/catalog/model/catalog'
+import type { TaskStep, TaskStepState } from '@/features/steps/model/task-step'
 import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
 
 export const TASK = 't-1' as TaskId

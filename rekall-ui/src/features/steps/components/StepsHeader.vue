@@ -5,7 +5,8 @@ import OpenTerminalButton from '@/features/claude/components/OpenTerminalButton.
 import NotesButton from '@/features/notes/components/NotesButton.vue'
 import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
 import { identityHue } from '@/common/identity'
-import type { Task, TaskStep } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TaskStepId } from '@/model/branded'
 
 /**

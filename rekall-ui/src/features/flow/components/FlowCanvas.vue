@@ -14,7 +14,7 @@ import {
 import type { StepFlow } from '@/features/flow/lib/step-flow'
 import { useFlowDrag } from '@/features/flow/composables/useFlowDrag'
 import { useFlowPan } from '@/features/flow/composables/useFlowPan'
-import type { StepLink } from '@/features/catalog/model/catalog'
+import type { StepLink } from '@/features/steps/model/task-step'
 import type { StepLinkId, TaskStepId } from '@/model/branded'
 import FlowNode from './FlowNode.vue'
 import FlowTerminal from './FlowTerminal.vue'

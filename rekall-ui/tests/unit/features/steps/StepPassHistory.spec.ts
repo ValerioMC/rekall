@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import StepPassHistory from '@/features/steps/components/StepPassHistory.vue'
-import type { StepPass } from '@/features/catalog/model/catalog'
+import type { StepPass } from '@/features/steps/model/task-step'
 
 const PASSES: StepPass[] = [
   { detailMarkdown: 'Sum by month', sentBackAt: '2026-09-28T10:00:00Z' },

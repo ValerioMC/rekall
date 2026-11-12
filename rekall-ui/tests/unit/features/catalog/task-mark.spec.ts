@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import TaskMark from '@/features/catalog/components/TaskMark.vue'
 import { taskMark } from '@/features/catalog/model/task-mark'
-import type { Task, TaskStatus, TaskStep, TaskStepState } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskStatus } from '@/features/catalog/model/task-status'
+import type { TaskStep, TaskStepState } from '@/features/steps/model/task-step'
 import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
 
 function task(overrides: Partial<Task> = {}): Task {

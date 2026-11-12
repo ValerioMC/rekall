@@ -5,7 +5,8 @@ import NavigatorNoteGroup from '@/features/notes/components/NavigatorNoteGroup.v
 import NavigatorNoteRow from '@/features/notes/components/NavigatorNoteRow.vue'
 import { groupNotesByScope, type NoteGroup } from '@/features/notes/lib/note-groups'
 import { useNoteShelves, type NoteShelves } from '@/features/notes/composables/useNoteShelves'
-import type { RekallDocument, TaskRef } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
+import type { TaskRef } from '@/features/catalog/model/catalog'
 import type { DocumentId, ProjectId, TaskId } from '@/model/branded'
 
 const vega = 'p1' as ProjectId

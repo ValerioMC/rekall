@@ -3,7 +3,9 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import NotePane from '@/features/notes/components/NotePane.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { RekallDocument, Task, TaskStatus } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskStatus } from '@/features/catalog/model/task-status'
 import type { DocumentId, ProjectId, TaskId } from '@/model/branded'
 
 /**

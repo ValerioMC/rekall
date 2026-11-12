@@ -1,4 +1,5 @@
-import type { Task, TaskStep } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 
 /**
  * What the mark in front of a task row says, beyond the task's status.

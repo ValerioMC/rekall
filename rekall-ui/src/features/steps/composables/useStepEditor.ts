@@ -1,6 +1,6 @@
 import { inject, provide, ref, type InjectionKey, type Ref } from 'vue'
 import { useEditorMode } from '@/composables/useEditorMode'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TaskStepId } from '@/model/branded'
 
 /**

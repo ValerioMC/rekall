@@ -8,7 +8,8 @@ import RecordIdentityFields from '@/features/catalog/components/record/RecordIde
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useRecordWrites } from '@/composables/useRecordWrites'
 import { useConsoleStore } from '@/stores/console.store'
-import { PROJECT_STATUSES, PROJECT_STATUS_LABEL, slugify } from '@/features/catalog/model/catalog'
+import { PROJECT_STATUSES, PROJECT_STATUS_LABEL } from '@/features/catalog/model/project-status'
+import { slugify } from '@/features/catalog/model/catalog'
 import { projectDraft, type ProjectDraft } from '@/features/catalog/model/record-draft'
 import type { Project } from '@/features/catalog/model/catalog'
 

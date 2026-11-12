@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { groupNotesByScope } from '@/features/notes/lib/note-groups'
-import type { RekallDocument, TaskRef } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
+import type { TaskRef } from '@/features/catalog/model/catalog'
 import type { NoteScope } from '@/features/notes/model/note-scope'
 import type { CompanyId, DocumentId, ProjectId, TaskId } from '@/model/branded'
 

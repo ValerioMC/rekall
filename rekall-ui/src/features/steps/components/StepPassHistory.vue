@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import { relativeTime } from '@/common/format/relative-time'
-import type { StepPass } from '@/features/catalog/model/catalog'
+import type { StepPass } from '@/features/steps/model/task-step'
 
 /**
  * The passes a step was sent back from, sealed above the feedback editor. Each holds what that

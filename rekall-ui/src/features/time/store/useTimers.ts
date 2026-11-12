@@ -6,7 +6,7 @@ import {
   stopTimeEntry as apiStopTimeEntry
 } from '@/features/time/api/time-entries.api'
 import type { TimeEntryEdit } from '@/features/time/api/time-entries.api'
-import type { TimeEntry } from '@/features/catalog/model/catalog'
+import type { TimeEntry } from '@/features/time/model/time-entry'
 import type { TaskId, TimeEntryId } from '@/model/branded'
 import type { ConsoleState } from '../../../stores/console/console-state'
 import type { useConsoleRefreshes } from '../../../stores/console/useConsoleRefreshes'

@@ -8,7 +8,7 @@ import { storeToRefs } from 'pinia'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import type { RekallDocument } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
 import type { TaskId } from '@/model/branded'
 
 const props = defineProps<{ note: RekallDocument }>()

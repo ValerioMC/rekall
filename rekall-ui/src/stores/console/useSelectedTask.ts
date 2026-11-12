@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 import type { CommitReference } from '@/features/commits/model/commitReference'
-import { stepCompletedAt, stepIsComplete, type TaskReview } from '@/features/catalog/model/catalog'
+import { stepCompletedAt, stepIsComplete, type TaskReview } from '@/features/steps/model/task-step'
 import type { TaskStepId } from '@/model/branded'
 import { reviewQueue as buildReviewQueue } from '@/features/catalog/model/review'
 import type { ReviewItem } from '@/features/catalog/model/review'

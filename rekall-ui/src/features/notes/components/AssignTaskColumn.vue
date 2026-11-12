@@ -5,7 +5,8 @@
  */
 import { computed, ref } from 'vue'
 import { useSettledOrder } from '@/composables/useSettledOrder'
-import { TASK_STATUS_COLOR, TASK_STATUS_LABEL, type Task } from '@/features/catalog/model/catalog'
+import { TASK_STATUS_COLOR, TASK_STATUS_LABEL } from '@/features/catalog/model/task-status'
+import { type Task } from '@/features/catalog/model/catalog'
 import type { ProjectId, TaskId } from '@/model/branded'
 
 const props = defineProps<{

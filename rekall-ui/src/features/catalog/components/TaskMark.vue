@@ -22,7 +22,7 @@
  * Only a change of state animates, and only once: a list loading in draws nothing.
  */
 import { onUnmounted, ref, useId, watch } from 'vue'
-import type { TaskStatus } from '@/features/catalog/model/catalog'
+import type { TaskStatus } from '@/features/catalog/model/task-status'
 import type { TaskMarkState } from '@/features/catalog/model/task-mark'
 
 const props = withDefaults(

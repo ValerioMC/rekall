@@ -18,7 +18,7 @@ import { useCheckStream } from '@/features/check/composables/useCheckStream'
 import { useChecksStore } from '@/features/check/store/checks.store'
 import { provideStepEditor } from '@/features/steps/composables/useStepEditor'
 import { groupBySession } from '@/features/steps/lib/step-sessions'
-import { stepIsComplete, type TaskStep } from '@/features/catalog/model/catalog'
+import { stepIsComplete, type TaskStep } from '@/features/steps/model/task-step'
 import type { TaskStepId } from '@/model/branded'
 
 const store = useConsoleStore()

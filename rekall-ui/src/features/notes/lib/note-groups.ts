@@ -1,5 +1,6 @@
 import { scopeKey, scopeName, type NoteScope } from '@/features/notes/model/note-scope'
-import type { Company, Project, RekallDocument } from '@/features/catalog/model/catalog'
+import type { Company, Project } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
 
 type GroupProject = Pick<Project, 'id' | 'title' | 'icon' | 'iconImageVersion' | 'companyName'>
 

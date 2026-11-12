@@ -3,7 +3,8 @@ import { createPinia, setActivePinia } from 'pinia'
 import { mount } from '@vue/test-utils'
 import ReviewQueueButton from '@/features/catalog/components/ReviewQueueButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Task, TaskStep } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
 
 const report: Task = {

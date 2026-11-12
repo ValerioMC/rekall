@@ -2,7 +2,8 @@
 import { computed, onMounted, ref, useId } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
-import { TASK_STATUS_LABEL, isEpic, type Task } from '@/features/catalog/model/catalog'
+import { TASK_STATUS_LABEL } from '@/features/catalog/model/task-status'
+import { isEpic, type Task } from '@/features/catalog/model/catalog'
 import type { TaskId } from '@/model/branded'
 
 /**

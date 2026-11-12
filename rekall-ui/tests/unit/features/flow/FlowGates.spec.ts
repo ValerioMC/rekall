@@ -5,7 +5,7 @@ import FlowCanvas from '@/features/flow/components/FlowCanvas.vue'
 import { layoutFlow } from '@/features/flow/lib/flow-layout'
 import { gateAt, pillBox, placeGates } from '@/features/flow/lib/route-gate'
 import { readFlow } from '@/features/flow/lib/step-flow'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import { releaseFlow } from './flow.fixtures'
 
 function canvasOf(steps: TaskStep[]) {

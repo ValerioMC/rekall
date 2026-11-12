@@ -1,5 +1,5 @@
 import { compareText } from '@/features/catalog/lib/compare-text'
-import type { ProjectStatus } from '@/features/catalog/model/catalog'
+import type { ProjectStatus } from '@/features/catalog/model/project-status'
 
 export interface OrderedProject {
   readonly projectTitle: string

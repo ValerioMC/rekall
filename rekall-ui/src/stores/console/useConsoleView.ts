@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 import { compareText } from '@/features/catalog/lib/compare-text'
-import type { Project, RekallDocument, Task } from '@/features/catalog/model/catalog'
+import type { Project, Task } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
 import type { ConsoleState } from './console-state'
 
 function matchesTask(task: Task, needle: string): boolean {

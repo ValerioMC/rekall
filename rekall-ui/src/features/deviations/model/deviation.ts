@@ -1,5 +1,5 @@
 import type { TaskId } from '@/model/branded'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 
 /** Where a task's work departed from its plan, for one step. A session writes it; it is not a note. */
 export interface TaskDeviation {

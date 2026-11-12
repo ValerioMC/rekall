@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { periodRange } from '@/features/time/lib/period'
 import { buildTimeReport, reportAsMarkdown } from '@/features/time/lib/time-report'
-import type { Company, Task, TaskStep, TimeEntry } from '@/features/catalog/model/catalog'
+import type { Company, Task } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
+import type { TimeEntry } from '@/features/time/model/time-entry'
 import type { CompanyId, ProjectId, TaskId, TaskStepId, TimeEntryId } from '@/model/branded'
 
 /**

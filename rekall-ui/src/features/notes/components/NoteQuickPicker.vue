@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSettledOrder } from '@/composables/useSettledOrder'
-import type { RekallDocument } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
 import { scopeAdmits, scopeName } from '@/features/notes/model/note-scope'
 import type { DocumentId, TaskId } from '@/model/branded'
 

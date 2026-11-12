@@ -8,7 +8,10 @@ import { mountWithHeaderChrome } from './support/mountWithHeaderChrome'
 import { useChatDockStore } from '@/features/chat/store/chatDock.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { chatSession } from './features/chat/support'
-import type { Company, Project, RekallDocument, Task, TaskStep, Wrapup } from '@/features/catalog/model/catalog'
+import type { Company, Project, Task } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
+import type { TaskStep } from '@/features/steps/model/task-step'
+import type { Wrapup } from '@/features/wrapup/model/wrapup'
 import type { DocumentInput } from '@/features/notes/api/documents.api'
 import type {
   CompanyId,

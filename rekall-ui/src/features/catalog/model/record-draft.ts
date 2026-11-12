@@ -1,5 +1,7 @@
 import type { CompanyId, ProjectId, TagId, TaskId } from '../../../model/branded'
-import type { Company, Project, ProjectStatus, Task, TaskKind, TaskStatus } from './catalog'
+import type { Company, Project, Task, TaskKind } from './catalog'
+import type { ProjectStatus } from './project-status'
+import type { TaskStatus } from './task-status'
 
 export type CompanyDraft = Extract<RecordDraft, { kind: 'company' }>
 export type ProjectDraft = Extract<RecordDraft, { kind: 'project' }>

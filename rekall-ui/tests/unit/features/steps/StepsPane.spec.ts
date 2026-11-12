@@ -15,7 +15,8 @@ vi.mock('@/features/adherence/api/adherence.api', () => ({
   }))
 }))
 
-import type { Task, TaskStep, TaskStepState } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskStep, TaskStepState } from '@/features/steps/model/task-step'
 import type { ProjectId, StepLinkId, TaskId, TaskStepId } from '@/model/branded'
 
 /**

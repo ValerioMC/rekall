@@ -1,5 +1,5 @@
 import { dateKey } from './month-grid'
-import type { TimeEntry } from '@/features/catalog/model/catalog'
+import type { TimeEntry } from '@/features/time/model/time-entry'
 
 export interface TrackedDay {
   readonly key: string

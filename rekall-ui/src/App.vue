@@ -32,7 +32,8 @@ import { useModalGate } from '@/composables/useModalGate'
 import { useStepStream } from '@/features/steps/composables/useStepStream'
 import { useClaimNotifications } from '@/composables/useClaimNotifications'
 import { useConsoleLocation } from '@/composables/useConsoleLocation'
-import { isEpic, type TaskStatus } from '@/features/catalog/model/catalog'
+import { isEpic } from '@/features/catalog/model/catalog'
+import { type TaskStatus } from '@/features/catalog/model/task-status'
 
 // xterm and its stylesheet are only parsed once a terminal is opened: most sessions never do,
 // and the console's first paint should not pay for them.

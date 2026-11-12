@@ -3,7 +3,8 @@ import { nextTick, ref } from 'vue'
 import { reviewQueue } from '@/features/catalog/model/review'
 import type { ReviewItem } from '@/features/catalog/model/review'
 import { noticeFor, useClaimNotifications } from '@/composables/useClaimNotifications'
-import type { Task, TaskStep, TaskStepState } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskStep, TaskStepState } from '@/features/steps/model/task-step'
 import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
 
 const postNotice = vi.fn(async () => true)

@@ -1,4 +1,5 @@
-import { TASK_STATUS_ORDER, isEpic } from './catalog'
+import { TASK_STATUS_ORDER } from './task-status'
+import { isEpic } from './catalog'
 import type { Task } from './catalog'
 import type { TaskId } from '../../../model/branded'
 

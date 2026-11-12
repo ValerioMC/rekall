@@ -7,7 +7,7 @@ import TaskEpicField from '@/features/catalog/components/record/TaskEpicField.vu
 import TaskKindField from '@/features/catalog/components/record/TaskKindField.vue'
 import TaskSkillsField from '@/features/catalog/components/record/TaskSkillsField.vue'
 import TaskTagField from '@/features/catalog/components/record/TaskTagField.vue'
-import { TASK_STATUSES, TASK_STATUS_LABEL } from '@/features/catalog/model/catalog'
+import { TASK_STATUSES, TASK_STATUS_LABEL } from '@/features/catalog/model/task-status'
 import { epicChoices } from '@/features/catalog/model/epic'
 import type { TaskDraft } from '@/features/catalog/model/record-draft'
 import { useConsoleStore } from '@/stores/console.store'

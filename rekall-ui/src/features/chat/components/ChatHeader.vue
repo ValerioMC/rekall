@@ -6,7 +6,7 @@ import AppConfirm from '@/components/ui/AppConfirm.vue'
 import TerminalConnectionChips from '@/features/connection/components/TerminalConnectionChips.vue'
 import { stepChip } from '@/features/chat/lib/step-chip'
 import type { ChatStatus } from '@/features/chat/lib/chat-status'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { Terminal } from '@/features/claude/model/terminal'
 import type { TaskId, TerminalId } from '@/model/branded'
 

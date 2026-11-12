@@ -3,7 +3,7 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import StepsPane from '@/features/steps/components/StepsPane.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import { finishedFlow, flowStep, releaseFlow, releaseTask, TASK, visit } from './flow.fixtures'
 
 /**

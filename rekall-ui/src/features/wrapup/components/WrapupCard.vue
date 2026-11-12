@@ -3,8 +3,8 @@ import { formatDateTime } from '@/common/format/app-locale'
 import { computed } from 'vue'
 import { excerpt as previewOf } from '@/common/format/excerpt'
 import { relativeTime } from '@/common/format/relative-time'
-import { WRAPUP_AUTHOR_LABEL } from '@/features/catalog/model/catalog'
-import type { Wrapup } from '@/features/catalog/model/catalog'
+import { WRAPUP_AUTHOR_LABEL } from '@/features/wrapup/model/wrapup'
+import type { Wrapup } from '@/features/wrapup/model/wrapup'
 
 const props = defineProps<{
   wrapup: Wrapup | null

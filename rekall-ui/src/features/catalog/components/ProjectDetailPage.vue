@@ -27,7 +27,7 @@ import { useProjectSectionStream } from '@/features/project/composables/useProje
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 import { withoutQuickTasks } from '@/features/catalog/lib/quick-task'
-import { PROJECT_STATUS_LABEL } from '@/features/catalog/model/catalog'
+import { PROJECT_STATUS_LABEL } from '@/features/catalog/model/project-status'
 import { asProjectId } from '@/model/branded'
 import { BLUEPRINT, tabOf, type ProjectPage, type ProjectTab } from '@/features/project/model/project-page'
 import type { DeploymentGraphId, ProjectSectionId } from '@/model/branded'

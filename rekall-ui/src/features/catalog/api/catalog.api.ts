@@ -14,13 +14,13 @@ import type {
   Company,
   Project,
   ProjectRepository,
-  ProjectStatus,
   Tag,
   Task,
-  TaskKind,
-  TaskStatus,
-  TaskStepState
+  TaskKind
 } from '@/features/catalog/model/catalog'
+import type { ProjectStatus } from '@/features/catalog/model/project-status'
+import type { TaskStatus } from '@/features/catalog/model/task-status'
+import type { TaskStepState } from '@/features/steps/model/task-step'
 import type { CompanyId, ProjectId, TagId, TaskId } from '@/model/branded'
 
 export interface CompanyInput {

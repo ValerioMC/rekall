@@ -1,4 +1,5 @@
-import type { Task, TaskStep } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { Terminal } from '@/features/claude/model/terminal'
 import type { TaskStepId } from '@/model/branded'
 

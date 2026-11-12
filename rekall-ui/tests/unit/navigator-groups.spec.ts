@@ -3,7 +3,8 @@ import { nextTick, ref } from 'vue'
 import { groupTasksByProject } from '@/features/catalog/lib/project-task-groups'
 import { useNavigatorShelves } from '@/composables/useNavigatorShelves'
 import { taskFixture } from './support/taskFixture'
-import type { Project, Task, TaskStatus } from '@/features/catalog/model/catalog'
+import type { Project, Task } from '@/features/catalog/model/catalog'
+import type { TaskStatus } from '@/features/catalog/model/task-status'
 import type { CompanyId, ProjectId, TaskId } from '@/model/branded'
 
 function task(id: string, projectId: string, status: TaskStatus = 'TODO', projectTitle = projectId, companyName = 'acme'): Task {

@@ -10,7 +10,8 @@ import AppButton from '@/components/ui/AppButton.vue'
 import { groupByPass } from '@/features/feedback/lib/feedback-passes'
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import type { Task, TaskStepState } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskStepState } from '@/features/steps/model/task-step'
 
 const props = defineProps<{ task: Task; reviewState: Exclude<TaskStepState, 'OPEN'> }>()
 

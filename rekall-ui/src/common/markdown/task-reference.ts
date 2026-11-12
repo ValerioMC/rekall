@@ -1,4 +1,5 @@
-import { TASK_STATUS_LABEL, type Task } from '@/features/catalog/model/catalog'
+import { TASK_STATUS_LABEL } from '@/features/catalog/model/task-status'
+import { type Task } from '@/features/catalog/model/catalog'
 
 /** What turns a `[[...]]` reference into one naming another task of the project: `[[task:export]]`. */
 export const TASK_REFERENCE_PREFIX = 'task:'

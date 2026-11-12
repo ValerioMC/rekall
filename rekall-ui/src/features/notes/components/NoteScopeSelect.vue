@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
 import { identityHue } from '@/common/identity'
 import { GLOBAL_SCOPE, scopeAdmits, scopeKey, type NoteScope } from '@/features/notes/model/note-scope'
-import type { RekallDocument } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
 
 /**
  * Where an open note lives, as a compact control in its toolbar. Every scope is offered, but one

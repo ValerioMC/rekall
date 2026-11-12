@@ -17,7 +17,8 @@ import { useOpenSession } from '@/features/claude/composables/useOpenSession'
 import { useEditorMode } from '@/composables/useEditorMode'
 import { relativeTime } from '@/common/format/relative-time'
 import { rkWrapupCommand } from '@/common/format/rk-command'
-import { WRAPUP_AUTHOR_LABEL, isEpic } from '@/features/catalog/model/catalog'
+import { WRAPUP_AUTHOR_LABEL } from '@/features/wrapup/model/wrapup'
+import { isEpic } from '@/features/catalog/model/catalog'
 
 const store = useConsoleStore()
 const terminals = useTerminalStore()

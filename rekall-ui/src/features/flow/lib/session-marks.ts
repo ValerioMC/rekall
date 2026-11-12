@@ -1,5 +1,5 @@
 import { routeSessionRelation, type StepFlow } from '@/features/flow/lib/step-flow'
-import type { StepLink } from '@/features/catalog/model/catalog'
+import type { StepLink } from '@/features/steps/model/task-step'
 import type { TaskStepId } from '@/model/branded'
 
 /** How much taller than a plain step the node of a step that opens a session is. */

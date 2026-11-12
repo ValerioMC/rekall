@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { relativeTime } from '@/common/format/relative-time'
 import { failedRuns, latestRunsOfStep, runDuration, runOutcome } from '@/features/check/lib/check-results'
 import { useChecksStore } from '@/features/check/store/checks.store'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 
 /**
  * What the last run of each check found on this step, so the review starts from what was already

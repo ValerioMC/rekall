@@ -2,7 +2,8 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import EpicGlyph from '@/features/catalog/components/epic/EpicGlyph.vue'
 import { matchesEpicQuery } from '@/features/catalog/model/epic'
-import { TASK_STATUS_LABEL, type Task } from '@/features/catalog/model/catalog'
+import { TASK_STATUS_LABEL } from '@/features/catalog/model/task-status'
+import { type Task } from '@/features/catalog/model/catalog'
 import { useConsoleStore } from '@/stores/console.store'
 import type { TaskId } from '@/model/branded'
 

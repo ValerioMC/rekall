@@ -8,7 +8,8 @@ import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
 import type { Terminal } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId, TaskStepId, TerminalId, TimeEntryId } from '@/model/branded'
-import type { Task, TimeEntry } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TimeEntry } from '@/features/time/model/time-entry'
 
 const terminalApi = {
   fetchTerminals: vi.fn(),

@@ -1,6 +1,6 @@
 import { apiClient, request } from '../../../api/client'
 import { DocumentListSchema, DocumentSchema } from '../../catalog/api/schemas/catalog.schema'
-import type { DocumentContextMode, RekallDocument } from '@/features/catalog/model/catalog'
+import type { DocumentContextMode, RekallDocument } from '@/features/notes/model/document'
 import type { NoteScope } from '@/features/notes/model/note-scope'
 import type { DocumentId, TaskId } from '@/model/branded'
 

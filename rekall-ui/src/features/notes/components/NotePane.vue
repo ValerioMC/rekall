@@ -17,7 +17,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useEditorMode } from '@/composables/useEditorMode'
 import { rkCommand } from '@/common/format/rk-command'
-import { DOCUMENT_KINDS } from '@/features/catalog/model/catalog'
+import { DOCUMENT_KINDS } from '@/features/notes/model/document'
 import type { NoteScope } from '@/features/notes/model/note-scope'
 
 const store = useConsoleStore()

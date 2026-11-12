@@ -7,7 +7,7 @@ import {
   setStepSession as apiSetStepSession
 } from '@/features/steps/api/steps.api'
 import type { TaskStepPatch } from '@/features/steps/api/steps.api'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TaskId, TaskStepId } from '@/model/branded'
 import type { ConsoleState } from '../../../stores/console/console-state'
 import type { useTimers } from '../../time/store/useTimers'

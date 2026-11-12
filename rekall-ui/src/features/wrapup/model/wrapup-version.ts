@@ -1,4 +1,4 @@
-import type { WrapupAuthor } from '@/features/catalog/model/catalog'
+import type { WrapupAuthor } from '@/features/wrapup/model/wrapup'
 import type { TaskId, WrapupVersionId } from '@/model/branded'
 
 /** A past text of a task's wrapup, without the text. */

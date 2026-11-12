@@ -5,7 +5,7 @@ import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import AppDialog from '@/components/ui/AppDialog.vue'
 import QuickTaskFilter from '@/features/catalog/components/QuickTaskFilter.vue'
 import QuickTaskMark from '@/features/catalog/components/QuickTaskMark.vue'
-import { TASK_STATUS_COLOR, TASK_STATUS_LABEL } from '@/features/catalog/model/catalog'
+import { TASK_STATUS_COLOR, TASK_STATUS_LABEL } from '@/features/catalog/model/task-status'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { TaskId } from '@/model/branded'
 

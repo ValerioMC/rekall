@@ -6,7 +6,7 @@ import * as api from '@/features/check/api/checks.api'
 import { useChecksStore } from '@/features/check/store/checks.store'
 import { STEP, TASK, result } from './fixtures'
 import type { CheckResult } from '@/features/check/model/check'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 
 vi.mock('@/features/check/api/checks.api')
 

@@ -3,7 +3,7 @@ import {
   deleteDocument as apiDeleteDocument,
   updateDocument as apiUpdateDocument
 } from '@/features/notes/api/documents.api'
-import type { RekallDocument } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
 import type { DocumentId, TaskId } from '@/model/branded'
 import { GLOBAL_SCOPE, type NoteScope } from '@/features/notes/model/note-scope'
 import type { ConsoleState } from '../../../stores/console/console-state'

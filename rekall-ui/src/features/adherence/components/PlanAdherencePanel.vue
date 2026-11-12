@@ -4,7 +4,7 @@ import AdherenceFigure from '@/features/adherence/components/AdherenceFigure.vue
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { ADHERENCE_HELP, passesOf, passesSummary, shareDetail, stepsLabel } from '@/features/adherence/lib/adherence-figures'
 import { useAdherenceStore } from '@/features/adherence/store/adherence.store'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TaskId } from '@/model/branded'
 
 /**

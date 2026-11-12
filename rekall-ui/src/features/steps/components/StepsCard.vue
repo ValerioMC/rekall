@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { stepIsComplete, type TaskStep } from '@/features/catalog/model/catalog'
+import { stepIsComplete, type TaskStep } from '@/features/steps/model/task-step'
 
 const props = defineProps<{
   steps: readonly TaskStep[]
