@@ -144,6 +144,37 @@ Set **Parallel sessions** in the run queue to two, three or four and the queue w
 
 A task run by hand, or by a queue set to one session, has no worktree; the panel appears only for a task whose branch exists. `GET /api/tasks/{id}/branch` answers the panel (`null` without a branch).
 
+### Pull request flow
+
+With **Merge through a pull request** on (project page, Settings, Repository), steps 3 and 4 change: the branch is not merged locally. A GitLab project says merge request wherever this says pull request.
+
+```mermaid
+sequenceDiagram
+    participant Claude as Session
+    participant Rekall
+    participant Host as GitHub or GitLab
+    Claude->>Rekall: claim the last step (one commit per step)
+    Rekall->>Host: push the task branch
+    Rekall->>Host: open the pull request once
+    Note over Rekall: the task shows a link to it
+    Note over Rekall: you accept the task
+    Rekall->>Host: merge with a merge commit
+    alt the pull request conflicts
+        Host-->>Rekall: conflicting
+        Rekall->>Claude: merge session in the worktree
+        Claude->>Host: merge the main branch into the branch, resolve, push
+        Rekall->>Host: merge again
+    end
+    Host-->>Rekall: merged
+    Rekall->>Host: close the issue
+    Rekall->>Rekall: remove the worktree
+```
+
+- When every step of the task is claimed, its branch is pushed and a pull request is opened against the project's main branch (the branch its folder is on when none is named). It is opened once: a task claimed again is pushed again and keeps the same one. Its body is the task's description, `Closes #<issue>` and the commits listed by step. If the push or the host refuses, the reason shows on the task as **Not opened** and the next claim tries again.
+- When you accept the task, the pull request is merged through the host with a merge commit, so the commit of each step reaches the main branch. Then the task's issue is closed and the worktree removed. A merge the host turns down (required checks, a branch rule) shows as **Not merged** with the host's reason, and the worktree stays; a network error is tried again the next time the task moves. Rekall does not wait for reviews or checks: it merges as soon as you accept.
+- When the host says the pull request conflicts, a session opens on the task in its worktree (`/rk … merge pull-request`): it merges the main branch into the task branch, resolves the conflicts, runs the checks, commits and pushes. It does not force-push and does not merge through the host. Rekall then merges again. If you close that session with the pull request still conflicting, none opens again until the task is accepted anew.
+- The task's title row shows the request as a link (**PR #5**, **MR !5** on GitLab), **Merged** once it is, and nothing on a project with the switch off.
+
 ## Commits
 
 A task, or one of its steps, keeps a ledger of the commits that built it: the hash, the commit's own subject line as the comment, and the diff it introduced, read from the project's **repo folder** (set on the project's page). The console shows the ledger under the description as a collapsible rail, and under each step's detail; a row opens to its diff, and can be deleted by hand.

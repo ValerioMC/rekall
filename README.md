@@ -145,6 +145,7 @@ The guides describe each area as it behaves today, with its REST routes and prop
 | Deployment graphs | A project's route from commit to running app, laid on a task | [workflow](docs/guide/workflow.md#deployment-graphs) |
 | Epics | A task that gathers other tasks and passes its brief to them | [workflow](docs/guide/workflow.md#epics) |
 | Commits | A ledger of commits per task or step; commit on claim | [workflow](docs/guide/workflow.md#commits) |
+| Pull requests | A project that turns on **Merge through a pull request** pushes each task's branch and opens a GitHub pull request or GitLab merge request when its work is claimed, merges it with a merge commit when the task is accepted, and has a session resolve a conflict | [workflow](docs/guide/workflow.md#pull-request-flow) |
 | Review | Accept a claim, send a step back, and keep revisions of a description in a tab beside it (each aimed at the work or the plan), run as numbered passes that a session replies to; the review queue and its notifications | [workflow](docs/guide/workflow.md#description-review) |
 | Terminals | A real `claude` in a pseudo-terminal inside the app, or the same `claude` as a chat window (Settings > Claude Code > Session view); the run queue, which can work up to four tasks at once in git worktrees of their own; the usage meter | [sessions](docs/guide/sessions.md) |
 | Token usage | Tokens Claude Code generated per task and step, read from its transcripts | [sessions](docs/guide/sessions.md#token-usage) |
