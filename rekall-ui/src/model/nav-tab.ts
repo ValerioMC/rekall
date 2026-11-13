@@ -82,6 +82,10 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         alert: 'open-vulnerabilities'
       }
     ]
+  },
+  {
+    label: 'Settings',
+    screens: [{ to: '/settings', label: 'Settings', hint: 'Databases, appearance, review, sessions and backups', routes: ['settings'] }]
   }
 ]
 

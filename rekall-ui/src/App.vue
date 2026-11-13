@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import AnchorBar from '@/components/console/AnchorBar.vue'
 import DescriptionPane from '@/features/catalog/components/DescriptionPane.vue'
 import DeviationPane from '@/features/deviations/components/DeviationPane.vue'
@@ -14,7 +14,6 @@ import ReviewPage from '@/features/review/components/ReviewPage.vue'
 import TaskPage from '@/features/task/components/TaskPage.vue'
 import WorkPage from '@/features/work/components/WorkPage.vue'
 import WrapupPane from '@/features/wrapup/components/WrapupPane.vue'
-import SettingsPanel from '@/features/settings/components/SettingsPanel.vue'
 import TagsPanel from '@/features/tags/components/TagsPanel.vue'
 import RunQueuePanel from '@/features/queue/components/RunQueuePanel.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
@@ -96,8 +95,12 @@ const epicPane = ref<InstanceType<typeof EpicPane> | null>(null)
 const notePane = ref<InstanceType<typeof NotePane> | null>(null)
 const noteList = ref<InstanceType<typeof NoteListPane> | null>(null)
 const deviationPane = ref<InstanceType<typeof DeviationPane> | null>(null)
-const settingsOpen = ref(false)
 const claudeConnection = useClaudeConnectionStore()
+const router = useRouter()
+
+function openSettings(): void {
+  void router.push('/settings')
+}
 const tagsOpen = ref(false)
 
 function onWorkKey(key: string, event: KeyboardEvent): void {
@@ -227,10 +230,6 @@ onMounted(() => {
   void runQueue.load().catch(() => undefined)
   void refreshClaudeConnection()
 })
-// Settings is where the registration gets repaired or changed by hand, so read it again on leaving.
-watch(settingsOpen, (open) => {
-  if (!open) void refreshClaudeConnection()
-})
 onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
@@ -244,7 +243,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     </a>
 
     <AnchorBar
-      @open-settings="settingsOpen = true"
+      @open-settings="openSettings"
       @open-tags="tagsOpen = true"
     />
 
@@ -280,7 +279,6 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       <RecordDialog v-if="taskEditor.editing.value" :draft="taskEditor.editing.value" @close="taskEditor.close()" />
     </Transition>
     <Transition name="dialog">
-      <SettingsPanel v-if="settingsOpen" @close="settingsOpen = false" />
     </Transition>
     <Transition name="dialog">
       <TagsPanel v-if="tagsOpen" @close="tagsOpen = false" />

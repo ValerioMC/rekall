@@ -1,20 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import SettingsPanel from '@/features/settings/components/SettingsPanel.vue'
+import DatabaseSection from '@/features/settings/components/DatabaseSection.vue'
 
-/**
- * SettingsPanel registers a capture-phase `window` keydown listener on mount, removed only on
- * unmount. Left un-mounted between tests, a prior test's listener stays attached and — since it
- * still matches the "close on Escape" condition for whatever state its own instance was left in
- * — can intercept and `stopPropagation()` an Escape event a later test dispatches, before it
- * ever reaches that later test's own component. `attachTo: document.body` is what makes the
- * capture-phase listener reachable at all, so cleanup has to be just as deliberate.
- */
 let wrapper: ReturnType<typeof mount> | undefined
 
 function mountPanel(): ReturnType<typeof mount> {
-  wrapper = mount(SettingsPanel, { attachTo: document.body })
+  wrapper = mount(DatabaseSection, { attachTo: document.body })
   return wrapper
 }
 
@@ -37,65 +29,6 @@ vi.mock('@/features/settings/api/settings.api', () => ({
   checkFolder: vi.fn()
 }))
 
-/** The backups section has its own spec; here it only has to not reach the network. */
-vi.mock('@/features/settings/api/backups.api', () => ({
-  fetchBackupStatus: vi.fn(async () => ({
-    available: true,
-    folder: '/data/rekall/backups',
-    intervalHours: 24,
-    keep: 10,
-    backups: [],
-    lastFailure: null
-  })),
-  takeBackup: vi.fn(),
-  restoreBackup: vi.fn(),
-  restoreUploadedBackup: vi.fn(),
-  backupDownloadUrl: (name: string) => `/api/backups/${name}`
-}))
-
-/** The Langfuse section has its own spec; here it only has to not reach the network. */
-vi.mock('@/features/settings/api/telemetry.api', () => ({
-  fetchTelemetrySettings: vi.fn(async () => ({
-    enabled: false,
-    host: 'http://localhost:3000',
-    publicKey: '',
-    logContent: false,
-    secretSaved: false
-  })),
-  saveTelemetrySettings: vi.fn()
-}))
-
-/** The version section has its own spec; here it only has to not reach the network. */
-vi.mock('@/features/settings/api/version.api', () => ({
-  fetchVersionStatus: vi.fn(async () => ({ current: '0.1.0', check: 'UP_TO_DATE', latest: null }))
-}))
-
-/** The Claude Code section has its own spec; here it only has to not reach the network. */
-vi.mock('@/features/claude/api/claude.api', () => ({
-  fetchClaudeInstallation: () =>
-    Promise.resolve({
-      status: 'NOT_CONNECTED',
-      endpoint: 'http://localhost:47355/mcp',
-      registeredUrl: null,
-      folderScoped: [],
-      commandInstalled: false,
-      cliPath: '/Users/someone/.local/bin/claude',
-      manualCommand: 'claude mcp add --scope user --transport http rekall http://localhost:47355/mcp'
-    }),
-  installClaudeIntegration: vi.fn()
-}))
-
-/** The protections section has its own spec; here it only has to not reach the network. */
-vi.mock('@/features/settings/api/guardProtection.api', () => ({
-  fetchGuardProtection: vi.fn(async () => ({
-    state: 'NOT_INSTALLED',
-    settingsFile: '/Users/someone/.claude/settings.json',
-    problem: null
-  })),
-  installGuardProtection: vi.fn(),
-  removeGuardProtection: vi.fn()
-}))
-
 const local = { id: '1', label: 'Local', path: '/a', active: true, reachable: true, addedAt: 't', lastUsedAt: 't' }
 const backup = { id: '2', label: 'Backup', path: '/b', active: false, reachable: true, addedAt: 't', lastUsedAt: 't' }
 
@@ -105,7 +38,7 @@ function findButton(wrapper: ReturnType<typeof mount>, text: string) {
   return button
 }
 
-describe('SettingsPanel', () => {
+describe('DatabaseSection', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     fetchDatabaseStatus.mockReset()
@@ -139,44 +72,6 @@ describe('SettingsPanel', () => {
     expect(otherRow!.text()).toContain('Forget')
   })
 
-  it('emits close on Escape', async () => {
-    const wrapper = mountPanel()
-    await flushPromises()
-
-    await wrapper.trigger('keydown', { key: 'Escape' })
-
-    expect(wrapper.emitted('close')).toHaveLength(1)
-  })
-
-  it('does not close on Escape while a rename is in progress, so the edit is not lost by accident', async () => {
-    const wrapper = mountPanel()
-    await flushPromises()
-
-    await findButton(wrapper, 'rename').trigger('click')
-    await wrapper.trigger('keydown', { key: 'Escape' })
-
-    expect(wrapper.emitted('close')).toBeUndefined()
-  })
-
-  it('cannot be closed once switching to another database has been submitted', async () => {
-    // Never resolves: the point is to observe the panel while a restart-triggering request is
-    // still in flight, which is exactly the window closing it would silently orphan.
-    activateDatabase.mockImplementation(() => new Promise(() => {}))
-    const wrapper = mountPanel()
-    await flushPromises()
-
-    await findButton(wrapper, 'Switch').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.get<HTMLButtonElement>('[aria-label="Close"]').element.disabled).toBe(true)
-
-    await wrapper.trigger('keydown', { key: 'Escape' })
-    expect(wrapper.emitted('close')).toBeUndefined()
-
-    await wrapper.trigger('click')
-    expect(wrapper.emitted('close')).toBeUndefined()
-  })
-
   it('renames a database', async () => {
     renameDatabase.mockResolvedValue({ ...local, label: 'Renamed' })
     const wrapper = mountPanel()
@@ -190,7 +85,7 @@ describe('SettingsPanel', () => {
     expect(renameDatabase).toHaveBeenCalledWith('1', 'Renamed')
   })
 
-  it('pressing Enter in the rename field saves it, without the panel swallowing the key first', async () => {
+  it('pressing Enter in the rename field saves it, ', async () => {
     renameDatabase.mockResolvedValue({ ...local, label: 'Renamed' })
     const wrapper = mountPanel()
     await flushPromises()
@@ -204,7 +99,7 @@ describe('SettingsPanel', () => {
     expect(renameDatabase).toHaveBeenCalledWith('1', 'Renamed')
   })
 
-  it('pressing Escape in the rename field cancels the rename without closing the panel', async () => {
+  it('pressing Escape in the rename field cancels the rename', async () => {
     const wrapper = mountPanel()
     await flushPromises()
 
@@ -212,7 +107,6 @@ describe('SettingsPanel', () => {
     await wrapper.get('input[aria-label="Rename database"]').trigger('keydown', { key: 'Escape' })
 
     expect(wrapper.find('input[aria-label="Rename database"]').exists()).toBe(false)
-    expect(wrapper.emitted('close')).toBeUndefined()
   })
 
   it('forgets a database only after the confirmation is accepted', async () => {

@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
+import { usePreferencesStore } from '@/features/settings/store/preferences.store'
+import { installStorage } from '../../support/memoryStorage'
 import type { ClaudeUsage } from '@/features/claude/model/claude'
 
 const fetchClaudeUsage = vi.fn<(refresh?: boolean) => Promise<ClaudeUsage>>()
@@ -55,6 +58,8 @@ describe('ClaudeUsageMeter', () => {
     vi.useFakeTimers()
     vi.setSystemTime(Date.parse('2026-09-08T12:00:00Z'))
     fetchClaudeUsage.mockReset()
+    installStorage()
+    setActivePinia(createPinia())
   })
 
   afterEach(() => {
@@ -71,6 +76,20 @@ describe('ClaudeUsageMeter', () => {
     expect(trigger.text()).toContain('3h 24m')
     expect(trigger.attributes('aria-label')).toBe('Claude session at 80%, resets in 3h 24m')
     expect(fetchClaudeUsage).toHaveBeenCalledWith(false)
+  })
+
+  it('warns from the percentage chosen in Settings, though the server still reads it as normal', async () => {
+    const calm: ClaudeUsage = { ...OK, limits: [{ ...OK.limits[0]!, percent: 62, severity: 'NORMAL' }] }
+    fetchClaudeUsage.mockResolvedValue(calm)
+    const preferences = usePreferencesStore()
+    const wrapper = mount(ClaudeUsageMeter, { global: { plugins: [] } })
+    await flushPromises()
+    expect(wrapper.get('[data-testid="claude-usage"] button').html()).not.toContain('text-warn')
+
+    preferences.usageWarningPercent = 60
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="claude-usage"] button').html()).toContain('text-warn')
   })
 
   it('sweeps the ring while the first reading is on its way', async () => {

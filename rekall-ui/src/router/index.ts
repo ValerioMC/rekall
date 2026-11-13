@@ -55,6 +55,11 @@ export const router = createRouter({
       component: () => import('@/features/claude-resources/components/ClaudeResourcesPage.vue')
     },
     {
+      path: '/settings/:section?',
+      name: 'settings',
+      component: () => import('@/features/settings/components/SettingsPage.vue')
+    },
+    {
       path: '/calendar',
       name: 'calendar',
       component: () => import('@/features/time/components/CalendarPage.vue')

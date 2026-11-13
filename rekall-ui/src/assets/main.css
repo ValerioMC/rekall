@@ -1879,4 +1879,13 @@
       transition-duration: 0.01ms !important;
     }
   }
+
+  /* Motion set to Reduced in Settings: the loops stop and every state change lands at once. */
+  :root[data-motion='reduced'] *,
+  :root[data-motion='reduced'] *::before,
+  :root[data-motion='reduced'] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

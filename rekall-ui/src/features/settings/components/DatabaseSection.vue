@@ -1,24 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { nextTick, onMounted, ref } from 'vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
-import ClaudeCodeSection from '@/features/settings/components/ClaudeCodeSection.vue'
-import GuardProtectionSection from '@/features/settings/components/GuardProtectionSection.vue'
-import LangfuseSection from '@/features/settings/components/LangfuseSection.vue'
-import NotificationsSection from '@/features/settings/components/NotificationsSection.vue'
-import VersionSection from '@/features/settings/components/VersionSection.vue'
-import BackupsSection from '@/features/settings/components/BackupsSection.vue'
 import DatabaseFolderField from '@/features/settings/components/DatabaseFolderField.vue'
 import RestartingOverlay from '@/features/settings/components/RestartingOverlay.vue'
-import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { fetchDatabaseStatus, forgetDatabase, renameDatabase } from '@/features/settings/api/settings.api'
 import { useDatabaseSetup } from '@/features/settings/composables/useDatabaseSetup'
-import AppDialog from '@/components/ui/AppDialog.vue'
 import { useToastStore } from '@/stores/toast.store'
 import type { DatabaseEntry, DatabaseStatus } from '@/features/settings/model/settings'
-
-const emit = defineEmits<{ close: [] }>()
 
 const toast = useToastStore()
 const { phase, error, switchTo } = useDatabaseSetup()
@@ -32,9 +22,6 @@ const editingId = ref<string | null>(null)
 const editingLabel = ref('')
 const editingInput = ref<HTMLInputElement | null>(null)
 const forgetting = ref<DatabaseEntry | null>(null)
-/** A backup confirm or restore is open in the section below: the panel stays put under it. */
-const backupBusy = ref(false)
-const closeButton = ref<HTMLButtonElement | null>(null)
 
 const previewingPath = ref<DatabaseEntry | null>(null)
 const pathPreviewStyle = ref<Record<string, string>>({})
@@ -50,10 +37,6 @@ function openPathPreview(event: MouseEvent | FocusEvent, entry: DatabaseEntry): 
 function closePathPreview(): void {
   previewingPath.value = null
 }
-
-const canClose = computed(
-  () => phase.value !== 'submitting' && phase.value !== 'restarting' && !addingNewIsBusy.value && !backupBusy.value
-)
 
 async function load(): Promise<void> {
   loading.value = true
@@ -103,39 +86,12 @@ async function confirmForget(): Promise<void> {
   }
 }
 
-onMounted(async () => {
-  void load()
-  await nextTick()
-  closeButton.value?.focus()
-})
+onMounted(load)
 </script>
 
 <template>
-  <AppDialog
-    label="Settings"
-    panel-class="flex flex-col max-h-[85vh] max-w-[560px]"
-    panel-testid="settings-panel"
-    :dismissible="canClose && editingId === null"
-    :trapped="!backupBusy"
-    @dismiss="emit('close')"
-  >
-    <header class="flex items-center gap-3 border-b border-border px-6 py-4">
-      <span class="text-title font-semibold tracking-[-0.01em] text-text">Settings</span>
-      <button
-        ref="closeButton"
-        type="button"
-        :disabled="!canClose"
-        :title="canClose ? 'Close' : 'A restart is in progress and has to finish first'"
-        class="focus-ring ml-auto grid size-7 place-items-center rounded-control text-text-subtle transition-colors hover:bg-surface-raised hover:text-text disabled:cursor-not-allowed disabled:opacity-40"
-        aria-label="Close"
-        @click="canClose && emit('close')"
-      >
-        <CloseGlyph />
-      </button>
-    </header>
-
-    <div class="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-      <p class="mb-3 eyebrow text-caption">Database</p>
+  <section aria-label="Databases" data-testid="database-section">
+    <h2 class="mb-3 text-heading font-medium text-text">Database</h2>
 
       <RestartingOverlay v-if="phase === 'restarting'" />
 
@@ -239,14 +195,7 @@ onMounted(async () => {
         <AppButton size="sm" variant="secondary" @click="load">Retry</AppButton>
       </div>
 
-      <ClaudeCodeSection class="mt-6 border-t border-border pt-5" />
-      <GuardProtectionSection class="mt-6 border-t border-border pt-5" />
-      <LangfuseSection class="mt-6 border-t border-border pt-5" />
-      <BackupsSection class="mt-6 border-t border-border pt-5" @busy="backupBusy = $event" />
-      <NotificationsSection class="mt-6 border-t border-border pt-5" />
-      <VersionSection class="mt-6 border-t border-border pt-5" />
-    </div>
-    <template #overlay>
+
       <Teleport to="body">
         <div
           v-if="previewingPath"
@@ -269,6 +218,5 @@ onMounted(async () => {
           @confirm="confirmForget"
         />
       </Transition>
-    </template>
-  </AppDialog>
+  </section>
 </template>

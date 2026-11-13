@@ -182,8 +182,16 @@ group, the project page, a company's detail and the ⌘K palette.
 `common/report/time-report.ts`. **Library** has Diagrams (a gallery grouped by project, and the
 viewer with the Walkthrough) and Claude files (a tree of Memories, Skills, Commands and Agents with
 an editor). **Security** is the overview with its alert banner, the Needs attention list and the
-project rail. **Settings** is a section rail: General, Appearance, Review, Sessions and run queue,
-Notifications, Time and usage, Connections, Data and backup, Keyboard and About.
+project rail. **Settings** is a screen at `/settings/:section?` with a rail of sections and the key `Settings` in the
+menu: General (the databases), Appearance (density, which is the Work ledger's, motion, text scale),
+Review (open the next item after a decision, confirm before sending work back), Sessions and run queue
+(Claude Code and its protections), Notifications, Time and usage (the workday goal the report's dashed
+line reads, the percentage the usage meter warns from), Connections (a link to the screen),
+Data and backup, Keyboard and About. The browser-side choices live in `usePreferencesStore`, saved in
+`localStorage` through `common/config/ui-preferences.ts`: Reduced motion sets `data-motion` on the
+document, where the stylesheet drops the loops and keeps every state change; the text scale is the
+document's font size; every send back goes through `sendBackGuard`. A session's concurrency, terminal
+command and retention have no home in the server's settings and are not offered.
 
 Every screen shares the ledger vocabulary: the status pill, the plan tube, anchors as copy buttons,
 sub-navigation tabs with counts, the step seal and the same motion. Reduced motion drops the loops

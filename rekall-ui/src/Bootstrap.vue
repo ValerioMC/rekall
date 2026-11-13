@@ -6,6 +6,8 @@ import DatabaseUnreachable from '@/features/settings/components/DatabaseUnreacha
 import ShellDock from '@/components/shell/ShellDock.vue'
 import AppHeaderChrome from '@/components/shell/AppHeaderChrome.vue'
 import LeaveDialog from '@/components/shell/LeaveDialog.vue'
+import SendBackConfirm from '@/features/review/components/SendBackConfirm.vue'
+import { usePreferenceEffects } from '@/features/settings/composables/usePreferenceEffects'
 import CommandPalette from '@/features/search/components/CommandPalette.vue'
 import { usePaletteShortcut } from '@/features/search/composables/usePaletteShortcut'
 import { usePaletteStore } from '@/features/search/store/palette.store'
@@ -44,6 +46,7 @@ const chatOverPage = computed(() => !onConsole.value && chatWindowShown.value)
 useChatDockArea(pageArea, false, () => !onConsole.value)
 useRevealOpenedChat()
 usePaletteShortcut()
+usePreferenceEffects()
 
 let refreshing = false
 
@@ -104,6 +107,7 @@ onUnmounted(() => {
       </div>
       <ShellDock />
       <CommandPalette v-if="palette.isOpen" />
+      <SendBackConfirm />
       <UpdateDialog v-if="update.promptOpen" />
     </template>
     <FirstRunSetup v-else-if="status.status === 'SETUP_NEEDED'" />

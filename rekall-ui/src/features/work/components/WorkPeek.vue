@@ -14,6 +14,7 @@ import { handedInWhole } from '@/features/work/lib/work-rows'
 import { rkCommand } from '@/common/format/rk-command'
 import { stepNumberOf } from '@/features/deviations/model/deviation'
 import { useConsoleStore } from '@/stores/console.store'
+import { useSendBackGuardStore } from '@/features/review/store/sendBackGuard.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useWorkStore } from '@/features/work/store/work.store'
 import type { TaskStep } from '@/features/steps/model/task-step'
@@ -34,6 +35,7 @@ const SETTLE_MS = 1100
 const store = useConsoleStore()
 const work = useWorkStore()
 const toast = useToastStore()
+const sendBackGuard = useSendBackGuardStore()
 const openTask = useOpenTask()
 const { run } = useAsyncAction()
 const { steps } = storeToRefs(store)
@@ -92,11 +94,13 @@ async function accept(step: TaskStep): Promise<void> {
   })
 }
 
-async function sendBack(step: TaskStep): Promise<void> {
-  const outcome = await run(() => store.sendBackStep(step.id))
-  if (outcome === null) return
-  work.linger(task.value.id)
-  toast.notify(`Sent step ${stepNumberOf(step, checklist.value) ?? step.title} back to the session`)
+function sendBack(step: TaskStep): Promise<void> {
+  return sendBackGuard.guard(`“${step.title}”`, async () => {
+    const outcome = await run(() => store.sendBackStep(step.id))
+    if (outcome === null) return
+    work.linger(task.value.id)
+    toast.notify(`Sent step ${stepNumberOf(step, checklist.value) ?? step.title} back to the session`)
+  })
 }
 
 async function acceptTask(): Promise<void> {
@@ -109,11 +113,13 @@ async function acceptTask(): Promise<void> {
   })
 }
 
-async function sendBackTask(): Promise<void> {
-  const outcome = await run(() => store.sendBackTask(task.value.id))
-  if (outcome === null) return
-  work.linger(task.value.id)
-  toast.notify('Sent back to the session')
+function sendBackTask(): Promise<void> {
+  return sendBackGuard.guard(`“${task.value.title}”`, async () => {
+    const outcome = await run(() => store.sendBackTask(task.value.id))
+    if (outcome === null) return
+    work.linger(task.value.id)
+    toast.notify('Sent back to the session')
+  })
 }
 
 onUnmounted(() => settleTimers.forEach((timer) => window.clearTimeout(timer)))

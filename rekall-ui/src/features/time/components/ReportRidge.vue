@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/common/format/app-locale'
 import { computed } from 'vue'
+import { usePreferencesStore } from '@/features/settings/store/preferences.store'
 import { identityHue } from '@/common/identity'
 import { formatDuration } from '@/common/format/duration'
 import { capitalised } from '@/features/time/lib/month-grid'
@@ -12,13 +13,14 @@ const props = defineProps<{
   period: ReportPeriod
 }>()
 
-const FULL_DAY_SECONDS = 8 * 3600
+const preferences = usePreferencesStore()
+const fullDaySeconds = computed(() => preferences.workdayGoalHours * 3600)
 
 const peak = computed(() =>
-  Math.max(FULL_DAY_SECONDS, ...props.days.map((day) => day.totalSeconds))
+  Math.max(fullDaySeconds.value, ...props.days.map((day) => day.totalSeconds))
 )
 
-const fullDayLine = computed(() => `${(FULL_DAY_SECONDS / peak.value) * 100}%`)
+const fullDayLine = computed(() => `${(fullDaySeconds.value / peak.value) * 100}%`)
 
 const barWidth = computed(() => (props.period === 'week' ? '46%' : '78%'))
 
@@ -46,7 +48,7 @@ const columns = computed(() =>
         :style="{ bottom: fullDayLine }"
       >
         <span class="absolute right-0 top-0 -translate-y-1/2 rounded-full border border-border bg-surface px-1.5 font-mono text-micro leading-[15px] text-text-muted">
-          8h
+          {{ preferences.workdayGoalHours }}h
         </span>
       </div>
       <div class="absolute inset-x-0 bottom-0 border-t border-border" />

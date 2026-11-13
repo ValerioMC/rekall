@@ -8,6 +8,7 @@ import { groupBySession, type StepSession } from '@/features/steps/lib/step-sess
 import { stepIsComplete, type TaskStep } from '@/features/steps/model/task-step'
 import type { Task } from '@/features/catalog/model/catalog'
 import { useConsoleStore } from '@/stores/console.store'
+import { useSendBackGuardStore } from '@/features/review/store/sendBackGuard.store'
 import { useToastStore } from '@/stores/toast.store'
 import type { TaskStepId } from '@/model/branded'
 
@@ -56,6 +57,7 @@ export function useTaskPlan(): TaskPlan {
   const { run } = useAsyncAction()
   const checks = useChecksStore()
   const toast = useToastStore()
+  const sendBackGuard = useSendBackGuardStore()
 
   const editor = provideStepEditor({
     steps: () => selectedTaskSteps.value,
@@ -171,9 +173,11 @@ export function useTaskPlan(): TaskPlan {
   }
 
   async function sendBack(step: TaskStep): Promise<void> {
-    editor.flush()
-    await run(() => store.sendBackStep(step.id))
-    editor.open(selectedTaskSteps.value.find((candidate) => candidate.id === step.id) ?? step)
+    await sendBackGuard.guard(`“${step.title}”`, async () => {
+      editor.flush()
+      await run(() => store.sendBackStep(step.id))
+      editor.open(selectedTaskSteps.value.find((candidate) => candidate.id === step.id) ?? step)
+    })
   }
 
   async function reopen(step: TaskStep): Promise<void> {

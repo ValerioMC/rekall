@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
+import { usePreferencesStore } from '@/features/settings/store/preferences.store'
+import { useSendBackGuardStore } from '@/features/review/store/sendBackGuard.store'
 import ReviewPage from '@/features/review/components/ReviewPage.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Task } from '@/features/catalog/model/catalog'
@@ -156,6 +158,38 @@ describe('ReviewPage', () => {
 
     expect(store.sendBackStep).toHaveBeenCalledWith('s2')
     expect(router.currentRoute.value.params.key).toBe('rk-3')
+  })
+
+  it('leaves nothing selected after a decision when auto-advance is off', async () => {
+    const store = seed()
+    usePreferencesStore().reviewAutoAdvance = false
+    const page = await mountAt('/review/s1')
+
+    await page.get('[data-testid="step-accept"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.params.key).toBeUndefined()
+    expect(page.find('[data-testid="review-pick-next"]').exists()).toBe(true)
+    expect(page.findAll('[data-testid="review-item"]')).toHaveLength(2)
+    await page.findAll('[data-testid="review-item"]')[0]!.trigger('click')
+    await flushPromises()
+    expect(page.find('[data-testid="review-pick-next"]').exists()).toBe(false)
+    expect(store.acceptStep).toHaveBeenCalledOnce()
+  })
+
+  it('asks before sending a claim back when Settings says so', async () => {
+    const store = seed()
+    store.sendBackStep = vi.fn().mockResolvedValue(undefined)
+    usePreferencesStore().reviewConfirmSendBack = true
+    const page = await mountAt('/review/s2')
+
+    await page.get('[data-testid="step-send-back"]').trigger('click')
+    await flushPromises()
+    expect(store.sendBackStep).not.toHaveBeenCalled()
+    expect(useSendBackGuardStore().pending).not.toBeNull()
+
+    await useSendBackGuardStore().confirm()
+    expect(store.sendBackStep).toHaveBeenCalledWith('s2')
   })
 
   it('says nothing waits once the queue is empty', async () => {

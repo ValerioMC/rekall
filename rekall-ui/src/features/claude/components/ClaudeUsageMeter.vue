@@ -5,6 +5,7 @@ import { useClaudeUsageReading } from '@/features/claude/composables/useClaudeUs
 import { formatResetIn } from '@/common/format/countdown'
 import { relativeTime } from '@/common/format/relative-time'
 import { useNow } from '@/composables/useNow'
+import { usePreferencesStore } from '@/features/settings/store/preferences.store'
 import {
   claudeSessionUsage,
   type ClaudeUsageLimit,
@@ -27,6 +28,7 @@ const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
 const SWEEP_ARC = RING_CIRCUMFERENCE * 0.28
 
 const open = ref(false)
+const preferences = usePreferencesStore()
 
 const now = useNow(15_000)
 const { usage, lastReadAt, reading, state, blank, waiting, waitLabel, load } = useClaudeUsageReading(now)
@@ -52,7 +54,12 @@ const STROKE: Readonly<Record<ClaudeUsageSeverity, string>> = {
   CRITICAL: 'stroke-danger'
 }
 
-const severity = computed<ClaudeUsageSeverity>(() => session.value?.severity ?? 'NORMAL')
+/** The server's reading, raised to a warning once the session passes the percentage chosen in Settings. */
+const severity = computed<ClaudeUsageSeverity>(() => {
+  const reading = session.value
+  if (!reading) return 'NORMAL'
+  return reading.severity === 'NORMAL' && reading.percent >= preferences.usageWarningPercent ? 'WARNING' : reading.severity
+})
 
 const ringOffset = computed(() => {
   const percent = session.value ? Math.min(100, Math.max(0, session.value.percent)) : 0
