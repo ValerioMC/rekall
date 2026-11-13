@@ -35,6 +35,7 @@ export function useRecordWrites() {
     const stored = store.projects.find((candidate) => candidate.id === draft.id)
     const input = {
       label,
+      taskKey: blankToNull(draft.taskKey.trim()),
       title: draft.title.trim(),
       status: draft.status,
       icon: draft.icon,
@@ -51,9 +52,8 @@ export function useRecordWrites() {
     return draft.id
   }
 
-  async function writeTask(draft: Draft<'task'>, label: string): Promise<void> {
+  async function writeTask(draft: Draft<'task'>): Promise<void> {
     const input = {
-      label,
       title: draft.title.trim(),
       status: draft.status,
       description: descriptionOf(draft),
@@ -71,7 +71,7 @@ export function useRecordWrites() {
   async function write(draft: RecordDraft, label: string, after: AfterSave): Promise<void> {
     if (draft.kind === 'company') await after.company(await writeCompany(draft))
     else if (draft.kind === 'project') await after.project(await writeProject(draft, label))
-    else await writeTask(draft, label)
+    else await writeTask(draft)
   }
 
   async function erase(draft: RecordDraft): Promise<void> {

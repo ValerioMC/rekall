@@ -75,7 +75,7 @@ describe('the session kind on a terminal', () => {
     anchors: 'project:vega',
     workingDir: '/code/vega',
     projectLabel: 'vega',
-    taskLabel: null,
+    taskCode: null,
     taskTitle: null,
     mode: 'GENERATE',
     skipPermissions: false,

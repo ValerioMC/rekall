@@ -111,7 +111,7 @@ export function finishedFlow(): TaskStep[] {
 export function releaseTask(): Task {
   return {
     id: TASK,
-    label: 'release',
+    code: 'release', label: 'release',
     title: 'Release',
     status: 'IN_PROGRESS',
     description: null,

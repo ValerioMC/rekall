@@ -1,15 +1,12 @@
 use rekall_core::claude::{TerminalMode, TerminalTarget};
-use rekall_core::{in_write, Ctx, Tx};
+use rekall_core::{in_write, Ctx};
 use rekall_kernel::{jstr, Id, RekallError, Result};
-use rekall_store::repository as repo;
 use tracing::warn;
 
 use crate::catalog::{TaskService, TaskView};
-use crate::quick::rule::quick_task_rules::{label, task_request, title};
+use crate::quick::rule::quick_task_rules::task_request;
 use crate::quick::{QuickTaskCommand, QuickTaskView};
 use crate::terminal::{OpenTerminalCommand, TerminalService};
-
-const LABEL_ATTEMPTS: usize = 20;
 
 #[derive(Clone)]
 pub struct QuickTaskService {
@@ -40,15 +37,12 @@ impl QuickTaskService {
     }
 
     async fn create_task(&self, command: &QuickTaskCommand) -> Result<TaskView> {
-        in_write!(&self.ctx, |tx| {
-            let free = free_label(&tx, command.project_id, &command.text).await?;
-            self.tasks.create_in(&mut tx, task_request(command.project_id, &command.text, free)).await
-        })
+        in_write!(&self.ctx, |tx| self.tasks.create_in(&mut tx, task_request(command.project_id, &command.text)).await)
     }
 
     async fn discard(&self, task: &TaskView) {
         if let Err(failure) = self.tasks.delete(task.id).await {
-            warn!(%failure, task = %task.label, "A quick task whose session did not open could not be removed");
+            warn!(%failure, task = %task.code, "A quick task whose session did not open could not be removed");
         }
     }
 }
@@ -63,19 +57,6 @@ fn opening_of(command: &QuickTaskCommand, task_id: Id) -> OpenTerminalCommand {
         mode: TerminalMode::Work,
         kind: command.kind,
     }
-}
-
-async fn free_label(tx: &Tx, project_id: Id, text: &str) -> Result<String> {
-    let title = title(text);
-    for attempt in 1..=LABEL_ATTEMPTS {
-        let candidate = label(&title, attempt);
-        if !repo::task::label_taken(tx.db(), project_id, &candidate, None).await? {
-            return Ok(candidate);
-        }
-    }
-    Err(RekallError::conflict(format!(
-        "The project already has {LABEL_ATTEMPTS} tasks labelled like \"{title}\". Word the request differently."
-    )))
 }
 
 #[cfg(test)]

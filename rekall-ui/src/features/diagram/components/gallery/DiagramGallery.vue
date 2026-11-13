@@ -38,7 +38,7 @@ const drawing = computed(() => props.pending.filter((generation) => projectIds.v
 
 function taskAnchorOf(taskId: string | null): string | null {
   const task = taskId ? props.tasks.find((candidate) => candidate.id === taskId) : null
-  return task ? `task:${task.label}` : null
+  return task ? `task:${task.code}` : null
 }
 
 function anchorsOf(generation: PendingGeneration): string {

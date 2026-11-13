@@ -8,7 +8,7 @@ function entry(overrides: Partial<TimeEntry>): TimeEntry {
   return {
     id: 'te1' as TimeEntry['id'],
     taskId: 't1' as TaskId,
-    taskLabel: 'report-builder',
+    taskCode: 'report-builder',
     taskTitle: 'Report builder',
     projectLabel: 'vega',
     anchor: 'project:vega task:report-builder',
@@ -23,7 +23,7 @@ function entry(overrides: Partial<TimeEntry>): TimeEntry {
 function taskStub(id: TaskId, projectId: ProjectId): Task {
   return {
     id,
-    label: 'report-builder',
+    code: 'report-builder', label: 'report-builder',
     title: 'Report builder',
     status: 'TODO',
     description: null,

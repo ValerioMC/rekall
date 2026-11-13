@@ -35,14 +35,14 @@ async fn one_anchored_call_brings_back_the_task_its_project_and_every_note_on_it
     )
     .await;
 
-    let context = app.call_tool("rekall_context", json!({ "anchors": "project:vega task:report-builder-main-workflow" })).await;
+    let context = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
 
     assert_contains!(
         context,
         "Project: Vega Platform",
         "Task: Report builder, main workflow",
         "`project:vega`",
-        "`task:report-builder-main-workflow`",
+        "`task:VE-1`",
         "POST /api/v1/pipelines",
         "Cluster kmaster14, accesso via bastion."
     );
@@ -62,7 +62,7 @@ async fn a_tasks_description_arrives_as_a_document_not_as_a_bullet() {
     )
     .await;
 
-    let context = app.call_tool("rekall_context", json!({ "anchors": "task:report-builder" })).await;
+    let context = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
 
     assert_contains!(context, "<description>", "</description>", "## Fuori scope", "Il confronto fra settimane diverse.");
     assert_lacks!(context, "- `description`");
@@ -83,7 +83,7 @@ async fn the_title_can_be_rewritten_and_the_anchor_still_loads_the_record() {
     )
     .await;
 
-    let context = app.call_tool("rekall_context", json!({ "anchors": "task:report-builder" })).await;
+    let context = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
     assert_contains!(context, "Task: Report builder, main workflow", "IN_PROGRESS");
 }
 
@@ -206,7 +206,7 @@ async fn a_note_belongs_to_the_task_it_is_written_on() {
         .await;
 
     assert_eq!(note.str("taskId"), validator);
-    assert_contains!(app.call_tool("rekall_context", json!({ "anchors": "task:report-builder" })).await, "Accesso via bastion.");
+    assert_contains!(app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await, "Accesso via bastion.");
     assert_lacks!(app.call_tool("rekall_context", json!({ "anchors": "task:retry-policy" })).await, "Accesso via bastion.");
     assert!(app.documents_on(&retry).await.is_empty());
 }
@@ -269,7 +269,7 @@ async fn a_single_project_anchor_lists_its_tasks_as_anchors_without_their_bodies
 
     let context = app.call_tool("rekall_context", json!({ "anchors": "project:vega" })).await;
 
-    assert_contains!(context, "`task:report-builder-main-workflow`");
+    assert_contains!(context, "`task:VE-1`");
     assert_lacks!(context, "segreto");
 }
 
@@ -277,8 +277,8 @@ async fn a_single_project_anchor_lists_its_tasks_as_anchors_without_their_bodies
 async fn a_bare_term_resolves_when_it_is_unambiguous_and_reports_the_candidates_when_it_is_not() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
-    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
-    app.a_task(&project_id, "vega").await;
+    app.a_project(&acme, "vega", "ACTIVE").await;
+    app.a_company("Vega").await;
 
     assert_contains!(app.call_tool("rekall_context", json!({ "anchors": "report-builder" })).await, "Nothing matches 'report-builder'");
     assert_contains!(
@@ -289,7 +289,7 @@ async fn a_bare_term_resolves_when_it_is_unambiguous_and_reports_the_candidates_
 }
 
 #[tokio::test]
-async fn a_task_label_that_two_projects_share_is_disambiguated_by_the_project_anchor() {
+async fn a_task_code_names_one_task_across_projects_and_a_project_beside_it_must_be_its_own() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
     let vega = app.a_project(&acme, "vega", "ACTIVE").await;
@@ -297,12 +297,9 @@ async fn a_task_label_that_two_projects_share_is_disambiguated_by_the_project_an
     app.post("/api/tasks", json!({ "label": "setup", "title": "Setup", "status": "TODO", "projectId": vega })).await;
     app.post("/api/tasks", json!({ "label": "setup", "title": "Setup", "status": "DONE", "projectId": beacon })).await;
 
-    assert_contains!(app.call_tool("rekall_context", json!({ "anchors": "task:setup" })).await, "matches 2 records");
-    assert_contains!(
-        app.call_tool("rekall_context", json!({ "anchors": "project:beacon task:setup" })).await,
-        "Task: Setup",
-        "DONE"
-    );
+    assert_contains!(app.call_tool("rekall_context", json!({ "anchors": "task:BE-1" })).await, "Task: Setup", "DONE");
+    assert_contains!(app.call_tool("rekall_context", json!({ "anchors": "task:be-1" })).await, "Task: Setup");
+    assert_contains!(app.call_tool("rekall_context", json!({ "anchors": "project:vega task:BE-1" })).await, "No task 'BE-1' on project 'vega'");
 }
 
 #[tokio::test]
@@ -354,4 +351,51 @@ async fn the_mcp_endpoint_exposes_four_ways_to_read_and_ten_writes() {
             "rekall_wrapup"
         ]
     );
+}
+
+#[tokio::test]
+async fn a_project_key_is_unique_across_companies_and_opens_the_code_of_every_task() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let globex = app.a_company("Globex").await;
+    let rekall = app
+        .post("/api/projects", json!({ "label": "rekall", "title": "Rekall", "status": "ACTIVE", "taskKey": "rk", "companyId": acme }))
+        .await;
+    assert_eq!(rekall.status, 201, "{}", rekall.text);
+    assert_eq!(rekall.str("taskKey"), "RK");
+
+    let clash = app
+        .post("/api/projects", json!({ "label": "other", "title": "Other", "status": "ACTIVE", "taskKey": "RK", "companyId": globex }))
+        .await;
+    let digits = app
+        .post("/api/projects", json!({ "label": "third", "title": "Third", "status": "ACTIVE", "taskKey": "R2", "companyId": globex }))
+        .await;
+    let suggested = app.post("/api/projects", json!({ "label": "vega", "title": "Vega", "status": "ACTIVE", "companyId": globex })).await;
+
+    assert_eq!(clash.status, 409, "{}", clash.text);
+    assert_eq!(digits.status, 400, "{}", digits.text);
+    assert_eq!(suggested.str("taskKey"), "VE");
+    let first = app.post("/api/tasks", json!({ "title": "First", "status": "TODO", "projectId": id(&rekall) })).await;
+    let second = app.post("/api/tasks", json!({ "title": "Second", "status": "TODO", "projectId": id(&rekall) })).await;
+    assert_eq!((first.str("code"), second.str("code")), ("RK-1".to_string(), "RK-2".to_string()));
+    assert_eq!(second.str("anchor"), "task:RK-2");
+}
+
+#[tokio::test]
+async fn changing_a_project_key_writes_every_task_code_again_and_the_old_code_stops_resolving() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = id(&app
+        .post("/api/projects", json!({ "label": "rekall", "title": "Rekall", "status": "ACTIVE", "taskKey": "RK", "companyId": acme }))
+        .await);
+    let task_id = id(&app.post("/api/tasks", json!({ "title": "First", "status": "TODO", "projectId": project_id })).await);
+
+    let saved = app
+        .put(&format!("/api/projects/{project_id}"), json!({ "label": "rekall", "title": "Rekall", "status": "ACTIVE", "taskKey": "REK", "companyId": acme }))
+        .await;
+
+    assert_eq!(saved.status, 200, "{}", saved.text);
+    assert_eq!(app.get_task(&task_id).await["code"], "REK-1");
+    assert_contains!(app.call_tool("rekall_context", json!({ "anchors": "task:REK-1" })).await, "Task: First");
+    assert_contains!(app.call_tool("rekall_context", json!({ "anchors": "task:RK-1" })).await, "No task 'RK-1'");
 }

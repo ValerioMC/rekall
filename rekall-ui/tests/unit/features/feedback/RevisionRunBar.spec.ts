@@ -38,7 +38,7 @@ function terminal(): Terminal {
     anchors: ANCHOR,
     workingDir: '/code/vega',
     projectLabel: 'vega',
-    taskLabel: 'report-builder',
+    taskCode: 'report-builder',
     taskTitle: 'Report builder',
     mode: 'WORK',
     skipPermissions: true,

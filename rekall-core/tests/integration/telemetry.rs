@@ -24,10 +24,10 @@ fn launch() -> TerminalLaunch {
     TerminalLaunch {
         project_id: Id::random(),
         task_id: Some(Id::random()),
-        anchors: "project:vega task:report-builder".into(),
+        anchors: "task:REPORT-BUILDER".into(),
         working_dir: "/work/vega".into(),
         project_label: "vega".into(),
-        task_label: Some("report-builder".into()),
+        task_code: Some("report-builder".into()),
         task_title: Some("Report builder".into()),
         connections: Vec::new(),
     }

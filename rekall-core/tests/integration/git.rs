@@ -53,11 +53,11 @@ async fn commits_the_given_paths_with_the_multi_line_message_and_returns_the_new
     fs::write(repo.join("b.txt"), "b").unwrap();
     let changes = GitCommitter.pending_changes(repo).await.unwrap();
 
-    let hash = GitCommitter.commit_paths(repo, &changes, "feat: the subject\n\nproject:vega task:x\n2 files: 2 added\n").await.unwrap();
+    let hash = GitCommitter.commit_paths(repo, &changes, "feat: the subject\n\ntask:X\n2 files: 2 added\n").await.unwrap();
 
     assert_eq!(hash, git(repo, &["rev-parse", "HEAD"]));
     assert_eq!(git(repo, &["log", "-1", "--format=%s"]), "feat: the subject");
-    assert!(git(repo, &["log", "-1", "--format=%b"]).contains("project:vega task:x"));
+    assert!(git(repo, &["log", "-1", "--format=%b"]).contains("task:X"));
     assert!(git(repo, &["status", "--porcelain"]).is_empty());
 }
 

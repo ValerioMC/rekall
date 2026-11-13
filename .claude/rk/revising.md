@@ -1,6 +1,6 @@
 ## Revising
 
-`/rk project:vega task:report-builder revise` means: work one pass over this task's thread. The
+`/rk task:RK-12 revise` means: work one pass over this task's thread. The
 thread holds the revisions of the description. A pass covers every revision that is waiting or in the
 pass, built on top of what already exists.
 

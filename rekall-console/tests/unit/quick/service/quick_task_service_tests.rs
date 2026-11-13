@@ -71,7 +71,7 @@ fn view_on(target: &TerminalTarget) -> TerminalView {
         anchors: "project:app".into(),
         working_dir: "/work/app".into(),
         project_label: "app".into(),
-        task_label: None,
+        task_code: None,
         task_title: None,
         mode: TerminalMode::Work,
         skip_permissions: false,
@@ -108,7 +108,7 @@ async fn world(refuse_with: Option<&'static str>) -> World {
         description: None,
         blueprint_markdown: None,
         repo_folder: None,
-        auto_commit: false, main_branch: None, pull_request_flow: false,
+        auto_commit: false, main_branch: None, pull_request_flow: false, task_key: "QT".into(),
         company_id: company.id,
         created_at: now,
         updated_at: now,
@@ -132,7 +132,7 @@ async fn the_text_becomes_a_quick_task_titled_by_its_first_line_with_a_session_o
     assert!(started.task.quick);
     assert!(!started.task.auto_accepted);
     assert_eq!(started.task.title, "Fix the typo in README");
-    assert_eq!(started.task.label, "fix-the-typo-in-readme");
+    assert_eq!(started.task.code, "QT-1");
     assert_eq!(started.task.description.as_deref(), Some("Fix the typo in README\nIt says recieve."));
     assert_eq!(started.task.review_state, TaskStepState::Open);
     let openings = world.host.openings.lock().unwrap();
@@ -161,12 +161,12 @@ async fn a_second_quick_task_is_refused_while_the_first_is_still_being_worked() 
 }
 
 #[tokio::test]
-async fn the_same_request_twice_gets_a_numbered_label_once_the_first_is_out_of_the_way() {
+async fn the_same_request_twice_gets_the_next_code_once_the_first_is_out_of_the_way() {
     let world = world(None).await;
     let first = world.service.create(command(world.project_id, "Fix the typo")).await.unwrap();
     world.tasks.review(first.task.id, TaskStepState::Done).await.unwrap();
     let second = world.service.create(command(world.project_id, "Fix the typo")).await.unwrap();
-    assert_eq!(second.task.label, "fix-the-typo-2");
+    assert_eq!(second.task.code, "QT-2");
 }
 
 #[tokio::test]

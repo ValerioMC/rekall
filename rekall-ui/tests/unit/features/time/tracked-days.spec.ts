@@ -8,7 +8,7 @@ function entry(started: Date, stopped: Date | null): TimeEntry {
   return {
     id: `te-${started.getTime()}` as TimeEntry['id'],
     taskId: 't1' as TimeEntry['taskId'],
-    taskLabel: 'report-builder',
+    taskCode: 'report-builder',
     taskTitle: 'Report builder',
     projectLabel: 'vega',
     anchor: 'project:vega task:report-builder',

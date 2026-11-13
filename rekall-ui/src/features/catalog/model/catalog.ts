@@ -22,6 +22,8 @@ export interface Company {
 export interface Project {
   readonly id: ProjectId
   readonly label: string
+  /** Two to four capitals opening every task code of the project, as in RK-12; unique across companies. */
+  readonly taskKey: string
   readonly title: string
   readonly status: ProjectStatus
   readonly icon: string
@@ -56,6 +58,9 @@ export interface ProjectRepository {
 
 export interface Task {
   readonly id: TaskId
+  /** The project's key, a dash and the task's number: what an anchor names and the console shows. */
+  readonly code: string
+  /** Internal: what a `[[task:...]]` written before codes existed still names. New text uses the code. */
   readonly label: string
   readonly title: string
   readonly status: TaskStatus

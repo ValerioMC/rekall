@@ -29,7 +29,7 @@ const taskId = 't1' as TaskId
 function makeTask(): Task {
   return {
     id: taskId,
-    label: 'report-builder',
+    code: 'report-builder', label: 'report-builder',
     title: 'Report builder',
     status: 'IN_PROGRESS',
     description: null,

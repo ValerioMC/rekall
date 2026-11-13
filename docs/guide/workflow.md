@@ -7,7 +7,7 @@ A task has at most one wrapup: what its implementation currently is, not a chang
 A quoted term after `wrapup` is a directive on what to write. It can narrow the subject, dictate the wording, or set the language or length.
 
 ```
-/rk project:vega task:report-builder wrapup "export module only"
+/rk task:VG-12 wrapup "export module only"
 ```
 
 The description pane and the steps pane both carry a **Generate the wrapup every session** toggle under the header, so it is set from whichever surface the work is driven from. Turning it on reveals an optional directive field. Set once on the task, the toggle stands in for the quoted term: the context load then tells the session a wrapup is expected every time without being asked, and the words it should follow. Turning the toggle off drops the directive with it.
@@ -21,7 +21,7 @@ A wrapup written after a step finishes folds that step's work into the same desc
 A session can keep what it produced as a note on the task, rather than in the wrapup. Ask for it with a quoted term after `note`, saying what the note has to hold:
 
 ```
-/rk project:vega task:report-builder note "the export formats we settled on"
+/rk task:VG-12 note "the export formats we settled on"
 ```
 
 The session writes the note and calls `rekall_note`, which creates it on that task, in full, with kind `notes`. It then travels with the task's context and shows up in the console without a reload. A step or a description that asks for its output to be kept as a note, or a task whose whole point is to write one, gets the same without the `note` term. A title the task's notes already carry is refused, unless the session passes `replace`: then that note's body is rewritten in place, its title and place on the task kept, so a runbook or a table of results stays one current note instead of piling up versions. The old body is not kept anywhere. Deleting a note stays in the console. Writing a note does not claim the task or a step.
@@ -35,9 +35,9 @@ A new step is created as a draft and sits on a staging shelf below the checklist
 A session drives its own checklist over `/rk`:
 
 ```
-/rk project:vega task:report-builder step:3 start   # step 3 -> running
-/rk project:vega task:report-builder step:3 done    # step 3 -> claimed
-/rk project:vega task:release step:3 done outcome:app-error   # on a flow, follow that route (see Flows)
+/rk task:VG-12 step:3 start   # step 3 -> running
+/rk task:VG-12 step:3 done    # step 3 -> claimed
+/rk task:VG-14 step:3 done outcome:app-error   # on a flow, follow that route (see Flows)
 ```
 
 The console holds one `text/event-stream` connection (`GET /api/steps/stream`) carrying seven frames: `steps` for a checklist, `task-review` for a stepless task's review line, `wrapup` for a wrapup write or delete, `commit-reference` for a commit logged against a task or step, `run-queue` for the run queue (each item carries its task's steps and where each stands: open, running, claimed, done, or not needed for the steps a finished flow never entered), `note` for a note a session wrote or rewrote, and `feedback` for a change to a task's thread (a reply from a session, a revision opened by a description save). A step moved from an in-app terminal, a box ticked in another window, a wrapup or a note written over MCP, or a commit logged by a session all land without a reload.
@@ -61,7 +61,7 @@ Steps **drag** on the graph: press a step and move it, and the place is kept (**
 A session works a flow over the same `/rk` lines, adding what happened when it claims:
 
 ```
-/rk project:vega task:release step:3 done outcome:app-error   # step 3 -> claimed, the work -> the app-error route
+/rk task:VG-14 step:3 done outcome:app-error   # step 3 -> claimed, the work -> the app-error route
 ```
 
 `rekall_step` with `claimed` and an `outcome` closes the visit on that step, follows the route that outcome names, opens the step it leads to (again, if it was finished) and makes it current; the answer names it and the line that starts it. A flow runs unattended: that answer tells the session to start the next step at once and to write the wrapup only when the flow is finished, and `/rk` says the same, so no step waits for a tick between moves. A move into a step whose visit budget is spent is refused and rolls the claim back: the flow stops where it stands, the session reports what keeps sending the work back, and you raise the budget or **Reset moves** to let it go on. A step with one route needs no outcome, a step with no routes ends the flow, a route to End ends it with its outcome, and an outcome that names no route is refused with the routes there are. A claim can carry a `report` (markdown, up to 4,000 characters) of what the session saw: it is kept on the visit the claim closes, and the step the flow goes to shows it in its context in an `<arrived-from>` block naming the step and outcome it came from, so a fix works from what failed rather than from a session's memory. A report off a claim on a flow is refused. Starting another step leaves the current one without an outcome. An outcome is a slug, so `App error` is stored and matched as `app-error`; one outcome names one route per step, a route never leads back to its own step, and a step holds at most eight. The context marks a flow with `flow="true"`, the current step and the move count on `<steps>`, `(current, visit N)` on that step (`visit N of M` with a budget, and `(entered N of at most M times)` on the others), and a `Routes:` line under every step, finished ones included. A person writes routes from the console (a session can only propose them between drafts, see [Planning](#planning)): `POST /api/steps/{id}/links`, `PATCH` and `DELETE /api/step-links/{id}`, each answering the task's whole checklist; `POST` and `PATCH` take `endsFlow: true` in place of `toStepId` for a route to End. `PATCH /api/steps/{id}/max-visits` (`maxVisits`, 1 to 99; null lifts it) sets the budget. `PATCH /api/steps/{id}/flow-place` (`x`, `y`; both null clears it) keeps where a step was dragged and `DELETE /api/tasks/{id}/flow-places` clears them all. `DELETE /api/tasks/{id}/visits` is the reset. Both travel on the step views, so the `steps` frame redraws the graph live.
@@ -78,7 +78,7 @@ A project can make one graph its **release graph** with **Lay on every task the 
 
 ### Planning
 
-`/rk project:vega task:report-builder plan` has a session turn the task into a checklist, ready to work; you can review it in the console. It reads the description, the wrapup, the finished steps and the code the task touches, then calls `rekall_propose_step` once per step, in order: a title saying what the step delivers, a detail saying what to build, where, what it must satisfy and how you can tell it is done. Plan does not pass `draft`, so every proposal lands open and ready to work, promoted on its own, and the session builds nothing. A session passes `draft: true` only when you ask for drafts to review: the step then waits on the staging shelf until you promote it. A title the task already has is refused, so a second `plan` adds only what the first one missed; a task holds at most 20 drafts.
+`/rk task:VG-12 plan` has a session turn the task into a checklist, ready to work; you can review it in the console. It reads the description, the wrapup, the finished steps and the code the task touches, then calls `rekall_propose_step` once per step, in order: a title saying what the step delivers, a detail saying what to build, where, what it must satisfy and how you can tell it is done. Plan does not pass `draft`, so every proposal lands open and ready to work, promoted on its own, and the session builds nothing. A session passes `draft: true` only when you ask for drafts to review: the step then waits on the staging shelf until you promote it. A title the task already has is refused, so a second `plan` adds only what the first one missed; a task holds at most 20 drafts.
 
 When a picture says more than words, the session draws the solution before it cuts the steps. A note on the task, `solution-overview.md`, holds the diagrams of the whole (sequence, ER, class or state, whichever the solution is) when the plan crosses layers or runs past a handful of steps, and each step's detail carries a fenced `mermaid` block of its own piece, drawn among the parts around it, so a step late in a long plan is as clear as the first. A diagram already in the description or a note is the starting point, corrected, not a second one beside it. Small changes get none. The console draws the blocks in the step detail and in notes.
 
@@ -86,7 +86,7 @@ A diagram or a design in a step is the plan, not a contract. A session that find
 
 When a step's outcome decides what comes next (tests that can fail, a deploy that can break, a review that can reject), the session plans a flow instead: one `rekall_propose_flow` call with every step in order and its routes, each `{outcome, to}` naming another step of the plan by number or `end`, and an optional `max_visits` per step. Type `/rk … plan flow` to ask for a flow outright. The plan is checked whole before anything lands: every step reachable from the first, no loop without a way out to End, no step routing to itself, one route per outcome and at most eight per step, no title twice. A refusal names what to change and leaves the checklist empty. A flow is proposed onto a task with no steps, drafts included, or one whose steps are all claimed or done: those stay as history and the flow begins at the first new step. A route's `to` counts the whole checklist as the console lists it, so after four finished steps the first new step is step 5; a route to a step that stays is refused. The steps land open, so the task is a flow at once and a session follows its routes. When drafts were asked for, each lists its routes on the shelf (`app-error → Fix the application`); the task is not a flow, and no session follows those routes, until you promote them.
 
-`/rk project:vega task:report-builder replan` is the same for a task that already has steps. The session reads what is there, decides again between a checklist and a flow, and calls `rekall_replan` once: it deletes every draft and every open step and lays the new plan in their place, in one transaction, and a plan it refuses deletes nothing. Steps that are running, claimed or done stay, because they carry a run, work waiting for review or work you accepted; the new steps follow them, as a checklist or as a flow that begins at the first new step: its routes are numbered over the whole checklist, a route into a step that stays is refused, and a step still running refuses a flow until it is claimed. The stays need no route into the new steps, and the console shows the first new step as current once they are finished. `/rk project:vega task:report-builder replan "also cover the csv export"` carries a message: what you noticed the plan missed. The session reads it as the new requirement, changes the draft and open steps it touches, keeps the others and adds what it needs. A single draft or open step can be dropped with `rekall_delete_step`; the same rule applies.
+`/rk task:VG-12 replan` is the same for a task that already has steps. The session reads what is there, decides again between a checklist and a flow, and calls `rekall_replan` once: it deletes every draft and every open step and lays the new plan in their place, in one transaction, and a plan it refuses deletes nothing. Steps that are running, claimed or done stay, because they carry a run, work waiting for review or work you accepted; the new steps follow them, as a checklist or as a flow that begins at the first new step: its routes are numbered over the whole checklist, a route into a step that stays is refused, and a step still running refuses a flow until it is claimed. The stays need no route into the new steps, and the console shows the first new step as current once they are finished. `/rk task:VG-12 replan "also cover the csv export"` carries a message: what you noticed the plan missed. The session reads it as the new requirement, changes the draft and open steps it touches, keeps the others and adds what it needs. A single draft or open step can be dropped with `rekall_delete_step`; the same rule applies.
 
 **Replan** is in the menu behind the arrow of **Run here**, on the description and on the checklist, whenever the task has a draft or an open step. It asks first, because the session deletes those steps: the dialog says how many go and that running, claimed and done steps stay, and has an optional **What did the plan miss?** field for the message. Confirming types `/rk … replan` (with the message quoted, when there is one) into the session running on the task, or opens one that starts on it, and the new plan lands open and ready to work.
 
@@ -185,9 +185,9 @@ A task, or one of its steps, keeps a ledger of the commits that built it: the ha
 A session does the same over MCP right after `git commit`:
 
 ```
-rekall_record_commit  anchors="project:vega task:report-builder"                 # the tip
-rekall_record_commit  anchors="project:vega task:report-builder" step="3"        # against step 3
-rekall_record_commit  anchors="project:vega task:report-builder" commit="a0fd5cc" # an earlier commit
+rekall_record_commit  anchors="task:VG-12"                 # the tip
+rekall_record_commit  anchors="task:VG-12" step="3"        # against step 3
+rekall_record_commit  anchors="task:VG-12" commit="a0fd5cc" # an earlier commit
 ```
 
 A logged commit stays out of `rekall_context` until it is chosen for it. Each row carries an **add to context** toggle (shown on hover; **in context** once on) and the rail fills the node of every chosen commit and counts them. A chosen commit travels with the task's context as a `<commit hash="…" step="…">` element inside `<commits>`: its subject, then its diff (capped at 60,000 characters), oldest logged first. Choosing is console-only; `rekall_record_commit` logs but never chooses.

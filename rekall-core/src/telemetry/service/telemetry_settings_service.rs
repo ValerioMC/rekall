@@ -52,7 +52,7 @@ impl TelemetrySettingsService {
     /// The variables a terminal opened on `launch` starts `claude` with; none while tracing is off or incomplete.
     pub async fn launch_variables(&self, launch: &TerminalLaunch) -> Result<HashMap<String, String>> {
         let Some(destination) = self.destination().await? else { return Ok(HashMap::new()) };
-        Ok(otel_variables::launch_variables(&destination, &launch.project_label, launch.task_label.as_deref()))
+        Ok(otel_variables::launch_variables(&destination, &launch.project_label, launch.task_code.as_deref()))
     }
 
     async fn destination(&self) -> Result<Option<TelemetryDestination>> {

@@ -2,7 +2,7 @@
 
 Rekall stores your projects, tasks and markdown notes, and loads one task in full into a Claude Code session on a single command.
 
-Projects, tasks and notes live in a local app. `/rk project:vega task:report-builder` loads that task, its project, its checklist and every note on it. `/rk project:vega task:report-builder wrapup` records what the implementation is now, so the next session starts from the current state instead of reading the code back.
+Projects, tasks and notes live in a local app. `/rk task:VG-12` loads that task, its project, its checklist and every note on it. `/rk task:VG-12 wrapup` records what the implementation is now, so the next session starts from the current state instead of reading the code back.
 
 Source-available, not open source. See [License](#license).
 
@@ -74,7 +74,7 @@ mkdir -p ~/.claude/rk && cp .claude/rk/*.md ~/.claude/rk/
 `--scope user` registers the server for every directory. Without it, `/rk` works only in the directory `claude mcp add` ran from. Restart any open session, then:
 
 ```
-/rk project:vega task:report-builder
+/rk task:VG-12
 ```
 
 **Fix wording** and **Restructure**, a split button on the description pane beside the Write/Read toggle, have a session rewrite the task's description with `/rk … rewrite fix` or `rewrite restructure` (see the table below). It is disabled while the description is blank or has unsaved changes. When the new text arrives an **Undo** puts the old one back; Rekall keeps no history, so that text is held in the console window only and is gone once you edit, leave the task or close the console.
@@ -87,7 +87,7 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 
 | Form | Meaning |
 |------|---------|
-| `/rk project:vega task:report-builder` | The project and that task, both in full |
+| `/rk task:VG-12` | The project and that task, both in full |
 | `/rk project:vega` | The project, plus its tasks as a list of anchors |
 | `/rk vega report-builder` | Positional. Works while each term matches one record |
 | `/rk task:"report builder"` | Quote a value containing spaces |
@@ -104,7 +104,7 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 | `/rk project:vega assess advisory:GHSA-xxxx-xxxx-xxxx` | Record whether that advisory's vulnerable code is really reached; without `advisory:`, every one not assessed yet |
 | `/rk note:3f2a9c1e` | A note sent by reference, loaded in full |
 
-An anchor brings back the record, everything it references resolved in full with their notes, what references it as anchors, and its own markdown. A note belongs to one task and arrives with it. If a bare term matches more than one record, the candidates come back and nothing loads. `project:` disambiguates a label two projects share.
+An anchor brings back the record, everything it references resolved in full with their notes, what references it as anchors, and its own markdown. A note belongs to one task and arrives with it. If a bare term matches more than one record, the candidates come back and nothing loads. A task is named by its code, `RK-12`, which is unique across every project.
 
 ## MCP tools
 

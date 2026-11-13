@@ -14,6 +14,7 @@ pub mod migration;
 pub mod repository;
 pub mod slug;
 pub mod stamped;
+pub mod task_key;
 
 mod database;
 mod query_support;
@@ -68,6 +69,7 @@ pub use token::{entity::token_usage, entity::transcript_scan};
 pub use vulnerability::{entity::scan_scope, entity::security_advisory, entity::vulnerability_exposure};
 pub use enums::*;
 pub use slug::Slug;
+pub use task_key::TaskKey;
 pub use stamped::Stamped;
 pub use database::{check_openable, open, open_in_memory, open_temporary, Database, DATA_FILE_NAME};
 

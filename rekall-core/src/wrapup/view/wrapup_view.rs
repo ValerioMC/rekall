@@ -10,7 +10,7 @@ use crate::load;
 pub struct WrapupView {
     pub id: Id,
     pub task_id: Id,
-    pub task_label: String,
+    pub task_code: String,
     pub task_title: String,
     pub project_label: String,
     pub anchor: String,
@@ -25,10 +25,10 @@ impl WrapupView {
         Self {
             id: wrapup.id,
             task_id: task.id,
-            task_label: task.label.clone(),
+            task_code: task.code.clone(),
             task_title: task.title.clone(),
             project_label: project.label.clone(),
-            anchor: task.anchor(&project.label),
+            anchor: task.anchor(),
             body_markdown: wrapup.body_markdown.clone(),
             written_by: wrapup.written_by,
             created_at: wrapup.created_at,

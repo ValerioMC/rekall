@@ -2,8 +2,8 @@
 
 Read `planning.md` too: this mode applies its rules.
 
-`/rk project:vega task:report-builder replan` means: redesign the steps this task already has.
-`/rk project:vega task:report-builder replan "also cover the csv export"` means the same, and the
+`/rk task:RK-12 replan` means: redesign the steps this task already has.
+`/rk task:RK-12 replan "also cover the csv export"` means the same, and the
 quoted text is what I noticed the plan missed, in my words. It is not an anchor.
 
 1. Drop the `replan` term and the quoted text, and call `rekall_context` with the anchors that are

@@ -61,6 +61,7 @@ mod m082_task_pull_request;
 mod m083_pull_request_merged;
 mod m084_note_owned_by_task;
 mod m085_task_tracker_synced_content;
+mod m086_task_code;
 mod migration_support;
 mod migrator;
 

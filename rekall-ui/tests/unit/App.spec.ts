@@ -39,15 +39,15 @@ const companies: Company[] = [
 const beacon = 'p2' as ProjectId
 
 const projects: Project[] = [
-  { id: vega, label: 'vega', title: 'Vega Platform', status: 'ACTIVE', icon: 'folder', iconImageVersion: null, description: null, blueprintMarkdown: null,
+  { id: vega, label: 'vega', taskKey: 'PR', title: 'Vega Platform', status: 'ACTIVE', icon: 'folder', iconImageVersion: null, description: null, blueprintMarkdown: null,
     repoFolder: null, autoCommit: false, mainBranch: null, pullRequestFlow: false, companyId: acme, companyName: 'acme', taskCount: 2, anchor: 'project:vega', updatedAt: '2026-08-12T10:00:00Z' },
-  { id: beacon, label: 'beacon', title: 'Beacon', status: 'PAUSED', icon: 'folder', iconImageVersion: null, description: null, blueprintMarkdown: null,
+  { id: beacon, label: 'beacon', taskKey: 'BC', title: 'Beacon', status: 'PAUSED', icon: 'folder', iconImageVersion: null, description: null, blueprintMarkdown: null,
     repoFolder: null, autoCommit: false, mainBranch: null, pullRequestFlow: false, companyId: acme, companyName: 'acme', taskCount: 0, anchor: 'project:beacon', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const tasks: Task[] = [
-  { id: validator, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS', description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 2, stepsDone: 1, draftStepCount: 0, hasWrapup: true, reviewState: 'OPEN', reviewActive: false, claimedAt: null, acceptedAt: null, tagId: null, tagName: null, tagIcon: null, tagColor: null, graphLaidAt: null, releaseSkipped: false, kind: 'TASK', epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, trackerContentSynced: true, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null, anchor: 'project:vega task:report-builder', updatedAt: '2026-08-12T10:00:00Z' },
-  { id: retry, label: 'retry-policy', title: 'Retry policy', status: 'TODO', description: '## Scope\n\nRitenta solo gli errori 5xx, con backoff esponenziale.', projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 0, stepsDone: 0, draftStepCount: 0, hasWrapup: false, reviewState: 'OPEN', reviewActive: true, claimedAt: null, acceptedAt: null, tagId: null, tagName: null, tagIcon: null, tagColor: null, graphLaidAt: null, releaseSkipped: false, kind: 'TASK', epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, trackerContentSynced: true, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null, anchor: 'project:vega task:retry-policy', updatedAt: '2026-08-12T10:00:00Z' }
+  { id: validator, code: 'PR-1', label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS', description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 2, stepsDone: 1, draftStepCount: 0, hasWrapup: true, reviewState: 'OPEN', reviewActive: false, claimedAt: null, acceptedAt: null, tagId: null, tagName: null, tagIcon: null, tagColor: null, graphLaidAt: null, releaseSkipped: false, kind: 'TASK', epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, trackerContentSynced: true, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null, anchor: 'task:PR-1', updatedAt: '2026-08-12T10:00:00Z' },
+  { id: retry, code: 'PR-2', label: 'retry-policy', title: 'Retry policy', status: 'TODO', description: '## Scope\n\nRitenta solo gli errori 5xx, con backoff esponenziale.', projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform', companyName: 'acme', projectRepoFolder: null, documentCount: 1, stepCount: 0, stepsDone: 0, draftStepCount: 0, hasWrapup: false, reviewState: 'OPEN', reviewActive: true, claimedAt: null, acceptedAt: null, tagId: null, tagName: null, tagIcon: null, tagColor: null, graphLaidAt: null, releaseSkipped: false, kind: 'TASK', epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, trackerContentSynced: true, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null, anchor: 'task:PR-2', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const shared: RekallDocument = {
@@ -64,10 +64,10 @@ const shared: RekallDocument = {
 const wrapup: Wrapup = {
   id: 'w1' as WrapupId,
   taskId: validator,
-  taskLabel: 'report-builder',
+  taskCode: 'report-builder',
   taskTitle: 'Report builder',
   projectLabel: 'vega',
-  anchor: 'project:vega task:report-builder',
+  anchor: 'task:PR-1',
   bodyMarkdown: '## Stato\n\nIl builder gira su POST /api/v1/pipelines.',
   writtenBy: 'CLAUDE',
   createdAt: '2026-08-12T11:00:00Z',
@@ -270,10 +270,10 @@ vi.mock('@/features/steps/api/steps.api', () => ({
 const startTimeEntry = vi.fn(async (taskId: TaskId) => ({
   id: 'te1',
   taskId,
-  taskLabel: 'report-builder',
+  taskCode: 'report-builder',
   taskTitle: 'Report builder',
   projectLabel: 'vega',
-  anchor: 'project:vega task:report-builder',
+  anchor: 'task:PR-1',
   startedAt: '2026-08-12T15:00:00Z',
   stoppedAt: null,
   createdAt: '2026-08-12T15:00:00Z',
@@ -380,24 +380,24 @@ describe('the console', () => {
   })
 
   /** A row has to carry both names: the one you read and the one you type. */
-  it('shows a task by its title with its label underneath', async () => {
+  it('shows a task by its title with its code underneath', async () => {
     const wrapper = await mountConsole()
-    const row = wrapper.findAll('[data-testid="task-row"]')[0]!
+    const row = wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!
 
     expect(row.text()).toContain('Report builder')
-    expect(row.text()).toContain('report-builder')
+    expect(row.text()).toContain('PR-1')
   })
 
   it('walks from a task to its notes to the editor', async () => {
     const wrapper = await mountConsole()
 
-    await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+    await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
     await flushPromises()
 
     expect(wrapper.findAll('[data-testid="note-card"]')).toHaveLength(1)
     expect(wrapper.text()).toContain('kmaster14.md')
     // The anchor is on screen and is the string you would paste after /rk.
-    expect(wrapper.text()).toContain('project:vega task:report-builder')
+    expect(wrapper.text()).toContain('task:PR-1')
   })
 
   it('filters the task list as the anchor bar is typed into', async () => {
@@ -425,7 +425,7 @@ describe('the console', () => {
 
   it('adds information to the task in view on N', async () => {
     const wrapper = await mountConsole()
-    await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
+    await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Retry policy'))!.trigger('click')
     await flushPromises()
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'n' }))
@@ -438,7 +438,7 @@ describe('the console', () => {
   it('sets a task status from the number keys, with no form and no save', async () => {
     const wrapper = await mountConsole()
 
-    await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+    await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
     window.dispatchEvent(new KeyboardEvent('keydown', { key: '4' }))
     await flushPromises()
 
@@ -509,7 +509,7 @@ describe('the console', () => {
    */
   it('leaves a Cmd or Ctrl chord alone so copy and paste work inside the app', async () => {
     const wrapper = await mountConsole()
-    await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+    await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
     await flushPromises()
 
     const copy = new KeyboardEvent('keydown', { key: 'c', metaKey: true, cancelable: true })
@@ -527,7 +527,7 @@ describe('the console', () => {
   /** The bare key it shares a letter with still works. */
   it('toggles the terminal pane on a bare C', async () => {
     const wrapper = await mountConsole()
-    await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+    await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
     await flushPromises()
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }))
@@ -543,7 +543,7 @@ describe('the console', () => {
   it('shows and hides the chat window on a bare C when the task has a chat session', async () => {
     vi.stubGlobal('EventSource', class { addEventListener(): void {} close(): void {} })
     const wrapper = await mountConsole()
-    await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+    await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
     await flushPromises()
     const dock = useChatDockStore()
     dock.hide()
@@ -579,7 +579,7 @@ describe('the console', () => {
   /** The anchor on the terminal pane is a copy chip, like the one on the description and steps panes. */
   it('carries a copyable anchor chip on the terminal pane', async () => {
     const wrapper = await mountConsole()
-    await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+    await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }))
     // The terminal pane is an async component: its chunk has to land before it renders.
@@ -595,11 +595,10 @@ describe('the console', () => {
 
   describe('creating, editing and deleting a record', () => {
     /**
-     * Typing a title and getting the label for free is most of what makes the two fields
-     * bearable. The anchor is assembled while you type, so nobody saves a record to find out
-     * what it became.
+     * A task has no label to type: its code is its project's key and the next number, so the
+     * anchor is on screen before anything is saved, and nobody saves a record to find out what it became.
      */
-    it('fills the label from the title and shows the anchor before anything is saved', async () => {
+    it('shows the code the task will get before anything is saved, with no label to type', async () => {
       const wrapper = await mountConsole()
 
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 't' }))
@@ -608,10 +607,8 @@ describe('the console', () => {
       await wrapper.find('[data-testid="record-title"]').setValue('Retry policy, main workflow')
       await flushPromises()
 
-      expect((wrapper.find('[data-testid="record-label"]').element as HTMLInputElement).value)
-        .toBe('retry-policy-main-workflow')
-      expect(wrapper.find('[data-testid="anchor-preview"]').text())
-        .toContain('project:vega task:retry-policy-main-workflow')
+      expect(wrapper.find('[data-testid="record-label"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="anchor-preview"]').text()).toContain('task:PR-3')
     })
 
     /**
@@ -630,8 +627,8 @@ describe('the console', () => {
       expect(parent.find('[data-testid="project-picker-title"]').text()).toBe('Vega Platform')
       expect(parent.text()).toContain('project:vega')
 
-      // The settled half of the anchor is on screen before a single character is typed.
-      expect(wrapper.find('[data-testid="anchor-preview"]').text()).toContain('project:vega')
+      // The code is on screen before a single character is typed.
+      expect(wrapper.find('[data-testid="anchor-preview"]').text()).toContain('task:PR-3')
     })
 
     /** A paused or finished project is still a valid home, so its status sits beside its name rather than hiding it. */
@@ -664,7 +661,6 @@ describe('the console', () => {
       await flushPromises()
 
       expect(createTask).toHaveBeenCalledWith({
-        label: 'retry-policy',
         title: 'Retry policy',
         status: 'TODO',
         description: null,
@@ -676,31 +672,16 @@ describe('the console', () => {
       expect(wrapper.find('[data-testid="record-dialog"]').exists()).toBe(false)
     })
 
-    /** A hand-written label is a decision, and the title must not overwrite it afterwards. */
-    it('stops following the title once the label is typed into', async () => {
-      const wrapper = await mountConsole()
-
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 't' }))
-      await flushPromises()
-      await wrapper.find('[data-testid="record-label"]').setValue('rp')
-      await wrapper.find('[data-testid="record-title"]').setValue('Retry policy')
-      await flushPromises()
-
-      expect((wrapper.find('[data-testid="record-label"]').element as HTMLInputElement).value)
-        .toBe('rp')
-    })
-
     it('opens the selected task for editing on E, with its values loaded', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }))
       await flushPromises()
 
       expect((wrapper.find('[data-testid="record-title"]').element as HTMLInputElement).value)
         .toBe('Report builder')
-      expect((wrapper.find('[data-testid="record-label"]').element as HTMLInputElement).value)
-        .toBe('report-builder')
+      expect(wrapper.find('[data-testid="anchor-preview"]').text()).toContain('task:PR-1')
     })
 
     /** The description has its own pane; the popup neither shows it nor loses it on save. */
@@ -722,25 +703,6 @@ describe('the console', () => {
     })
 
     /**
-     * The anchor is written down outside this application, in slash commands and in notes.
-     * Moving it is allowed and has to be said out loud.
-     */
-    it('warns that the anchor moves when the label is changed on an existing record', async () => {
-      const wrapper = await mountConsole()
-
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }))
-      await flushPromises()
-
-      expect(wrapper.find('[data-testid="rename-warning"]').exists()).toBe(false)
-
-      await wrapper.find('[data-testid="record-label"]').setValue('validator')
-      await flushPromises()
-
-      expect(wrapper.find('[data-testid="rename-warning"]').text()).toContain('task:report-builder')
-    })
-
-    /**
      * A project's own page now has the room `RecordDialog` never did, so its pencil in the
      * scope picker goes there instead of opening the quick-edit dialog.
      */
@@ -757,10 +719,10 @@ describe('the console', () => {
     })
 
     /** The same field that decides where a task lands is what moves it afterwards. */
-    it('moves a task to another project, anchor and all', async () => {
+    it('moves a task to another project, and gives it that project’s next code', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }))
       await flushPromises()
 
@@ -771,15 +733,14 @@ describe('the console', () => {
         .trigger('click')
       await flushPromises()
 
-      expect(wrapper.find('[data-testid="anchor-preview"]').text())
-        .toContain('project:beacon task:report-builder')
+      expect(wrapper.find('[data-testid="anchor-preview"]').text()).toContain('task:BC-1')
 
       await wrapper.find('[data-testid="record-save"]').trigger('click')
       await flushPromises()
 
       expect(updateTask).toHaveBeenCalledWith(
         validator,
-        expect.objectContaining({ label: 'report-builder', projectId: beacon })
+        expect.objectContaining({ projectId: beacon })
       )
     })
 
@@ -787,7 +748,7 @@ describe('the console', () => {
     it('states the blast radius before deleting, and deletes once confirmed', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }))
       await flushPromises()
 
@@ -828,7 +789,7 @@ describe('the console', () => {
     it('pins the wrapup above the notes of the task in view', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       await flushPromises()
 
       const card = wrapper.find('[data-testid="wrapup-card"]')
@@ -842,7 +803,7 @@ describe('the console', () => {
     it('opens it on W, and says whose words are on screen', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
       await flushPromises()
 
@@ -855,7 +816,7 @@ describe('the console', () => {
       // Only one way to copy the anchor once a wrapup exists: the header button, not a second
       // one duplicating it next to the metadata.
       expect(wrapper.find('[data-testid="copy-wrapup-anchor"]').attributes('aria-label'))
-        .toBe('Copy /rk project:vega task:report-builder')
+        .toBe('Copy /rk task:PR-1')
       expect(wrapper.find('[data-testid="copy-wrapup-command"]').exists()).toBe(false)
     })
 
@@ -866,7 +827,7 @@ describe('the console', () => {
     it('says how many notes were written after it', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
       await flushPromises()
 
@@ -880,13 +841,13 @@ describe('the console', () => {
     it('points to the anchor for a task that has none, and offers a way to write it by hand', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Retry policy'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
       await flushPromises()
 
       expect(wrapper.text()).toContain('Nobody has said what this is yet')
       expect(wrapper.find('[data-testid="copy-wrapup-anchor"]').attributes('aria-label'))
-        .toBe('Copy /rk project:vega task:retry-policy')
+        .toBe('Copy /rk task:PR-2')
       expect(wrapper.find('[data-testid="copy-wrapup-command"]').exists()).toBe(false)
 
       await wrapper.find('[data-testid="write-wrapup-by-hand"]').trigger('click')
@@ -899,7 +860,7 @@ describe('the console', () => {
     it('toggles back to the note on a second W', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
       await flushPromises()
       expect(wrapper.text()).toContain('Written by')
@@ -919,7 +880,7 @@ describe('the console', () => {
     it('stays in the editor when the autosave comes back', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
       await flushPromises()
 
@@ -940,7 +901,7 @@ describe('the console', () => {
     it('makes the shortcuts inert while it is asking whether to delete', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
       await flushPromises()
       await wrapper.findAll('button').find((button) => button.text() === 'Delete')!.trigger('click')
@@ -963,7 +924,7 @@ describe('the console', () => {
     it('states what deleting a wrapup does and does not take with it', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
       await flushPromises()
 
@@ -992,7 +953,7 @@ describe('the console', () => {
     it('pins it between the timer and the wrapup of the task in view', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Retry policy'))!.trigger('click')
       await flushPromises()
 
       const card = wrapper.find('[data-testid="description-card"]')
@@ -1009,7 +970,7 @@ describe('the console', () => {
     it('opens the whole pane on D, in markdown', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Retry policy'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
       await flushPromises()
 
@@ -1023,7 +984,7 @@ describe('the console', () => {
     it('opens the editor straight away on a task nobody has described', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
       await flushPromises()
 
@@ -1037,7 +998,7 @@ describe('the console', () => {
     it('reads the description back on a task that has one', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Retry policy'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
       await flushPromises()
 
@@ -1050,7 +1011,7 @@ describe('the console', () => {
     it('toggles back to the note on a second D', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Retry policy'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
       await flushPromises()
       expect(wrapper.find('[data-testid="copy-description-anchor"]').exists()).toBe(true)
@@ -1065,7 +1026,7 @@ describe('the console', () => {
     it('toggles the description between read and write on R', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[1]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Retry policy'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
       await flushPromises()
 
@@ -1086,7 +1047,7 @@ describe('the console', () => {
     it('toggles a note between write and read on R', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       await flushPromises()
 
       const mode = () => wrapper.findAll('[aria-label="Mode"] button')
@@ -1103,7 +1064,7 @@ describe('the console', () => {
     it('says on the wrapup card how many steps closed since it was written', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       await flushPromises()
 
       expect(wrapper.find('[data-testid="wrapup-misses-steps"]').text()).toBe(
@@ -1114,7 +1075,7 @@ describe('the console', () => {
     it('pins how much is left above the notes, and names what is next', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       await flushPromises()
 
       const card = wrapper.find('[data-testid="steps-card"]')
@@ -1131,7 +1092,7 @@ describe('the console', () => {
     it('opens on S, with the open step in full and the done one struck through', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
       await flushPromises()
 
@@ -1145,7 +1106,7 @@ describe('the console', () => {
     it('ticks a step where it stands', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
       await flushPromises()
 
@@ -1166,7 +1127,7 @@ describe('the console', () => {
     it('does nothing when the box of a done step is clicked', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
       await flushPromises()
 
@@ -1180,7 +1141,7 @@ describe('the console', () => {
     it('reopens a done step only after the reopen button is confirmed', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
       await flushPromises()
 
@@ -1207,7 +1168,7 @@ describe('the console', () => {
     it('opens on the next step with its detail rendered', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
       await flushPromises()
 
@@ -1223,7 +1184,7 @@ describe('the console', () => {
     it('switches the detail to the markdown editor on write', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
       await flushPromises()
 
@@ -1240,7 +1201,7 @@ describe('the console', () => {
     it('toggles back to the note on a second S', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]')[0]!.trigger('click')
+      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
       await flushPromises()
       expect(wrapper.find('[data-testid="new-step"]').exists()).toBe(true)

@@ -15,7 +15,7 @@ import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
 const report: Task = {
   id: 't1' as TaskId,
-  label: 'report-builder',
+  code: 'report-builder', label: 'report-builder',
   title: 'Report builder',
   status: 'IN_PROGRESS',
   description: null,
@@ -76,7 +76,7 @@ const session: Terminal = {
   anchors: 'project:vega task:report-builder',
   workingDir: '/work/vega',
   projectLabel: 'vega',
-  taskLabel: 'report-builder',
+  taskCode: 'report-builder',
   taskTitle: 'Report builder',
   mode: 'WORK',
   skipPermissions: false,
@@ -152,7 +152,7 @@ describe('the console home', () => {
   it('opens a session generating a diagram for a project alone on the Diagrams screen', async () => {
     const store = useConsoleStore()
     const terminals = useTerminalStore()
-    terminals.terminals = [{ ...session, taskId: null, taskLabel: null, taskTitle: null, mode: 'GENERATE', anchors: 'project:vega' }]
+    terminals.terminals = [{ ...session, taskId: null, taskCode: null, taskTitle: null, mode: 'GENERATE', anchors: 'project:vega' }]
     store.selectTask = vi.fn()
     const router = consoleRouter()
 
@@ -168,7 +168,7 @@ describe('the console home', () => {
 })
 
 describe('what a session on a project alone is listed as', () => {
-  const onProject = { ...session, taskId: null, taskLabel: null, taskTitle: null, anchors: 'project:vega' }
+  const onProject = { ...session, taskId: null, taskCode: null, taskTitle: null, anchors: 'project:vega' }
 
   it.each([
     ['GENERATE', 'Diagram for vega'],

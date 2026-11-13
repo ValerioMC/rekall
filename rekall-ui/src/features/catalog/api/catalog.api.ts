@@ -30,6 +30,8 @@ export interface CompanyInput {
 
 export interface ProjectInput {
   label: string
+  /** Blank or null: the server suggests one from the label. On an update, null keeps the stored one. */
+  taskKey: string | null
   title: string
   status: ProjectStatus
   icon: string
@@ -43,7 +45,6 @@ export interface ProjectInput {
 }
 
 export interface TaskInput {
-  label: string
   title: string
   status: TaskStatus
   description: string | null

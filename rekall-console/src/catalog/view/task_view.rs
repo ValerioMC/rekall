@@ -6,6 +6,7 @@ use crate::catalog::TaskGraph;
 #[derive(Clone, Debug)]
 pub struct TaskView {
     pub id: Id,
+    pub code: String,
     pub label: String,
     pub title: String,
     pub status: TaskStatus,
@@ -53,6 +54,7 @@ impl TaskView {
         let project = graph.project;
         Self {
             id: task.id,
+            code: task.code.clone(),
             label: task.label.clone(),
             title: task.title.clone(),
             status: task.status,
@@ -90,7 +92,7 @@ impl TaskView {
             pull_request_url: graph.pull_request.and_then(|pull_request| pull_request.url.clone()),
             pull_request_failure: graph.pull_request.and_then(|pull_request| pull_request.failure.clone()),
             pull_request_merged_at: graph.pull_request.and_then(|pull_request| pull_request.merged_at),
-            anchor: task.anchor(&project.label),
+            anchor: task.anchor(),
             updated_at: task.updated_at,
         }
     }

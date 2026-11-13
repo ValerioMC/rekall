@@ -8,6 +8,7 @@ use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;
 use crate::enums::{TaskKind, TaskStatus, TaskStepState};
+use crate::task_key::TaskKey;
 
 pub const TITLE_MAX_CHARACTERS: usize = 200;
 pub const DESCRIPTION_MAX_CHARACTERS: usize = 100_000;
@@ -18,6 +19,10 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Id,
     pub label: String,
+    /// The task's place in its project, counted from 1.
+    pub number: i32,
+    /// Its project's key, a dash and `number`: what an anchor names and the console shows.
+    pub code: String,
     pub title: String,
     pub status: TaskStatus,
     pub description: Option<String>,
@@ -107,11 +112,13 @@ pub fn review_active<'a>(step_states: impl IntoIterator<Item = &'a TaskStepState
 }
 
 impl Model {
-    /// A new task: `TODO`, review line `OPEN`, no moments.
+    /// A new task: `TODO`, review line `OPEN`, no moments. Until its project numbers it, its code is its label in capitals.
     pub fn new(label: String, title: String, project_id: Id, now: Instant) -> Self {
         Self {
             id: Id::random(),
+            code: label.to_ascii_uppercase(),
             label,
+            number: 0,
             title,
             status: TaskStatus::Todo,
             description: None,
@@ -184,7 +191,7 @@ impl Model {
         if self.is_epic() {
             return Err(RekallError::illegal(format!(
                 "'{}' is an epic, and an epic {refused}. Work one of the tasks that belong to it instead.",
-                self.label
+                self.code
             )));
         }
         Ok(())
@@ -194,7 +201,7 @@ impl Model {
     /// another, and a task is never its own epic.
     pub fn require_joinable(&self, epic: &Model) -> Result<(), RekallError> {
         if !epic.is_epic() {
-            return Err(RekallError::illegal(format!("'{}' is not an epic, so no task can belong to it.", epic.label)));
+            return Err(RekallError::illegal(format!("'{}' is not an epic, so no task can belong to it.", epic.code)));
         }
         if self.is_epic() {
             return Err(RekallError::illegal("An epic cannot belong to another epic."));
@@ -205,14 +212,19 @@ impl Model {
         if epic.project_id != self.project_id {
             return Err(RekallError::illegal(format!(
                 "The epic '{}' is in another project. A task belongs to an epic of its own project.",
-                epic.label
+                epic.code
             )));
         }
         Ok(())
     }
 
-    pub fn anchor(&self, project_label: &str) -> String {
-        format!("project:{project_label} task:{}", self.label)
+    pub fn anchor(&self) -> String {
+        format!("task:{}", self.code)
+    }
+
+    pub fn assign_code(&mut self, project_key: &str, number: i32) {
+        self.number = number;
+        self.code = TaskKey::code(project_key, number);
     }
 
     pub fn validate(&self) -> Result<(), RekallError> {
@@ -220,6 +232,7 @@ impl Model {
             .not_blank("label", Some(&self.label))
             .max_length("label", Some(&self.label), 160)
             .slug("label", Some(&self.label))
+            .not_blank("code", Some(&self.code))
             .not_blank("title", Some(&self.title))
             .max_length("title", Some(&self.title), TITLE_MAX_CHARACTERS)
             .max_length("description", self.description.as_deref(), DESCRIPTION_MAX_CHARACTERS)

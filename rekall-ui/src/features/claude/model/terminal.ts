@@ -42,7 +42,7 @@ export interface Terminal {
   readonly anchors: string
   readonly workingDir: string
   readonly projectLabel: string
-  readonly taskLabel: string | null
+  readonly taskCode: string | null
   readonly taskTitle: string | null
   readonly mode: TerminalMode
   readonly skipPermissions: boolean

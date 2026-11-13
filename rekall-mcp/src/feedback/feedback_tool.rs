@@ -37,7 +37,7 @@ impl McpTool for FeedbackTool {
         ToolSchema::object()
             .required_string(
                 "anchors",
-                "The task whose thread this session acted on, e.g. `project:vega task:report-builder`. Labels, never titles, and \
+                "The task whose thread this session acted on, e.g. `task:RK-12`. Labels, never titles, and \
                  it has to name exactly one task.",
             )
             .required_object_array(
@@ -54,7 +54,7 @@ impl McpTool for FeedbackTool {
         let replies = replies_of(args.value("replies"))?;
         let replied = self
             .feedback
-            .reply(target.project_label.as_deref(), &target.task_label, replies)
+            .reply(target.project_label.as_deref(), &target.task_code, replies)
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
         Ok(report(&replied))

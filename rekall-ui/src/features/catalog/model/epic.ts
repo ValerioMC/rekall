@@ -46,9 +46,9 @@ export function epicChoices(projectId: string, tasks: readonly Task[], except: T
     .sort((left, right) => left.title.localeCompare(right.title))
 }
 
-/** Every whitespace-separated part of the needle must appear in the epic's title, label or anchor. */
+/** Every whitespace-separated part of the needle must appear in the epic's title, code or anchor. */
 export function matchesEpicQuery(epic: Task, needle: string): boolean {
-  const hay = `${epic.title} ${epic.label} ${epic.anchor}`.toLowerCase()
+  const hay = `${epic.title} ${epic.code} ${epic.anchor}`.toLowerCase()
   return needle
     .trim()
     .toLowerCase()

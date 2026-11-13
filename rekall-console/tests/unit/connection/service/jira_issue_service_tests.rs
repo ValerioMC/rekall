@@ -54,7 +54,7 @@ async fn world(kind: ConnectionKind, target: Option<&str>, failure: Option<JiraF
         description: None,
         blueprint_markdown: None,
         repo_folder: None,
-        auto_commit: false, main_branch: None, pull_request_flow: false,
+        auto_commit: false, main_branch: None, pull_request_flow: false, task_key: "AP".into(),
         company_id: company.id,
         created_at: now,
         updated_at: now,
@@ -98,7 +98,7 @@ async fn importing_creates_one_task_per_issue_and_a_second_import_adds_nothing()
     let again = world.service.import(world.project_id, world.binding_id, keys(&["ENG-1"])).await.unwrap();
     let listed = world.service.list(world.project_id, world.binding_id).await.unwrap();
 
-    assert_eq!(created.iter().map(|task| task.label.as_str()).collect::<Vec<_>>(), ["eng-1", "eng-2"]);
+    assert_eq!(created.iter().map(|task| task.code.as_str()).collect::<Vec<_>>(), ["AP-1", "AP-2"]);
     assert_eq!(created[0].title, "Fix login");
     assert!(again.is_empty());
     assert_eq!(listed[0].task_id, Some(created[0].id));

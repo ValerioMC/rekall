@@ -177,7 +177,7 @@ const blast = computed(() =>
           :diagram="diagram"
           :siblings="siblings"
           :project-anchor="projectOf ? `project:${projectOf.label}` : null"
-          :task-anchor="taskOf ? `task:${taskOf.label}` : null"
+          :task-anchor="taskOf ? `task:${taskOf.code}` : null"
           @back="show(null)"
           @open="show"
           @remove="confirmingDelete = true"

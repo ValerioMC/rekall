@@ -5,7 +5,7 @@ import type { ConsoleState } from './console-state'
 
 function matchesTask(task: Task, needle: string): boolean {
   if (!needle.trim()) return true
-  const hay = `${task.projectLabel} ${task.projectTitle} ${task.label} ${task.title}`.toLowerCase()
+  const hay = `${task.projectLabel} ${task.projectTitle} ${task.code} ${task.title} ${task.description ?? ''}`.toLowerCase()
   return needle
     .toLowerCase()
     .replace(/(project:|task:|company:)/g, ' ')

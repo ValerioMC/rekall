@@ -32,7 +32,7 @@ const POLISHED = 'Make the report exportable, with PDF.'
 function task(description: string | null): Task {
   return {
     id: TASK,
-    label: 'report-builder',
+    code: 'report-builder', label: 'report-builder',
     title: 'Report builder',
     status: 'IN_PROGRESS',
     description,
@@ -75,7 +75,7 @@ function liveTerminal(): Terminal {
     anchors: ANCHOR,
     workingDir: '/code/vega',
     projectLabel: 'vega',
-    taskLabel: 'report-builder',
+    taskCode: 'report-builder',
     taskTitle: 'Report builder',
     mode: 'REWRITE_FIX',
     skipPermissions: true,

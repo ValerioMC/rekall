@@ -5,7 +5,7 @@ mod support;
 use serde_json::{json, Value};
 use support::{app, App};
 
-const ANCHORS: &str = "project:vega task:report-builder";
+const ANCHORS: &str = "task:VE-1";
 
 struct Scene {
     app: App,

@@ -9,7 +9,7 @@ export const TerminalSchema = z.object({
   anchors: z.string(),
   workingDir: z.string(),
   projectLabel: z.string(),
-  taskLabel: z.string().nullable(),
+  taskCode: z.string().nullable(),
   taskTitle: z.string().nullable(),
   mode: z.enum(['WORK', 'PLAN', 'PLAN_FLOW', 'REPLAN', 'REVISE', 'REWRITE_FIX', 'REWRITE_RESTRUCTURE', 'GENERATE', 'EXPLAIN', 'INVENTORY', 'ASSESS', 'ASSESS_ALL', 'AUTOCONFIGURE', 'MERGE']),
   skipPermissions: z.boolean(),

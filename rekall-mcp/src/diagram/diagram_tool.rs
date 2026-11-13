@@ -37,7 +37,7 @@ impl McpTool for DiagramTool {
         ToolSchema::object()
             .required_string(
                 "anchors",
-                "The project the diagram is for, `project:vega`, or a task and its project, `project:vega task:report-builder`. \
+                "The project the diagram is for, `project:vega`, or a task and its project, `task:RK-12`. \
                  Labels, never titles.",
             )
             .required_string("title", "What the diagram shows, short, under 200 characters.")
@@ -73,13 +73,13 @@ impl McpTool for DiagramTool {
 fn target_of(anchors: &[Anchor]) -> Result<DiagramTarget, ToolError> {
     if anchors.iter().any(|anchor| anchor.is("task") || !anchor.is_qualified()) {
         let task = AnchoredTask::from(anchors)?;
-        return Ok(DiagramTarget::Task { project_label: task.project_label, task_label: task.task_label });
+        return Ok(DiagramTarget::Task { project_label: task.project_label, task_code: task.task_code });
     }
     match anchors {
         [project] if project.is("project") => Ok(DiagramTarget::Project { label: project.value.clone() }),
         _ => Err(ToolError::Failure(
             "A diagram belongs to one project, and optionally one of its tasks: pass `project:<label>` or \
-             `project:<label> task:<label>`."
+             `project:<label> task:<code>`."
                 .into(),
         )),
     }

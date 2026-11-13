@@ -23,7 +23,7 @@ async fn world(pull_request_flow: bool) -> World {
     company.clone().into_active_model().insert(&ctx.db).await.unwrap();
     let project = project::Model {
         id: Id::random(), label: "app".into(), title: "App".into(), status: ProjectStatus::Active, icon: "folder".into(), description: None,
-        blueprint_markdown: None, repo_folder: Some("/work/app".into()), auto_commit: true, main_branch: Some("main".into()), pull_request_flow,
+        blueprint_markdown: None, repo_folder: Some("/work/app".into()), auto_commit: true, main_branch: Some("main".into()), pull_request_flow, task_key: String::new(),
         company_id: company.id, created_at: now, updated_at: now,
     };
     project.clone().into_active_model().insert(&ctx.db).await.unwrap();

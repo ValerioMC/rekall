@@ -67,7 +67,7 @@ fn require_same_project(task: &task::Model, dependency: &task::Model) -> Result<
     if task.project_id != dependency.project_id {
         return Err(RekallError::illegal(format!(
             "'{}' is in another project. A task depends only on a task of its own project.",
-            dependency.label
+            dependency.code
         )));
     }
     Ok(())
@@ -75,7 +75,7 @@ fn require_same_project(task: &task::Model, dependency: &task::Model) -> Result<
 
 async fn require_not_already_added(tx: &Tx, task: &task::Model, dependency: &task::Model) -> Result<()> {
     if repo::task_dependency::find_pair(tx.db(), task.id, dependency.id).await?.is_some() {
-        return Err(RekallError::conflict(format!("'{}' already depends on '{}'.", task.label, dependency.label)));
+        return Err(RekallError::conflict(format!("'{}' already depends on '{}'.", task.code, dependency.code)));
     }
     Ok(())
 }
@@ -89,7 +89,7 @@ async fn require_no_cycle(tx: &Tx, task: &task::Model, dependency: &task::Model)
     if closes_a_cycle(&existing, task.id, dependency.id) {
         return Err(RekallError::illegal(format!(
             "'{}' cannot depend on '{}': that would make a task wait, directly or through others, for itself.",
-            task.label, dependency.label
+            task.code, dependency.code
         )));
     }
     Ok(())

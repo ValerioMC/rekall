@@ -82,7 +82,7 @@ impl DiagramService {
                 .await
                 .map_err(|failed| RekallError::internal(InternalFailure::Background, failed))??;
         }
-        let anchors = task.as_ref().map_or_else(|| project.anchor(), |task| task.anchor(&project.label));
+        let anchors = task.as_ref().map_or_else(|| project.anchor(), |task| task.anchor());
         let diagram = self
             .write(DiagramDraft {
                 id: generated.diagram_id,
@@ -126,8 +126,8 @@ async fn require_task_on_project(db: &impl ConnectionTrait, task_id: Option<Id>,
 async fn resolve_target(db: &impl ConnectionTrait, target: &DiagramTarget) -> Result<(project::Model, Option<task::Model>)> {
     match target {
         DiagramTarget::Project { label } => Ok((load::resolve_project(db, label).await?, None)),
-        DiagramTarget::Task { project_label, task_label } => {
-            let task = load::resolve_task(db, project_label.as_deref(), task_label).await?;
+        DiagramTarget::Task { project_label, task_code } => {
+            let task = load::resolve_task(db, project_label.as_deref(), task_code).await?;
             Ok((load::project_of(db, &task).await?, Some(task)))
         }
     }

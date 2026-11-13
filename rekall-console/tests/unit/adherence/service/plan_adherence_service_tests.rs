@@ -29,7 +29,7 @@ async fn world() -> World {
         description: None,
         blueprint_markdown: None,
         repo_folder: None,
-        auto_commit: false, main_branch: None, pull_request_flow: false,
+        auto_commit: false, main_branch: None, pull_request_flow: false, task_key: "AP".into(),
         company_id: company.id,
         created_at: now,
         updated_at: now,
@@ -170,8 +170,8 @@ async fn a_project_sums_its_tasks_and_lists_at_most_five_with_steps_sent_back_mo
     assert_eq!(view.counts.steps_total, 4);
     assert_eq!((view.counts.accepted_first_time, view.counts.sent_back, view.counts.passes_total), (1, 3, 9));
     assert_eq!(view.deviations, 1);
-    let listed: Vec<(&str, usize)> = view.most_sent_back.iter().map(|task| (task.label.as_str(), task.sent_back)).collect();
-    assert_eq!(listed, vec![("import", 2), ("export", 1)]);
+    let listed: Vec<(&str, usize)> = view.most_sent_back.iter().map(|task| (task.code.as_str(), task.sent_back)).collect();
+    assert_eq!(listed, vec![("AP-2", 2), ("AP-1", 1)]);
 }
 
 #[tokio::test]

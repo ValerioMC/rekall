@@ -2,7 +2,7 @@
 //! folder a project points at. Deleting one cascades to its tasks.
 
 use rekall_kernel::{jstr, Id, RekallError, Result};
-use rekall_store::{company, project, ProjectStatus, Slug};
+use rekall_store::{company, project, ProjectStatus, Slug, TaskKey};
 use rekall_store::repository as repo;
 use rekall_core::commit::GitRepositoryInspector;
 use rekall_core::worktree::{PullRequestFlowService, PullRequestFlowSite};
@@ -46,9 +46,11 @@ impl ProjectService {
             let label = Slug::of(command.label.as_deref())?;
             let company = require_owning_company(&tx, command.company_id).await?;
             let now = self.ctx.now();
+            let task_key = chosen_task_key(&tx, command.task_key.as_deref(), &label).await?;
             let mut project = project::Model {
                 id: Id::random(),
                 label,
+                task_key,
                 title: trimmed_title(&command),
                 status: ProjectStatus::Active,
                 icon: DEFAULT_ICON.to_string(),
@@ -79,6 +81,7 @@ impl ProjectService {
             project.company_id = require_owning_company(&tx, command.company_id).await?.id;
             self.apply_request(&tx, &mut project, &command).await?;
             require_label_free(&tx, &project, Some(id)).await?;
+            self.change_task_key(&tx, &mut project, command.task_key.as_deref()).await?;
             let project = repo::update_if_changed(tx.db(), &before, project, self.ctx.now()).await?;
             Snapshot::for_project(tx.db(), &project).await?.project_response(&project)
         })
@@ -132,6 +135,17 @@ impl ProjectService {
         PullRequestFlowSite { has_folder, has_branch }
     }
 
+    async fn change_task_key(&self, tx: &Tx, project: &mut project::Model, requested: Option<&str>) -> Result<()> {
+        let Some(requested) = requested else { return Ok(()) };
+        let key = TaskKey::normalize(requested)?;
+        if key == project.task_key {
+            return Ok(());
+        }
+        require_key_free(tx, &key).await?;
+        project.task_key = key;
+        repo::task::recode_project(tx.db(), project.id, &project.task_key).await
+    }
+
     /// Auto-commit only means something in a git repository: asked for anywhere else, it stays off.
     async fn auto_commit_allowed(&self, requested: Option<bool>, repo_folder: Option<&str>) -> bool {
         requested == Some(true) && self.repositories.is_repository(repo_folder).await
@@ -158,6 +172,24 @@ async fn require_owning_company(tx: &Tx, id: Option<Id>) -> Result<company::Mode
         return Err(RekallError::not_found_msg("A project must belong to a company"));
     };
     repo::company::require(tx.db(), id).await
+}
+
+/// The key the request names, or one suggested from the label; either way nobody else holds it.
+async fn chosen_task_key(tx: &Tx, requested: Option<&str>, label: &str) -> Result<String> {
+    let Some(requested) = requested.filter(|key| !jstr::is_blank(key)) else {
+        return Ok(TaskKey::suggest(label, &repo::project::list_keys(tx.db()).await?));
+    };
+    let key = TaskKey::normalize(requested)?;
+    require_key_free(tx, &key).await?;
+    Ok(key)
+}
+
+/// A key names one project across every company, or a task code would be ambiguous.
+async fn require_key_free(tx: &Tx, key: &str) -> Result<()> {
+    if repo::project::find_by_key(tx.db(), key).await?.is_some() {
+        return Err(RekallError::conflict(format!("The key {key} belongs to another project. A task code has to name one task.")));
+    }
+    Ok(())
 }
 
 /// A label names one project within its company, or a `project:` anchor would be ambiguous.

@@ -59,13 +59,12 @@ impl<'a> ComponentReferences<'a> {
         self.component_expansion_of(name)
     }
 
-    /// The task by its label. Its own context is loaded with the task that names it, under its anchor.
-    fn task_expansion_of(&self, name: &str, label: &str) -> String {
-        let wanted = jstr::lower(jstr::strip(label));
-        let Some(task) = self.tasks.iter().find(|t| jstr::lower(&t.label) == wanted) else {
+    /// The task by its code. Its own context is loaded with the task that names it, under its anchor.
+    fn task_expansion_of(&self, name: &str, reference: &str) -> String {
+        let Some(task) = self.tasks.iter().find(|t| names_task(&t.code, &t.label, reference)) else {
             return format!("[[{name}]] (task not found in this project)");
         };
-        format!("**{}** (task `task:{}`)", task.title, task.label)
+        format!("**{}** (task `task:{}`)", task.title, task.code)
     }
 
     /// The binding by its label, pointing at its `<connections>` line, which says how to reach it.
@@ -96,7 +95,13 @@ impl<'a> ComponentReferences<'a> {
     }
 }
 
-/// The labels every `[[task:label]]` in `text` names, outside code, lowercased, in the order written.
+/// Whether `reference`, as written after `task:`, names the task: its code, or the label an older reference still carries.
+pub fn names_task(code: &str, label: &str, reference: &str) -> bool {
+    let wanted = jstr::lower(jstr::strip(reference));
+    jstr::lower(code) == wanted || jstr::lower(label) == wanted
+}
+
+/// What every `[[task:code]]` in `text` names, outside code, in the order written.
 pub fn referenced_task_labels(text: &str) -> Vec<String> {
     let mut labels = Vec::new();
     rewrite_references(text, |name| {

@@ -12,6 +12,7 @@ export function project(id: ProjectId, label: string, repoFolder: string | null 
   return {
     id,
     label,
+    taskKey: 'PR',
     title: label[0]!.toUpperCase() + label.slice(1),
     status: 'ACTIVE',
     icon: 'folder',
@@ -31,6 +32,7 @@ export function project(id: ProjectId, label: string, repoFolder: string | null 
 export function task(id: TaskId, label: string, projectId: ProjectId): Task {
   return {
     id,
+    code: label,
     label,
     title: 'Report builder',
     status: 'IN_PROGRESS',

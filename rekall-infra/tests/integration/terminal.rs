@@ -26,7 +26,7 @@ async fn a_terminal_starts_claude_in_the_project_folder_with_rk_typed_and_echoes
     assert_eq!(view.task_id, Some(task.id));
     assert_eq!(view.project_id, project.id);
     assert_eq!(view.step_id, Some(step.id));
-    assert_eq!(view.anchors, "project:alpha task:one");
+    assert_eq!(view.anchors, "task:AL-1");
     assert!(view.skip_permissions);
     assert_eq!(view.model.as_deref(), Some("opus"));
     assert_eq!(view.effort, None, "an effort level the settings do not offer is dropped");
@@ -36,7 +36,7 @@ async fn a_terminal_starts_claude_in_the_project_folder_with_rk_typed_and_echoes
     let recorder = Arc::new(Recorder::default());
     let (_, token) = terminals.attach(view.id, recorder.clone()).unwrap();
     eventually("the launch arguments", || async {
-        recorder.text().contains("ARGS:--dangerously-skip-permissions --model opus /rk project:alpha task:one")
+        recorder.text().contains("ARGS:--dangerously-skip-permissions --model opus /rk task:AL-1")
     })
     .await;
 
@@ -47,7 +47,7 @@ async fn a_terminal_starts_claude_in_the_project_folder_with_rk_typed_and_echoes
     let again = terminals.open(TerminalTarget::Task(task.id), None, false, None, None, TerminalMode::Work).await.unwrap();
     assert_eq!(again.id, view.id);
     assert_eq!(terminals.live_count(), 1);
-    eventually("the typed work line", || async { recorder.text().contains("GOT:/rk project:alpha task:one") }).await;
+    eventually("the typed work line", || async { recorder.text().contains("GOT:/rk task:AL-1") }).await;
 
     terminals.write(view.id, b"exit\n").unwrap();
     let end = tokio::time::timeout(std::time::Duration::from_secs(5), ended.recv()).await.unwrap().unwrap();
@@ -76,19 +76,19 @@ async fn a_plan_terminal_opens_on_the_task_with_the_plan_line_and_a_plan_on_a_li
 
     let recorder = Arc::new(Recorder::default());
     let (_, token) = terminals.attach(view.id, recorder.clone()).unwrap();
-    eventually("the plan line", || async { recorder.text().contains("ARGS:/rk project:alpha task:one plan") }).await;
+    eventually("the plan line", || async { recorder.text().contains("ARGS:/rk task:AL-1 plan") }).await;
     terminals.detach(view.id, token);
     terminals.close(view.id, "done").await;
 
     let working = terminals.open(TerminalTarget::Task(task.id), None, false, None, None, TerminalMode::Work).await.unwrap();
     let recorder = Arc::new(Recorder::default());
     let (_, token) = terminals.attach(working.id, recorder.clone()).unwrap();
-    eventually("the work line", || async { recorder.text().contains("ARGS:/rk project:alpha task:one") }).await;
+    eventually("the work line", || async { recorder.text().contains("ARGS:/rk task:AL-1") }).await;
 
     let planned = terminals.open(TerminalTarget::Task(task.id), Some(step.id), false, None, None, TerminalMode::Plan).await.unwrap();
     assert_eq!(planned.id, working.id, "a plan on a task with a live session reuses it");
     assert_eq!(planned.step_id, None);
-    eventually("the typed plan line", || async { recorder.text().contains("GOT:/rk project:alpha task:one plan") }).await;
+    eventually("the typed plan line", || async { recorder.text().contains("GOT:/rk task:AL-1 plan") }).await;
     assert_eq!(terminals.live_count(), 1);
     terminals.detach(working.id, token);
     terminals.close(working.id, "done").await;
@@ -103,7 +103,7 @@ async fn a_generate_terminal_on_a_project_alone_carries_no_task_and_marks_nothin
     let mode = TerminalMode::Generate { request: "the order flow".into(), kinds: vec![DiagramKind::Sequence, DiagramKind::State] };
 
     let view = terminals.open(TerminalTarget::Project(project.id), None, false, None, None, mode).await.unwrap();
-    assert_eq!((view.project_id, view.task_id, view.task_label.clone()), (project.id, None, None));
+    assert_eq!((view.project_id, view.task_id, view.task_code.clone()), (project.id, None, None));
     assert_eq!(view.anchors, "project:alpha");
     assert!(!terminals.has_live_terminal_for(task.id), "a project terminal is not on any task");
 
@@ -171,7 +171,7 @@ async fn a_late_pane_is_repainted_from_the_scrollback() {
 
     let late = Arc::new(Recorder::default());
     terminals.attach(view.id, late.clone()).unwrap();
-    assert!(late.text().contains("ARGS:/rk project:alpha task:one"));
+    assert!(late.text().contains("ARGS:/rk task:AL-1"));
     assert!(late.text().contains("GOT:before"));
     terminals.shutdown().await;
     assert_eq!(late.ended.lock().unwrap().clone().unwrap().1, "The app was shutting down.");
@@ -267,7 +267,7 @@ async fn a_terminal_starts_claude_with_the_trace_variables_while_tracing_is_on()
     let recorder = Arc::new(Recorder::default());
     terminals.attach(view.id, recorder.clone()).unwrap();
     eventually("the trace endpoint and tags", || async {
-        recorder.text().contains("OTEL:http://localhost:3000/api/public/otel:rekall.project=alpha,rekall.task=one")
+        recorder.text().contains("OTEL:http://localhost:3000/api/public/otel:rekall.project=alpha,rekall.task=AL-1")
     })
     .await;
 }

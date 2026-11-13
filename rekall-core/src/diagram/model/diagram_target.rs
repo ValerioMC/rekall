@@ -3,5 +3,5 @@
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DiagramTarget {
     Project { label: String },
-    Task { project_label: Option<String>, task_label: String },
+    Task { project_label: Option<String>, task_code: String },
 }

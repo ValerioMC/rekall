@@ -160,7 +160,7 @@ fn order_folder() -> tempfile::TempDir {
 
 fn on_task(document: serde_json::Value) -> GeneratedDiagram {
     GeneratedDiagram {
-        target: DiagramTarget::Task { project_label: Some("shop".into()), task_label: "orders".into() },
+        target: DiagramTarget::Task { project_label: Some("shop".into()), task_code: "orders".into() },
         diagram_id: None,
         title: "Order flow".into(),
         question: "How is an order processed?".into(),
@@ -179,7 +179,7 @@ async fn a_generated_diagram_lands_on_the_anchored_task_and_its_project() {
 
     assert_eq!(written.diagram.summary.project_id, project.id);
     assert_eq!(written.diagram.summary.task_id, Some(task.id));
-    assert_eq!(written.anchors, "project:shop task:orders");
+    assert_eq!(written.anchors, "task:ORDERS");
     assert!(written.sources_checked && !written.replaced);
 
     let mut again = on_task(order_flow());
@@ -235,6 +235,6 @@ async fn without_a_project_folder_a_generated_diagram_is_stored_unchecked() {
     assert!(!written.sources_checked);
 
     let mut unknown = on_task(order_flow());
-    unknown.target = DiagramTarget::Task { project_label: Some("shop".into()), task_label: "billing".into() };
+    unknown.target = DiagramTarget::Task { project_label: Some("shop".into()), task_code: "billing".into() };
     assert!(matches!(world.services.diagrams.write_generated(unknown).await, Err(RekallError::UnknownAnchor(_))));
 }

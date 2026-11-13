@@ -17,13 +17,13 @@ async fn a_wrapup_written_over_mcp_arrives_with_the_next_context_load() {
     let written = app
         .call_tool(
             "rekall_wrapup",
-            json!({ "anchors": "project:vega task:report-builder", "body": "## Stato\n\nIl builder legge da POST /api/v1/pipelines." }),
+            json!({ "anchors": "task:VE-1", "body": "## Stato\n\nIl builder legge da POST /api/v1/pipelines." }),
         )
         .await;
 
-    assert_contains!(written, "Wrapup written for", "project:vega task:report-builder");
+    assert_contains!(written, "Wrapup written for", "task:VE-1");
     assert_contains!(
-        app.call_tool("rekall_context", json!({ "anchors": "project:vega task:report-builder" })).await,
+        app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await,
         "<wrapup written-by=\"CLAUDE\"",
         "Il builder legge da POST /api/v1/pipelines."
     );
@@ -36,14 +36,14 @@ async fn writing_a_second_wrapup_replaces_the_first_rather_than_adding_one() {
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
     let task_id = app.a_task(&project_id, "report-builder").await;
 
-    app.call_tool("rekall_wrapup", json!({ "anchors": "project:vega task:report-builder", "body": "Il primo stato." })).await;
+    app.call_tool("rekall_wrapup", json!({ "anchors": "task:VE-1", "body": "Il primo stato." })).await;
     let second = app
-        .call_tool("rekall_wrapup", json!({ "anchors": "project:vega task:report-builder", "body": "Lo stato corrente." }))
+        .call_tool("rekall_wrapup", json!({ "anchors": "task:VE-1", "body": "Lo stato corrente." }))
         .await;
 
     assert_contains!(second, "Wrapup replaced for");
     assert_eq!(app.count("SELECT COUNT(*) FROM wrapup WHERE task_id = ?", vec![uuid_value(&task_id)]).await, 1);
-    let context = app.call_tool("rekall_context", json!({ "anchors": "task:report-builder" })).await;
+    let context = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
     assert_contains!(context, "Lo stato corrente.");
     assert_lacks!(context, "Il primo stato.");
 }
@@ -59,9 +59,9 @@ async fn replacing_a_hand_written_wrapup_says_so_and_the_author_follows_the_last
 
     assert_eq!(by_hand.status, 200);
     assert_eq!(by_hand.str("writtenBy"), "HAND");
-    assert_eq!(by_hand.str("anchor"), "project:vega task:report-builder");
+    assert_eq!(by_hand.str("anchor"), "task:VE-1");
     assert_contains!(
-        app.call_tool("rekall_wrapup", json!({ "anchors": "project:vega task:report-builder", "body": "Riscritto da Claude." })).await,
+        app.call_tool("rekall_wrapup", json!({ "anchors": "task:VE-1", "body": "Riscritto da Claude." })).await,
         "had been edited by hand"
     );
     assert_eq!(app.get(&format!("/api/tasks/{task_id}/wrapup")).await.str("writtenBy"), "CLAUDE");
@@ -81,13 +81,12 @@ async fn a_wrapup_refuses_any_anchor_that_does_not_name_exactly_one_task() {
         "This write belongs to exactly one task"
     );
     assert_contains!(
-        app.call_tool("rekall_wrapup", json!({ "anchors": "task:setup", "body": "x" })).await,
-        "matches 2 records",
-        "Qualify it with `project:"
+        app.call_tool("rekall_wrapup", json!({ "anchors": "project:beacon task:VE-1", "body": "x" })).await,
+        "No task 'VE-1' on project 'beacon'"
     );
     assert_contains!(
         app.call_tool("rekall_wrapup", json!({ "anchors": "task:nowhere", "body": "x" })).await,
-        "No task matches 'nowhere'"
+        "No task 'nowhere'"
     );
     assert_eq!(app.count("SELECT COUNT(*) FROM wrapup", vec![]).await, 0, "nothing was written on any of those");
 }
@@ -100,12 +99,12 @@ async fn a_wrapup_that_has_grown_into_a_log_is_refused_and_told_why() {
     app.a_task(&project_id, "report-builder").await;
 
     assert_contains!(
-        app.call_tool("rekall_wrapup", json!({ "anchors": "project:vega task:report-builder", "body": "x".repeat(20_001) })).await,
+        app.call_tool("rekall_wrapup", json!({ "anchors": "task:VE-1", "body": "x".repeat(20_001) })).await,
         "capped at 20000 characters",
         "not how it got there"
     );
     assert_contains!(
-        app.call_tool("rekall_wrapup", json!({ "anchors": "project:vega task:report-builder", "body": "   " })).await,
+        app.call_tool("rekall_wrapup", json!({ "anchors": "task:VE-1", "body": "   " })).await,
         "'body' is required"
     );
     assert_eq!(app.count("SELECT COUNT(*) FROM wrapup", vec![]).await, 0);
@@ -117,14 +116,14 @@ async fn deleting_a_task_takes_its_wrapup_and_deleting_a_wrapup_leaves_the_task(
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
     let task_id = app.a_task(&project_id, "report-builder").await;
-    app.call_tool("rekall_wrapup", json!({ "anchors": "project:vega task:report-builder", "body": "Lo stato." })).await;
+    app.call_tool("rekall_wrapup", json!({ "anchors": "task:VE-1", "body": "Lo stato." })).await;
 
     app.delete(&format!("/api/tasks/{task_id}/wrapup")).await;
 
     assert_eq!(app.count("SELECT COUNT(*) FROM wrapup", vec![]).await, 0);
     assert_eq!(app.count("SELECT COUNT(*) FROM task", vec![]).await, 1, "the task and its notes are untouched");
 
-    app.call_tool("rekall_wrapup", json!({ "anchors": "project:vega task:report-builder", "body": "Di nuovo." })).await;
+    app.call_tool("rekall_wrapup", json!({ "anchors": "task:VE-1", "body": "Di nuovo." })).await;
     app.delete(&format!("/api/tasks/{task_id}")).await;
 
     assert_eq!(app.count("SELECT COUNT(*) FROM wrapup", vec![]).await, 0, "and the row goes with the task it describes");
@@ -137,14 +136,14 @@ async fn a_task_reports_whether_it_has_a_wrapup_without_carrying_the_body() {
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
     app.a_task(&project_id, "report-builder").await;
     app.a_task(&project_id, "retry-policy").await;
-    app.call_tool("rekall_wrapup", json!({ "anchors": "project:vega task:report-builder", "body": "Lo stato." })).await;
+    app.call_tool("rekall_wrapup", json!({ "anchors": "task:VE-1", "body": "Lo stato." })).await;
 
     let tasks = app.get("/api/tasks").await.list();
 
     assert_eq!(tasks.len(), 2);
-    let mut flags: Vec<String> = tasks.iter().map(|t| format!("{}={}", t["label"].as_str().unwrap(), t["hasWrapup"])).collect();
+    let mut flags: Vec<String> = tasks.iter().map(|t| format!("{}={}", t["code"].as_str().unwrap(), t["hasWrapup"])).collect();
     flags.sort();
-    assert_eq!(flags, ["report-builder=true", "retry-policy=false"]);
+    assert_eq!(flags, ["VE-1=true", "VE-2=false"]);
 }
 
 // --- Time entries

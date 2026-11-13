@@ -34,7 +34,7 @@ function session(over: Partial<Terminal> = {}): Terminal {
     anchors: 'project:vega task:report-builder',
     workingDir: '/code/vega',
     projectLabel: 'vega',
-    taskLabel: 'report-builder',
+    taskCode: 'report-builder',
     taskTitle: 'Report builder',
     mode: 'WORK',
     skipPermissions: false,

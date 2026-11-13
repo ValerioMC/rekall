@@ -36,7 +36,7 @@ async fn a_company_anchor_lists_its_projects_and_a_task_reaches_back_up_to_it() 
 
     assert_contains!(app.call_tool("rekall_context", json!({ "anchors": "company:Acme" })).await, "Company: Acme", "`project:vega`");
     assert_contains!(
-        app.call_tool("rekall_context", json!({ "anchors": "task:report-builder" })).await,
+        app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await,
         "Task: report-builder",
         "Project: vega",
         "Company: Acme"
@@ -77,26 +77,26 @@ async fn a_session_can_propose_a_step_which_lands_as_a_draft_no_session_reads_an
     let answer = app
         .call_tool(
             "rekall_propose_step",
-            json!({ "anchors": "project:vega task:report-builder", "title": "Expose the report as a download", "detail": "Stream it; do not buffer.", "draft": true }),
+            json!({ "anchors": "task:VE-1", "title": "Expose the report as a download", "detail": "Stream it; do not buffer.", "draft": true }),
         )
         .await;
 
     assert_contains!(answer, "Draft \"Expose the report as a download\" proposed", "1 draft");
     assert_eq!(app.get(&format!("/api/tasks/{task_id}/steps")).await.list()[0]["state"], "DRAFT");
     assert_lacks!(
-        app.call_tool("rekall_context", json!({ "anchors": "project:vega task:report-builder" })).await,
+        app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await,
         "Expose the report as a download"
     );
     assert_contains!(
         app.call_tool(
             "rekall_propose_step",
-            json!({ "anchors": "project:vega task:report-builder", "title": "expose the report as a download" })
+            json!({ "anchors": "task:VE-1", "title": "expose the report as a download" })
         )
         .await,
         "already has a step titled"
     );
     assert_contains!(
-        app.call_tool("rekall_step", json!({ "anchors": "project:vega task:report-builder", "step": "1", "state": "running" })).await,
+        app.call_tool("rekall_step", json!({ "anchors": "task:VE-1", "step": "1", "state": "running" })).await,
         "still a draft"
     );
 }
@@ -109,13 +109,13 @@ async fn a_session_adds_a_step_that_is_ready_to_work_unless_it_asks_for_a_draft(
     let task_id = app.a_task(&project_id, "report-builder").await;
 
     let answer = app
-        .call_tool("rekall_propose_step", json!({ "anchors": "project:vega task:report-builder", "title": "Add the button", "new_session": true }))
+        .call_tool("rekall_propose_step", json!({ "anchors": "task:VE-1", "title": "Add the button", "new_session": true }))
         .await;
 
     assert_contains!(answer, "Step \"Add the button\" added to the checklist, ready to work.");
     assert_eq!(app.get(&format!("/api/tasks/{task_id}/steps")).await.list()[0]["state"], "OPEN");
     assert_contains!(
-        app.call_tool("rekall_step", json!({ "anchors": "project:vega task:report-builder", "step": "1", "state": "running" })).await,
+        app.call_tool("rekall_step", json!({ "anchors": "task:VE-1", "step": "1", "state": "running" })).await,
         "Add the button"
     );
 }
@@ -140,7 +140,7 @@ async fn a_session_creates_a_task_whose_steps_are_ready_to_work_and_the_console_
         )
         .await;
 
-    assert_contains!(answer, "Task \"Report builder\" created as `project:vega task:report-builder`", "2 steps ready to work");
+    assert_contains!(answer, "Task \"Report builder\" created as `task:VE-1`", "2 steps ready to work");
     let tasks = app.get(&format!("/api/tasks?projectId={project_id}")).await.list();
     assert_eq!(tasks[0]["description"], "Let people export a report.");
     let steps = app.get(&format!("/api/tasks/{}/steps", tasks[0]["id"].as_str().unwrap())).await.list();
@@ -148,7 +148,7 @@ async fn a_session_creates_a_task_whose_steps_are_ready_to_work_and_the_console_
     assert!(steps.iter().all(|step| step["state"] == "OPEN"));
     assert_contains!(
         app.call_tool("rekall_create_task", json!({ "anchors": "project:vega", "title": "Report builder" })).await,
-        "already uses the label 'report-builder'"
+        "created as `task:VE-2`"
     );
 }
 
@@ -160,17 +160,17 @@ async fn a_session_creates_an_epic_and_files_tasks_under_it_and_the_console_list
     app.a_task(&project_id, "login").await;
 
     let epic = app.call_tool("rekall_create_task", json!({ "anchors": "project:vega", "title": "Checkout", "kind": "epic" })).await;
-    app.call_tool("rekall_create_task", json!({ "anchors": "project:vega", "title": "Pay", "epic": "checkout" })).await;
-    let joined = app.call_tool("rekall_join_epic", json!({ "anchors": "project:vega task:login", "epic": "checkout" })).await;
+    app.call_tool("rekall_create_task", json!({ "anchors": "project:vega", "title": "Pay", "epic": "VE-2" })).await;
+    let joined = app.call_tool("rekall_join_epic", json!({ "anchors": "task:VE-1", "epic": "VE-2" })).await;
 
-    assert_contains!(epic, "Epic \"Checkout\" created as `project:vega task:checkout`");
-    assert_contains!(joined, "`project:vega task:login` is filed under the epic \"Checkout\"");
+    assert_contains!(epic, "Epic \"Checkout\" created as `task:VE-2`");
+    assert_contains!(joined, "`task:VE-1` is filed under the epic \"Checkout\"");
     let tasks = app.get(&format!("/api/tasks?projectId={project_id}")).await.list();
-    let checkout = tasks.iter().find(|task| task["label"] == "checkout").unwrap();
+    let checkout = tasks.iter().find(|task| task["code"] == "VE-2").unwrap();
     assert_eq!(checkout["kind"], "EPIC");
-    for label in ["login", "pay"] {
-        let task = tasks.iter().find(|task| task["label"] == label).unwrap();
-        assert_eq!(task["epicId"], checkout["id"], "{label}");
+    for code in ["VE-1", "VE-3"] {
+        let task = tasks.iter().find(|task| task["code"] == code).unwrap();
+        assert_eq!(task["epicId"], checkout["id"], "{code}");
     }
     assert_contains!(
         app.call_tool("rekall_create_task", json!({ "anchors": "project:vega", "title": "Billing", "kind": "epic", "steps": [{ "title": "One" }] })).await,
@@ -186,7 +186,7 @@ async fn a_session_reads_the_sections_of_a_project_listed_by_title_or_one_whole_
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
     app.a_task(&project_id, "report-builder").await;
-    let anchors = "project:vega task:report-builder";
+    let anchors = "task:VE-1";
     assert_contains!(app.call_tool("rekall_read_sections", json!({ "anchors": "project:vega" })).await, "has no sections");
     app.call_tool("rekall_project_section", json!({ "anchors": anchors, "title": "Deployment", "body": "Push a tag." })).await;
 
@@ -218,17 +218,17 @@ async fn a_session_writes_a_note_onto_a_task_which_travels_with_its_context_and_
     let answer = app
         .call_tool(
             "rekall_note",
-            json!({ "anchors": "project:vega task:report-builder", "title": "export-formats.md", "body": "CSV and XLSX, streamed." }),
+            json!({ "anchors": "task:VE-1", "title": "export-formats.md", "body": "CSV and XLSX, streamed." }),
         )
         .await;
 
-    assert_contains!(answer, "Note \"export-formats.md\" written on `project:vega task:report-builder`", "1 note,");
+    assert_contains!(answer, "Note \"export-formats.md\" written on `task:VE-1`", "1 note,");
     assert!(regex::Regex::new("as `note:[0-9a-f]{8}`").unwrap().is_match(&answer), "{answer}");
     let notes = app.documents_on(&task_id).await;
     assert_eq!(notes.len(), 1);
     assert_eq!(notes[0]["kind"], "notes");
     assert_contains!(
-        app.call_tool("rekall_context", json!({ "anchors": "project:vega task:report-builder" })).await,
+        app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await,
         "export-formats.md",
         "CSV and XLSX, streamed."
     );
@@ -237,7 +237,7 @@ async fn a_session_writes_a_note_onto_a_task_which_travels_with_its_context_and_
     assert_contains!(
         app.call_tool(
             "rekall_note",
-            json!({ "anchors": "project:vega task:report-builder", "title": "Export-Formats.md", "body": "Something else." })
+            json!({ "anchors": "task:VE-1", "title": "Export-Formats.md", "body": "Something else." })
         )
         .await,
         "already has a note titled"
@@ -248,7 +248,7 @@ async fn a_session_writes_a_note_onto_a_task_which_travels_with_its_context_and_
         "No task in those anchors"
     );
     assert_contains!(
-        app.call_tool("rekall_note", json!({ "anchors": "project:vega task:report-builder", "title": "x.md", "body": "  " }))
+        app.call_tool("rekall_note", json!({ "anchors": "task:VE-1", "title": "x.md", "body": "  " }))
             .await,
         "'body' is required"
     );
@@ -273,11 +273,11 @@ async fn a_session_rewrites_a_note_by_its_title_when_asked_to_replace() {
     let answer = app
         .call_tool(
             "rekall_note",
-            json!({ "anchors": "project:vega task:report-builder", "title": "results.md", "body": "All green.", "replace": true }),
+            json!({ "anchors": "task:VE-1", "title": "results.md", "body": "All green.", "replace": true }),
         )
         .await;
 
-    assert_contains!(answer, "Note \"Results.md\" on `project:vega task:report-builder` rewritten");
+    assert_contains!(answer, "Note \"Results.md\" on `task:VE-1` rewritten");
     let notes = app.documents_on(&task_id).await;
     assert_eq!(notes.len(), 1, "rewritten in place, not added");
     assert_eq!(notes[0]["id"], document_id.as_str());
@@ -288,10 +288,10 @@ async fn a_session_rewrites_a_note_by_its_title_when_asked_to_replace() {
     assert_contains!(
         app.call_tool(
             "rekall_note",
-            json!({ "anchors": "project:vega task:report-builder", "title": "runbook.md", "body": "Step one.", "replace": "true" })
+            json!({ "anchors": "task:VE-1", "title": "runbook.md", "body": "Step one.", "replace": "true" })
         )
         .await,
-        "written on `project:vega task:report-builder`",
+        "written on `task:VE-1`",
         "2 notes,"
     );
 }
@@ -376,7 +376,7 @@ async fn a_session_searches_for_earlier_work_and_gets_anchors_to_load_not_the_te
 
     let found = app.call_tool("rekall_search", json!({ "term": "settlement batch", "anchors": "project:vega" })).await;
 
-    assert_contains!(found, "- wrapup \"Settlement\": `project:vega task:settlement`");
+    assert_contains!(found, "- wrapup \"Settlement\": `task:VE-1`");
     assert_contains!(found, "- note \"batch.md\": `note:");
     assert_contains!(app.call_tool("rekall_search", json!({ "term": "se" })).await, "at least 3 characters");
 }
@@ -406,7 +406,7 @@ async fn a_note_sent_by_reference_travels_as_a_line_and_an_anchor_loads_in_full_
     .await;
 
     let anchor = note.str("anchor");
-    let context = app.call_tool("rekall_context", json!({ "anchors": "project:vega task:report-builder" })).await;
+    let context = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
     assert_contains!(context, "loaded=\"on request\"", "Cluster kmaster14, accesso via bastion.", &anchor);
     assert_lacks!(context, "Dettaglio lungo.");
     assert!(context_size(&app, &task_id).await < full_size / 4, "the size the console shows drops with it");
@@ -421,10 +421,10 @@ async fn the_context_size_is_what_rk_hands_over_split_into_parts_heaviest_first(
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
     let task_id = app.a_task(&project_id, "report-builder").await;
-    app.call_tool("rekall_wrapup", json!({ "anchors": "project:vega task:report-builder", "body": "W".repeat(4000) })).await;
+    app.call_tool("rekall_wrapup", json!({ "anchors": "task:VE-1", "body": "W".repeat(4000) })).await;
 
     let size = app.get(&format!("/api/tasks/{task_id}/context-size")).await;
-    let context = app.call_tool("rekall_context", json!({ "anchors": "project:vega task:report-builder" })).await;
+    let context = app.call_tool("rekall_context", json!({ "anchors": "project:vega task:VE-1" })).await;
     let length = context.encode_utf16().count() as i64;
 
     assert_eq!(size.get("characters").as_i64().unwrap(), length);
@@ -531,17 +531,17 @@ async fn a_review_without_a_target_state_is_refused_as_a_400() {
 }
 
 #[tokio::test]
-async fn both_a_label_and_a_title_are_required() {
+async fn a_task_needs_a_title_and_no_label() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
 
-    assert_eq!(app.post("/api/tasks", json!({ "label": "t", "status": "TODO", "projectId": project_id })).await.status, 400);
-    assert_eq!(app.post("/api/tasks", json!({ "title": "T", "status": "TODO", "projectId": project_id })).await.status, 400);
+    assert_eq!(app.post("/api/tasks", json!({ "status": "TODO", "projectId": project_id })).await.status, 400);
+    assert_eq!(app.post("/api/tasks", json!({ "title": "T", "status": "TODO", "projectId": project_id })).await.status, 201);
 }
 
 #[tokio::test]
-async fn every_task_unscoped_comes_back_grouped_by_project_and_then_by_label() {
+async fn every_task_unscoped_comes_back_grouped_by_project_and_then_by_number() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
     let vega = app.a_project(&acme, "vega", "ACTIVE").await;
@@ -553,8 +553,8 @@ async fn every_task_unscoped_comes_back_grouped_by_project_and_then_by_label() {
     let tasks = app.get("/api/tasks").await.list();
 
     let order: Vec<String> =
-        tasks.iter().map(|t| format!("{}/{}", t["projectLabel"].as_str().unwrap(), t["label"].as_str().unwrap())).collect();
-    assert_eq!(order, ["beacon/wiring", "vega/report-builder", "vega/setup"]);
+        tasks.iter().map(|t| format!("{}/{}", t["projectLabel"].as_str().unwrap(), t["code"].as_str().unwrap())).collect();
+    assert_eq!(order, ["beacon/BE-1", "vega/VE-1", "vega/VE-2"]);
 }
 
 // Regression: a stale forwarding list left current routes answering 404 on a refresh.
@@ -856,7 +856,7 @@ async fn a_session_replies_to_pending_entries_of_the_thread_and_a_refused_reply_
     a_pending_entry(&app, &task_id, rekall_store::FeedbackKind::Implementation, 1, "The totals are wrong").await;
     a_pending_entry(&app, &task_id, rekall_store::FeedbackKind::Plan, 2, "Split step 2").await;
     a_pending_entry(&app, &task_id, rekall_store::FeedbackKind::Implementation, 3, "The new text").await;
-    let anchors = "project:vega task:report-builder";
+    let anchors = "task:VE-1";
 
     let refused = app
         .call_tool("rekall_feedback", json!({ "anchors": anchors, "replies": [{ "seq": 1, "reply": "Fixed." }, { "seq": 9, "reply": "Fixed." }] }))
@@ -865,7 +865,7 @@ async fn a_session_replies_to_pending_entries_of_the_thread_and_a_refused_reply_
     assert_eq!(state_of_entry(&app, &task_id, 1).await.as_deref(), Some("PENDING"), "nothing is written when one reply is refused");
 
     let one = app.call_tool("rekall_feedback", json!({ "anchors": anchors, "replies": [{ "seq": 1, "reply": "Fixed the totals." }] })).await;
-    assert_contains!(one, "Replied to #1 on `project:vega task:report-builder`", "Still open: #2, #3.");
+    assert_contains!(one, "Replied to #1 on `task:VE-1`", "Still open: #2, #3.");
     let several = app
         .call_tool("rekall_feedback", json!({ "anchors": anchors, "replies": [{ "seq": 2, "reply": "Split it." }, { "seq": "3", "reply": "Built it." }] }))
         .await;
@@ -896,11 +896,11 @@ async fn a_deviation_a_session_records_stays_out_of_the_notes_is_listed_by_the_c
     let answer = app
         .call_tool(
             "rekall_deviation",
-            json!({ "anchors": "project:vega task:report-builder", "step": "2", "body": "Planned a queue; the existing stream does the job." }),
+            json!({ "anchors": "task:VE-1", "step": "2", "body": "Planned a queue; the existing stream does the job." }),
         )
         .await;
 
-    assert_contains!(answer, "Deviation on step 2 \"Stream the export\" recorded on `project:vega task:report-builder`", "1 deviation,");
+    assert_contains!(answer, "Deviation on step 2 \"Stream the export\" recorded on `task:VE-1`", "1 deviation,");
     assert_eq!(lines.await_line("event:deviation", 5).await, "event:deviation");
     assert_contains!(lines.await_line("data:", 5).await, &task_id, "\"stepNumber\":2");
     assert!(app.documents_on(&task_id).await.is_empty(), "a deviation is not a note");
@@ -908,16 +908,16 @@ async fn a_deviation_a_session_records_stays_out_of_the_notes_is_listed_by_the_c
     assert_eq!(listed.len(), 1);
     assert_eq!((listed[0]["stepNumber"].as_i64(), listed[0]["stepTitle"].as_str()), (Some(2), Some("Stream the export")));
     assert_contains!(
-        app.call_tool("rekall_context", json!({ "anchors": "project:vega task:report-builder" })).await,
+        app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await,
         "<deviation step=\"2\" title=\"Stream the export\">",
         "the existing stream does the job."
     );
     assert_contains!(
-        app.call_tool("rekall_deviation", json!({ "anchors": "project:vega task:report-builder", "step": "7", "body": "x" })).await,
+        app.call_tool("rekall_deviation", json!({ "anchors": "task:VE-1", "step": "7", "body": "x" })).await,
         "there is no step 7"
     );
     assert_contains!(
-        app.call_tool("rekall_deviation", json!({ "anchors": "project:vega task:report-builder", "step": "two", "body": "x" })).await,
+        app.call_tool("rekall_deviation", json!({ "anchors": "task:VE-1", "step": "two", "body": "x" })).await,
         "'step' is the number of a step"
     );
 }

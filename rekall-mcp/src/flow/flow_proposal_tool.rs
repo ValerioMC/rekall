@@ -63,7 +63,7 @@ impl McpTool for FlowProposalTool {
         ToolSchema::object()
             .required_string(
                 "anchors",
-                "The task to propose the flow for, e.g. `project:vega task:release`. Labels, never titles, and it has \
+                "The task to propose the flow for, e.g. `task:RK-12`. Labels, never titles, and it has \
                  to name exactly one task.",
             )
             .required_object_array(
@@ -86,7 +86,7 @@ impl McpTool for FlowProposalTool {
         let staging = if args.flag("draft") { Staging::Draft } else { Staging::Ready };
         let proposed = self
             .proposals
-            .propose(target.project_label.as_deref(), &target.task_label, &plan, staging)
+            .propose(target.project_label.as_deref(), &target.task_code, &plan, staging)
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
         let report = if staging == Staging::Ready { texts::FLOW_LAID_REPORT } else { texts::PROPOSED_FLOW_REPORT };

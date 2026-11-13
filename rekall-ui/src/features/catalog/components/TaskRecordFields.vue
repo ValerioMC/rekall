@@ -9,6 +9,7 @@ import TaskSkillsField from '@/features/catalog/components/record/TaskSkillsFiel
 import TaskTagField from '@/features/catalog/components/record/TaskTagField.vue'
 import { TASK_STATUSES, TASK_STATUS_LABEL } from '@/features/catalog/model/task-status'
 import { epicChoices } from '@/features/catalog/model/epic'
+import { taskCodeOf } from '@/features/catalog/model/task-code'
 import type { TaskDraft } from '@/features/catalog/model/record-draft'
 import { useConsoleStore } from '@/stores/console.store'
 import type { ProjectId } from '@/model/branded'
@@ -18,7 +19,7 @@ import type { ProjectId } from '@/model/branded'
  * description is written in the task's own pane. `picking` says whether a picker is open, so the
  * dialog does not dismiss on the click that closes it.
  */
-defineProps<{ titleError: string | null; labelError: string | null; anchorParent: string }>()
+defineProps<{ titleError: string | null }>()
 
 const emit = defineEmits<{ picking: [open: boolean] }>()
 
@@ -27,10 +28,11 @@ const draft = defineModel<TaskDraft>({ required: true })
 const store = useConsoleStore()
 const isPickingProject = ref(false)
 const isPickingEpic = ref(false)
-const originalLabel = draft.value.label
 const statusOptions = TASK_STATUSES.map((value) => ({ value, label: TASK_STATUS_LABEL[value] }))
 
 const epics = computed(() => epicChoices(draft.value.projectId, store.tasks, draft.value.id))
+
+const code = computed(() => taskCodeOf(draft.value, store.projects, store.tasks))
 
 watch([isPickingProject, isPickingEpic], ([project, epic]) => emit('picking', project || epic))
 
@@ -55,20 +57,17 @@ function setSkills(skills: readonly string[]): void {
     @open-change="isPickingProject = $event"
   />
   <p class="mb-5 mt-1.5 text-caption text-text-subtle">
-    <template v-if="draft.id === null">Where this lands. It opens the anchor.</template>
-    <template v-else>Changing this moves the record, and its anchor with it.</template>
+    <template v-if="draft.id === null">Where this lands. Its key opens the task code.</template>
+    <template v-else>Changing this moves the task, and gives it the next code of that project.</template>
   </p>
 
   <RecordIdentityFields
     v-model:title="draft.title"
-    v-model:label="draft.label"
     kind="task"
     :is-new="draft.id === null"
-    :original-label="originalLabel"
-    :anchor-parent="anchorParent"
     :parent-id="draft.projectId"
+    :task-code="code"
     :title-error="titleError"
-    :label-error="labelError"
     autofocus
   />
   <RecordStatusField v-model="draft.status" :options="statusOptions" />

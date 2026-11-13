@@ -5,7 +5,7 @@ import type { ProjectId, TaskId } from '@/model/branded'
 export function taskFixture(id: TaskId): Task {
   return {
     id,
-    label: id,
+    code: id, label: id,
     title: id,
     status: 'TODO',
     description: null,

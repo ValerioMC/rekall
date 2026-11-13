@@ -126,14 +126,14 @@ async fn a_chat_session_starts_claude_in_the_project_folder_marks_the_step_and_s
     let view = chats.manager.open(work_on(&task, Some(&step))).await.unwrap();
 
     assert_eq!((view.kind, view.live, view.step_id), (SessionKind::Chat, true, Some(step.id)));
-    assert_eq!((view.anchors.as_str(), view.model.as_deref()), ("project:alpha task:one", Some("opus")));
+    assert_eq!((view.anchors.as_str(), view.model.as_deref()), ("task:AL-1", Some("opus")));
     assert_eq!(world.step_state(&task, &step).await, TaskStepState::Running);
     let follower = follow(&chats, view.id);
     eventually("the first turn to finish", || async { follower.turn_finished() }).await;
     let events = follower.events();
-    assert_eq!(events[0].body, ChatBody::UserMessage { text: "/rk project:alpha task:one".into() });
+    assert_eq!(events[0].body, ChatBody::UserMessage { text: "/rk task:AL-1".into() });
     assert_eq!(events.iter().map(|event| event.seq).collect::<Vec<_>>(), (1..=events.len() as u64).collect::<Vec<_>>());
-    assert!(chats.received_lines()[0].contains("/rk project:alpha task:one"));
+    assert!(chats.received_lines()[0].contains("/rk task:AL-1"));
 }
 
 #[tokio::test]

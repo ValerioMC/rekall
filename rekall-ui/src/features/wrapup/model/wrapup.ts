@@ -10,7 +10,7 @@ export const WRAPUP_AUTHOR_LABEL: Readonly<Record<WrapupAuthor, string>> = {
 export interface Wrapup {
   readonly id: WrapupId
   readonly taskId: TaskId
-  readonly taskLabel: string
+  readonly taskCode: string
   readonly taskTitle: string
   readonly projectLabel: string
   readonly anchor: string

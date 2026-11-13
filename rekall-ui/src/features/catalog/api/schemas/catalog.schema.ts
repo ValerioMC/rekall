@@ -40,7 +40,7 @@ export const CompanySchema = z.object({
 
 export const TaskRefSchema = z.object({
   id: taskId,
-  label: z.string(),
+  code: z.string(),
   title: z.string(),
   projectLabel: z.string(),
   projectTitle: z.string(),
@@ -51,6 +51,7 @@ export const TaskRefSchema = z.object({
 export const ProjectSchema = z.object({
   id: projectId,
   label: z.string(),
+  taskKey: z.string(),
   title: z.string(),
   status: z.enum(PROJECT_STATUSES),
   icon: z.string(),
@@ -70,6 +71,7 @@ export const ProjectSchema = z.object({
 
 export const TaskSchema = z.object({
   id: taskId,
+  code: z.string(),
   label: z.string(),
   title: z.string(),
   status: z.enum(TASK_STATUSES),
@@ -174,7 +176,7 @@ export const DocumentSchema = z.object({
 export const WrapupSchema = z.object({
   id: wrapupId,
   taskId,
-  taskLabel: z.string(),
+  taskCode: z.string(),
   taskTitle: z.string(),
   projectLabel: z.string(),
   anchor: z.string(),
@@ -187,7 +189,7 @@ export const WrapupSchema = z.object({
 export const TimeEntrySchema = z.object({
   id: timeEntryId,
   taskId,
-  taskLabel: z.string(),
+  taskCode: z.string(),
   taskTitle: z.string(),
   projectLabel: z.string(),
   anchor: z.string(),

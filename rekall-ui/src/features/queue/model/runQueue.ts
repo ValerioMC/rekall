@@ -39,7 +39,7 @@ export interface RunQueueItem {
   readonly id: RunQueueItemId
   readonly taskId: TaskId
   readonly taskTitle: string
-  readonly taskLabel: string
+  readonly taskCode: string
   readonly projectLabel: string
   readonly anchor: string
   readonly position: number

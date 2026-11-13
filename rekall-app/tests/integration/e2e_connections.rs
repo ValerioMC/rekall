@@ -330,7 +330,7 @@ async fn a_jira_connection_imports_the_issues_a_project_picks_as_its_tasks() {
 
     let imported = app.post(&format!("{issues}/import"), json!({ "keys": ["eng-1"] })).await;
     assert_eq!(imported.status, 200, "{}", imported.text);
-    assert_eq!((imported.list()[0]["label"].as_str(), imported.list()[0]["title"].as_str()), (Some("eng-1"), Some("Fix login")));
+    assert_eq!((imported.list()[0]["code"].as_str(), imported.list()[0]["title"].as_str()), (Some("VE-1"), Some("Fix login")));
     assert!(imported.list()[0]["description"].as_str().unwrap().contains("[ENG-1](https://example.atlassian.net/browse/ENG-1)"));
     assert!(!app.get(&issues).await.list()[0]["taskId"].is_null(), "an imported issue names its task");
 

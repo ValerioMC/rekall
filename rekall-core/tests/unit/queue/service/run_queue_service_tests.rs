@@ -32,7 +32,7 @@ async fn world() -> World {
         description: None,
         blueprint_markdown: None,
         repo_folder: None,
-        auto_commit: false, main_branch: None, pull_request_flow: false,
+        auto_commit: false, main_branch: None, pull_request_flow: false, task_key: String::new(),
         company_id: company.id,
         created_at: now,
         updated_at: now,
@@ -227,7 +227,7 @@ async fn a_dependency_claimed_but_not_accepted_keeps_the_task_waiting() {
     let turn = world.service.next_turn(&HashSet::new()).await.unwrap();
 
     let NextTurn::Blocked(blocked) = turn else { panic!("expected a blocked queue, got {turn:?}") };
-    assert_eq!(blocked[0].reason, "Waiting for project:vega task:export (claimed, waiting for your review).");
+    assert_eq!(blocked[0].reason, "Waiting for task:EXPORT (claimed, waiting for your review).");
 }
 
 #[tokio::test]
@@ -266,7 +266,7 @@ async fn a_queue_where_nothing_may_start_stops_and_says_why_on_each_waiting_item
     let view = world.service.view().await.unwrap();
     assert_eq!(view.state, RunQueueState::Idle);
     assert_eq!(view.items[0].state, RunQueueItemState::Queued);
-    assert_eq!(view.items[0].detail.as_deref(), Some("Waiting for project:vega task:export."));
+    assert_eq!(view.items[0].detail.as_deref(), Some("Waiting for task:EXPORT."));
 }
 
 #[tokio::test]

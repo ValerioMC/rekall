@@ -74,7 +74,7 @@ fn launch_with(connections: Vec<TerminalConnection>) -> TerminalLaunch {
         anchors: "project:vega".into(),
         working_dir: "/work/vega".into(),
         project_label: "vega".into(),
-        task_label: None,
+        task_code: None,
         task_title: None,
         connections,
     }

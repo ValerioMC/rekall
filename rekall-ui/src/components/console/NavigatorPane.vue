@@ -46,7 +46,7 @@ const groupedByProject = computed(() =>
   groupTasksByProject(visibleTasks.value, projects.value, scopeCompany.value === null)
 )
 
-const shelves = useNavigatorShelves(selectedTask)
+const shelves = useNavigatorShelves(selectedTask, tasks)
 
 const scroller = ref<HTMLElement | null>(null)
 

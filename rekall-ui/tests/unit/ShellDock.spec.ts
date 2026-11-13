@@ -62,7 +62,7 @@ const TASK = 't-1' as TaskId
 
 const task: Task = {
   id: TASK,
-  label: 'report-builder',
+  code: 'report-builder', label: 'report-builder',
   title: 'Report builder',
   status: 'IN_PROGRESS',
   description: null,
@@ -101,7 +101,7 @@ function terminal(over: Partial<Terminal> = {}): Terminal {
     anchors: task.anchor,
     workingDir: '/code/vega',
     projectLabel: 'vega',
-    taskLabel: 'report-builder',
+    taskCode: 'report-builder',
     taskTitle: 'Report builder',
     mode: 'WORK',
     skipPermissions: true,
@@ -121,7 +121,7 @@ function running(over: Partial<TimeEntry> = {}): TimeEntry {
   return {
     id: 'time-1' as TimeEntryId,
     taskId: TASK,
-    taskLabel: 'report-builder',
+    taskCode: 'report-builder',
     taskTitle: 'Report builder',
     projectLabel: 'vega',
     anchor: task.anchor,

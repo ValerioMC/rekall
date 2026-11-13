@@ -14,7 +14,7 @@ fn project(label: &str, repo_folder: Option<&str>) -> project::Model {
         description: None,
         blueprint_markdown: None,
         repo_folder: repo_folder.map(String::from),
-        auto_commit: false, main_branch: None, pull_request_flow: false,
+        auto_commit: false, main_branch: None, pull_request_flow: false, task_key: String::new(),
         company_id: Id::random(),
         created_at: now,
         updated_at: now,

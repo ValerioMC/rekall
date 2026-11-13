@@ -7,6 +7,7 @@ function project(id: string, title: string, companyName: string, status: Project
   return {
     id: id as ProjectId,
     label: title.toLowerCase().replace(/\s+/g, '-'),
+    taskKey: 'PR',
     title,
     status,
     icon: 'folder',

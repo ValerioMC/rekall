@@ -198,7 +198,7 @@ export interface ConnectionAccess {
   readonly reason: string | null
   readonly terminalId: string
   readonly taskId: TaskId | null
-  readonly taskLabel: string | null
+  readonly taskCode: string | null
   readonly taskTitle: string | null
 }
 

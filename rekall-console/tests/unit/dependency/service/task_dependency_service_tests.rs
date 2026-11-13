@@ -37,7 +37,7 @@ async fn new_project(ctx: &Ctx, company_id: Id, label: &str) -> Id {
         description: None,
         blueprint_markdown: None,
         repo_folder: None,
-        auto_commit: false, main_branch: None, pull_request_flow: false,
+        auto_commit: false, main_branch: None, pull_request_flow: false, task_key: label[..2].to_ascii_uppercase(),
         company_id,
         created_at: now,
         updated_at: now,
@@ -71,7 +71,7 @@ async fn a_dependency_is_listed_with_the_task_it_waits_for_and_that_it_is_not_me
     let views = world.service.add(export, on(report)).await.unwrap();
 
     assert_eq!(views.len(), 1);
-    assert_eq!((views[0].task_id, views[0].anchor.as_str(), views[0].met), (report, "project:app task:report", false));
+    assert_eq!((views[0].task_id, views[0].anchor.as_str(), views[0].met), (report, "task:AP-1", false));
     assert_eq!(world.service.list_of(export).await.unwrap(), views);
 }
 

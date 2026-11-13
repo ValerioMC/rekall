@@ -18,6 +18,8 @@ export type RecordDraft =
       kind: 'project'
       id: ProjectId | null
       label: string
+      /** Typed in capitals or not; blank leaves it to the server on a new project. */
+      taskKey: string
       title: string
       description: string
       status: ProjectStatus
@@ -29,7 +31,8 @@ export type RecordDraft =
   | {
       kind: 'task'
       id: TaskId | null
-      label: string
+      /** The code the task has; empty while it is new. */
+      code: string
       title: string
       description: string
       status: TaskStatus
@@ -47,7 +50,7 @@ export function titleOf(draft: RecordDraft): string {
 }
 
 export function labelOf(draft: RecordDraft): string {
-  return draft.kind === 'company' ? '' : draft.label
+  return draft.kind === 'project' ? draft.label : ''
 }
 
 export function companyDraft(company?: Company): RecordDraft {
@@ -64,6 +67,7 @@ export function projectDraft(companyId: CompanyId, project?: Project): ProjectDr
     kind: 'project',
     id: project?.id ?? null,
     label: project?.label ?? '',
+    taskKey: project?.taskKey ?? '',
     title: project?.title ?? '',
     description: project?.description ?? '',
     status: project?.status ?? 'ACTIVE',
@@ -77,7 +81,7 @@ export function taskDraft(projectId: ProjectId, task?: Task, epicId: TaskId | nu
   return {
     kind: 'task',
     id: task?.id ?? null,
-    label: task?.label ?? '',
+    code: task?.code ?? '',
     title: task?.title ?? '',
     description: task?.description ?? '',
     status: task?.status ?? 'TODO',

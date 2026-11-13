@@ -82,7 +82,7 @@ function attach(id: TaskId): void {
                 :color="task.tagColor"
               />
             </span>
-            <span class="anchor-chip mt-0.5 inline-block max-w-full truncate px-1.5 py-px text-micro leading-[15px]">{{ task.label }}</span>
+            <span class="anchor-chip mt-0.5 inline-block max-w-full truncate px-1.5 py-px text-micro leading-[15px]">{{ task.code }}</span>
           </span>
           <span class="hidden w-28 shrink-0 sm:block" :title="`${task.stepsDone} of ${task.stepCount} steps done`">
             <template v-if="task.stepCount > 0">

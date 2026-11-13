@@ -19,11 +19,10 @@ impl TaskWaitService {
 
     async fn wait_for_in(tx: &Tx, task_id: Id) -> Result<TaskWait> {
         let task = load::task_or_unknown(tx.db(), task_id).await?;
-        let project = load::project_of(tx.db(), &task).await?;
         let work = TaskWorkService::read_in(tx, task_id).await?;
         Ok(TaskWait {
             task_id,
-            anchor: task.anchor(&project.label),
+            anchor: task.anchor(),
             title: task.title,
             status: task.status,
             remaining: work.remaining,

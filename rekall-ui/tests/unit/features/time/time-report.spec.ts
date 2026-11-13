@@ -27,6 +27,7 @@ const companies: Company[] = [
 function task(id: TaskId, title: string, projectId: ProjectId, companyName: string): Task {
   return {
     id,
+    code: title.toLowerCase().replace(/ /g, '-'),
     label: title.toLowerCase().replace(/ /g, '-'),
     title,
     status: 'IN_PROGRESS',
@@ -73,7 +74,7 @@ function session(taskId: TaskId, day: Date, hours: number, open = false): TimeEn
   return {
     id: `te${nextId++}` as TimeEntryId,
     taskId,
-    taskLabel: known.label,
+    taskCode: known.label,
     taskTitle: known.title,
     projectLabel: known.projectLabel,
     anchor: known.anchor,

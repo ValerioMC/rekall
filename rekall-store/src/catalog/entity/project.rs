@@ -6,6 +6,7 @@ use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;
 use crate::enums::ProjectStatus;
+use crate::task_key::TaskKey;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "project")]
@@ -13,6 +14,8 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Id,
     pub label: String,
+    /// Two to four capitals, unique across companies: the first half of every task code, as in `RK-12`.
+    pub task_key: String,
     pub title: String,
     pub status: ProjectStatus,
     /// A key into the console's fixed project-icon set (see `PROJECT_ICON_KEYS` in the UI); never
@@ -73,6 +76,7 @@ impl Model {
             .not_blank("label", Some(&self.label))
             .max_length("label", Some(&self.label), 120)
             .slug("label", Some(&self.label))
+            .require(TaskKey::is_well_formed(&self.task_key), "taskKey must be 2 to 4 capital letters")
             .not_blank("title", Some(&self.title))
             .max_length("title", Some(&self.title), 200)
             .not_blank("icon", Some(&self.icon))

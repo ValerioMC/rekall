@@ -18,9 +18,9 @@ fn a_project_alone_is_a_project_target() {
 fn a_task_puts_the_diagram_on_its_project() {
     assert_eq!(
         target_of(&anchors("project:vega task:report")).unwrap(),
-        DiagramTarget::Task { project_label: Some("vega".into()), task_label: "report".into() }
+        DiagramTarget::Task { project_label: Some("vega".into()), task_code: "report".into() }
     );
-    assert_eq!(target_of(&anchors("report")).unwrap(), DiagramTarget::Task { project_label: None, task_label: "report".into() });
+    assert_eq!(target_of(&anchors("report")).unwrap(), DiagramTarget::Task { project_label: None, task_code: "report".into() });
 }
 
 #[test]

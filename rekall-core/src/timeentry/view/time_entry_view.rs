@@ -9,7 +9,7 @@ use crate::load;
 pub struct TimeEntryView {
     pub id: Id,
     pub task_id: Id,
-    pub task_label: String,
+    pub task_code: String,
     pub task_title: String,
     pub project_label: String,
     pub anchor: String,
@@ -24,10 +24,10 @@ impl TimeEntryView {
         Self {
             id: entry.id,
             task_id: task.id,
-            task_label: task.label.clone(),
+            task_code: task.code.clone(),
             task_title: task.title.clone(),
             project_label: project.label.clone(),
-            anchor: task.anchor(&project.label),
+            anchor: task.anchor(),
             started_at: entry.started_at,
             stopped_at: entry.stopped_at,
             created_at: entry.created_at,

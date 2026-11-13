@@ -23,7 +23,7 @@ can read files, but:
   find out what it already does, because the notes record how things were decided and never
   what they became.
 
-Target: type `/rk project:vega task:report-builder-main-workflow` and have the full context
+Target: type `/rk task:VG-12` and have the full context
 loaded in one call, including its notes.
 
 ---
@@ -35,7 +35,7 @@ loaded in one call, including its notes.
 | D1 | Real tables with real foreign keys, each leading an index | A note can never point at a deleted task. SQLite indexes no foreign-key column on its own, so every one leads an index (the `schema_indexes` test of `rekall-store` fails otherwise) and deleting a parent does not scan its children. A visit, route, snapshot or check result that names a step and its task references the pair `(task_id, id)` of the step, so the two cannot disagree (migration `079-step-owned-task-keys`; `token_usage` keeps a single-column key because `SET NULL` on a pair would clear its task). On an app whose only job is to be a reliable memory, silent dangling references are the failure mode that matters. |
 | D2 | Claude reads everything and writes a few narrow things | `rekall-mcp` depends on `rekall-core` and never on `rekall-http` or `rekall-console`, so no controller and none of the console's catalog services are on its classpath, and every read runs in a read-only transaction. The exceptions are `rekall_wrapup`, which replaces one task's wrapup; `rekall_step`, which moves a step from `open` to `running` to `claimed`, follows a flow's route on a claim, and cannot reach `done`; `rekall_record_commit`, which logs a commit against a task; `rekall_propose_step`, which can only add one step, a draft when asked; `rekall_propose_flow`, which can only lay steps and the routes between them onto a task with no steps, as drafts when asked; `rekall_replan` and `rekall_delete_step`, which can only delete draft and open steps of a task, the first inside the transaction that lays their replacement; `rekall_create_task`, which can only add a `TODO` task or epic whose steps, a checklist or a flow, start open; `rekall_join_epic`, which can only file one task under an epic of its project; `rekall_description`, which can only replace the description of one task, whole, opening no revision and keeping no copy of the old text; `rekall_note`, which can only add a new note to one task; `rekall_feedback`, which can only answer open entries (waiting or in a pass) of one task's thread by their seq; `rekall_project_section`, which can only add a section to a task's project or rewrite the body of one that already has that title; `rekall_inventory`, which can only replace one project's dependency list; and `rekall_assess_vulnerability`, which can only write a verdict on one exposure the project already has. See [design/write-safety.md](design/write-safety.md). |
 | D3 | Markdown content lives in the database | One backup target, reachable through MCP, searchable. |
-| D4 | One entry point, and it is a slash command | A session begins with `/rk project:vega task:report-builder`, not with a question. Reaching a record through a natural-language query costs several turns and a few thousand tokens before any work starts, and it is the part that fails when the model guesses the wrong entity. An explicit anchor removes both. |
+| D4 | One entry point, and it is a slash command | A session begins with `/rk task:VG-12`, not with a question. Reaching a record through a natural-language query costs several turns and a few thousand tokens before any work starts, and it is the part that fails when the model guesses the wrong entity. An explicit anchor removes both. |
 | D5 | The model is fixed at compile time | There is no runtime meta-model and no DDL engine. Company, project, task and document are fixed SeaORM entities; adding a new kind of record is a model and a migration, not a screen. The status, state and kind columns of `project`, `task`, `task_step`, `run_queue`, `run_queue_item`, `external_connection` and `task_feedback` carry a `CHECK` of the stored names of their enum (migration `078-enum-and-scope-checks`): a new variant of one of those enums needs a migration that rebuilds its table. |
 | D6 | Modular monolith, single process, embedded database | Single user, localhost. The application has to be reachable with one command or it will not get used. Localhost is enforced, not assumed: `LocalAccessFilter` refuses a peer that is not loopback, a `Host` that is not this machine and an `Origin` from another site, since nothing here authenticates and the API can open a terminal. |
 | D7 | What a record is called and what an anchor resolves are two columns | One column serving both jobs would mean a rename breaks anchors written down elsewhere, and makes every name a compromise between readable and typeable. `label` is a slug and is the identity; `title` is prose and is free. See §4. |
@@ -214,7 +214,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 
 Each crate's foundations are modules every domain may use and are no domain: `ctx`, `events`,
 `load`, `services`, `text_rule` and `tx` in `rekall-core`; `constraints`, `enums`, `prelude`,
-`slug` and `stamped` in `rekall-store`, with `database`, `migration`, `query_support`,
+`slug`, `stamped` and `task_key` in `rekall-store`, with `database`, `migration`, `query_support`,
 `stamped_update` and `repository`, whose re-exports the test reads back to their domains; `shared` in `rekall-console`; `api_ports`, `api_state`, `router` and `shared` in `rekall-http`; `controller`, `protocol`, `texts`,
 `tool` and `tool_registry` in `rekall-mcp`. A new edge is a design decision: change the table and
 the test together, or change the code.
@@ -327,8 +327,8 @@ Project ──< VulnerabilityExposure >── SecurityAdvisory
 | Table | Anchored by | Columns of note |
 |---|---|---|
 | `company` | `name`, unique | `description` |
-| `project` | `label`, unique per company | `title`, `status`, `description`, `company_id`, `main_branch` (the branch a task's branch starts from and is merged into, null for the folder's current one; migration `075-task-manager`), `pull_request_flow` (whether accepted work reaches the main branch through a pull request, off by default; migration `081-pull-request-flow`) |
-| `task` | `label`, unique per project | `title`, `status`, `description`, `project_id`, `graph_laid_at` (when a deployment graph was laid on it), `release_skipped` (the project's release graph is not laid when the console runs it; migration `054-release-on-run`), `kind` (`TASK` or `EPIC`), `epic_id` (the epic of the same project it belongs to, set null when the epic is deleted; migration `055-epic`), `quick` (started from one line of text; at most one still open or running per project), `auto_accepted` (accepted by Rekall when the wrapup landed, not by a person; cleared when the review line moves again; migration `063-quick-task`) |
+| `project` | `label`, unique per company | `task_key` (two to four capital letters, unique across every company: the first half of its tasks' codes; migration `086-task-code`), `title`, `status`, `description`, `company_id`, `main_branch` (the branch a task's branch starts from and is merged into, null for the folder's current one; migration `075-task-manager`), `pull_request_flow` (whether accepted work reaches the main branch through a pull request, off by default; migration `081-pull-request-flow`) |
+| `task` | `code`, unique across every project | `number` (its place in its project, counted from 1: one past the highest the project holds), `label` (an internal slug, unique per project: the name of its branch and worktree, and what an anchor written before codes existed still names; migration `086-task-code`), `title`, `status`, `description`, `project_id`, `graph_laid_at` (when a deployment graph was laid on it), `release_skipped` (the project's release graph is not laid when the console runs it; migration `054-release-on-run`), `kind` (`TASK` or `EPIC`), `epic_id` (the epic of the same project it belongs to, set null when the epic is deleted; migration `055-epic`), `quick` (started from one line of text; at most one still open or running per project), `auto_accepted` (accepted by Rekall when the wrapup landed, not by a person; cleared when the review line moves again; migration `063-quick-task`) |
 | `task_pull_request` | through its task | `task_id` (the key: one row per task of a project with the pull request flow on, once its work was first claimed), `number` and `url` (the pull request, or GitLab merge request, open for its branch), `failure` (why it was not opened or not merged, cleared by the next move that works), `merged_at` (when the host merged it); deleted with its task (migrations `082-task-pull-request` and `083-pull-request-merged`) |
 | `task_tracker_link` | through its task | `task_id` (the key: one row per task that was ever pushed to its project's task manager, none for one that was not), `issue_key` and `issue_url` (the issue the task manager holds for it), `sync_error` (why the last write there failed, cleared by the next that works), `synced_fingerprint` (a fingerprint of the title and description last written, which says whether the task changed since); deleted with its task (migrations `075-task-manager`, `080-task-tracker-link` and `085-task-tracker-synced-content`) |
 | `document` | through its task | `task_id`, `position` (its place on the task, dense from zero), `title`, `kind`, `body_markdown`, `context_mode`; deleted with its task (migration `084-note-owned-by-task`) |
@@ -397,14 +397,26 @@ Migration `084-note-owned-by-task` moved notes that were shared: one on several 
 copy per task, the first task it was attached to keeping the original id, and one on no task was
 deleted, since nothing could show it any more.
 
-Task labels are unique per project rather than globally, because two projects routinely have a
-task with the same one. A bare `task:setup` that matches in two projects is reported as
-ambiguous; `project:beacon task:setup` resolves it.
+A task is named by its **code**: its project's key, a dash and its number, `RK-12`. The key is
+unique across every company, so a code names one task anywhere and `task:RK-12` needs no project
+beside it. The number is one past the highest the project holds, so the number of the newest task can come back once that task is deleted or moved. A task that moves to another project takes
+the next number there. Changing a project's key writes every code of the project again in the same
+transaction. Codes are compared ignoring case.
+
+The `label` column stays for what needs a stable slug: a new task's label is its code in lowercase, and
+it is the name of its git branch and worktree folder. A `project:<label> task:<label>` anchor written
+before codes existed still resolves, and so does a `[[task:<label>]]` reference; nothing writes either
+any more. An imported Jira issue keeps its issue key as its label, which is how a second import
+recognises it.
+
+Migration `086-task-code` gave every project a key suggested from its label (the initials of its
+words, then its first letters, then a letter after them, so no two share one) and numbered each
+project's tasks from 1 in the order they were created.
 
 ### 4.1 The wrapup
 
 A wrapup is what a task's implementation looks like **now**. Claude writes one at the end of a
-session with `/rk project:vega task:report-builder wrapup`, and reads it back at the start of the
+session with `/rk task:VG-12 wrapup`, and reads it back at the start of the
 next one, where it arrives with the task like everything else.
 
 It is defined by what it is not. It is not a changelog: no "added", no "before/after", nothing

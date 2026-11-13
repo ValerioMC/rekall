@@ -150,7 +150,7 @@ describe('the connections store', () => {
       reason: null,
       terminalId: 't-1',
       taskId: null,
-      taskLabel: null,
+      taskCode: null,
       taskTitle: null
     }))
     vi.mocked(api.fetchConnectionAccess)
