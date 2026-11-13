@@ -39,20 +39,29 @@ function onEnter(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <section class="flex flex-col gap-1.5" aria-label="Quick task" data-testid="quick-task-bar">
-    <div class="flex items-end gap-2">
-      <textarea
-        v-model="text"
-        class="field min-w-0 flex-1 resize-none rounded-control px-3 py-2 font-sans text-body leading-relaxed"
-        rows="2"
-        :disabled="reason !== null"
-        :aria-describedby="`quick-task-help-${project.id}`"
-        aria-label="What should Claude do?"
-        placeholder="Fix the typo in the README"
-        data-testid="quick-task-input"
-        @keydown.enter="onEnter"
-      />
+  <section class="field flex flex-col rounded-card" aria-label="Quick task" data-testid="quick-task-bar">
+    <textarea
+      v-model="text"
+      class="w-full resize-none rounded-t-card bg-transparent px-4 pt-3 pb-1 font-sans text-body leading-relaxed text-text outline-none placeholder:text-text-subtle disabled:cursor-not-allowed disabled:opacity-50"
+      rows="2"
+      :disabled="reason !== null"
+      :aria-describedby="`quick-task-help-${project.id}`"
+      aria-label="What should Claude do?"
+      placeholder="Fix the typo in the README"
+      data-testid="quick-task-input"
+      @keydown.enter="onEnter"
+    />
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-3 pb-3 pl-4">
+      <p
+        :id="`quick-task-help-${project.id}`"
+        class="min-w-0 flex-1 basis-64 text-caption"
+        :class="reason === null ? 'text-text-subtle' : 'text-warn'"
+        data-testid="quick-task-help"
+      >
+        {{ reason ?? QUICK_TASK_HELP }}
+      </p>
       <AppButton
+        class="shrink-0"
         variant="primary"
         :disabled="!canStart"
         :loading="quick.busy.value"
@@ -62,13 +71,5 @@ function onEnter(event: KeyboardEvent): void {
         Start quick task
       </AppButton>
     </div>
-    <p
-      :id="`quick-task-help-${project.id}`"
-      class="text-micro text-text-subtle"
-      :class="{ 'text-warn': reason !== null }"
-      data-testid="quick-task-help"
-    >
-      {{ reason ?? QUICK_TASK_HELP }}
-    </p>
   </section>
 </template>
