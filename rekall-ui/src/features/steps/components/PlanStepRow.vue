@@ -64,7 +64,7 @@ const rowKey = computed(() => {
   >
     <button
       type="button"
-      class="focus-ring hit-target size-[22px] rounded-full"
+      class="focus-ring hit-target relative size-[22px] rounded-full"
       :class="step.state === 'DONE' && 'cursor-default'"
       :aria-label="sealLabel"
       data-testid="plan-step-seal"
