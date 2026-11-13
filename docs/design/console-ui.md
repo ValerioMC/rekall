@@ -50,7 +50,7 @@ in the build by the terminal, session, run queue and usage stores. A number the 
 | `#/work` | `/` (`/work` redirects to it) | Work ledger |
 | `#/work/board` | `/work/board` | Work board |
 | `#/task/:id/:tab` | `/task/:id/:tab` | Task page, tab `plan`, `wrapup`, `notes`, `description`, `time` or `deviations` |
-| `#/review/:key` | `/review/:key` | Review queue |
+| `#/review/:key` | `/review/:key?` | Review queue |
 | `#/projects`, `#/projects/:id/:tab` | `/projects`, `/projects/:id/:tab` | Project list, project page |
 | `#/companies` | `/companies` | Companies |
 | `#/connections/:id` | `/connections/:id?` | Connections |
@@ -152,12 +152,16 @@ queue) is followed to its page, on the tab that shows the pane it asked for.
 
 ## Review
 
-Review is its own screen at `/review/:key`: a queue of every claimed step and every task handed in
-whole, the longest waiting first, beside the same decision panel as Plan. After a decision the
-next item is selected. Under the panel sit the adherence counts (steps accepted, sent back,
-deviations), read from the real adherence data. With nothing waiting the screen says "Nothing waits
-for you." over the large done seal. The shortcuts A, S and J/K shown by the mockup are a proposal
-and are not built until they are approved.
+Review is its own screen at `/review/:key?`: a queue of every claimed step and every task handed in
+whole, the longest waiting first, beside the same decision panel as Plan. The queue is the
+console's `reviewQueue`, so its length is the Needs me count, the badge on the Review entry of the
+menu and the header review segment, which is a link to this screen (the popover list it used to
+open is gone). The item in view is in the URL; after a decision the item leaves the queue and the
+next one in its order opens, or the one before it at the end. Under the panel sits the task's
+adherence (steps accepted at the first pass, sent back, deviations) from the real adherence data.
+With nothing waiting the screen says "Nothing waits for you." over the large done seal. The
+shortcuts A, S and J/K shown by the mockup are a proposal and are not built until they are
+approved.
 
 ## The other sections
 

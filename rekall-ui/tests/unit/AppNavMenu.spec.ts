@@ -74,14 +74,14 @@ describe('the screen menu', () => {
     expect(security?.get('[data-testid="nav-alert-count"]').attributes('aria-label')).toBe('1 critical advisory reaches your projects')
   })
 
-  it('counts the review queue on Work and on the key', async () => {
+  it('counts the review queue on Review and on the key', async () => {
     useConsoleStore().tasks = [handedIn('a'), handedIn('b')]
     const { wrapper } = await mountMenu('/projects')
     expect(wrapper.get('[data-testid="nav-menu-trigger"] [data-testid="nav-alert-count"]').text()).toBe('2')
 
     await wrapper.get('[data-testid="nav-menu-trigger"]').trigger('click')
     await flushPromises()
-    const work = wrapper.findAll('[data-testid="nav-menu-item"]').find((item) => item.text().startsWith('Work'))
+    const work = wrapper.findAll('[data-testid="nav-menu-item"]').find((item) => item.text().startsWith('Review'))
     expect(work?.get('[data-testid="nav-alert-count"]').attributes('aria-label')).toBe('2 waiting for your review')
   })
 })
@@ -90,6 +90,7 @@ describe('the menu model', () => {
   it('finds the screen on display', () => {
     expect(activeScreenIn(NAV_GROUPS, 'project-detail')?.label).toBe('Projects')
     expect(activeScreenIn(NAV_GROUPS, 'console')?.label).toBe('Work')
+    expect(activeScreenIn(NAV_GROUPS, 'review')?.label).toBe('Review')
     expect(activeScreenIn(NAV_GROUPS, null)).toBeNull()
   })
 
