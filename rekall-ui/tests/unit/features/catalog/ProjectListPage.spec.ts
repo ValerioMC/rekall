@@ -61,4 +61,10 @@ describe('the project list', () => {
 
     expect(page.find('[data-testid="company-mark-initial"]').text()).toBe('A')
   })
+
+  it('scrolls on its own when the projects do not fit the screen', async () => {
+    const page = await render(null)
+
+    expect(page.find('.bg-canvas.overflow-y-auto').exists()).toBe(true)
+  })
 })
