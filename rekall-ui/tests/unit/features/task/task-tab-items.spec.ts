@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { taskTabItems } from '@/features/task/lib/task-tab-items'
-import { taskTabOf } from '@/features/task/model/task-tab'
+import { tabOfPane, taskTabOf } from '@/features/task/model/task-tab'
 import { asTaskId } from '@/model/branded'
 
 const NO_COUNTS = { steps: 0, claimedSteps: 0, notes: 0, deviations: 0 }
@@ -24,6 +24,28 @@ describe('taskTabItems', () => {
 
     expect(items[0]?.hot).toBe(true)
     expect(items[1]?.hot).toBeUndefined()
+  })
+})
+
+describe('taskTabItems for an epic', () => {
+  it('leaves out the plan, which an epic has none of', () => {
+    const items = taskTabItems(asTaskId('t-1'), NO_COUNTS, true)
+
+    expect(items.map((item) => item.label)).toEqual(['Wrapup', 'Notes', 'Description', 'Time', 'Deviations'])
+  })
+})
+
+describe('tabOfPane', () => {
+  it('names the tab that shows what a console pane showed', () => {
+    expect(tabOfPane('wrapup')).toBe('wrapup')
+    expect(tabOfPane('description')).toBe('description')
+    expect(tabOfPane('deviation')).toBe('deviations')
+    expect(tabOfPane('steps')).toBe('plan')
+  })
+
+  it('names none for a note or the terminal, which stay where the reader is', () => {
+    expect(tabOfPane('note')).toBeNull()
+    expect(tabOfPane('terminal')).toBeNull()
   })
 })
 

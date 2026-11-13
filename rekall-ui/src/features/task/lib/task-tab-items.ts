@@ -16,9 +16,9 @@ function countOf(tab: TaskTab, counts: TaskTabCounts): number | undefined {
   return undefined
 }
 
-/** Tabs as links to the task's own routes. A count shows only where it means something, and Plan's turns amber while a step waits. */
-export function taskTabItems(taskId: TaskId, counts: TaskTabCounts): readonly SubNavItem<TaskTab>[] {
-  return TASK_TABS.map((tab) => {
+/** Tabs as links to the task's own routes; an epic has no plan. A count shows only where it means something, and Plan's turns amber while a step waits. */
+export function taskTabItems(taskId: TaskId, counts: TaskTabCounts, isEpic = false): readonly SubNavItem<TaskTab>[] {
+  return TASK_TABS.filter((tab) => !(isEpic && tab === 'plan')).map((tab) => {
     const count = countOf(tab, counts)
     return {
       id: tab,

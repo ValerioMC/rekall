@@ -89,6 +89,11 @@ async function mountAt(path: string) {
         OpenTerminalButton: true,
         LaunchClaudeCodeButton: true,
         TaskPlanTab: { template: '<div data-testid="plan-tab-stub" />' },
+        TaskNotesTab: { template: '<div data-testid="notes-tab-stub" />' },
+        TaskDescriptionTab: { template: '<div data-testid="description-tab-stub" />' },
+        TaskTimeTab: { template: '<div data-testid="time-tab-stub" />' },
+        TaskDeviationsTab: { template: '<div data-testid="deviations-tab-stub" />' },
+        WrapupPane: { template: '<div data-testid="wrapup-pane-stub" />' },
         TaskTokenChip: true
       }
     }
@@ -138,15 +143,41 @@ describe('TaskPage', () => {
     expect(tabs[2]!.get('[data-testid="sub-nav-count"]').text()).toBe('2')
   })
 
-  it('shows the Plan on the plan tab and a bridge to the console on a tab not drawn yet', async () => {
+  it('shows the pane each tab names', async () => {
     seed()
-    const plan = await mountAt('/task/rk-1/plan')
-    expect(plan.find('[data-testid="plan-tab-stub"]').exists()).toBe(true)
-    plan.unmount()
+    const shown: Record<string, string> = {
+      plan: 'plan-tab-stub',
+      wrapup: 'wrapup-pane-stub',
+      notes: 'notes-tab-stub',
+      description: 'description-tab-stub',
+      time: 'time-tab-stub',
+      deviations: 'deviations-tab-stub'
+    }
 
-    const wrapup = await mountAt('/task/rk-1/wrapup')
-    expect(wrapup.find('[data-testid="plan-tab-stub"]').exists()).toBe(false)
-    expect(wrapup.get('[data-testid="task-tab-in-console"]').text()).toContain('Wrapup')
+    for (const [tab, testid] of Object.entries(shown)) {
+      const page = await mountAt(`/task/rk-1/${tab}`)
+      expect(page.find(`[data-testid="${testid}"]`).exists()).toBe(true)
+      page.unmount()
+    }
+  })
+
+  it('opens an epic on its description, which has no plan', async () => {
+    const store = seed()
+    store.tasks = [makeTask('rk-1', { kind: 'EPIC' })]
+    const page = await mountAt('/task/rk-1/plan')
+
+    expect(router.currentRoute.value.fullPath).toBe('/task/rk-1/description')
+    expect(page.findAll('[role="tab"]').map((tab) => tab.text())).not.toContain('Plan')
+  })
+
+  it('follows a pane opened elsewhere to the tab that shows it', async () => {
+    const store = seed()
+    await mountAt('/task/rk-1/plan')
+
+    store.openWrapup()
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/task/rk-1/wrapup')
   })
 
   it('says so when the task does not exist', async () => {

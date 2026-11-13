@@ -6,7 +6,7 @@ export const router = createRouter({
     { path: '/', name: 'work', component: () => import('@/App.vue') },
     { path: '/work', redirect: '/' },
     { path: '/work/board', name: 'work-board', component: () => import('@/App.vue') },
-    { path: '/task/:id/:tab?', name: 'task', component: () => import('@/App.vue') },
+    { path: '/task/:id/:tab?/:noteId?', name: 'task', component: () => import('@/App.vue') },
     { path: '/console', name: 'console', component: () => import('@/App.vue') },
     {
       path: '/projects',

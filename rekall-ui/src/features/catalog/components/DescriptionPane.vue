@@ -26,6 +26,9 @@ import type { DescriptionView } from '@/features/catalog/model/description-view'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import type { Feedback } from '@/features/feedback/model/feedback'
 
+/** On the task page the title is already above the tabs, so the pane keeps its labels and actions. */
+defineProps<{ embedded?: boolean }>()
+
 const store = useConsoleStore()
 const { selectedTask, selectedTaskId, selectedTaskCommitReferences, selectedTaskFeedback, waitingCount, runningPass } = storeToRefs(store)
 const { run } = useAsyncAction()
@@ -87,11 +90,12 @@ defineExpose({ toggleMode })
 
         <header class="@container/description relative flex flex-wrap items-start gap-x-3.5 gap-y-2 px-5 py-3.5">
           <div class="min-w-0 grow basis-full @min-[49rem]/description:basis-0">
-            <p class="eyebrow flex items-center gap-1.5">
+            <p v-if="!embedded" class="eyebrow flex items-center gap-1.5">
               <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
               Description
             </p>
-            <TaskTitleRow :task="selectedTask" copy-testid="copy-description-anchor">
+            <ContextSizeChip v-if="embedded" :task-id="selectedTask.id" class="mb-1" />
+            <TaskTitleRow v-if="!embedded" :task="selectedTask" copy-testid="copy-description-anchor">
               <template #flags>
               <span
                 v-if="reviewState === 'RUNNING'"

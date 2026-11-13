@@ -15,7 +15,7 @@ function newRouter() {
     routes: [
       { path: '/', name: 'work', component: stub },
       { path: '/work/board', name: 'work-board', component: stub },
-      { path: '/task/:id/:tab?', name: 'task', component: stub },
+      { path: '/task/:id/:tab?/:noteId?', name: 'task', component: stub },
       { path: '/console', name: 'console', component: stub },
       { path: '/projects/:id', name: 'project-detail', component: stub }
     ]

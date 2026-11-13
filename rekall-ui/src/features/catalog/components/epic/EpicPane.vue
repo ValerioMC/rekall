@@ -28,6 +28,9 @@ import type { TaskId } from '@/model/branded'
  * An epic in the console: how far its tasks are, the tasks themselves, and the description every
  * one of them inherits, written here. Shown in place of the description pane when an epic is selected.
  */
+/** On the task page the title is already above the tabs, so the pane keeps its labels and its tasks. */
+defineProps<{ embedded?: boolean }>()
+
 const store = useConsoleStore()
 const { selectedTask, tasks, steps, runningEntries } = storeToRefs(store)
 const toast = useToastStore()
@@ -95,11 +98,12 @@ defineExpose({ toggleMode })
 
       <header class="relative flex items-start gap-3.5 px-5 py-3.5">
         <div class="min-w-0 flex-1">
-          <p class="eyebrow flex items-center gap-1.5">
+          <p v-if="!embedded" class="eyebrow flex items-center gap-1.5">
             <EpicGlyph :size="11" />
             Epic
           </p>
-          <TaskTitleRow :task="selectedTask" copy-testid="copy-epic-anchor">
+          <ContextSizeChip v-if="embedded" :task-id="selectedTask.id" class="mb-1" />
+          <TaskTitleRow v-else :task="selectedTask" copy-testid="copy-epic-anchor">
             <template #trailing>
               <ContextSizeChip :task-id="selectedTask.id" />
             </template>

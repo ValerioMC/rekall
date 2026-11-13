@@ -5,10 +5,15 @@ import { useRoute, useRouter } from 'vue-router'
 import AppButton from '@/components/ui/AppButton.vue'
 import SubNav from '@/components/ui/SubNav.vue'
 import TaskPageHeader from '@/features/task/components/TaskPageHeader.vue'
+import TaskDeviationsTab from '@/features/task/components/TaskDeviationsTab.vue'
+import TaskDescriptionTab from '@/features/task/components/TaskDescriptionTab.vue'
+import TaskNotesTab from '@/features/task/components/TaskNotesTab.vue'
 import TaskPlanTab from '@/features/task/components/TaskPlanTab.vue'
-import TaskTabInConsole from '@/features/task/components/TaskTabInConsole.vue'
+import TaskTimeTab from '@/features/task/components/TaskTimeTab.vue'
+import WrapupPane from '@/features/wrapup/components/WrapupPane.vue'
 import { taskTabItems } from '@/features/task/lib/task-tab-items'
-import { taskTabOf } from '@/features/task/model/task-tab'
+import { tabOfPane, taskTabOf } from '@/features/task/model/task-tab'
+import { isEpic } from '@/features/catalog/model/catalog'
 import { workRows } from '@/features/work/lib/work-rows'
 import { useDeviationsStore } from '@/features/deviations/store/deviations.store'
 import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
@@ -37,12 +42,16 @@ const row = computed(() => {
 const tabs = computed(() => {
   const task = selectedTask.value
   if (!task) return []
-  return taskTabItems(task.id, {
-    steps: selectedTaskSteps.value.filter((step) => step.state !== 'DRAFT').length,
-    claimedSteps: selectedTaskSteps.value.filter((step) => step.state === 'CLAIMED').length,
-    notes: task.documentCount,
-    deviations: deviations.of(task.id).length
-  })
+  return taskTabItems(
+    task.id,
+    {
+      steps: selectedTaskSteps.value.filter((step) => step.state !== 'DRAFT').length,
+      claimedSteps: selectedTaskSteps.value.filter((step) => step.state === 'CLAIMED').length,
+      notes: task.documentCount,
+      deviations: deviations.of(task.id).length
+    },
+    isEpic(task)
+  )
 })
 
 watch(
@@ -54,12 +63,26 @@ watch(
   { immediate: true }
 )
 
-// Search and the review queue still select a task in the store; the page follows to that task.
+// An epic has no plan, so its page opens on the description.
 watch(
-  () => store.selectedTaskId,
-  (selected) => {
-    if (selected === null || selected === taskId.value) return
-    void router.push({ name: 'task', params: { id: selected, tab: 'plan' } })
+  [row, tab],
+  ([shown, current]) => {
+    if (shown && current === 'plan' && isEpic(shown.task)) {
+      void router.replace({ name: 'task', params: { id: shown.task.id, tab: 'description' } })
+    }
+  },
+  { immediate: true }
+)
+
+// Search and the review queue still select a task and a pane in the store; the page follows to
+// that task, on the tab that shows the pane.
+watch(
+  () => [store.selectedTaskId, store.paneFocus] as const,
+  ([selected, pane]) => {
+    if (selected === null) return
+    const wanted = tabOfPane(pane)
+    if (selected === taskId.value && (wanted === null || wanted === tab.value)) return
+    void router.push({ name: 'task', params: { id: selected, tab: wanted ?? 'plan' } })
   }
 )
 </script>
@@ -83,7 +106,11 @@ watch(
       <TaskPageHeader :row="row" />
       <SubNav :model-value="tab" :items="tabs" label="Task" class="px-6" />
       <TaskPlanTab v-if="tab === 'plan'" :task="row.task" />
-      <TaskTabInConsole v-else :tab="tab" />
+      <WrapupPane v-else-if="tab === 'wrapup'" embedded />
+      <TaskNotesTab v-else-if="tab === 'notes'" :task="row.task" />
+      <TaskDescriptionTab v-else-if="tab === 'description'" :task="row.task" />
+      <TaskTimeTab v-else-if="tab === 'time'" :task="row.task" />
+      <TaskDeviationsTab v-else :task="row.task" />
     </template>
   </div>
 </template>

@@ -63,10 +63,10 @@ in the build by the terminal, session, run queue and usage stores. A number the 
 
 The routes that exist today keep their paths: the redesign changes what a screen shows, not where it
 lives. `/` is the Work ledger instead of the three-column console, and `/review` and `/settings`
-are new. A ledger row, a card and the sheet open the task page at `/task/:id/plan`. The old two-pane
-console lives at `/console` until every tab of the task page is built; the Wrapup, Notes,
-Description, Time and Deviations tabs open there for now, and Open in terminal and the session
-dock still show the terminal in it.
+are new. A ledger row, a card and the sheet open the task page at `/task/:id/plan`; a note in view
+is part of the path (`/task/:id/notes/:noteId`). The old two-pane console lives at `/console` until
+the session dock is rebuilt: Open in terminal, the dock and a deep link to a terminal still show the
+terminal in it.
 
 ### The grouped menu
 
@@ -139,9 +139,16 @@ Mark done myself and the session key on an open or running one, Reopen on a done
 results, commits, sealed passes, skills, checks and detail, and Up next to review. A task handed in
 whole shows its own decision, Accept task or Send back, in the same place. Nothing but a person
 marks a step done, and Claude moves a step only up to claimed. The panel and the list share the
-step editor, so a title or detail typed in the panel is saved as it was in the old checklist. Wrapup shows the state text with its author and
-age. Notes is a list beside a markdown reader and editor. Description keeps review and rewrite.
-Time shows tracked time, sessions and tokens. Deviations lists them by step.
+step editor, so a title or detail typed in the panel is saved as it was in the old checklist.
+
+The other tabs hold the panes the console had, with the title row left to the page header. Wrapup
+keeps its author and age, the freshness tag, Versions, Wrapup here and the editor. Notes is a list
+of the task's notes (a ring marks one loaded on request, Add information, Delete) beside the note
+pane. Description keeps the review bar, Fix wording and the revisions; on a task that belongs to an
+epic a card names the epic, and an epic's page has no Plan and opens on its tasks and shared
+description. Time shows tracked time, sessions and tokens with the timer and the log of sessions.
+Deviations opens on the first and walks them by step. A task selected elsewhere (search, the review
+queue) is followed to its page, on the tab that shows the pane it asked for.
 
 ## Review
 
