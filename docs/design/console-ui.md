@@ -71,10 +71,10 @@ console are gone; their tabs are on the task page.
 
 ### The grouped menu
 
-The menu key in the header names the screen on display and opens every screen under its section:
+The menu key in the header is three lines and nothing else; it opens every screen under its section:
 Work (Work, Review), Projects (Projects, Companies, Connections), Time (Report, Calendar), Library
-(Diagrams, Claude files), Security and Settings. The review count rides on the key and on the
-Review entry, so folding the menu never hides what waits for the person. ⌘K opens the switcher:
+(Diagrams, Claude files), Security and Settings. The review count rides on the Review entry, and the key's
+accessible label names the screen on display and sums every alert. ⌘K opens the switcher:
 Go to, Projects, Tasks (with their state or review count) and Notes, filtered by title or anchor,
 and, for a phrase of three letters or more, an In the text group with what the server found in
 descriptions, steps, wrapups and notes. It opens on every screen, from ⌘K or a click on the `/rk`
@@ -135,7 +135,7 @@ for the board.
 
 A task is a page at `/task/:id/:tab`, opened on its Description when no tab is named. The whole
 page is one column centred in the window, as wide as the page-width choice (Narrow, Standard,
-Wide or Full, from the key at the right of the tab strip) allows; the choice is kept in the
+Wide or Full, from the key at the right of the tab strip; Wide at first) allows; the choice is kept in the
 browser and holds for every tab and every task. The header is two lines: the breadcrumb (Work,
 then company and project) with the task's actions at its right (Log commit, Open in terminal and
 Run here, each offered once), and the title alone beneath. The tab strip is Description, Plan,
@@ -255,9 +255,9 @@ toolbar keys stop being hand-built from the keycap utilities. A control drawn sm
 takes `hit-target`, which grows the pointer target, not the glyph.
 
 The header is one 48px row (`--spacing-header`), a three-cell grid. The left cell holds the 24px
-mark, the menu key and the history arrows. The menu key is a three-line burger that names the screen
-on display, opens every screen grouped under its section (`AppNavMenu`) and carries the sum of the
-alerts, the review count, so folding never hides a warning. The centre cell, at most 620px, is the
+mark, the menu key and the history arrows. The menu key is a bare three-line burger that opens every screen
+grouped under its section (`AppNavMenu`); its accessible label names the screen on display and sums
+the alerts, and each alert shows beside its entry. The centre cell, at most 620px, is the
 `/rk` field: at rest it shows the open task's or project's anchors as chips, and `⌘K` or a click opens
 the switcher. The right cell is one 36px `header-capsule` with the field's corner, usage, the run
 queue and the review count (`HeaderStatus`, segments drawn with `status-segment`), where review is

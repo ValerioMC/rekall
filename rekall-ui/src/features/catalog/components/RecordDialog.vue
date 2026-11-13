@@ -103,7 +103,7 @@ onUnmounted(() => window.removeEventListener('keydown', saveOnModEnter, true))
 <template>
   <AppDialog
     :label="heading"
-    panel-class="max-w-[560px]"
+    panel-class="max-w-[560px] bg-canvas!"
     panel-testid="record-dialog"
     :dismissible="!isPicking"
     @dismiss="emit('close')"

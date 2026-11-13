@@ -39,9 +39,11 @@ describe('the screen menu', () => {
     setActivePinia(createPinia())
   })
 
-  it('wears the screen on display and opens every screen under its section', async () => {
+  it('shows only the menu glyph, names the screen on display to readers and opens every screen under its section', async () => {
     const { wrapper } = await mountMenu('/calendar')
-    expect(wrapper.get('[data-testid="nav-menu-trigger"]').text()).toContain('Calendar')
+    const trigger = wrapper.get('[data-testid="nav-menu-trigger"]')
+    expect(trigger.text()).toBe('')
+    expect(trigger.attributes('aria-label')).toBe('Screens: Calendar')
 
     await wrapper.get('[data-testid="nav-menu-trigger"]').trigger('click')
     await flushPromises()
@@ -63,10 +65,10 @@ describe('the screen menu', () => {
     expect(document.activeElement).toBe(wrapper.get('[data-testid="nav-menu-trigger"]').element)
   })
 
-  it('sums the alerts of every screen on its key so folding never hides a warning', async () => {
+  it('sums the alerts of every screen in its key label so folding never hides a warning', async () => {
     useVulnerabilityStore().exposures = [exposure('a', 'p'), exposure('b', 'p', { open: false })]
     const { wrapper } = await mountMenu('/')
-    expect(wrapper.get('[data-testid="nav-menu-trigger"] [data-testid="nav-alert-count"]').text()).toBe('1')
+    expect(wrapper.get('[data-testid="nav-menu-trigger"]').attributes('aria-label')).toBe('Screens: Work, 1 need attention')
 
     await wrapper.get('[data-testid="nav-menu-trigger"]').trigger('click')
     await flushPromises()
@@ -74,10 +76,10 @@ describe('the screen menu', () => {
     expect(security?.get('[data-testid="nav-alert-count"]').attributes('aria-label')).toBe('1 critical advisory reaches your projects')
   })
 
-  it('counts the review queue on Review and on the key', async () => {
+  it('counts the review queue on Review and in the key label', async () => {
     useConsoleStore().tasks = [handedIn('a'), handedIn('b')]
     const { wrapper } = await mountMenu('/projects')
-    expect(wrapper.get('[data-testid="nav-menu-trigger"] [data-testid="nav-alert-count"]').text()).toBe('2')
+    expect(wrapper.get('[data-testid="nav-menu-trigger"]').attributes('aria-label')).toContain('2 need attention')
 
     await wrapper.get('[data-testid="nav-menu-trigger"]').trigger('click')
     await flushPromises()

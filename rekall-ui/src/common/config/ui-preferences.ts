@@ -32,7 +32,7 @@ export const USAGE_WARNING_RANGE = { min: 50, max: 100 } as const
 export const DEFAULT_UI_PREFERENCES: UiPreferences = {
   motion: 'full',
   scale: 100,
-  taskWidth: 'standard',
+  taskWidth: 'wide',
   reviewAutoAdvance: true,
   reviewConfirmSendBack: false,
   workdayGoalHours: 8,

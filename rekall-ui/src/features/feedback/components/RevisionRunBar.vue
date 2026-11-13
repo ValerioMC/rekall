@@ -48,7 +48,7 @@ function aim(kind: FeedbackKind): void {
 </script>
 
 <template>
-  <div v-if="visible" class="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-surface px-5 py-2" data-testid="revision-run-bar">
+  <div v-if="visible" class="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-canvas px-5 py-2" data-testid="revision-run-bar">
     <span class="text-small font-medium text-text" data-testid="revision-run-summary">{{ summary }}</span>
     <RevisionTargetSwitch v-if="phase === 'idle'" :model-value="target" @update:model-value="aim" />
     <span class="flex-1" />

@@ -6,9 +6,8 @@ import { useNavAlerts } from '@/composables/useNavAlerts'
 import { NAV_GROUPS, activeScreenIn, alertLabel, alertTone, isScreenActive, screensOf } from '@/model/nav-tab'
 
 /**
- * The header's one navigation: a key naming the screen on display that opens every screen under
- * its section. The alerts of every screen are summed on the key, so folding the menu never hides
- * a warning.
+ * The header's one navigation: a key of three lines that opens every screen under its section.
+ * The key's label names the screen on display and sums the alerts, since the glyph carries neither.
  */
 const route = useRoute()
 const alerts = useNavAlerts()
@@ -20,6 +19,10 @@ const open = ref(false)
 const routeName = computed(() => (typeof route.name === 'string' ? route.name : null))
 const current = computed(() => activeScreenIn(NAV_GROUPS, routeName.value))
 const pending = computed(() => screensOf(NAV_GROUPS).reduce((total, screen) => total + alerts(screen.alert), 0))
+const keyLabel = computed(() => {
+  const screen = current.value ? `Screens: ${current.value.label}` : 'Screens'
+  return pending.value > 0 ? `${screen}, ${pending.value} need attention` : screen
+})
 
 function menuItems(): HTMLElement[] {
   return Array.from(menu.value?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])
@@ -85,21 +88,17 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onPointerDown, t
     <button
       ref="trigger"
       type="button"
-      class="menu-key focus-ring"
+      class="focus-ring grid size-8 shrink-0 cursor-pointer place-items-center rounded-control transition-colors"
+      :class="open ? 'bg-surface-raised text-text' : 'text-text-muted hover:bg-surface-hover hover:text-text'"
       aria-haspopup="menu"
       :aria-expanded="open"
-      :aria-label="current ? `Screens: ${current.label}` : 'Screens'"
+      :aria-label="keyLabel"
       data-testid="nav-menu-trigger"
       @click="toggle"
       @keydown="onTriggerKeydown"
     >
-      <svg class="menu-burger size-4 shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <path d="M2 4h12M2 8h9M2 12h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-      </svg>
-      <span class="truncate">{{ current?.label ?? 'Screens' }}</span>
-      <NavAlertCount v-if="pending > 0" :count="pending" :label="`${pending} need attention`" tone="accent" />
-      <svg class="size-3.5 shrink-0 text-text-subtle" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-        <path d="m3.5 5.5 3.5 3.5 3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+      <svg class="size-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M2.5 4h11M2.5 8h11M2.5 12h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
       </svg>
     </button>
 
@@ -141,34 +140,3 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onPointerDown, t
     </Transition>
   </div>
 </template>
-
-<style scoped>
-.menu-key {
-  display: inline-flex;
-  height: 36px;
-  max-width: 100%;
-  align-items: center;
-  gap: 10px;
-  padding: 0 10px 0 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: var(--text-small);
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    background-color var(--motion-quick) ease,
-    border-color var(--motion-quick) ease;
-}
-
-.menu-key:hover,
-.menu-key[aria-expanded='true'] {
-  background: var(--color-surface-raised);
-  border-color: var(--color-border-strong);
-}
-
-.menu-burger {
-  color: var(--color-text-muted);
-}
-</style>

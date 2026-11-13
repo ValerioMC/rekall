@@ -2,7 +2,7 @@
    Unscoped on purpose, since the editor renders its own DOM; every rule sits under `.rekall-md`. */
 
 .rekall-md .md-editor {
-  --md-bk-color: var(--color-surface);
+  --md-bk-color: var(--color-canvas);
   --md-color: var(--color-text);
   --md-border-color: var(--color-border);
   --md-hover-color: var(--color-text);
@@ -259,7 +259,7 @@
 }
 
 .rekall-md .md-editor-preview pre {
-  background: var(--color-canvas);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
 }
@@ -386,7 +386,7 @@
   font-size: var(--text-micro);
   color: var(--color-text-subtle);
   border-color: var(--color-border);
-  background: var(--color-surface);
+  background: var(--color-canvas);
 }
 
 .rekall-md--readonly {
