@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import ProjectsSubNav from '@/features/catalog/components/ProjectsSubNav.vue'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
 import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
@@ -11,17 +12,18 @@ import AppInput from '@/components/ui/AppInput.vue'
 import CompanyMark from '@/components/ui/CompanyMark.vue'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
 import TokenCount from '@/components/ui/TokenCount.vue'
-import StatusMixBar from '@/components/ui/StatusMixBar.vue'
+import ProjectCompositionBar from '@/features/catalog/components/ProjectCompositionBar.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
 import { useConsoleStore } from '@/stores/console.store'
+import { projectComposition, reviewWaiting } from '@/features/catalog/lib/project-composition'
+import { workRows } from '@/features/work/lib/work-rows'
 import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 import { projectDraft } from '@/features/catalog/model/record-draft'
 import { identityHue } from '@/common/identity'
 import { PROJECT_STATUSES, PROJECT_STATUS_LABEL } from '@/features/catalog/model/project-status'
 import type { ProjectStatus } from '@/features/catalog/model/project-status'
-import type { Task } from '@/features/catalog/model/catalog'
 import type { RecordDraft } from '@/features/catalog/model/record-draft'
 import type { Project } from '@/features/catalog/model/catalog'
 import type { CompanyId, ProjectId } from '@/model/branded'
@@ -106,8 +108,16 @@ function blastOf(project: Project): string {
   return `${count} task${count === 1 ? '' : 's'} · every note left on nothing`
 }
 
-function tasksOf(projectId: ProjectId): Task[] {
-  return store.tasks.filter((t) => t.projectId === projectId)
+const rowsByProject = computed(() => {
+  const byProject = new Map<ProjectId, ReturnType<typeof workRows>>()
+  for (const row of workRows(store.tasks, store.steps, () => 0)) {
+    byProject.set(row.task.projectId, [...(byProject.get(row.task.projectId) ?? []), row])
+  }
+  return byProject
+})
+
+function rowsOf(projectId: ProjectId) {
+  return rowsByProject.value.get(projectId) ?? []
 }
 
 const tokenUsage = useTokenUsageStore()
@@ -135,6 +145,10 @@ async function confirmDelete(): Promise<void> {
         </AppButton>
       </template>
     </AppCatalogHeader>
+
+    <div class="mx-auto max-w-[1240px] px-8 pt-4">
+      <ProjectsSubNav active="projects" />
+    </div>
 
     <div class="mx-auto max-w-[1240px] px-8 py-6">
       <div class="mb-5 flex flex-wrap items-center gap-2.5">
@@ -259,10 +273,15 @@ async function confirmDelete(): Promise<void> {
                 </div>
               </div>
 
-              <StatusMixBar class="pointer-events-none" :tasks="tasksOf(project.id)" />
+              <ProjectCompositionBar class="pointer-events-none" :composition="projectComposition(rowsOf(project.id))" />
 
               <div class="pointer-events-none mt-auto flex items-center justify-between text-caption text-text-subtle">
-                <span>{{ project.taskCount }} task{{ project.taskCount === 1 ? '' : 's' }}</span>
+                <span>
+                  {{ project.taskCount }} task{{ project.taskCount === 1 ? '' : 's' }}
+                  <template v-if="reviewWaiting(rowsOf(project.id)) > 0">
+                    · <span class="text-accent" data-testid="project-needs">{{ reviewWaiting(rowsOf(project.id)) }} to review</span>
+                  </template>
+                </span>
                 <!-- Steps aside for the delete control under the pointer, rather than the card
                      keeping an empty row at its foot for a control that is hidden at rest. -->
                 <span class="transition-opacity duration-(--motion-quick) group-hover/card:opacity-0 group-focus-within/card:opacity-0">

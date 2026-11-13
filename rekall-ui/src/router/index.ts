@@ -15,13 +15,13 @@ export const router = createRouter({
       component: () => import('@/features/catalog/components/ProjectListPage.vue')
     },
     {
-      path: '/projects/:id',
+      path: '/projects/:id/:tab?',
       name: 'project-detail',
       component: () => import('@/features/catalog/components/ProjectDetailPage.vue'),
       props: true
     },
     {
-      path: '/companies',
+      path: '/companies/:id?',
       name: 'companies',
       component: () => import('@/features/catalog/components/CompanyListPage.vue')
     },

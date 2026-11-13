@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import ProjectsSubNav from '@/features/catalog/components/ProjectsSubNav.vue'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
 import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import AppButton from '@/components/ui/AppButton.vue'
@@ -8,19 +9,20 @@ import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import CompanyMark from '@/components/ui/CompanyMark.vue'
-import StatusMixBar from '@/components/ui/StatusMixBar.vue'
+import CompanyDetail from '@/features/catalog/components/CompanyDetail.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { relativeTime } from '@/common/format/relative-time'
+import { projectComposition } from '@/features/catalog/lib/project-composition'
+import { workRows } from '@/features/work/lib/work-rows'
 import { useConsoleStore } from '@/stores/console.store'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
 import { plural } from '@/features/connection/lib/connection-impact'
-import { companyDraft } from '@/features/catalog/model/record-draft'
+import { companyDraft, projectDraft } from '@/features/catalog/model/record-draft'
 import type { RecordDraft } from '@/features/catalog/model/record-draft'
-import type { Company, Task } from '@/features/catalog/model/catalog'
-import type { CompanyId } from '@/model/branded'
+import type { Company } from '@/features/catalog/model/catalog'
 
 const store = useConsoleStore()
 const router = useRouter()
+const route = useRoute()
 const connections = useConnectionsStore()
 const { run } = useAsyncAction()
 
@@ -36,8 +38,12 @@ const visible = computed(() => {
   return store.companies.filter((company) => company.name.toLowerCase().includes(needle))
 })
 
-function openProjectsOf(company: Company): void {
-  router.push({ path: '/projects', query: { company: company.id } })
+const selected = computed<Company | null>(
+  () => visible.value.find((company) => company.id === route.params.id) ?? visible.value[0] ?? null
+)
+
+function select(company: Company): void {
+  router.push(`/companies/${company.id}`)
 }
 
 function openConnectionsOf(company: Company): void {
@@ -54,9 +60,16 @@ function edit(company: Company): void {
   editing.value = companyDraft(company)
 }
 
-function tasksOfCompany(companyId: CompanyId): Task[] {
-  const projectIds = new Set(store.projects.filter((p) => p.companyId === companyId).map((p) => p.id))
-  return store.tasks.filter((t) => projectIds.has(t.projectId))
+const projectsOfSelected = computed(() => store.projects.filter((project) => project.companyId === selected.value?.id))
+
+const compositionOfSelected = computed(() => {
+  const projectIds = new Set(projectsOfSelected.value.map((project) => project.id))
+  const tasks = store.tasks.filter((task) => projectIds.has(task.projectId))
+  return projectComposition(workRows(tasks, store.steps, () => 0))
+})
+
+function newProjectOfSelected(): void {
+  if (selected.value) editing.value = projectDraft(selected.value.id)
 }
 
 function blastOf(company: Company): string {
@@ -86,6 +99,10 @@ async function confirmDelete(): Promise<void> {
       </template>
     </AppCatalogHeader>
 
+    <div class="mx-auto max-w-[1240px] px-8 pt-4">
+      <ProjectsSubNav active="companies" />
+    </div>
+
     <div class="mx-auto max-w-[1240px] px-8 py-6">
       <div class="mb-5 w-full max-w-[320px]">
         <AppInput v-model="search" type="search" placeholder="Find a company" />
@@ -107,95 +124,44 @@ async function confirmDelete(): Promise<void> {
 
       <AppEmptyState v-else-if="!visible.length" title="No company matches" description="Try a different search." />
 
-      <div v-else class="overflow-hidden rounded-card border border-border bg-surface">
-        <button
-          v-for="(company, index) in visible"
-          :key="company.id"
-          data-testid="company-card"
-          class="focus-ring group/row relative flex w-full items-center gap-4 py-3 pl-4 pr-4 text-left transition-colors hover:bg-surface-raised"
-          :class="index > 0 ? 'border-t border-border' : ''"
-          @click="openProjectsOf(company)"
-        >
-          <CompanyMark
-            :company-id="company.id"
-            :name="company.name"
-            :image-version="company.logoImageVersion"
-            :size="36"
-          />
-
-          <span class="min-w-0 flex-1">
-            <span class="block truncate text-body font-semibold text-text">{{ company.name }}</span>
-            <span v-if="company.description" class="mt-0.5 block truncate text-small text-text-subtle">
-              {{ company.description }}
-            </span>
-            <StatusMixBar :tasks="tasksOfCompany(company.id)" class="mt-1.5 max-w-[180px]" />
-          </span>
-
-          <!-- Counts as figures in the code face, the unit beside them in the chrome's voice:
-               a column of companies then reads down its numbers, not along a sentence. -->
-          <span class="hidden shrink-0 items-baseline gap-4 text-caption text-text-subtle sm:flex">
-            <span>
-              <span class="font-mono tabular-nums text-text-muted">{{ company.projectCount }}</span>
-              project{{ company.projectCount === 1 ? '' : 's' }}
-            </span>
-            <span>
-              <span class="font-mono tabular-nums text-text-muted">{{ company.taskCount }}</span>
-              task{{ company.taskCount === 1 ? '' : 's' }}
-            </span>
-            <span class="w-[72px] text-right">{{ relativeTime(company.updatedAt) }}</span>
-          </span>
-
+      <div v-else class="grid overflow-hidden rounded-card border border-border bg-surface min-[900px]:grid-cols-[320px_minmax(0,1fr)]">
+        <nav class="border-border min-[900px]:border-r" aria-label="Companies">
           <button
-            class="focus-ring w-[7.5rem] shrink-0 rounded-key px-1.5 py-1 text-right text-caption underline underline-offset-2 hover:text-text max-sm:min-h-11"
-            :class="connections.loaded && connections.connectionsOf(company.id).length === 0 ? 'text-text-subtle' : 'text-accent'"
-            :aria-label="`${connectionsLabelOf(company)} shared with ${company.name}`"
-            data-testid="company-connections"
-            @click.stop="openConnectionsOf(company)"
+            v-for="(company, index) in visible"
+            :key="company.id"
+            data-testid="company-card"
+            class="focus-ring flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-raised"
+            :class="[index > 0 ? 'border-t border-border' : '', company.id === selected?.id ? 'bg-accent-soft' : '']"
+            :aria-current="company.id === selected?.id ? 'true' : undefined"
+            @click="select(company)"
           >
-            {{ connectionsLabelOf(company) }}
+            <CompanyMark
+              :company-id="company.id"
+              :name="company.name"
+              :image-version="company.logoImageVersion"
+              :size="32"
+            />
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-body font-semibold text-text">{{ company.name }}</span>
+              <span class="block text-caption text-text-subtle">
+                {{ plural(company.projectCount, 'project') }} · {{ plural(company.taskCount, 'task') }}
+              </span>
+            </span>
           </button>
-
-          <span class="flex shrink-0 gap-1 opacity-0 transition focus-within:opacity-100 group-hover/row:opacity-100">
-            <button
-              class="focus-ring grid size-7 place-items-center rounded-key text-text-subtle hover:bg-surface-hover hover:text-accent"
-              :aria-label="`Edit ${company.name}`"
-              data-testid="edit-company"
-              @click.stop="edit(company)"
-            >
-              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M4 20h4L20 8l-4-4L4 16v4z"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </button>
-            <button
-              class="focus-ring grid size-7 place-items-center rounded-key text-text-subtle hover:bg-surface-hover hover:text-danger"
-              :aria-label="`Delete ${company.name}`"
-              data-testid="delete-company"
-              @click.stop="deleting = company"
-            >
-              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0-.6 12.4a2 2 0 0 1-2 1.6H9.6a2 2 0 0 1-2-1.6L7 7"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </button>
-          </span>
-
-          <span
-            class="shrink-0 text-body text-text-subtle transition-transform group-hover/row:translate-x-0.5 group-hover/row:text-accent"
-            aria-hidden="true"
-          >
-            &#8594;
-          </span>
-        </button>
+        </nav>
+        <CompanyDetail
+          v-if="selected"
+          :key="selected.id"
+          :company="selected"
+          :projects="projectsOfSelected"
+          :composition="compositionOfSelected"
+          :connections-label="connectionsLabelOf(selected)"
+          :connections-empty="connections.loaded && connections.connectionsOf(selected.id).length === 0"
+          @edit="edit(selected)"
+          @delete="deleting = selected"
+          @new-project="newProjectOfSelected"
+          @open-connections="openConnectionsOf(selected)"
+        />
       </div>
     </div>
 

@@ -168,11 +168,15 @@ approved.
 
 ## The other sections
 
-**Projects.** The list is a card per project under its company, with the identity mark, anchor,
-status pill, a composition bar (filed, to review, in progress) and counts. The project page has
-the tabs Tasks (the ledger scoped to the project), Pages, Components, Diagrams, Connections and
-Settings. Companies is a list with a detail pane; Connections are grouped by kind with Test
-connection and the credential reveal. A project name is never shown without its company.
+**Projects.** Projects, Companies and Connections share one sub-navigation with counts
+(`ProjectsSubNav`). The list is a card per project under its company, with the identity mark, anchor,
+status pill, a composition bar (filed, to review, in progress, to do: `lib/project-composition.ts`)
+and counts. The project page is a route per tab (`/projects/:id/:tab`): Tasks (the Work ledger
+narrowed to the project through `work.focusProject`), Blueprint, Pages, Components, Diagrams,
+Deployment, Connections and Settings; Blueprint and Deployment keep what the old page held beyond
+the mockup's six. Companies is a list with a detail pane (`/companies/:id`); Connections are grouped
+by kind with Check and the credential reveal. The company is named beside a project on the cards'
+group, the project page, a company's detail and the ⌘K palette.
 
 **Time** has the Report and the Calendar behind one sub-navigation; the grouping stays
 `common/report/time-report.ts`. **Library** has Diagrams (a gallery grouped by project, and the

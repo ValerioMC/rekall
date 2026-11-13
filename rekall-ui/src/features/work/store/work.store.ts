@@ -30,9 +30,15 @@ export const useWorkStore = defineStore('work', () => {
   const peekedTaskId = ref<TaskId | null>(null)
   const lingering = ref<ReadonlySet<TaskId>>(new Set())
   const sheetTaskId = ref<TaskId | null>(null)
+  const focusedProjectId = ref<ProjectId | null>(null)
 
+  const tasksInFocus = computed(() =>
+    focusedProjectId.value === null
+      ? consoleStore.scopedTasks
+      : consoleStore.tasks.filter((task) => task.projectId === focusedProjectId.value)
+  )
   const rows = computed(() =>
-    workRows(consoleStore.scopedTasks, consoleStore.steps, (taskId) => tokenUsage.ofTask(taskId).generated)
+    workRows(tasksInFocus.value, consoleStore.steps, (taskId) => tokenUsage.ofTask(taskId).generated)
   )
   const searchedRows = computed(() => rows.value.filter((row) => matchesQuery(row, query.value)))
   const counts = computed(() => viewCounts(rows.value))
@@ -49,6 +55,12 @@ export const useWorkStore = defineStore('work', () => {
   const groups = computed(() =>
     groupByProject(shown.value, finished.value, consoleStore.projects, consoleStore.scopeCompany === null)
   )
+
+  /** Narrows the ledger to one project while its page shows it, whatever the Work scope is; null lets the scope rule again. */
+  function focusProject(projectId: ProjectId | null): void {
+    focusedProjectId.value = projectId
+    peekedTaskId.value = null
+  }
 
   function toggleFiled(projectId: ProjectId): void {
     unfoldedFiled.value = toggledSet(unfoldedFiled.value, projectId)
@@ -103,5 +115,5 @@ export const useWorkStore = defineStore('work', () => {
     })
   )
 
-  return { view, density, sort, query, unfoldedFiled, peekedTaskId, sheetTaskId, rows, lanes, counts, shown, groups, toggleFiled, togglePeek, openSheet, closeSheet, linger }
+  return { view, density, sort, query, unfoldedFiled, peekedTaskId, sheetTaskId, rows, lanes, counts, shown, groups, focusProject, toggleFiled, togglePeek, openSheet, closeSheet, linger }
 })
