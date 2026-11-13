@@ -25,7 +25,7 @@ struct LayeredCrate {
 const STORE: LayeredCrate = LayeredCrate {
     folder: "rekall-store",
     domain_root: &[],
-    foundations: &["constraints", "database", "enums", "migration", "prelude", "query_support", "repository", "slug", "stamped", "stamped_update"],
+    foundations: &["constraints", "database", "enums", "migration", "prelude", "query_support", "repository", "slug", "stamped", "stamped_update", "task_key"],
     facades: &["repository"],
     allowed: &[
         ("catalog", &["task"]),

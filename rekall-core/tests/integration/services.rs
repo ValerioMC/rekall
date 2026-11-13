@@ -359,7 +359,7 @@ async fn a_step_claim_commits_the_pending_changes_and_logs_the_commit_against_th
     assert_eq!(reference.step_id, Some(step.id));
     assert_eq!(reference.commit_hash, git(repo.path(), &["rev-parse", "HEAD"]));
     let message = git(repo.path(), &["log", "-1", "--format=%B"]);
-    assert_eq!(message, "feat: Wire the export endpoint\n\nRefs: project:vega task:report-builder, step 3");
+    assert_eq!(message, "feat: Wire the export endpoint\n\nRefs: task:REPORT-BUILDER, step 3");
     assert!(outcome.describe().contains(&format!("`{}`", &reference.commit_hash[..7])));
     assert!(outcome.describe().contains("\"Wire the export endpoint\""));
 }
@@ -408,7 +408,7 @@ async fn the_claiming_sessions_own_message_becomes_the_commit_message() {
 
     assert_eq!(
         git(repo.path(), &["log", "-1", "--format=%B"]),
-        "fix: stream the export\n\nIt no longer buffers the file.\n\nRefs: project:vega task:report-builder, step 3"
+        "fix: stream the export\n\nIt no longer buffers the file.\n\nRefs: task:REPORT-BUILDER, step 3"
     );
 }
 
@@ -864,7 +864,7 @@ async fn a_search_in_a_project_finds_its_own_text_even_when_other_projects_have_
     let scoped = world.services.search.search_in_project(Some("settlement"), "vega").await.unwrap();
 
     assert_eq!(scoped.len(), 1, "{scoped:?}");
-    assert_eq!(scoped[0].r#where, "project:vega task:export");
+    assert_eq!(scoped[0].r#where, "task:EXPORT");
     assert!(scoped[0].excerpt.contains("settlement batch runs nightly"));
     assert!(world.services.search.search(Some("settlement")).await.unwrap().len() > scoped.len());
     let in_orion = world.services.search.search_in_project(Some("settlement"), "orion").await.unwrap();
@@ -1157,7 +1157,7 @@ async fn a_task_named_in_a_task_text_is_loaded_once_as_background_without_its_ch
     let records = world.services.context.for_task(task.id).await.unwrap();
     let rendered = world.services.renderer.render(&records);
 
-    assert!(rendered.contains("Reuse **Title of export** (task `task:export`) and [[task:missing]] (task not found in this project)."), "{rendered}");
+    assert!(rendered.contains("Reuse **Title of export** (task `task:EXPORT`) and [[task:missing]] (task not found in this project)."), "{rendered}");
     assert_eq!(rendered.matches("### Task: Title of export").count(), 1, "{rendered}");
     assert!(rendered.contains("Writes the CSV export."), "{rendered}");
     assert!(rendered.contains("- `referenced`: named in the text of the task above."), "{rendered}");
@@ -1187,7 +1187,7 @@ async fn a_task_of_an_epic_inherits_its_description_and_notes_and_the_epic_lists
     row.update(world.db()).await.unwrap();
 
     let rendered = world.services.renderer.render(&world.services.context.for_task(task.id).await.unwrap());
-    assert!(rendered.contains("- `epic`: belongs to the epic `task:checkout` below"), "{rendered}");
+    assert!(rendered.contains("- `epic`: belongs to the epic `task:CHECKOUT` below"), "{rendered}");
     assert!(rendered.contains("### Epic: Title of checkout"), "{rendered}");
     assert!(rendered.contains("Every payment goes through one ledger."), "{rendered}");
     assert!(rendered.contains("The ledger rules."), "{rendered}");
@@ -1195,7 +1195,7 @@ async fn a_task_of_an_epic_inherits_its_description_and_notes_and_the_epic_lists
     let rendered = world.services.renderer.render(&world.services.context.for_task(epic.id).await.unwrap());
     assert!(rendered.contains("## Epic: Title of checkout"), "{rendered}");
     assert!(rendered.contains("1 task belongs to it (0 done)"), "{rendered}");
-    assert!(rendered.contains("  - `task:pay`"), "{rendered}");
+    assert!(rendered.contains("  - `task:PAY`"), "{rendered}");
 }
 
 #[tokio::test]
@@ -1208,7 +1208,7 @@ async fn a_task_context_lists_the_tasks_it_waits_for_and_where_each_stands() {
 
     let rendered = world.services.renderer.render(&world.services.context.for_task(export.id).await.unwrap());
 
-    assert!(rendered.contains("- `depends-on`: `project:vega task:report` (not accepted)."), "{rendered}");
+    assert!(rendered.contains("- `depends-on`: `task:REPORT` (not accepted)."), "{rendered}");
     assert!(rendered.contains("The run queue starts this task only once all are accepted."), "{rendered}");
 }
 
@@ -1236,7 +1236,6 @@ fn routed(title: &str, routes: &[(&str, Option<usize>)]) -> rekall_core::flow::P
 fn brief(title: &str, description: Option<&str>) -> rekall_core::task::TaskBrief {
     rekall_core::task::TaskBrief {
         title: Some(title.into()),
-        label: None,
         description: description.map(str::to_string),
         kind: rekall_store::TaskKind::Task,
         epic: None,
@@ -1257,11 +1256,12 @@ async fn a_session_creates_an_epic_and_files_a_new_task_under_it() {
     world.project("vega", None, false).await;
 
     let epic = world.services.task_authoring.create("vega", &epic_brief("Checkout"), &plan(vec![])).await.unwrap();
-    world.services.task_authoring.create("vega", &brief_under("Pay", "checkout"), &plan(vec![draft("Charge")])).await.unwrap();
+    world.services.task_authoring.create("vega", &brief_under("Pay", "VE-1"), &plan(vec![draft("Charge")])).await.unwrap();
 
     assert_eq!(epic.kind, rekall_store::TaskKind::Epic);
-    let epic = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "checkout").await.unwrap().unwrap();
-    let pay = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "pay").await.unwrap().unwrap();
+    assert_eq!(epic.task_anchor, "task:VE-1");
+    let epic = rekall_store::repository::task::find_by_code(world.db(), "VE-1").await.unwrap().unwrap();
+    let pay = rekall_store::repository::task::find_by_code(world.db(), "VE-2").await.unwrap().unwrap();
     assert!(epic.is_epic());
     assert_eq!(pay.epic_id, Some(epic.id));
 }
@@ -1288,14 +1288,14 @@ async fn a_session_files_an_existing_task_under_an_epic_and_moves_it_between_epi
     world.services.task_authoring.create("vega", &epic_brief("Billing"), &plan(vec![])).await.unwrap();
     world.task(&project, "pay").await;
 
-    let joined = world.services.epic_membership.join(Some("vega"), "pay", "checkout").await.unwrap();
-    let moved = world.services.epic_membership.join(Some("vega"), "pay", "billing").await.unwrap();
+    let joined = world.services.epic_membership.join(Some("vega"), "pay", "VE-1").await.unwrap();
+    let moved = world.services.epic_membership.join(Some("vega"), "pay", "VE-2").await.unwrap();
 
-    assert_eq!(joined.epic_anchor, "project:vega task:checkout");
+    assert_eq!(joined.epic_anchor, "task:VE-1");
     assert_eq!(joined.left, None);
-    assert_eq!(moved.left.as_deref(), Some("checkout"));
-    let pay = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "pay").await.unwrap().unwrap();
-    let billing = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "billing").await.unwrap().unwrap();
+    assert_eq!(moved.left.as_deref(), Some("VE-1"));
+    let pay = rekall_store::repository::task::find_by_code(world.db(), "PAY").await.unwrap().unwrap();
+    let billing = rekall_store::repository::task::find_by_code(world.db(), "VE-2").await.unwrap().unwrap();
     assert_eq!(pay.epic_id, Some(billing.id));
 }
 
@@ -1304,7 +1304,7 @@ async fn an_epic_is_never_run() {
     let world = world().await;
     world.project("vega", Some("/tmp"), false).await;
     world.services.task_authoring.create("vega", &epic_brief("Checkout"), &plan(vec![])).await.unwrap();
-    let epic = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "checkout").await.unwrap().unwrap();
+    let epic = rekall_store::repository::task::find_by_code(world.db(), "VE-1").await.unwrap().unwrap();
 
     let refused = world.services.terminal_launch.resolve(rekall_core::claude::TerminalTarget::Task(epic.id)).await.unwrap_err();
 
@@ -1323,9 +1323,9 @@ async fn a_created_task_starts_todo_with_its_description_and_its_steps_as_drafts
         .await
         .unwrap();
 
-    assert_eq!(created.task_anchor, "project:vega task:task-creation");
+    assert_eq!(created.task_anchor, "task:VE-1");
     assert_eq!((created.steps, created.routes), (2, 0));
-    let task = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "task-creation").await.unwrap().unwrap();
+    let task = rekall_store::repository::task::find_by_code(world.db(), "VE-1").await.unwrap().unwrap();
     assert_eq!(task.project_id, project.id);
     assert_eq!(task.title, "Task creation");
     assert_eq!(task.status, rekall_store::TaskStatus::Todo);
@@ -1337,21 +1337,51 @@ async fn a_created_task_starts_todo_with_its_description_and_its_steps_as_drafts
 }
 
 #[tokio::test]
-async fn a_label_the_project_already_uses_is_refused_and_creates_nothing() {
+async fn each_task_of_a_project_takes_the_next_number_after_the_last() {
     let world = world().await;
-    let project = world.project("vega", None, false).await;
-    world.task(&project, "report-builder").await;
+    world.project("vega", None, false).await;
 
-    let refused = world
-        .services
-        .task_authoring
-        .create("vega", &brief("Report builder", None), &plan(vec![draft("First")]))
-        .await
-        .unwrap_err();
+    let first = world.services.task_authoring.create("vega", &brief("Report builder", None), &plan(vec![draft("First")])).await.unwrap();
+    let second = world.services.task_authoring.create("vega", &brief("Report builder", None), &plan(vec![draft("First")])).await.unwrap();
 
-    assert!(refused.to_string().contains("already uses the label 'report-builder'"), "{refused}");
-    assert_eq!(rekall_store::repository::task::list_of_project(world.db(), project.id).await.unwrap().len(), 1);
-    assert!(world.services.steps.find_all().await.unwrap().is_empty());
+    assert_eq!((first.task_anchor.as_str(), second.task_anchor.as_str()), ("task:VE-1", "task:VE-2"));
+}
+
+#[tokio::test]
+async fn a_task_is_named_by_its_code_in_any_case_and_a_project_beside_it_must_be_its_own() {
+    let world = world().await;
+    world.project("vega", None, false).await;
+    world.project("beacon", None, false).await;
+    world.services.task_authoring.create("vega", &brief("Report builder", None), &plan(vec![])).await.unwrap();
+
+    let context = &world.services.context;
+    let found = context.load(Some(rekall_core::context::AnchorEntity::Task), "ve-1").await.unwrap();
+    let with_project = context.load_task("VEGA", "VE-1").await.unwrap();
+    let wrong_project = context.load_task("beacon", "VE-1").await.unwrap_err();
+    let unknown = context.load(Some(rekall_core::context::AnchorEntity::Task), "VE-9").await.unwrap_err();
+
+    assert_eq!((found.anchor.as_str(), with_project.anchor.as_str()), ("task:VE-1", "task:VE-1"));
+    assert!(wrong_project.to_string().contains("No task 'VE-1' on project 'beacon'"), "{wrong_project}");
+    assert!(unknown.to_string().contains("A task is named by its code"), "{unknown}");
+}
+
+#[tokio::test]
+async fn an_anchor_written_with_a_project_and_a_label_before_codes_existed_still_finds_its_task() {
+    use sea_orm::{ActiveModelTrait, ActiveValue};
+
+    let world = world().await;
+    world.project("vega", None, false).await;
+    world.services.task_authoring.create("vega", &brief("Report builder", None), &plan(vec![])).await.unwrap();
+    let task = rekall_store::repository::task::find_by_code(world.db(), "VE-1").await.unwrap().unwrap();
+    let mut row = task.clone().into_active_model();
+    row.label = ActiveValue::Set("report-builder".into());
+    row.update(world.db()).await.unwrap();
+
+    let by_label = world.services.context.load_task("vega", "report-builder").await.unwrap();
+    let without_project = world.services.context.load(Some(rekall_core::context::AnchorEntity::Task), "report-builder").await.unwrap_err();
+
+    assert_eq!(by_label.anchor, task.anchor());
+    assert!(without_project.to_string().contains("No task 'report-builder'"), "{without_project}");
 }
 
 #[tokio::test]
@@ -1385,7 +1415,7 @@ async fn a_task_created_with_routes_is_a_flow_whose_open_steps_keep_their_sessio
     let created = world.services.task_authoring.create("vega", &brief("Release", None), &plan(steps)).await.unwrap();
 
     assert_eq!((created.steps, created.routes), (2, 3));
-    let task = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "release").await.unwrap().unwrap();
+    let task = rekall_store::repository::task::find_by_code(world.db(), "VE-1").await.unwrap().unwrap();
     let stored = world.services.steps.find_by_task(task.id).await.unwrap();
     assert!(stored.iter().all(|step| step.state == TaskStepState::Open));
     assert_eq!(stored.iter().map(|step| step.starts_session).collect::<Vec<_>>(), [false, true]);

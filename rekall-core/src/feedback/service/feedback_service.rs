@@ -22,7 +22,6 @@ impl FeedbackService {
     pub async fn reply(&self, project_label: Option<&str>, task_label: &str, replies: Vec<(i32, String)>) -> Result<Replied> {
         in_write!(&self.ctx, |tx| {
             let task = load::resolve_task(tx.db(), project_label, task_label).await?;
-            let project = load::project_of(tx.db(), &task).await?;
             if replies.is_empty() {
                 return Err(RekallError::illegal("A reply names at least one pending entry by its seq. Nothing was written."));
             }
@@ -42,7 +41,7 @@ impl FeedbackService {
             }
             let still_open = repo::task_feedback::open_of_task(tx.db(), task.id).await?.iter().map(|entry| entry.seq).collect();
             tx.publish(FeedbackStreamEvent { task_id: task.id });
-            Ok(Replied { task_anchor: task.anchor(&project.label), applied, still_open })
+            Ok(Replied { task_anchor: task.anchor(), applied, still_open })
         })
     }
 

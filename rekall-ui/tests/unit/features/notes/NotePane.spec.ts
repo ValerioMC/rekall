@@ -18,6 +18,7 @@ const archived = 't4' as TaskId
 
 const task = (id: TaskId, label: string, title: string, status: TaskStatus): Task => ({
   id,
+  code: label,
   label,
   title,
   status,

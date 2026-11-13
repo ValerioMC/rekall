@@ -1,6 +1,6 @@
 ## Stepping
 
-`/rk project:vega task:report-builder step:3 start` and `/rk project:vega task:report-builder step:3
+`/rk task:RK-12 step:3 start` and `/rk task:RK-12 step:3
 done` are how a session drives its own checklist as it works. `step:` takes the step's number as
 `rekall_context` lists them, or its exact title.
 
@@ -17,14 +17,14 @@ a checklist step.
 
 The loop, once you are working a checklist:
 
-1. `/rk project:x task:y step:N start`, before you touch the code for step N.
+1. `/rk task:RK-12 step:N start`, before you touch the code for step N.
 2. Do the work the step's detail describes, and run only the tests of what it built or changed. The
    whole suite, typecheck and lint belong to the plan's final verification step, not to every step.
-3. `/rk project:x task:y wrapup`, to fold what that step built into the task's wrapup, by the rules
+3. `/rk task:RK-12 wrapup`, to fold what that step built into the task's wrapup, by the rules
    in `wrapping-up.md`. One state, rewritten whole, never a section per step. On a flow, skip this
    until the flow is finished.
-4. `/rk project:x task:y step:N done`, to claim it.
-5. If a later step is still open, `/rk project:x task:y step:M start` and go again, unless it opens a
+4. `/rk task:RK-12 step:N done`, to claim it.
+5. If a later step is still open, `/rk task:RK-12 step:M start` and go again, unless it opens a
    new session (see **Sessions**). When none is, stop and tell me the checklist is claimed and waiting
    for my review. On a flow, the next step is the one the claim's answer names and you start it without
    stopping; the loop ends when the answer says the flow is finished, and only then do you write the

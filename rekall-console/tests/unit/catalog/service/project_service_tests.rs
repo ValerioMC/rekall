@@ -157,3 +157,110 @@ mod pull_request_flow {
         assert!(world.bindings.task_manager(world.project.id).await.unwrap().is_none());
     }
 }
+
+mod task_key {
+    use rekall_core::EventBus;
+    use rekall_store::{company, task};
+    use sea_orm::{ActiveModelTrait, IntoActiveModel};
+
+    use super::*;
+
+    struct World {
+        projects: ProjectService,
+        db: sea_orm::DatabaseConnection,
+        company_id: Id,
+    }
+
+    async fn world() -> World {
+        let database = rekall_store::open_in_memory().await.unwrap();
+        let ctx = Ctx::new(database.conn.clone(), EventBus::new());
+        let now = ctx.now();
+        let company = company::Model { id: Id::random(), name: "Acme".into(), description: None, created_at: now, updated_at: now };
+        company.clone().into_active_model().insert(&ctx.db).await.unwrap();
+        let projects = ProjectService::new(ctx.clone(), GitRepositoryInspector, PullRequestFlowService);
+        World { projects, db: database.conn.clone(), company_id: company.id }
+    }
+
+    impl World {
+        fn command(&self, label: &str, task_key: Option<&str>) -> ProjectCommand {
+            ProjectCommand {
+                label: Some(label.into()),
+                title: Some(label.into()),
+                task_key: task_key.map(String::from),
+                company_id: Some(self.company_id),
+                ..ProjectCommand::default()
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn a_project_created_without_a_key_gets_one_suggested_from_its_label() {
+        let world = world().await;
+
+        let created = world.projects.create(world.command("vega", None)).await.unwrap();
+
+        assert_eq!(created.task_key, "VE");
+    }
+
+    #[tokio::test]
+    async fn a_key_typed_in_lowercase_is_kept_in_capitals() {
+        let world = world().await;
+
+        let created = world.projects.create(world.command("rekall", Some("rk"))).await.unwrap();
+
+        assert_eq!(created.task_key, "RK");
+    }
+
+    #[tokio::test]
+    async fn a_key_another_project_holds_is_refused_even_in_another_company() {
+        let world = world().await;
+        world.projects.create(world.command("rekall", Some("RK"))).await.unwrap();
+        let globex = company::Model { id: Id::random(), name: "Globex".into(), description: None, created_at: world_now(), updated_at: world_now() };
+        globex.clone().into_active_model().insert(&world.db).await.unwrap();
+
+        let refused = world.projects.create(ProjectCommand { company_id: Some(globex.id), ..world.command("other", Some("rk")) }).await.unwrap_err();
+
+        assert!(matches!(refused, RekallError::Conflict(_)), "{refused:?}");
+    }
+
+    #[tokio::test]
+    async fn a_suggested_key_steps_aside_for_one_that_is_taken() {
+        let world = world().await;
+        world.projects.create(world.command("vega", Some("VE"))).await.unwrap();
+
+        let created = world.projects.create(world.command("venus", None)).await.unwrap();
+
+        assert_eq!(created.task_key, "VEN");
+    }
+
+    #[tokio::test]
+    async fn a_key_with_a_digit_or_the_wrong_length_is_refused() {
+        let world = world().await;
+
+        for key in ["r", "rekal", "r2", "r-k"] {
+            let refused = world.projects.create(world.command(&format!("p{}", key.len()), Some(key))).await.unwrap_err();
+            assert!(matches!(refused, RekallError::IllegalArgument(_)), "{key}: {refused:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn changing_a_key_writes_the_codes_of_its_tasks_again_and_leaving_it_empty_keeps_it() {
+        let world = world().await;
+        let created = world.projects.create(world.command("vega", Some("VG"))).await.unwrap();
+        let mut one = task::Model::new("one".into(), "One".into(), created.id, world_now());
+        one.assign_code("VG", 1);
+        one.clone().into_active_model().insert(&world.db).await.unwrap();
+
+        world.projects.update(created.id, world.command("vega", None)).await.unwrap();
+        assert_eq!(rekall_store::repository::task::require(&world.db, one.id).await.unwrap().code, "VG-1");
+
+        let renamed = world.projects.update(created.id, world.command("vega", Some("vega"))).await.unwrap();
+
+        assert_eq!(renamed.task_key, "VEGA");
+        assert_eq!(rekall_store::repository::task::require(&world.db, one.id).await.unwrap().code, "VEGA-1");
+    }
+
+    fn world_now() -> rekall_kernel::Instant {
+        rekall_kernel::Instant::now()
+    }
+}

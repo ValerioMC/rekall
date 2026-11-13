@@ -1,11 +1,12 @@
 import { TASK_STATUS_LABEL } from '@/features/catalog/model/task-status'
+import { namesTask } from '@/features/catalog/model/task-code'
 import { type Task } from '@/features/catalog/model/catalog'
 
-/** What turns a `[[...]]` reference into one naming another task of the project: `[[task:export]]`. */
+/** What turns a `[[...]]` reference into one naming another task of the project: `[[task:RK-12]]`. */
 export const TASK_REFERENCE_PREFIX = 'task:'
 export const TASK_CHIP_CLASS = 'rk-task-ref'
 
-/** The task label a reference names, or `null` when it names something else. */
+/** The task code a reference names, or `null` when it names something else. */
 export function taskReferenceLabel(name: string): string | null {
   const trimmed = name.trim()
   return trimmed.startsWith(TASK_REFERENCE_PREFIX) ? trimmed.slice(TASK_REFERENCE_PREFIX.length).trim() : null
@@ -21,7 +22,7 @@ export function taskTitle(task: Task): string {
 }
 
 export function missingTaskTitle(label: string): string {
-  return `This project has no task labelled “${label}”.`
+  return `This project has no task “${label}”.`
 }
 
 /**
@@ -31,7 +32,7 @@ export function missingTaskTitle(label: string): string {
 export function paintTaskReferences(root: ParentNode, tasks: readonly Task[] | null): void {
   for (const chip of root.querySelectorAll<HTMLElement>(`.${TASK_CHIP_CLASS}`)) {
     const label = chip.dataset['task'] ?? ''
-    const found = tasks?.find((task) => task.label.toLowerCase() === label.toLowerCase())
+    const found = tasks?.find((task) => namesTask(task, label))
     if (tasks === null) {
       chip.dataset['state'] = 'plain'
       chip.removeAttribute('title')

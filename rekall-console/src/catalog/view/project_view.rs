@@ -6,6 +6,7 @@ use rekall_store::{company, project};
 pub struct ProjectView {
     pub id: Id,
     pub label: String,
+    pub task_key: String,
     pub title: String,
     pub status: ProjectStatus,
     pub icon: String,
@@ -29,6 +30,7 @@ impl ProjectView {
         Self {
             id: project.id,
             label: project.label.clone(),
+            task_key: project.task_key.clone(),
             title: project.title.clone(),
             status: project.status,
             icon: project.icon.clone(),

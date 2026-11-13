@@ -23,7 +23,7 @@ async fn rekall_record_commit_reads_the_projects_own_repo_folder_and_logs_its_ti
     let project_id = app.a_project_in(&acme, "vega", repo.path()).await;
     let task_id = app.a_task(&project_id, "report-builder").await;
 
-    let logged = app.call_tool("rekall_record_commit", json!({ "anchors": "project:vega task:report-builder" })).await;
+    let logged = app.call_tool("rekall_record_commit", json!({ "anchors": "task:VE-1" })).await;
 
     assert_contains!(logged, "Wire up the commit ledger", "the task");
     assert_eq!(
@@ -40,7 +40,7 @@ async fn the_console_button_logs_the_same_commit_through_the_same_lookup_without
     let project_id = app.a_project_in(&acme, "vega", repo.path()).await;
     let task_id = app.a_task(&project_id, "report-builder").await;
 
-    app.call_tool("rekall_record_commit", json!({ "anchors": "project:vega task:report-builder" })).await;
+    app.call_tool("rekall_record_commit", json!({ "anchors": "task:VE-1" })).await;
     let pressed = app.post_empty(&format!("/api/tasks/{task_id}/commit-references/latest")).await;
 
     assert_eq!(pressed.status, 200);
@@ -61,7 +61,7 @@ async fn a_commit_can_be_logged_against_a_step_separately_from_the_task_itself()
     let task_id = app.a_task(&project_id, "report-builder").await;
     app.a_step(&task_id, "Backend: CommitReference entity", None).await;
 
-    app.call_tool("rekall_record_commit", json!({ "anchors": "project:vega task:report-builder", "step": "1" })).await;
+    app.call_tool("rekall_record_commit", json!({ "anchors": "task:VE-1", "step": "1" })).await;
 
     assert_eq!(
         app.count("SELECT COUNT(*) FROM commit_reference WHERE task_id = ? AND step_id IS NOT NULL", vec![uuid_value(&task_id)]).await,
@@ -110,12 +110,12 @@ async fn claiming_a_step_on_an_auto_commit_project_commits_the_folder_and_logs_i
     std::fs::write(repo.path().join("export.ts"), "export const x = 1\n").unwrap();
 
     let answer = app
-        .call_tool("rekall_step", json!({ "anchors": "project:vega task:report-builder", "step": "1", "state": "claimed" }))
+        .call_tool("rekall_step", json!({ "anchors": "task:VE-1", "step": "1", "state": "claimed" }))
         .await;
 
     assert_contains!(answer, "Auto-committed", "feat: Wire the export endpoint", "\"Wire the export endpoint\"");
     assert_eq!(run_git(repo.path(), &["log", "-1", "--format=%s"]), "feat: Wire the export endpoint");
-    assert_contains!(run_git(repo.path(), &["log", "-1", "--format=%b"]), "project:vega task:report-builder, step 1");
+    assert_contains!(run_git(repo.path(), &["log", "-1", "--format=%b"]), "task:VE-1, step 1");
     assert_eq!(run_git(repo.path(), &["status", "--porcelain"]), "");
     assert_eq!(
         app.string("SELECT comment FROM commit_reference WHERE task_id = ? AND step_id IS NOT NULL", vec![uuid_value(&task_id)]).await,
@@ -134,7 +134,7 @@ async fn a_claim_with_a_clean_tree_commits_nothing_and_says_so_and_the_claim_sta
     app.a_step(&task_id, "Nothing changed", None).await;
 
     let answer = app
-        .call_tool("rekall_step", json!({ "anchors": "project:vega task:report-builder", "step": "1", "state": "claimed" }))
+        .call_tool("rekall_step", json!({ "anchors": "task:VE-1", "step": "1", "state": "claimed" }))
         .await;
 
     assert_contains!(answer, "is now `claimed`", "nothing to commit");
@@ -153,7 +153,7 @@ async fn the_wrapup_of_a_stepless_task_on_an_auto_commit_project_commits_against
     std::fs::write(repo.path().join("README.md"), "seed and more").unwrap();
 
     let answer = app
-        .call_tool("rekall_wrapup", json!({ "anchors": "project:vega task:report-builder", "body": "## State\n\nDone." }))
+        .call_tool("rekall_wrapup", json!({ "anchors": "task:VE-1", "body": "## State\n\nDone." }))
         .await;
 
     assert_contains!(answer, "Wrapup written", "Auto-committed", "against the task");
@@ -176,7 +176,7 @@ async fn the_wrapup_of_a_task_with_a_checklist_never_commits_its_steps_carry_the
     std::fs::write(repo.path().join("README.md"), "seed and more").unwrap();
 
     let answer = app
-        .call_tool("rekall_wrapup", json!({ "anchors": "project:vega task:report-builder", "body": "## State\n\nHalf done." }))
+        .call_tool("rekall_wrapup", json!({ "anchors": "task:VE-1", "body": "## State\n\nHalf done." }))
         .await;
 
     assert_lacks!(answer, "Auto-commit");
@@ -196,7 +196,7 @@ async fn a_project_that_does_not_auto_commit_leaves_the_tree_alone_on_a_claim() 
     std::fs::write(repo.path().join("export.ts"), "export const x = 1\n").unwrap();
 
     let answer = app
-        .call_tool("rekall_step", json!({ "anchors": "project:vega task:report-builder", "step": "1", "state": "claimed" }))
+        .call_tool("rekall_step", json!({ "anchors": "task:VE-1", "step": "1", "state": "claimed" }))
         .await;
 
     assert_contains!(answer, "is now `claimed`");
@@ -212,9 +212,9 @@ async fn the_context_tells_a_session_when_its_project_auto_commits() {
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
     app.a_task(&project_id, "report-builder").await;
 
-    let before = app.call_tool("rekall_context", json!({ "anchors": "project:vega task:report-builder" })).await;
+    let before = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
     update_project(&app, &project_id, &acme, repo.path().to_str().unwrap(), true).await;
-    let after = app.call_tool("rekall_context", json!({ "anchors": "project:vega task:report-builder" })).await;
+    let after = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
 
     assert_lacks!(before, "auto-commit");
     assert_contains!(after, "`auto-commit`: on", "Do not `git commit` yourself");
@@ -347,7 +347,7 @@ async fn rekall_record_commit_logs_an_earlier_commit_when_a_session_names_its_ha
     let first = run_git(repo.path(), &["rev-parse", "HEAD~1"]);
 
     let logged = app
-        .call_tool("rekall_record_commit", json!({ "anchors": "project:vega task:report-builder", "commit": &first[..8] }))
+        .call_tool("rekall_record_commit", json!({ "anchors": "task:VE-1", "commit": &first[..8] }))
         .await;
 
     assert_contains!(logged, "Wire up the ledger");
@@ -369,14 +369,14 @@ async fn a_logged_commit_is_off_the_context_until_the_console_chooses_it_then_ar
     let hash = logged.str("commitHash");
     assert_eq!(logged.get("inContext"), &json!(false));
 
-    let context = app.call_tool("rekall_context", json!({ "anchors": "project:vega task:report-builder" })).await;
+    let context = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
     assert_lacks!(context, "<commits", &hash);
 
     let chosen = app.patch(&format!("/api/commit-references/{reference_id}"), json!({ "inContext": true })).await;
     assert_eq!(chosen.status, 200);
     assert_eq!(chosen.get("inContext"), &json!(true));
 
-    let context = app.call_tool("rekall_context", json!({ "anchors": "project:vega task:report-builder" })).await;
+    let context = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
     assert_contains!(
         context,
         "<commits count=\"1\">",
@@ -387,7 +387,7 @@ async fn a_logged_commit_is_off_the_context_until_the_console_chooses_it_then_ar
     );
 
     app.patch(&format!("/api/commit-references/{reference_id}"), json!({ "inContext": false })).await;
-    assert_lacks!(app.call_tool("rekall_context", json!({ "anchors": "project:vega task:report-builder" })).await, "<commits");
+    assert_lacks!(app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await, "<commits");
 }
 
 #[tokio::test]
@@ -408,7 +408,7 @@ async fn a_commit_chosen_on_a_step_names_that_step_in_the_context_so_the_session
     app.patch(&format!("/api/commit-references/{}", logged.str("id")), json!({ "inContext": true })).await;
 
     assert_contains!(
-        app.call_tool("rekall_context", json!({ "anchors": "project:vega task:report-builder" })).await,
+        app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await,
         "step=\"Wire the ledger\">"
     );
 }

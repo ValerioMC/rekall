@@ -9,20 +9,20 @@ claude mcp add --transport http rekall http://localhost:47355/mcp
 Six tools. `rekall_context` reads, taking one string:
 
 ```json
-{ "anchors": "project:vega task:report-builder-main-workflow" }
+{ "anchors": "task:VG-12" }
 ```
 
 `rekall_wrapup` writes, taking the same anchors and the text:
 
 ```json
-{ "anchors": "project:vega task:report-builder", "body": "## What it does\n..." }
+{ "anchors": "task:VG-12", "body": "## What it does\n..." }
 ```
 
 `rekall_step` moves one step of a task along its line, taking the anchors, the step's number or
 title, and the target state:
 
 ```json
-{ "anchors": "project:vega task:report-builder", "step": "3", "state": "running" }
+{ "anchors": "task:VG-12", "step": "3", "state": "running" }
 ```
 
 `state` is `running`, `claimed` or `open`. It refuses `done`, and refuses a step a person has

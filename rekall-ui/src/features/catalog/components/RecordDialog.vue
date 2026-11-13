@@ -29,7 +29,7 @@ const isPicking = ref(false)
 
 const kind = props.draft.kind
 const isNew = props.draft.id === null
-const hasLabel = kind !== 'company'
+const hasLabel = kind === 'project'
 
 const KIND_NOUN = { company: 'company', project: 'project', task: 'task' } as const
 const noun = props.draft.kind === 'task' && props.draft.taskKind === 'EPIC' ? 'epic' : KIND_NOUN[kind]
@@ -152,8 +152,6 @@ onUnmounted(() => window.removeEventListener('keydown', saveOnModEnter, true))
         v-else
         v-model="form"
         :title-error="titleError"
-        :label-error="labelError"
-        :anchor-parent="parentProject?.anchor ?? ''"
         @picking="isPicking = $event"
       />
     </div>

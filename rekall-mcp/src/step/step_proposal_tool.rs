@@ -36,7 +36,7 @@ impl McpTool for StepProposalTool {
         ToolSchema::object()
             .required_string(
                 "anchors",
-                "The task to propose the step for, e.g. `project:vega task:report-builder`. Labels, never titles, and \
+                "The task to propose the step for, e.g. `task:RK-12`. Labels, never titles, and \
                  it has to name exactly one task.",
             )
             .required_string("title", "What the step delivers, as a short imperative line.")
@@ -65,7 +65,7 @@ impl McpTool for StepProposalTool {
             .steps
             .propose(
                 target.project_label.as_deref(),
-                &target.task_label,
+                &target.task_code,
                 NewStep { starts_session: args.flag("new_session"), ..NewStep::titled(&title, detail.as_deref()) },
                 staging,
             )

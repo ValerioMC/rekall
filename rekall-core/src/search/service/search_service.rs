@@ -1,5 +1,4 @@
 use rekall_kernel::{jstr, Id, RekallError, Result};
-use rekall_store::task;
 use rekall_store::repository as repo;
 
 use crate::{in_read, load, Ctx, Tx};
@@ -60,7 +59,7 @@ async fn description_hits(tx: &Tx, term: &str, scope: Option<Id>) -> Result<Vec<
         if hits.len() == PER_KIND {
             break;
         }
-        let anchor = anchor_of(tx, &task).await?;
+        let anchor = task.anchor();
         hits.push(SearchHit {
             kind: SearchHitKind::Description,
             task_id: Some(task.id),
@@ -87,7 +86,7 @@ async fn step_hits(tx: &Tx, term: &str, scope: Option<Id>) -> Result<Vec<SearchH
             break;
         }
         let shown = if contains(step.body_markdown.as_deref(), term) { step.body_markdown.as_deref() } else { Some(step.title.as_str()) };
-        let anchor = anchor_of(tx, &task).await?;
+        let anchor = task.anchor();
         hits.push(SearchHit {
             kind: SearchHitKind::Step,
             task_id: Some(task.id),
@@ -112,7 +111,7 @@ async fn wrapup_hits(tx: &Tx, term: &str, scope: Option<Id>) -> Result<Vec<Searc
         if hits.len() == PER_KIND {
             break;
         }
-        let anchor = anchor_of(tx, &task).await?;
+        let anchor = task.anchor();
         hits.push(SearchHit {
             kind: SearchHitKind::Wrapup,
             task_id: Some(task.id),
@@ -145,7 +144,7 @@ async fn note_hits(tx: &Tx, term: &str, scope: Option<Id>) -> Result<Vec<SearchH
             step_id: None,
             document_id: Some(document.id),
             title: document.title.clone(),
-            r#where: anchor_of(tx, &task).await?,
+            r#where: task.anchor(),
             context_anchor: document.anchor(),
             excerpt: excerpt(Some(shown), term),
         });
@@ -159,10 +158,6 @@ fn candidates_wanted(scope: Option<Id>) -> usize {
 
 fn in_scope(scope: Option<Id>, project_id: Id) -> bool {
     scope.is_none_or(|wanted| wanted == project_id)
-}
-
-async fn anchor_of(tx: &Tx, task: &task::Model) -> Result<String> {
-    Ok(task.anchor(&load::project_of(tx.db(), task).await?.label))
 }
 
 fn contains(text: Option<&str>, term: &str) -> bool {

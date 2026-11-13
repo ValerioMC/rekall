@@ -69,6 +69,7 @@ export function useProjectWrites(
     await trackSave(saveState, async () => {
       const saved = await apiUpdateProject(id, {
         label: current.label,
+        taskKey: null,
         title: current.title,
         status: current.status,
         icon: current.icon,

@@ -23,7 +23,7 @@ function itemWith(state: RunQueueItemState, steps: RunQueueStep[], detail: strin
     id: asRunQueueItemId('a'),
     taskId: asTaskId('t-a'),
     taskTitle: 'Report a',
-    taskLabel: 't-a',
+    taskCode: 't-a',
     projectLabel: 'vega',
     anchor: 'project:vega task:t-a',
     position: 0,

@@ -2,9 +2,10 @@ use rekall_kernel::{Id, RekallError};
 use crate::project;
 use crate::enums::TaskStepState;
 use crate::task::{Column, Entity, Model};
-use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder};
+use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, IntoActiveModel, QueryFilter, QueryOrder, Set};
 
 use crate::repository::{at_most_one, contains_ignore_case};
+use crate::task_key::TaskKey;
 
 pub async fn find_by_id(db: &impl ConnectionTrait, id: Id) -> Result<Option<Model>, RekallError> {
     Ok(Entity::find_by_id(id).one(db).await?)
@@ -27,20 +28,14 @@ pub async fn list_oldest_first(db: &impl ConnectionTrait) -> Result<Vec<Model>, 
     Ok(Entity::find().order_by_asc(Column::CreatedAt).order_by_asc(Column::Id).all(db).await?)
 }
 
-/// Tasks whose label is `label`, ignoring case, oldest first. Labels are stored lowercase, so
-/// this is a plain comparison in SQL.
-pub async fn find_by_label(db: &impl ConnectionTrait, label: &str) -> Result<Vec<Model>, RekallError> {
-    Ok(Entity::find()
-        .filter(Column::Label.eq(label.to_lowercase()))
-        .order_by_asc(Column::CreatedAt)
-        .order_by_asc(Column::Id)
-        .all(db)
-        .await?)
+/// The task whose code is `code`, ignoring case: `rk-12` finds `RK-12`.
+pub async fn find_by_code(db: &impl ConnectionTrait, code: &str) -> Result<Option<Model>, RekallError> {
+    Ok(Entity::find().filter(Column::Code.eq(code.to_ascii_uppercase())).one(db).await?)
 }
 
-/// The task `project:<label> task:<label>` names, both ignoring case. Two companies may each
-/// have a project with that label; more than one match is reported, not guessed.
-pub async fn find_by_anchor(db: &impl ConnectionTrait, project_label: &str, label: &str) -> Result<Option<Model>, RekallError> {
+/// The task `project:<label> task:<label>` names, both ignoring case: how an anchor written before
+/// tasks had codes still finds its task.
+pub async fn find_by_project_and_label(db: &impl ConnectionTrait, project_label: &str, label: &str) -> Result<Option<Model>, RekallError> {
     let found = Entity::find()
         .inner_join(project::Entity)
         .filter(project::Column::Label.eq(project_label.to_lowercase()))
@@ -50,10 +45,35 @@ pub async fn find_by_anchor(db: &impl ConnectionTrait, project_label: &str, labe
     at_most_one(found)
 }
 
+/// The number the next task of the project takes: one past the highest it holds.
+pub async fn next_number(db: &impl ConnectionTrait, project_id: Id) -> Result<i32, RekallError> {
+    let highest = Entity::find().filter(Column::ProjectId.eq(project_id)).order_by_desc(Column::Number).one(db).await?;
+    Ok(highest.map_or(1, |task| task.number + 1))
+}
+
+/// Gives a new task the next number of its project, the code that goes with it and, as its internal
+/// label (the name of its branch and worktree), that code in lowercase.
+pub async fn assign_next_code(db: &impl ConnectionTrait, task: &mut Model, project: &project::Model) -> Result<(), RekallError> {
+    let number = next_number(db, project.id).await?;
+    task.assign_code(&project.task_key, number);
+    task.label = task.code.to_ascii_lowercase();
+    Ok(())
+}
+
+/// Writes every code of the project again from its key, for when the key changes.
+pub async fn recode_project(db: &impl ConnectionTrait, project_id: Id, project_key: &str) -> Result<(), RekallError> {
+    for task in Entity::find().filter(Column::ProjectId.eq(project_id)).all(db).await? {
+        let mut recoded = task.clone().into_active_model();
+        recoded.code = Set(TaskKey::code(project_key, task.number));
+        recoded.update(db).await?;
+    }
+    Ok(())
+}
+
 pub async fn list_of_project(db: &impl ConnectionTrait, project_id: Id) -> Result<Vec<Model>, RekallError> {
     Ok(Entity::find()
         .filter(Column::ProjectId.eq(project_id))
-        .order_by_asc(Column::Label)
+        .order_by_asc(Column::Number)
         .all(db)
         .await?)
 }
@@ -68,13 +88,12 @@ pub async fn list_children_of(db: &impl ConnectionTrait, epic_id: Id) -> Result<
     Ok(Entity::find().filter(Column::EpicId.eq(epic_id)).order_by_asc(Column::Label).all(db).await?)
 }
 
-/// By project label, then by label: the order the catalog lists tasks in.
+/// By project label, then by number: the order the catalog lists tasks in.
 pub async fn list_in_catalog_order(db: &impl ConnectionTrait) -> Result<Vec<Model>, RekallError> {
     Ok(Entity::find()
         .inner_join(project::Entity)
         .order_by_asc(project::Column::Label)
-        .order_by_asc(Column::Label)
-        .order_by_asc(Column::CreatedAt)
+        .order_by_asc(Column::Number)
         .all(db)
         .await?)
 }

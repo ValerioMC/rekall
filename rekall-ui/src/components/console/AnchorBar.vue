@@ -72,7 +72,7 @@ const query = computed<string>({
   }
 })
 
-// The filter matches titles and labels as you type. For a phrase, the text behind them is searched
+// The filter matches titles, codes and descriptions as you type. For a phrase, the text behind them is searched
 // on the server too: descriptions, steps, wrapups and notes, listed under the bar.
 const SEARCH_DEBOUNCE_MS = 200
 const hits = ref<SearchHit[]>([])

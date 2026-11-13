@@ -25,7 +25,6 @@ function taskInput(
   change: Partial<Pick<TaskInput, 'status' | 'description' | 'tagId' | 'epicId'>>
 ): TaskInput {
   return {
-    label: task.label,
     title: task.title,
     status: task.status,
     description: task.description,

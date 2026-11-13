@@ -6,7 +6,7 @@ mod support;
 use serde_json::json;
 use support::{app, id};
 
-const ANCHORS: &str = "project:vega task:report-builder";
+const ANCHORS: &str = "task:VE-1";
 
 async fn names(app: &support::App, project_id: &str) -> Vec<String> {
     app.get(&format!("/api/projects/{project_id}/components")).await.list().iter().map(|c| c["name"].as_str().unwrap().to_string()).collect()
@@ -91,7 +91,7 @@ async fn the_context_of_the_project_and_of_its_tasks_lists_the_components_and_th
         );
         assert_eq!(context.matches("<components").count(), 1, "{anchors}: once, under the project");
     }
-    let task_only = app.call_tool("rekall_context", json!({ "anchors": "task:report-builder" })).await;
+    let task_only = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
     assert_contains!(task_only, "<component name=\"API\"");
 }
 

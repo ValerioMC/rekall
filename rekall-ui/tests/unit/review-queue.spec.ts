@@ -13,7 +13,7 @@ vi.mock('@/common/native/notify', () => ({ postNotice: (...args: unknown[]) => p
 function task(id: string, title: string, review: Partial<Pick<Task, 'reviewState' | 'reviewActive' | 'claimedAt'>> = {}): Task {
   return {
     id: id as TaskId,
-    label: id,
+    code: id, label: id,
     title,
     status: 'IN_PROGRESS',
     description: null,

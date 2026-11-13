@@ -10,7 +10,7 @@ use rekall_store::{company, project, task, TaskStatus, TaskStepState};
 use rekall_store::repository as repo;
 
 use crate::context::{AnchorEntity, ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView, StepConnectionView};
-use crate::component::{referenced_task_labels, ProjectComponentView};
+use crate::component::{names_task, referenced_task_labels, ProjectComponentView};
 use crate::connection::ConnectionView;
 use crate::dependency::{TaskWait, TaskWaitService};
 use crate::deviation::DeviationView;
@@ -86,7 +86,7 @@ impl ContextService {
         for project in repo::project::find_by_label(tx.db(), value).await? {
             matches.push(self.render_project(tx, &project).await?);
         }
-        for task in repo::task::find_by_label(tx.db(), value).await? {
+        if let Some(task) = repo::task::find_by_code(tx.db(), value).await? {
             matches.push(self.render_task(tx, &task).await?);
         }
         if matches.is_empty() {
@@ -141,7 +141,7 @@ impl ContextService {
             label: note.title.clone(),
             anchor: note.anchor(),
             fields: vec![("kind".into(), note.kind.clone())],
-            related: vec![format!("task:{}", task.label)],
+            related: vec![format!("task:{}", task.code)],
             documents: vec![DocumentView::of(note).in_full()],
             ..Default::default()
         })
@@ -181,7 +181,7 @@ impl ContextService {
             anchor: project.anchor(),
             fields,
             references: vec![self.referenced_company(tx, &company).await?],
-            related: tasks.iter().map(|t| format!("task:{}", t.label)).collect(),
+            related: tasks.iter().map(|t| format!("task:{}", t.code)).collect(),
             components: components.iter().map(ProjectComponentView::of).collect(),
             connections: connections.iter().map(|(binding, connection)| ConnectionView::of(binding, connection)).collect(),
             blueprint: project.blueprint_markdown.clone(),
@@ -200,7 +200,7 @@ impl ContextService {
         if let Some(epic) = epic_of(task, &siblings) {
             record.fields.push((
                 "epic".into(),
-                format!("belongs to the epic `task:{}` below, and inherits its description and notes.", epic.label),
+                format!("belongs to the epic `task:{}` below, and inherits its description and notes.", epic.code),
             ));
             record.references.push(self.inherited_epic(tx, epic, &project, &siblings).await?);
         }
@@ -286,10 +286,10 @@ impl ContextService {
         Ok(ContextRecord {
             kind: if task.is_epic() { "Epic" } else { "Task" }.into(),
             label: task.title.clone(),
-            anchor: format!("task:{}", task.label),
+            anchor: task.anchor(),
             fields,
             references: Vec::new(),
-            related: children.iter().map(|child| format!("task:{}", child.label)).collect(),
+            related: children.iter().map(|child| child.anchor()).collect(),
             documents: documents.iter().map(DocumentView::of).collect(),
             deviations: deviations.iter().map(|deviation| DeviationView::of(deviation, step_title_at(&steps, deviation.step_number))).collect(),
             thread: thread.iter().map(FeedbackView::of).collect(),
@@ -387,12 +387,12 @@ impl ContextService {
 }
 
 /// The other tasks of the project the record's description and checklist name, once each, in the
-/// order first named. A label that names no task is left to the text, which flags it.
+/// order first named. A reference that names no task is left to the text, which flags it.
 fn referenced_tasks<'a>(record: &ContextRecord, task: &task::Model, siblings: &'a [task::Model]) -> Vec<&'a task::Model> {
     let texts = record.description.iter().chain(record.steps.iter().filter(|step| !step.state.draft()).filter_map(|step| step.body_markdown.as_ref()));
     let mut found: Vec<&task::Model> = Vec::new();
-    for label in texts.flat_map(|text| referenced_task_labels(text)) {
-        let named = siblings.iter().find(|sibling| jstr::lower(&sibling.label) == label && sibling.id != task.id);
+    for reference in texts.flat_map(|text| referenced_task_labels(text)) {
+        let named = siblings.iter().find(|sibling| names_task(&sibling.code, &sibling.label, &reference) && sibling.id != task.id);
         if let Some(named) = named.filter(|named| found.iter().all(|seen| seen.id != named.id)) {
             found.push(named);
         }

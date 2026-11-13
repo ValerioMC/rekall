@@ -53,13 +53,16 @@ impl TaskService {
 
     /// A task that arrives with the issue it was imported from is not pushed back to its task manager.
     pub async fn create_in(&self, tx: &mut Tx, command: TaskCommand) -> Result<TaskView> {
-        let label = Slug::of(command.label.as_deref())?;
         let project = require_owning_project(tx, command.project_id).await?;
-        let mut task = task::Model::new(label, trimmed_title(&command), project.id, self.ctx.now());
+        let mut task = task::Model::new(String::new(), trimmed_title(&command), project.id, self.ctx.now());
+        repo::task::assign_next_code(tx.db(), &mut task, &project).await?;
+        if let Some(label) = command.label.as_deref() {
+            task.label = Slug::of(Some(label))?;
+            require_label_free(tx, &task).await?;
+        }
         apply_request(tx, &mut task, &command).await?;
         task.quick = command.quick;
         task.validate()?;
-        require_label_free(tx, &task, None).await?;
         require_no_other_active_quick(tx, &task).await?;
         task.clone().into_active_model().insert(tx.db()).await?;
         if command.tracker_issue_key.is_none() {
@@ -88,11 +91,11 @@ impl TaskService {
         in_write!(&self.ctx, |tx| {
             let before = repo::task::require(tx.db(), id).await?;
             let mut task = before.clone();
-            task.label = Slug::of(command.label.as_deref())?;
             task.title = trimmed_title(&command);
-            task.project_id = require_owning_project(&tx, command.project_id).await?.id;
+            let project = require_owning_project(&tx, command.project_id).await?;
+            task.project_id = project.id;
             apply_request(&tx, &mut task, &command).await?;
-            require_label_free(&tx, &task, Some(id)).await?;
+            number_again_when_moved(&tx, &before, &mut task, &project).await?;
             require_epic_kept_whole(&tx, &before, &task).await?;
             require_epic_stepless(&tx, &task).await?;
             let task = repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
@@ -227,13 +230,21 @@ async fn require_epic_stepless(tx: &Tx, task: &task::Model) -> Result<()> {
     Err(RekallError::conflict("This task has steps, and an epic holds none. Delete its steps before turning it into an epic."))
 }
 
-/// A label names one task within its project, or a `task:` anchor would be ambiguous.
-async fn require_label_free(tx: &Tx, task: &task::Model, except: Option<Id>) -> Result<()> {
-    if repo::task::label_taken(tx.db(), task.project_id, &task.label, except).await? {
-        return Err(RekallError::conflict(
-            "Another task on this project already uses that label. An anchor has to name one record.",
-        ));
+/// An explicit label names one task within its project.
+async fn require_label_free(tx: &Tx, task: &task::Model) -> Result<()> {
+    if repo::task::label_taken(tx.db(), task.project_id, &task.label, None).await? {
+        return Err(RekallError::conflict("Another task on this project already uses that label."));
     }
+    Ok(())
+}
+
+/// A task that changes project takes the next number there, and the code that goes with it.
+async fn number_again_when_moved(tx: &Tx, before: &task::Model, task: &mut task::Model, project: &project::Model) -> Result<()> {
+    if before.project_id == task.project_id {
+        return Ok(());
+    }
+    let number = repo::task::next_number(tx.db(), project.id).await?;
+    task.assign_code(&project.task_key, number);
     Ok(())
 }
 

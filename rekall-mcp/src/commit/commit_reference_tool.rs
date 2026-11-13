@@ -34,7 +34,7 @@ impl McpTool for CommitReferenceTool {
         ToolSchema::object()
             .required_string(
                 "anchors",
-                "The task to log this commit against, e.g. `project:vega task:report-builder`. Labels, never titles. \
+                "The task to log this commit against, e.g. `task:RK-12`. Labels, never titles. \
                  It has to name exactly one task.",
             )
             .optional_string(
@@ -57,7 +57,7 @@ impl McpTool for CommitReferenceTool {
         let commit = args.optional_string("commit");
         let logged = self
             .commit_references
-            .record_commit_by_anchor(target.project_label.as_deref(), &target.task_label, step.as_deref(), commit.as_deref())
+            .record_commit_by_anchor(target.project_label.as_deref(), &target.task_code, step.as_deref(), commit.as_deref())
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
         let where_ = match &logged.step_title {

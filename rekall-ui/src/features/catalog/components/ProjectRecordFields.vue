@@ -58,6 +58,7 @@ defineExpose({
   <RecordIdentityFields
     v-model:title="draft.title"
     v-model:label="draft.label"
+    v-model:task-key="draft.taskKey"
     kind="project"
     :is-new="draft.id === null"
     :original-label="originalLabel"

@@ -4,5 +4,5 @@
 mod model;
 mod view;
 
-pub use model::component_references::{referenced_task_labels, ComponentReferences, COMPONENT_REFERENCE_MAX};
+pub use model::component_references::{names_task, referenced_task_labels, ComponentReferences, COMPONENT_REFERENCE_MAX};
 pub use view::project_component_view::ProjectComponentView;

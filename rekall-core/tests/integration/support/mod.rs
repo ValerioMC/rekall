@@ -50,7 +50,7 @@ impl World {
             blueprint_markdown: None,
             repo_folder: folder.map(str::to_string),
             auto_commit,
-            main_branch: None, pull_request_flow: false,
+            main_branch: None, pull_request_flow: false, task_key: self.free_key(label).await,
             company_id: company.id,
             created_at: now,
             updated_at: now,
@@ -59,8 +59,14 @@ impl World {
         project
     }
 
+    async fn free_key(&self, label: &str) -> String {
+        let taken = rekall_store::repository::project::list_keys(self.db()).await.unwrap();
+        rekall_store::TaskKey::suggest(label, &taken)
+    }
+
     pub async fn task(&self, project: &project::Model, label: &str) -> task::Model {
-        let task = task::Model::new(label.into(), format!("Title of {label}"), project.id, Instant::now());
+        let mut task = task::Model::new(label.into(), format!("Title of {label}"), project.id, Instant::now());
+        task.number = rekall_store::repository::task::next_number(self.db(), project.id).await.unwrap();
         task.clone().into_active_model().insert(self.db()).await.unwrap();
         task
     }

@@ -37,7 +37,7 @@ impl McpTool for ProjectSectionTool {
         ToolSchema::object()
             .required_string(
                 "anchors",
-                "The task being worked, e.g. `project:vega task:report-builder`. The section lands on its project. \
+                "The task being worked, e.g. `task:RK-12`. The section lands on its project. \
                  Labels, never titles, and it has to name exactly one task.",
             )
             .required_string("title", "What the section is, short, like a heading.")
@@ -58,7 +58,7 @@ impl McpTool for ProjectSectionTool {
         let on_clash = if args.flag("replace") { OnTitleClash::Replace } else { OnTitleClash::Refuse };
         let written = self
             .sections
-            .write(target.project_label.as_deref(), &target.task_label, Some(&title), Some(&body), on_clash)
+            .write(target.project_label.as_deref(), &target.task_code, Some(&title), Some(&body), on_clash)
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
         let count = written.sections_on_project;

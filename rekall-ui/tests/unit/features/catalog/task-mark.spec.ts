@@ -10,6 +10,7 @@ import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
 function task(overrides: Partial<Task> = {}): Task {
   return {
     id: 't1' as TaskId,
+    code: 'T-1',
     label: 't1',
     title: 'Task',
     status: 'IN_PROGRESS',

@@ -108,7 +108,7 @@ describe('useStepStream', () => {
         wrapup: {
           id: '33333333-3333-3333-3333-333333333333',
           taskId: '22222222-2222-2222-2222-222222222222',
-          taskLabel: 'report-builder',
+          taskCode: 'report-builder',
           taskTitle: 'Report builder',
           projectLabel: 'vega',
           anchor: 'project:vega task:report-builder',

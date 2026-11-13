@@ -22,7 +22,7 @@ async fn world() -> World {
     company.clone().into_active_model().insert(&ctx.db).await.unwrap();
     let project = project::Model {
         id: Id::random(), label: "app".into(), title: "App".into(), status: ProjectStatus::Active, icon: "folder".into(), description: None,
-        blueprint_markdown: None, repo_folder: None, auto_commit: false, main_branch: None, pull_request_flow: false, company_id: company.id, created_at: now, updated_at: now,
+        blueprint_markdown: None, repo_folder: None, auto_commit: false, main_branch: None, pull_request_flow: false, task_key: String::new(), company_id: company.id, created_at: now, updated_at: now,
     };
     project.clone().into_active_model().insert(&ctx.db).await.unwrap();
     let mut connection = external_connection::Model::new("github".into(), "GitHub".into(), ConnectionKind::Github, Some("https://github.com".into()), now);

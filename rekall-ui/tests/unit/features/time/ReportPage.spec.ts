@@ -55,7 +55,7 @@ const companies: Company[] = [
 
 const tasks: Task[] = [
   {
-    id: builder, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS',
+    id: builder, code: 'report-builder', label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS',
     description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform',
     companyName: 'acme', projectRepoFolder: null, documentCount: 0, stepCount: 0, stepsDone: 0, draftStepCount: 0, hasWrapup: false, reviewState: 'OPEN', reviewActive: true, claimedAt: null, acceptedAt: null,
     tagId: null, tagName: null, tagIcon: null, tagColor: null, graphLaidAt: null, releaseSkipped: false,
@@ -64,7 +64,7 @@ const tasks: Task[] = [
     anchor: 'project:vega task:report-builder', updatedAt: ''
   },
   {
-    id: signal, label: 'signal-ingest', title: 'Signal ingest', status: 'TODO',
+    id: signal, code: 'signal-ingest', label: 'signal-ingest', title: 'Signal ingest', status: 'TODO',
     description: null, projectId: beacon, projectLabel: 'beacon', projectTitle: 'Beacon',
     companyName: 'globex', projectRepoFolder: null, documentCount: 0, stepCount: 0, stepsDone: 0, draftStepCount: 0, hasWrapup: false, reviewState: 'OPEN', reviewActive: true, claimedAt: null, acceptedAt: null,
     tagId: null, tagName: null, tagIcon: null, tagColor: null, graphLaidAt: null, releaseSkipped: false,
@@ -80,7 +80,7 @@ function session(id: string, taskId: TaskId, day: number, hours: number): TimeEn
   return {
     id: id as TimeEntryId,
     taskId,
-    taskLabel: task.label,
+    taskCode: task.label,
     taskTitle: task.title,
     projectLabel: task.projectLabel,
     anchor: task.anchor,

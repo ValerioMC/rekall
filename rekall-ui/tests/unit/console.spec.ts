@@ -37,9 +37,9 @@ const vega = 'p1' as ProjectId
 const beacon = 'p2' as ProjectId
 
 const projects: Project[] = [
-  { id: vega, label: 'vega', title: 'Vega Platform', status: 'ACTIVE', icon: 'folder', iconImageVersion: null, description: null, blueprintMarkdown: null,
+  { id: vega, label: 'vega', taskKey: 'PR', title: 'Vega Platform', status: 'ACTIVE', icon: 'folder', iconImageVersion: null, description: null, blueprintMarkdown: null,
     repoFolder: null, autoCommit: false, mainBranch: null, pullRequestFlow: false, companyId: acme, companyName: 'acme', taskCount: 2, anchor: 'project:vega', updatedAt: '2026-08-12T10:00:00Z' },
-  { id: beacon, label: 'beacon', title: 'Beacon', status: 'ACTIVE', icon: 'folder', iconImageVersion: null, description: null, blueprintMarkdown: null,
+  { id: beacon, label: 'beacon', taskKey: 'PR', title: 'Beacon', status: 'ACTIVE', icon: 'folder', iconImageVersion: null, description: null, blueprintMarkdown: null,
     repoFolder: null, autoCommit: false, mainBranch: null, pullRequestFlow: false, companyId: globex, companyName: 'globex', taskCount: 1, anchor: 'project:beacon', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
@@ -58,6 +58,7 @@ const task = (
   companyName: string
 ): Task => ({
   id,
+  code: label,
   label,
   title,
   status,
@@ -134,7 +135,7 @@ const wrapups: Wrapup[] = [
   {
     id: 'w1' as WrapupId,
     taskId: validator,
-    taskLabel: 'report-builder',
+    taskCode: 'report-builder',
     taskTitle: 'Report builder',
     projectLabel: 'vega',
     anchor: 'project:vega task:report-builder',
@@ -286,7 +287,7 @@ vi.mock('@/features/steps/api/steps.api', () => ({
 const runningEntry = (taskId: TaskId): TimeEntry => ({
   id: `e-${taskId}` as TimeEntryId,
   taskId,
-  taskLabel: 'report-builder',
+  taskCode: 'report-builder',
   taskTitle: 'Report builder',
   projectLabel: 'vega',
   anchor: 'project:vega task:report-builder',
@@ -371,14 +372,26 @@ describe('console store', () => {
   })
 
   /**
-   * The label is what you type after `/rk` and the title is what you called it out loud. Both
-   * have to find the row, or one of them is a name you cannot search by.
+   * The code is what you type after `/rk` and the title is what you called it out loud; the
+   * description is what the work is about. Each has to find the row.
    */
-  it('finds a task by its title as well as by its label', () => {
+  it('finds a task by its title, its code or its description', () => {
     store.filter = 'Wiring the adapter'
     expect(store.visibleTasks.map((t) => t.label)).toEqual(['wiring'])
 
     store.filter = 'wiring'
+    expect(store.visibleTasks.map((t) => t.label)).toEqual(['wiring'])
+
+    store.filter = 'task:wiring'
+    expect(store.visibleTasks.map((t) => t.label)).toEqual(['wiring'])
+  })
+
+  it('finds a task by a word of its description', () => {
+    const wiring = store.tasks.find((t) => t.label === 'wiring')!
+    store.tasks = store.tasks.map((t) => (t.id === wiring.id ? { ...t, description: 'Retries the handshake with the gateway.' } : t))
+
+    store.filter = 'handshake'
+
     expect(store.visibleTasks.map((t) => t.label)).toEqual(['wiring'])
   })
 
@@ -581,7 +594,7 @@ describe('console store', () => {
       const feedWrapup = (taskId: TaskId, over: Partial<Wrapup> = {}): Wrapup => ({
         id: 'w9' as WrapupId,
         taskId,
-        taskLabel: 'retry-policy',
+        taskCode: 'retry-policy',
         taskTitle: 'Retry policy',
         projectLabel: 'vega',
         anchor: 'project:vega task:retry-policy',
@@ -694,18 +707,13 @@ describe('console store', () => {
     ).toEqual([null])
   })
 
-  /**
-   * A status change sends the record back whole. Dropping the label out of that payload would
-   * blank the column the anchor resolves on, which the endpoint would then reject or, worse,
-   * accept.
-   */
-  it('keeps the label and the title when only the status changes', async () => {
+  /** A status change sends the record back whole: nothing else about it moves. */
+  it('keeps the title and the project when only the status changes', async () => {
     await store.setTaskStatus(validator, 'DONE')
 
     expect(updateTask).toHaveBeenCalledWith(
       validator,
       expect.objectContaining({
-        label: 'report-builder',
         title: 'Report builder',
         status: 'DONE',
         projectId: vega
@@ -736,11 +744,10 @@ describe('console store', () => {
    * a status change: everything else about the record goes back untouched.
    */
   describe('the description', () => {
-    it('saves it without moving the label, the title or the status', async () => {
+    it('saves it without moving the title or the status', async () => {
       await store.saveTaskDescription(validator, 'Builds the weekly report from the pipeline runs.')
 
       expect(updateTask).toHaveBeenCalledWith(validator, {
-        label: 'report-builder',
         title: 'Report builder',
         status: 'IN_PROGRESS',
         description: 'Builds the weekly report from the pipeline runs.',

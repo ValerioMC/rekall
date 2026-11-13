@@ -14,8 +14,8 @@ import { projectDraft, type ProjectDraft } from '@/features/catalog/model/record
 import type { Project } from '@/features/catalog/model/catalog'
 
 /**
- * What the project is called and where it lives: title, label, company, status, icon and
- * description, saved together because a new label moves the anchor. Deleting it is the last group.
+ * What the project is called and where it lives: title, label, task key, company, status, icon and
+ * description, saved together because a new label moves the anchor and a new key writes the task codes again. Deleting it is the last group.
  */
 const props = defineProps<{ project: Project }>()
 
@@ -46,6 +46,7 @@ const isDirty = computed(() => {
   return (
     edited.title !== saved.title ||
     label.value !== saved.label ||
+    edited.taskKey !== saved.taskKey ||
     edited.description !== saved.description ||
     edited.status !== saved.status ||
     edited.icon !== saved.icon ||
@@ -104,11 +105,10 @@ watch(() => props.project.id, () => startFrom(props.project))
         <RecordIdentityFields
           v-model:title="form.title"
           v-model:label="form.label"
+          v-model:task-key="form.taskKey"
           kind="project"
           :is-new="false"
           :original-label="baseline.label"
-          anchor-parent=""
-          parent-id=""
           :title-error="titleError"
           :label-error="labelError"
         />

@@ -67,7 +67,7 @@ export const ConnectionAccessListSchema = z.array(
     reason: z.string().nullable(),
     terminalId: z.string(),
     taskId: z.string().uuid().transform(asTaskId).nullable(),
-    taskLabel: z.string().nullable(),
+    taskCode: z.string().nullable(),
     taskTitle: z.string().nullable()
   })
 )

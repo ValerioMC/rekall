@@ -6,7 +6,7 @@ use super::Anchor;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AnchoredTask {
     pub project_label: Option<String>,
-    pub task_label: String,
+    pub task_code: String,
 }
 
 impl AnchoredTask {
@@ -26,7 +26,7 @@ impl AnchoredTask {
                 bare.push(anchor.value.clone());
             } else {
                 return Err(ToolError::Failure(format!(
-                    "`{anchor}` cannot say which task to write to. Pass `project:<label> task:<label>`."
+                    "`{anchor}` cannot say which task to write to. Pass `project:<label> task:<code>`."
                 )));
             }
         }
@@ -35,17 +35,17 @@ impl AnchoredTask {
         }
         let Some(task) = task else {
             return Err(ToolError::Failure(
-                "No task in those anchors. This write belongs to exactly one task: pass `project:<label> task:<label>`."
+                "No task in those anchors. This write belongs to exactly one task: pass `project:<label> task:<code>`."
                     .into(),
             ));
         };
-        Ok(Self { project_label: project, task_label: task })
+        Ok(Self { project_label: project, task_code: task })
     }
 
     pub fn anchor(&self) -> String {
         match &self.project_label {
-            None => format!("task:{}", self.task_label),
-            Some(project) => format!("project:{project} task:{}", self.task_label),
+            None => format!("task:{}", self.task_code),
+            Some(project) => format!("project:{project} task:{}", self.task_code),
         }
     }
 }

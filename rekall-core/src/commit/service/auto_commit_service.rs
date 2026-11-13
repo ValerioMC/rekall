@@ -69,7 +69,7 @@ impl AutoCommitService {
             Ok(folder) => folder,
             Err(refusal) => return Ok(refusal),
         };
-        let attempt = self.commit_pending(tx, task, &project.label, step, session_message, &folder).await;
+        let attempt = self.commit_pending(tx, task, step, session_message, &folder).await;
         match attempt {
             Err(RekallError::IllegalArgument(reason)) => {
                 warn!(%reason, folder = %display_path(&folder), task = %task.label, "Auto-commit refused");
@@ -101,7 +101,6 @@ impl AutoCommitService {
         &self,
         tx: &mut Tx,
         task: &task::Model,
-        project_label: &str,
         step: Option<&task_step::Model>,
         session_message: Option<&str>,
         folder: &Path,
@@ -119,7 +118,7 @@ impl AutoCommitService {
             return Ok(AutoCommitOutcome::skipped("nothing of this work to commit, so nothing was logged.".to_string())
                 .leaving_out(left_out));
         }
-        let subject = self.subject_of(tx, task, project_label, step).await?;
+        let subject = self.subject_of(tx, task, step).await?;
         let message = CommitMessageGenerator::generate(&subject, &changes.own, session_message);
         let hash = self.committer.commit_paths(folder, &changes.own, &message).await?;
         info!(%hash, folder = %shown, task = %task.label, step = step.map(|s| s.title.as_str()).unwrap_or("-"), "Auto-committed");
@@ -154,8 +153,8 @@ impl AutoCommitService {
         Ok(SessionChanges::split(pending, hashes, snapshot))
     }
 
-    async fn subject_of(&self, tx: &Tx, task: &task::Model, project_label: &str, step: Option<&task_step::Model>) -> Result<Subject> {
-        let anchor = task.anchor(project_label);
+    async fn subject_of(&self, tx: &Tx, task: &task::Model, step: Option<&task_step::Model>) -> Result<Subject> {
+        let anchor = task.anchor();
         Ok(match step {
             None => Subject {
                 title: task.title.clone(),

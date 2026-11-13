@@ -10,7 +10,7 @@ pub struct ConnectionAccessView {
     pub reason: Option<String>,
     pub terminal_id: String,
     pub task_id: Option<Id>,
-    pub task_label: Option<String>,
+    pub task_code: Option<String>,
     pub task_title: Option<String>,
 }
 
@@ -23,7 +23,7 @@ impl ConnectionAccessView {
             reason: access.reason.clone(),
             terminal_id: access.terminal_id.clone(),
             task_id: access.task_id,
-            task_label: task.map(|task| task.label.clone()),
+            task_code: task.map(|task| task.code.clone()),
             task_title: task.map(|task| task.title.clone()),
         }
     }

@@ -3,10 +3,10 @@ import type { ProjectId } from '@/model/branded'
 
 /**
  * How the note-side pickers find a task: every whitespace-separated part of the needle has to
- * appear somewhere in the project's label or title or the task's label or title.
+ * appear somewhere in the project's label or title or the task's code, title or description.
  */
 export function matchesTaskQuery(task: Task, needle: string): boolean {
-  const hay = `${task.projectLabel} ${task.projectTitle} ${task.label} ${task.title}`.toLowerCase()
+  const hay = `${task.projectLabel} ${task.projectTitle} ${task.code} ${task.title} ${task.description ?? ''}`.toLowerCase()
   return needle
     .trim()
     .toLowerCase()

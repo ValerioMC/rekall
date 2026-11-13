@@ -28,18 +28,18 @@ impl EpicMembershipService {
             repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
             tx.publish(TaskStreamEvent { task_id: before.id, project_id: project.id });
             Ok::<_, RekallError>(EpicJoined {
-                task_anchor: before.anchor(&project.label),
-                epic_anchor: epic.anchor(&project.label),
+                task_anchor: before.anchor(),
+                epic_anchor: epic.anchor(),
                 epic_title: epic.title,
                 left,
             })
         })
     }
 
-    /// The label of the epic the task is moved out of; `None` when it was in none or already in this one.
+    /// The code of the epic the task is moved out of; `None` when it was in none or already in this one.
     async fn epic_left(&self, tx: &Tx, task: &task::Model, epic: &task::Model) -> Result<Option<String>> {
         match task.epic_id.filter(|current| *current != epic.id) {
-            Some(current) => Ok(Some(repo::task::require(tx.db(), current).await?.label)),
+            Some(current) => Ok(Some(repo::task::require(tx.db(), current).await?.code)),
             None => Ok(None),
         }
     }

@@ -10,7 +10,7 @@ async fn a_task(db: &impl ConnectionTrait) -> task::Model {
     company.clone().into_active_model().insert(db).await.unwrap();
     let project = project::Model {
         id: Id::random(), label: "vega".into(), title: "Vega".into(), status: ProjectStatus::Active, icon: "folder".into(),
-        description: None, blueprint_markdown: None, repo_folder: None, auto_commit: false, main_branch: None, pull_request_flow: false, company_id: company.id,
+        description: None, blueprint_markdown: None, repo_folder: None, auto_commit: false, main_branch: None, pull_request_flow: false, task_key: String::new(), company_id: company.id,
         created_at: now, updated_at: now,
     };
     project.clone().into_active_model().insert(db).await.unwrap();

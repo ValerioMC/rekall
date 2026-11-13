@@ -21,11 +21,10 @@ impl TaskDescriptionService {
     pub async fn replace(&self, project_label: Option<&str>, task_label: &str, body: Option<&str>) -> Result<DescriptionReplaced> {
         in_write!(&self.ctx, |tx| {
             let before = load::resolve_task(tx.db(), project_label, task_label).await?;
-            let project = load::project_of(tx.db(), &before).await?;
             let after = Model { description: Some(validated_body(body)?), ..before.clone() };
             let changed = after != before;
             repo::update_if_changed(tx.db(), &before, after, self.ctx.now()).await?;
-            Ok(DescriptionReplaced { task_anchor: before.anchor(&project.label), changed })
+            Ok(DescriptionReplaced { task_anchor: before.anchor(), changed })
         })
     }
 }

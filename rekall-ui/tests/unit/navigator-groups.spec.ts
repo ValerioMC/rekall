@@ -14,7 +14,7 @@ function task(id: string, projectId: string, status: TaskStatus = 'TODO', projec
 function project(id: string, over: Partial<Project> = {}): Project {
   return {
     id: id as ProjectId,
-    label: id,
+    label: id, taskKey: 'PR',
     title: id,
     status: 'ACTIVE',
     icon: 'rocket',
@@ -113,31 +113,52 @@ describe('the navigator shelves', () => {
     expect(shelves.openFiled.has('vega' as ProjectId)).toBe(true)
   })
 
-  it('keeps the epics shelf closed until an epic is picked from elsewhere, even a finished one', async () => {
+  it('keeps every epic closed until one of its tasks is picked from elsewhere', async () => {
+    const epic: Task = { ...task('e', 'vega', 'IN_PROGRESS'), kind: 'EPIC' }
+    const child: Task = { ...task('c', 'vega', 'TODO'), epicId: epic.id }
     const selected = ref<Task | null>(null)
-    const shelves = useNavigatorShelves(selected)
-    expect(shelves.epicsOpen).toBe(false)
+    const shelves = useNavigatorShelves(selected, ref([epic, child]))
     expect(shelves.openEpics.size).toBe(0)
 
-    selected.value = { ...task('e', 'vega', 'DONE'), kind: 'EPIC' }
+    selected.value = child
     await nextTick()
 
-    expect(shelves.epicsOpen).toBe(true)
-    expect(shelves.openEpics.has('vega' as ProjectId)).toBe(true)
-    expect(shelves.openFiled.size).toBe(0)
+    expect(shelves.openEpics.has(epic.id)).toBe(true)
+  })
+
+  it('opens the shelf of the epic that hides a task, not the shelf of the task’s own status', async () => {
+    const epic: Task = { ...task('e', 'vega', 'DONE'), kind: 'EPIC' }
+    const child: Task = { ...task('c', 'vega', 'TODO'), epicId: epic.id }
+    const selected = ref<Task | null>(null)
+    const shelves = useNavigatorShelves(selected, ref([epic, child]))
+
+    selected.value = child
+    await nextTick()
+
+    expect(shelves.openEpics.has(epic.id)).toBe(true)
+    expect(shelves.openFiled.has('vega' as ProjectId)).toBe(true)
+    expect(shelves.openBacklogs.size).toBe(0)
+  })
+
+  it('leaves an epic closed when the epic itself is the pick', async () => {
+    const epic: Task = { ...task('e', 'vega', 'IN_PROGRESS'), kind: 'EPIC' }
+    const selected = ref<Task | null>(null)
+    const shelves = useNavigatorShelves(selected, ref([epic]))
+
+    selected.value = epic
+    await nextTick()
+
+    expect(shelves.openEpics.size).toBe(0)
   })
 
   it('toggles the list-wide shelves on their own, without touching a project’s', () => {
     const shelves = useNavigatorShelves(ref(null))
 
-    shelves.toggleListEpics()
     shelves.toggleListFiled()
     shelves.toggleListBacklog()
 
-    expect(shelves.epicsOpen).toBe(true)
     expect(shelves.filedOpen).toBe(true)
     expect(shelves.backlogOpen).toBe(true)
-    expect(shelves.openEpics.size).toBe(0)
     expect(shelves.openFiled.size).toBe(0)
   })
 })

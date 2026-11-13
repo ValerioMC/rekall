@@ -59,10 +59,10 @@ onMounted(async () => {
             <span class="truncate text-body text-text">{{ task.title }}</span>
             <QuickTaskMark :task="task" />
           </span>
-          <span class="block truncate font-mono text-micro text-anchor/80">{{ task.label }}</span>
+          <span class="block truncate font-mono text-micro text-anchor/80">{{ task.code }}</span>
         </span>
         <span class="shrink-0 text-caption text-text-subtle">{{ TASK_STATUS_LABEL[task.status] }}</span>
-        <AppButton size="sm" variant="secondary" :data-testid="`open-task-${task.label}`" @click="emit('open', task.id)">
+        <AppButton size="sm" variant="secondary" :data-testid="`open-task-${task.code}`" @click="emit('open', task.id)">
           Open
         </AppButton>
       </li>

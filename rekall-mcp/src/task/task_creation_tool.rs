@@ -41,15 +41,11 @@ impl McpTool for TaskCreationTool {
             .required_string("anchors", "The project the task goes in, `project:vega`. A label, never a title.")
             .required_string("title", "What the task is, short, under 200 characters.")
             .optional_string(
-                "label",
-                "The task's label, what `task:` resolves. Omitted, it is the title as a label. It must be free on the project.",
-            )
-            .optional_string(
                 "description",
                 "Markdown: what the work is for, what it has to satisfy, what is out of scope.",
             )
             .optional_string("kind", "`task` (the default) or `epic`: a task that holds no steps and gathers other tasks.")
-            .optional_string("epic", "The label of an epic of the same project to file the new task under: `checkout`.")
+            .optional_string("epic", "The code of an epic of the same project to file the new task under: `RK-3`.")
             .optional_object_array(
                 "steps",
                 "Up to 20 steps, in order: `[{\"title\":\"Expose the report as a download\",\"detail\":\"markdown\",\"new_session\":true}]`. \
@@ -66,7 +62,6 @@ impl McpTool for TaskCreationTool {
         let plan = plan_or_empty(args.value("steps"))?;
         let brief = TaskBrief {
             title: Some(args.required_string("title")?),
-            label: args.optional_string("label"),
             description: args.optional_string("description"),
             kind: kind_of(args.optional_string("kind").as_deref())?,
             epic: args.optional_string("epic"),

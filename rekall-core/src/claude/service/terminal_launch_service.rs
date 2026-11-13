@@ -45,10 +45,10 @@ fn launch_of(project: &project::Model, task: Option<&task::Model>, connections: 
     Ok(TerminalLaunch {
         project_id: project.id,
         task_id: task.map(|task| task.id),
-        anchors: task.map_or_else(|| project.anchor(), |task| task.anchor(&project.label)),
+        anchors: task.map_or_else(|| project.anchor(), |task| task.anchor()),
         working_dir: jstr::strip(folder).to_string(),
         project_label: project.label.clone(),
-        task_label: task.map(|task| task.label.clone()),
+        task_code: task.map(|task| task.code.clone()),
         task_title: task.map(|task| task.title.clone()),
         connections,
     })

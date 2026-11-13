@@ -31,7 +31,7 @@ async fn world() -> World {
         description: None,
         blueprint_markdown: None,
         repo_folder: Some(project_folder.to_string_lossy().into_owned()),
-        auto_commit: false, main_branch: None, pull_request_flow: false,
+        auto_commit: false, main_branch: None, pull_request_flow: false, task_key: String::new(),
         company_id: company.id,
         created_at: now,
         updated_at: now,

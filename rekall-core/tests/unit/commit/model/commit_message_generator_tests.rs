@@ -1,7 +1,7 @@
 use crate::commit::PendingChangeKind;
 use super::*;
 
-const ANCHOR: &str = "project:vega task:report-builder";
+const ANCHOR: &str = "task:REPORT-BUILDER";
 const DETAIL: &str = "## What this step does\n\nExpose **the weekly report** as a download, so the finance team stops asking for it by mail.\nThe endpoint streams the file instead of building it in memory.\n\n```java\nignored();\n```\n\nIt is read-only and needs no migration.\n";
 
 fn step() -> Subject {
@@ -23,7 +23,7 @@ fn without_a_session_message_the_body_is_the_steps_detail_as_prose_and_no_file_i
     assert!(message.contains("It is read-only and needs no migration."));
     assert!(!message.contains("##") && !message.contains("**") && !message.contains("ignored();"));
     assert!(!message.contains("ExportController.java") && !message.contains("README.md") && !message.contains("files"));
-    assert!(message.ends_with("\n\nRefs: project:vega task:report-builder, step 3\n"));
+    assert!(message.ends_with("\n\nRefs: task:REPORT-BUILDER, step 3\n"));
 }
 
 #[test]
@@ -36,7 +36,7 @@ fn a_session_message_wins() {
         "the session's lines are reflowed at 72 columns: {message}"
     );
     assert!(!message.contains("Expose the weekly"));
-    assert!(message.ends_with("Refs: project:vega task:report-builder, step 3\n"));
+    assert!(message.ends_with("Refs: task:REPORT-BUILDER, step 3\n"));
 }
 
 #[test]
@@ -58,7 +58,7 @@ fn body_lines_are_wrapped_at_72_columns_and_list_items_keep_a_hanging_indent() {
 fn a_task_claim_with_no_wrapup_has_a_subject_and_the_refs_line() {
     let task = Subject { title: "Report builder".into(), anchor: ANCHOR.into(), step_number: None, description: None };
     let message = CommitMessageGenerator::generate(&task, &[PendingChange::new(PendingChangeKind::Deleted, "old.js")], None);
-    assert_eq!(message, "feat: Report builder\n\nRefs: project:vega task:report-builder\n");
+    assert_eq!(message, "feat: Report builder\n\nRefs: task:REPORT-BUILDER\n");
 }
 
 #[test]

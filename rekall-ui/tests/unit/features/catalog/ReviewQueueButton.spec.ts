@@ -9,7 +9,7 @@ import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
 
 const report: Task = {
   id: 't1' as TaskId,
-  label: 'report-builder',
+  code: 'report-builder', label: 'report-builder',
   title: 'Report builder',
   status: 'IN_PROGRESS',
   description: null,

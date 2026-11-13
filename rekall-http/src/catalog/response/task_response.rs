@@ -7,6 +7,7 @@ use serde::Serialize;
 #[serde(rename_all = "camelCase")]
 pub struct TaskResponse {
     pub id: Id,
+    pub code: String,
     pub label: String,
     pub title: String,
     pub status: TaskStatus,
@@ -52,6 +53,7 @@ impl From<TaskView> for TaskResponse {
     fn from(view: TaskView) -> Self {
         Self {
             id: view.id,
+            code: view.code,
             label: view.label,
             title: view.title,
             status: view.status,

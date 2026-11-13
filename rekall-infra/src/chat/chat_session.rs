@@ -78,7 +78,7 @@ impl ChatSession {
             anchors: self.launch.anchors.clone(),
             working_dir: self.launch.working_dir.clone(),
             project_label: self.launch.project_label.clone(),
-            task_label: self.launch.task_label.clone(),
+            task_code: self.launch.task_code.clone(),
             task_title: self.launch.task_title.clone(),
             mode: self.mode.clone(),
             skip_permissions: self.skip_permissions,

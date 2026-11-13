@@ -8,6 +8,7 @@ use serde::Serialize;
 pub struct ProjectResponse {
     pub id: Id,
     pub label: String,
+    pub task_key: String,
     pub title: String,
     pub status: ProjectStatus,
     pub icon: String,
@@ -31,6 +32,7 @@ impl From<ProjectView> for ProjectResponse {
         Self {
             id: view.id,
             label: view.label,
+            task_key: view.task_key,
             title: view.title,
             status: view.status,
             icon: view.icon,

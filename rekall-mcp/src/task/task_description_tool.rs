@@ -36,7 +36,7 @@ impl McpTool for TaskDescriptionTool {
         ToolSchema::object()
             .required_string(
                 "anchors",
-                "The task whose description is replaced, e.g. `project:vega task:report-builder`. Labels, never titles, \
+                "The task whose description is replaced, e.g. `task:RK-12`. Labels, never titles, \
                  and it has to name exactly one task.",
             )
             .required_string("body", "The complete new description, in markdown. It replaces the whole of the old one.")
@@ -49,7 +49,7 @@ impl McpTool for TaskDescriptionTool {
         let body = args.required_string("body")?;
         let replaced = self
             .descriptions
-            .replace(target.project_label.as_deref(), &target.task_label, Some(&body))
+            .replace(target.project_label.as_deref(), &target.task_code, Some(&body))
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
         Ok(report(&replaced))

@@ -41,7 +41,7 @@ impl McpTool for WrapupTool {
         ToolSchema::object()
             .required_string(
                 "anchors",
-                "The task to write to, e.g. `project:vega task:report-builder`. Labels, never titles. It has to name \
+                "The task to write to, e.g. `task:RK-12`. Labels, never titles. It has to name \
                  exactly one task; a `company:` anchor cannot.",
             )
             .required_string(
@@ -66,7 +66,7 @@ impl McpTool for WrapupTool {
 
         let report = self
             .checks
-            .run_for_wrapup_claim(target.project_label.as_deref(), &target.task_label)
+            .run_for_wrapup_claim(target.project_label.as_deref(), &target.task_code)
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
         let checks_passed = admit(report, texts::WRAPUP_LEFT_AS_IT_WAS)?;
@@ -74,7 +74,7 @@ impl McpTool for WrapupTool {
         // The transport stamps the author: anything arriving over MCP was written by Claude.
         let written = self
             .wrapups
-            .write_by_anchor(target.project_label.as_deref(), &target.task_label, Some(&body), WrapupAuthor::Claude)
+            .write_by_anchor(target.project_label.as_deref(), &target.task_code, Some(&body), WrapupAuthor::Claude)
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
 

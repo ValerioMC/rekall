@@ -41,7 +41,7 @@ async fn insert_project(db: &sea_orm::DatabaseConnection, company_id: Id, label:
         description: None,
         blueprint_markdown: None,
         repo_folder: None,
-        auto_commit: false, main_branch: None, pull_request_flow: false,
+        auto_commit: false, main_branch: None, pull_request_flow: false, task_key: label[..2].to_ascii_uppercase(),
         company_id,
         created_at: now,
         updated_at: now,
@@ -318,4 +318,29 @@ async fn a_deleted_task_announces_the_issue_it_held_and_one_without_an_issue_ann
         }
     }
     assert_eq!(deleted, [rekall_core::task::TaskDeletedEvent { project_id: world.project_id, issue_key: Some("7".into()) }]);
+}
+
+#[tokio::test]
+async fn each_task_takes_the_next_number_of_its_project_and_a_moved_one_the_next_of_the_new_project() {
+    let world = world().await;
+    let first = world.service.create(command("a", world.project_id, TaskKind::Task, None)).await.unwrap();
+    let second = world.service.create(command("b", world.project_id, TaskKind::Task, None)).await.unwrap();
+    let other = world.service.create(command("c", world.other_project_id, TaskKind::Task, None)).await.unwrap();
+
+    assert_eq!((first.code.as_str(), second.code.as_str(), other.code.as_str()), ("AP-1", "AP-2", "SI-1"));
+    assert_eq!(second.anchor, "task:AP-2");
+
+    let moved = world.service.update(second.id, command("b", world.other_project_id, TaskKind::Task, None)).await.unwrap();
+
+    assert_eq!(moved.code, "SI-2");
+}
+
+#[tokio::test]
+async fn a_task_edited_in_place_keeps_its_code() {
+    let world = world().await;
+    let created = world.service.create(command("a", world.project_id, TaskKind::Task, None)).await.unwrap();
+
+    let edited = world.service.update(created.id, TaskCommand { title: Some("Renamed".into()), ..command("a", world.project_id, TaskKind::Task, None) }).await.unwrap();
+
+    assert_eq!((edited.code.as_str(), edited.title.as_str()), ("AP-1", "Renamed"));
 }

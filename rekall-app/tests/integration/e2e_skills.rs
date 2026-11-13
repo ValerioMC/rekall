@@ -20,7 +20,7 @@ async fn a_task_step_and_tag_skills_all_reach_the_context_with_their_scope() {
     assert_eq!(app.put(&format!("/api/tags/{tag}/skills"), json!({ "skills": ["code-review", "rust-standards"] })).await.status, 200);
     assert_eq!(app.put(&format!("/api/steps/{step_id}/skills"), json!({ "skills": ["ui-ux-pro-max"] })).await.status, 200);
 
-    let context = app.call_tool("rekall_context", json!({ "anchors": "task:report-builder" })).await;
+    let context = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
 
     assert_contains!(
         context,
@@ -42,7 +42,7 @@ async fn a_finished_steps_skill_is_no_longer_handed_over() {
 
     app.patch(&format!("/api/steps/{step_id}"), json!({ "done": true })).await;
 
-    let context = app.call_tool("rekall_context", json!({ "anchors": "task:report-builder" })).await;
+    let context = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
     assert_lacks!(context, "<skills", "ui-ux-pro-max");
 }
 

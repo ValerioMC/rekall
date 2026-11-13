@@ -30,6 +30,7 @@ const taskId = 't1' as TaskId
 function makeTask(reviewState: TaskStepState, wrapup: Partial<Task> = {}): Task {
   return {
     id: taskId,
+    code: 'AI-1',
     label: 'application-improvements',
     title: 'Application improvements',
     status: 'IN_PROGRESS',

@@ -3,6 +3,7 @@ use rekall_store::{TaskKind, TaskStatus};
 
 #[derive(Clone, Debug, Default)]
 pub struct TaskCommand {
+    /// The task's internal slug, kept for an imported issue's key; a new task otherwise takes its lowercase code.
     pub label: Option<String>,
     pub title: Option<String>,
     pub status: Option<TaskStatus>,

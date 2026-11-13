@@ -41,7 +41,7 @@ function item(id: string, state: RunQueueItemState): RunQueueItem {
     id: asRunQueueItemId(id),
     taskId: asTaskId(`t-${id}`),
     taskTitle: `Report ${id}`,
-    taskLabel: `t-${id}`,
+    taskCode: `t-${id}`,
     projectLabel: 'vega',
     anchor: `project:vega task:t-${id}`,
     position: 0,

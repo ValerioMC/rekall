@@ -37,8 +37,7 @@ impl NoteService {
             let wanted = validated_title(title)?;
             let text = validated_body(body)?;
             let existing = repo::document::documents_of_task(tx.db(), task.id).await?;
-            let project = load::project_of(tx.db(), &task).await?;
-            let target = Target { task: &task, task_anchor: task.anchor(&project.label), notes_on_task: existing.len() };
+            let target = Target { task: &task, task_anchor: task.anchor(), notes_on_task: existing.len() };
 
             match existing.iter().find(|note| jstr::equals_ignore_case(jstr::strip(&note.title), &wanted)) {
                 Some(clash) if on_clash == OnTitleClash::Refuse => Err(clash_refusal(clash)),

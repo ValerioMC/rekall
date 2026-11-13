@@ -74,3 +74,13 @@ pub async fn label_taken(db: &impl ConnectionTrait, company_id: Id, label: &str,
     }
     Ok(query.one(db).await?.is_some())
 }
+
+/// The project that holds the task key, ignoring case.
+pub async fn find_by_key(db: &impl ConnectionTrait, key: &str) -> Result<Option<Model>, RekallError> {
+    Ok(Entity::find().filter(Column::TaskKey.eq(key.to_ascii_uppercase())).one(db).await?)
+}
+
+/// Every key some project holds.
+pub async fn list_keys(db: &impl ConnectionTrait) -> Result<std::collections::HashSet<String>, RekallError> {
+    Ok(Entity::find().all(db).await?.into_iter().map(|project| project.task_key).collect())
+}

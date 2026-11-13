@@ -168,7 +168,7 @@ impl World {
             description: None,
             blueprint_markdown: None,
             repo_folder: folder.map(|f| f.to_string_lossy().into_owned()),
-            auto_commit: false, main_branch: None, pull_request_flow: false,
+            auto_commit: false, main_branch: None, pull_request_flow: false, task_key: label[..2].to_ascii_uppercase(),
             company_id: company.id,
             created_at: now,
             updated_at: now,
@@ -178,7 +178,9 @@ impl World {
     }
 
     pub async fn task(&self, project: &project::Model, label: &str) -> task::Model {
-        let task = task::Model::new(label.into(), format!("Title of {label}"), project.id, Instant::now());
+        let mut task = task::Model::new(label.into(), format!("Title of {label}"), project.id, Instant::now());
+        rekall_store::repository::task::assign_next_code(self.db(), &mut task, project).await.unwrap();
+        task.label = label.into();
         task.clone().into_active_model().insert(self.db()).await.unwrap();
         task
     }

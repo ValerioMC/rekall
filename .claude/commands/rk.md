@@ -1,6 +1,6 @@
 ---
-description: Load a Rekall working context by anchor, e.g. /rk project:vega task:report-builder
-argument-hint: "company:|project:|task: <label> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan [flow]] | [replan] | [revise] | [rewrite fix|restructure] | [generate [kinds:sequence,state] \"what to diagram\"] | [explain \"what to walk through\"] | [inventory] | [assess [advisory:GHSA-xxxx-xxxx-xxxx]] | [autoconfigure] | [merge [pull-request base:<branch>]] | [step:N start|done [outcome:<name>] [report:\"what you saw\"]]   (labels, not titles)"
+description: Load a Rekall working context by anchor, e.g. /rk task:RK-12
+argument-hint: "company:|project:|task: <label or code> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan [flow]] | [replan] | [revise] | [rewrite fix|restructure] | [generate [kinds:sequence,state] \"what to diagram\"] | [explain \"what to walk through\"] | [inventory] | [assess [advisory:GHSA-xxxx-xxxx-xxxx]] | [autoconfigure] | [merge [pull-request base:<branch>]] | [step:N start|done [outcome:<name>] [report:\"what you saw\"]]   (labels and codes, not titles)"
 allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_propose_flow, mcp__rekall__rekall_replan, mcp__rekall__rekall_feedback, mcp__rekall__rekall_description, mcp__rekall__rekall_delete_step, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note, mcp__rekall__rekall_project_section, mcp__rekall__rekall_read_sections, mcp__rekall__rekall_search, mcp__rekall__rekall_diagram, mcp__rekall__rekall_inventory, mcp__rekall__rekall_vulnerabilities, mcp__rekall__rekall_assess_vulnerability, Read, Grep, Glob, WebFetch
 ---
 
@@ -44,8 +44,9 @@ Call `rekall_context` with `anchors` set to exactly the arguments above, unchang
 - A note that arrives `loaded="on request"` is a title, a line and a `note:` anchor. Load it with
   `rekall_context` and that anchor only if the work needs it.
 - The value is the record's **label**, never its title: `project:vega`, not `project:"Vega Platform"`.
-  A label is lowercase and has no spaces. If I gave you a title, say so and stop rather than guessing
-  the label from it.
+  A label is lowercase and has no spaces. A task is named by its **code**, its project's key, a dash and a
+  number: `task:RK-12`, which needs no project beside it. If I gave you a title, say so and stop rather than
+  guessing the label or the code from it.
 - If a term matched more than one record, show me the candidates and stop. Do not choose.
 - A `<skills>` block lists the Claude skills assigned to the task, to its tag or to one of its steps.
   Invoke each one with the Skill tool before you start working and follow it. A skill scoped to a step

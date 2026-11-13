@@ -1,13 +1,14 @@
 <script setup lang="ts">
 /**
- * One project in the grouped navigator: a header that folds the project away, and under it the live
- * tasks, with the epics, the backlog and the filed ones on their own shelves.
+ * One project in the grouped navigator: a header that folds the project away, and under it the epics
+ * (closed until opened), then the live tasks newest first, with the backlog and the filed ones on
+ * their own shelves. The tasks of an epic are listed under it and nowhere else.
  */
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import NavigatorTaskRow from '@/components/console/NavigatorTaskRow.vue'
 import NavigatorFilingDrawer from '@/components/console/NavigatorFilingDrawer.vue'
-import NavigatorEpicRow from '@/features/catalog/components/epic/NavigatorEpicRow.vue'
+import NavigatorEpicBranch from '@/features/catalog/components/epic/NavigatorEpicBranch.vue'
 import ProjectPageLink from '@/features/catalog/components/ProjectPageLink.vue'
 import ProjectTokenChip from '@/features/tokens/components/ProjectTokenChip.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
@@ -17,6 +18,7 @@ import { identityHue } from '@/common/identity'
 import { useConsoleStore } from '@/stores/console.store'
 import { PROJECT_STATUS_LABEL } from '@/features/catalog/model/project-status'
 import { type Task } from '@/features/catalog/model/catalog'
+import { branchesWithStatus } from '@/features/catalog/lib/partition-tasks'
 import type { ProjectTaskGroup } from '@/features/catalog/lib/project-task-groups'
 import type { NavigatorShelves } from '@/composables/useNavigatorShelves'
 import type { TaskId } from '@/model/branded'
@@ -33,6 +35,9 @@ defineEmits<{ edit: [task: Task] }>()
 const store = useConsoleStore()
 const { selectedTaskId } = storeToRefs(store)
 const expanded = computed(() => !props.shelves.collapsedProjects.has(props.group.projectId))
+const liveEpics = computed(() => props.group.epics.filter(({ epic }) => epic.status !== 'DONE' && epic.status !== 'BACKLOG'))
+const backlogEpics = computed(() => branchesWithStatus(props.group.epics, 'BACKLOG'))
+const filedEpics = computed(() => branchesWithStatus(props.group.epics, 'DONE'))
 </script>
 
 <template>
@@ -105,22 +110,17 @@ const expanded = computed(() => !props.shelves.collapsedProjects.has(props.group
       class="relative ml-[17px] mt-1 flex flex-col gap-0.5 border-l-2 pl-2"
       :style="{ borderLeftColor: identityHue(group.projectId).line }"
     >
-      <NavigatorFilingDrawer
-        v-if="group.epics.length"
-        kind="epics"
-        :count="group.epics.length"
-        :open="shelves.openEpics.has(group.projectId)"
-        @toggle="shelves.toggleEpics(group.projectId)"
-      >
-        <NavigatorEpicRow
-          v-for="epic in group.epics"
-          :key="epic.id"
-          :epic="epic"
-          :selected="epic.id === selectedTaskId"
-          :filed="epic.status === 'DONE'"
-          @select="store.selectTask(epic.id)"
-        />
-      </NavigatorFilingDrawer>
+      <NavigatorEpicBranch
+        v-for="branch in liveEpics"
+        :key="branch.epic.id"
+        :branch="branch"
+        :expanded="shelves.openEpics.has(branch.epic.id)"
+        :selected-task-id="selectedTaskId"
+        :running-task-ids="runningTaskIds"
+        @select="store.selectTask($event)"
+        @edit="$emit('edit', $event)"
+        @toggle="shelves.toggleEpic(branch.epic.id)"
+      />
 
       <TransitionGroup tag="div" name="nav-row" class="flex flex-col gap-0.5">
         <NavigatorTaskRow
@@ -137,12 +137,24 @@ const expanded = computed(() => !props.shelves.collapsedProjects.has(props.group
       </TransitionGroup>
 
       <NavigatorFilingDrawer
-        v-if="group.backlog.length"
+        v-if="group.backlog.length || backlogEpics.length"
         kind="backlog"
-        :count="group.backlog.length"
+        :count="backlogEpics.length + group.backlog.length"
         :open="shelves.openBacklogs.has(group.projectId)"
         @toggle="shelves.toggleBacklog(group.projectId)"
       >
+        <NavigatorEpicBranch
+          v-for="branch in backlogEpics"
+          :key="branch.epic.id"
+          :branch="branch"
+          :expanded="shelves.openEpics.has(branch.epic.id)"
+          :selected-task-id="selectedTaskId"
+          :running-task-ids="runningTaskIds"
+          filed
+          @select="store.selectTask($event)"
+          @edit="$emit('edit', $event)"
+          @toggle="shelves.toggleEpic(branch.epic.id)"
+        />
         <NavigatorTaskRow
           v-for="task in group.backlog"
           :key="task.id"
@@ -158,11 +170,23 @@ const expanded = computed(() => !props.shelves.collapsedProjects.has(props.group
       </NavigatorFilingDrawer>
 
       <NavigatorFilingDrawer
-        v-if="group.filed.length"
-        :count="group.filed.length"
+        v-if="group.filed.length || filedEpics.length"
+        :count="filedEpics.length + group.filed.length"
         :open="shelves.openFiled.has(group.projectId)"
         @toggle="shelves.toggleFiled(group.projectId)"
       >
+        <NavigatorEpicBranch
+          v-for="branch in filedEpics"
+          :key="branch.epic.id"
+          :branch="branch"
+          :expanded="shelves.openEpics.has(branch.epic.id)"
+          :selected-task-id="selectedTaskId"
+          :running-task-ids="runningTaskIds"
+          filed
+          @select="store.selectTask($event)"
+          @edit="$emit('edit', $event)"
+          @toggle="shelves.toggleEpic(branch.epic.id)"
+        />
         <NavigatorTaskRow
           v-for="task in group.filed"
           :key="task.id"

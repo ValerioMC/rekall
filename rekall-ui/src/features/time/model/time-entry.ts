@@ -3,7 +3,7 @@ import type { TaskId, TimeEntryId } from '../../../model/branded'
 export interface TimeEntry {
   readonly id: TimeEntryId
   readonly taskId: TaskId
-  readonly taskLabel: string
+  readonly taskCode: string
   readonly taskTitle: string
   readonly projectLabel: string
   readonly anchor: string

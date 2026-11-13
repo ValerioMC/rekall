@@ -5,9 +5,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use rekall_kernel::{Id, RekallError, Result};
+use rekall_store::repository as repo;
 use rekall_store::ConnectionKind;
 use rekall_core::connection::{JiraCredential, JiraFailure, JiraIssue, JiraIssues, JiraSite, SecretStore};
-use rekall_core::{in_write, Ctx};
+use rekall_core::{in_read, in_write, Ctx};
 
 use crate::connection::support::credential_keeping::recall;
 use crate::connection::rule::jira_rules::{chosen_issues_query, open_issues_query, project_key_of, task_label, task_request, ISSUE_LIMIT};
@@ -78,7 +79,10 @@ impl JiraIssueService {
 
     /// The project's task ids by label.
     async fn imported_tasks(&self, project_id: Id) -> Result<HashMap<String, Id>> {
-        Ok(self.tasks.list(Some(project_id)).await?.into_iter().map(|task| (task.label, task.id)).collect())
+        in_read!(&self.ctx, |tx| {
+            let tasks = repo::task::list_of_project(tx.db(), project_id).await?;
+            Ok::<_, RekallError>(tasks.into_iter().map(|task| (task.label, task.id)).collect())
+        })
     }
 }
 

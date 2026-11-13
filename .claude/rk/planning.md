@@ -1,6 +1,6 @@
 ## Planning
 
-`/rk project:vega task:report-builder plan` means: turn the task into a checklist, ready to work.
+`/rk task:RK-12 plan` means: turn the task into a checklist, ready to work.
 
 1. Drop the `plan` term, and `flow` after it, and call `rekall_context` with the anchors that are left.
 2. Read what it gives you: the description says what the work is for and what it has to satisfy,

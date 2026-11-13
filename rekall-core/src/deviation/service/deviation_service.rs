@@ -23,7 +23,6 @@ impl DeviationService {
     pub async fn write(&self, project_label: Option<&str>, task_label: &str, step_number: i32, body: Option<&str>) -> Result<Written> {
         in_write!(&self.ctx, |tx| {
             let task = load::resolve_task(tx.db(), project_label, task_label).await?;
-            let project = load::project_of(tx.db(), &task).await?;
             let step = planned_step(&load::steps_of(tx.db(), task.id).await?, step_number)?;
             let text = validated_body(body)?;
             let now = self.ctx.now();
@@ -43,7 +42,7 @@ impl DeviationService {
             let deviations_on_task = repo::task_deviation::list_of_task(tx.db(), task.id).await?.len();
             tx.publish(DeviationStreamEvent { task_id: task.id, step_number });
             Ok(Written {
-                task_anchor: task.anchor(&project.label),
+                task_anchor: task.anchor(),
                 step_number,
                 step_title: step.title,
                 replaced,

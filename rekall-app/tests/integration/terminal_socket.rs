@@ -53,7 +53,7 @@ async fn a_pane_gets_ready_then_output_sends_input_and_hears_the_end() {
 
     let opened = app.post(&format!("/api/tasks/{task}/terminals"), json!({ "stepId": step, "model": "sonnet" })).await;
     assert_eq!(opened.status, 201);
-    assert_eq!(opened.str("anchors"), "project:alpha task:one");
+    assert_eq!(opened.str("anchors"), "task:AL-1");
     assert_eq!(opened.str("stepId"), step);
     assert_eq!(opened.str("model"), "sonnet");
     assert_eq!(opened.get("live"), &json!(true));
@@ -70,7 +70,7 @@ async fn a_pane_gets_ready_then_output_sends_input_and_hears_the_end() {
     assert_eq!(ready["workingDir"], folder.path().to_string_lossy().as_ref());
 
     let mut seen = String::new();
-    read_until(&mut socket, &mut seen, "ARGS:--model sonnet /rk project:alpha task:one").await;
+    read_until(&mut socket, &mut seen, "ARGS:--model sonnet /rk task:AL-1").await;
 
     socket.send(Message::Binary(b"typed\n".to_vec().into())).await.unwrap();
     read_until(&mut socket, &mut seen, "GOT:typed").await;

@@ -7,6 +7,7 @@ use serde::Deserialize;
 #[serde(rename_all = "camelCase", default)]
 pub struct ProjectRequest {
     pub label: Option<String>,
+    pub task_key: Option<String>,
     pub title: Option<String>,
     pub status: Option<ProjectStatus>,
     pub icon: Option<String>,
@@ -23,6 +24,7 @@ impl From<ProjectRequest> for ProjectCommand {
     fn from(request: ProjectRequest) -> Self {
         Self {
             label: request.label,
+            task_key: request.task_key,
             title: request.title,
             status: request.status,
             icon: request.icon,

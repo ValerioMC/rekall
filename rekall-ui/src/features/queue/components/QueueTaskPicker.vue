@@ -31,7 +31,7 @@ const matches = computed<Task[]>(() => {
     .filter(
       (task) =>
         task.title.toLowerCase().includes(term) ||
-        task.label.includes(term) ||
+        task.code.toLowerCase().includes(term) ||
         task.anchor.toLowerCase().includes(term)
     )
     .sort((a, b) => Number(a.status === 'DONE') - Number(b.status === 'DONE'))

@@ -14,7 +14,7 @@ pub struct TerminalView {
     pub anchors: String,
     pub working_dir: String,
     pub project_label: String,
-    pub task_label: Option<String>,
+    pub task_code: Option<String>,
     pub task_title: Option<String>,
     pub mode: TerminalMode,
     pub skip_permissions: bool,

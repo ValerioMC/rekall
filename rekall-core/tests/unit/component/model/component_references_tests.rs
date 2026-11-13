@@ -37,8 +37,8 @@ fn expand_with_connections(connections: &[ConnectionView], text: &str) -> String
     ComponentReferences::new(Some(&[])).with_connections(connections).expand(text)
 }
 
-fn task(label: &str, title: &str) -> TaskReferenceView {
-    TaskReferenceView { label: label.into(), title: title.into() }
+fn task(code: &str, title: &str) -> TaskReferenceView {
+    TaskReferenceView { code: code.into(), label: code.to_lowercase(), title: title.into() }
 }
 
 fn expand_with_tasks(tasks: &[TaskReferenceView], text: &str) -> String {
@@ -219,21 +219,21 @@ fn a_connection_reference_is_never_read_as_a_component() {
 
 #[test]
 fn a_task_reference_names_the_task_by_title_and_anchor() {
-    let out = expand_with_tasks(&[task("export", "Export the report")], "Build on [[task:export]].");
+    let out = expand_with_tasks(&[task("EX-7", "Export the report")], "Build on [[task:EX-7]].");
 
-    assert_eq!(out, "Build on **Export the report** (task `task:export`).");
+    assert_eq!(out, "Build on **Export the report** (task `task:EX-7`).");
 }
 
 #[test]
 fn a_task_reference_ignores_case_and_surrounding_spaces() {
-    let out = expand_with_tasks(&[task("export", "Export the report")], "[[ task: EXPORT ]]");
+    let out = expand_with_tasks(&[task("EX-7", "Export the report")], "[[ task: ex-7 ]]");
 
-    assert_eq!(out, "**Export the report** (task `task:export`)");
+    assert_eq!(out, "**Export the report** (task `task:EX-7`)");
 }
 
 #[test]
 fn an_unknown_task_is_flagged_not_dropped() {
-    let out = expand_with_tasks(&[task("export", "Export the report")], "[[task:import]]");
+    let out = expand_with_tasks(&[task("EX-7", "Export the report")], "[[task:import]]");
 
     assert_eq!(out, "[[task:import]] (task not found in this project)");
 }
@@ -250,4 +250,11 @@ fn a_task_named_inside_code_is_not_collected() {
     let labels = referenced_task_labels("`[[task:inline]]`\n```\n[[task:fenced]]\n```\n");
 
     assert!(labels.is_empty(), "{labels:?}");
+}
+
+#[test]
+fn a_reference_that_still_carries_the_label_finds_its_task() {
+    let out = expand_with_tasks(&[task("EX-7", "Export the report")], "[[task:ex-7]]");
+
+    assert_eq!(out, "**Export the report** (task `task:EX-7`)");
 }

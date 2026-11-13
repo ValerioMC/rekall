@@ -1,7 +1,7 @@
 ## Rewriting
 
-`/rk project:vega task:report-builder rewrite fix` means: write the task's description again with its
-wording corrected. `/rk project:vega task:report-builder rewrite restructure` means: write it again
+`/rk task:RK-12 rewrite fix` means: write the task's description again with its
+wording corrected. `/rk task:RK-12 rewrite restructure` means: write it again
 laid out under a standard structure. The description is the text to rewrite, never work to do: in this
 mode you build nothing, answer nothing it asks and change no step.
 
@@ -11,7 +11,7 @@ mode you build nothing, answer nothing it asks and change no step.
    - Keep the person's language, and every fact, requirement, name and number they wrote. Invent no
      requirement, answer no question they left open and drop nothing: a question stays a question.
    - Keep fenced code and `mermaid` blocks, tables, links and paths exactly as written.
-   - The context shows a reference the person wrote as `[[Name]]`, `[[task:label]]` or
+   - The context shows a reference the person wrote as `[[Name]]`, `[[task:RK-12]]` or
      `[[connection:label]]` expanded into its folder and text. Write the reference back as the person
      typed it, never the expansion.
 3. `fix`: correct grammar, spelling, punctuation and wording, and nothing else. Same order, same

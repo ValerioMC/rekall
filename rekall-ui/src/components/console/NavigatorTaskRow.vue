@@ -118,7 +118,7 @@ const awaitingReview = computed(
             :class="epic && 'max-w-[50%] flex-1 basis-0'"
             data-testid="task-anchor"
           >
-            {{ task.label }}
+            {{ task.code }}
           </span>
           <EpicChip v-if="epic" :title="epic.title" />
         </span>

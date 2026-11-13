@@ -36,28 +36,28 @@ pub async fn review_active(db: &impl ConnectionTrait, task_id: Id) -> Result<boo
     Ok(rekall_store::task::review_active(steps.iter().map(|s| &s.state)))
 }
 
-/// How every write path resolves `project:<label> task:<label>`, or a bare task label that has
-/// to be unique across projects.
-pub async fn resolve_task(db: &impl ConnectionTrait, project_label: Option<&str>, task_label: &str) -> Result<task::Model> {
-    if let Some(project_label) = project_label {
-        return repo::task::find_by_anchor(db, project_label, task_label)
-            .await?
-            .ok_or_else(|| {
-                RekallError::unknown_anchor(format!("No task '{task_label}' on project '{project_label}'"))
-            });
+/// How every write path resolves `task:<code>`. A project label beside it must be the task's own,
+/// and with one given, a task label written before codes existed still finds its task.
+pub async fn resolve_task(db: &impl ConnectionTrait, project_label: Option<&str>, task_code: &str) -> Result<task::Model> {
+    let found = match (repo::task::find_by_code(db, task_code).await?, project_label) {
+        (Some(task), Some(project_label)) => owned_by(db, task, project_label).await?,
+        (Some(task), None) => Some(task),
+        (None, Some(project_label)) => repo::task::find_by_project_and_label(db, project_label, task_code).await?,
+        (None, None) => None,
+    };
+    found.ok_or_else(|| unknown_task(task_code, project_label))
+}
+
+async fn owned_by(db: &impl ConnectionTrait, task: task::Model, project_label: &str) -> Result<Option<task::Model>> {
+    let owner = project_of(db, &task).await?;
+    Ok(owner.label.eq_ignore_ascii_case(project_label).then_some(task))
+}
+
+fn unknown_task(task_code: &str, project_label: Option<&str>) -> RekallError {
+    match project_label {
+        Some(project_label) => RekallError::unknown_anchor(format!("No task '{task_code}' on project '{project_label}'")),
+        None => RekallError::unknown_anchor(format!("No task '{task_code}'. A task is named by its code, such as RK-12.")),
     }
-    let mut found = repo::task::find_by_label(db, task_label).await?;
-    if found.is_empty() {
-        return Err(RekallError::unknown_anchor(format!("No task matches '{task_label}'")));
-    }
-    if found.len() > 1 {
-        let mut candidates = Vec::with_capacity(found.len());
-        for task in &found {
-            candidates.push(project_of(db, task).await?.anchor());
-        }
-        return Err(RekallError::ambiguous(task_label, candidates));
-    }
-    Ok(found.remove(0))
 }
 
 /// The project `project:<label>` names. Labels are unique within a company only, so a label two

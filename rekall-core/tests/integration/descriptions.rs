@@ -23,7 +23,7 @@ async fn replacing_overwrites_the_description_and_changes_nothing_else() {
 
     let replaced = world.services.task_descriptions.replace(Some("vega"), "checkout", Some("  ## Problem\n\nThe totals are wrong.  ")).await.unwrap();
 
-    assert_eq!((replaced.task_anchor.as_str(), replaced.changed), ("project:vega task:checkout", true));
+    assert_eq!((replaced.task_anchor.as_str(), replaced.changed), ("task:CHECKOUT", true));
     let after = repo::task::require(world.db(), before.id).await.unwrap();
     assert_eq!(after.description.as_deref(), Some("## Problem\n\nThe totals are wrong."));
     assert_eq!((after.title, after.label, after.status), (before.title, before.label, before.status));
