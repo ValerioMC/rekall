@@ -174,11 +174,8 @@
   --spacing-control: 36px;
   --spacing-header: 48px;
 
-  /* The two fixed panes. The third takes what is left, because the note is the product. The
-     navigator carries a two-line row with a trace and a status pip, so it is given the width
-     to breathe rather than made to crush them onto one line. */
+  /* The rail of a two-pane screen: Security's projects. */
   --spacing-nav: 304px;
-  --spacing-notelist: 312px;
   /* The diagram screen's inspector: wide enough for a code excerpt at 80 columns of 11px mono. */
   --spacing-inspector: 392px;
 
@@ -199,7 +196,6 @@
 @media (max-width: 1279px) {
   :root {
     --spacing-nav: 272px;
-    --spacing-notelist: 272px;
   }
 }
 

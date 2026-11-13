@@ -1,0 +1,570 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-13T18:32:42+00:00",
+  "title": "Design System: Rekall",
+  "extensions": {
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Deep Well",
+        "canonical": "#0d1017",
+        "tonalRamp": [
+          "#030305",
+          "#050609",
+          "#080a0e",
+          "#0a0d12",
+          "#0d1017",
+          "#4a4c51",
+          "#86888b",
+          "#c2c3c5"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Slate Surface",
+        "canonical": "#151922",
+        "tonalRamp": [
+          "#040507",
+          "#080a0e",
+          "#0d0f14",
+          "#11141b",
+          "#151922",
+          "#505259",
+          "#8a8c90",
+          "#c4c6c8"
+        ]
+      },
+      "surface-raised": {
+        "role": "neutral",
+        "displayName": "Raised Slate",
+        "canonical": "#1d2330",
+        "tonalRamp": [
+          "#06070a",
+          "#0c0e13",
+          "#11151d",
+          "#171c26",
+          "#1d2330",
+          "#565a64",
+          "#8e9198",
+          "#c6c8cb"
+        ]
+      },
+      "surface-hover": {
+        "role": "neutral",
+        "displayName": "Hover Slate",
+        "canonical": "#262d3c",
+        "tonalRamp": [
+          "#08090c",
+          "#0f1218",
+          "#171b24",
+          "#1e2430",
+          "#262d3c",
+          "#5c626d",
+          "#92969e",
+          "#c9cace"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#2a3243",
+        "tonalRamp": [
+          "#080a0d",
+          "#11141b",
+          "#191e28",
+          "#222836",
+          "#2a3243",
+          "#5f6572",
+          "#9498a1",
+          "#caccd0"
+        ]
+      },
+      "border-strong": {
+        "role": "neutral",
+        "displayName": "Strong Hairline",
+        "canonical": "#3b4558",
+        "tonalRamp": [
+          "#0c0e12",
+          "#181c23",
+          "#232935",
+          "#2f3746",
+          "#3b4558",
+          "#6c7482",
+          "#9da2ac",
+          "#ced0d5"
+        ]
+      },
+      "border-field": {
+        "role": "neutral",
+        "displayName": "Field Edge",
+        "canonical": "#5e6a82",
+        "tonalRamp": [
+          "#13151a",
+          "#262a34",
+          "#38404e",
+          "#4b5568",
+          "#5e6a82",
+          "#868fa1",
+          "#aeb4c0",
+          "#d7dae0"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Text",
+        "canonical": "#f2f5f9",
+        "tonalRamp": [
+          "#303132",
+          "#616264",
+          "#919395",
+          "#c2c4c7",
+          "#f2f5f9",
+          "#f5f8fa",
+          "#f8fafc",
+          "#fcfcfe"
+        ]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Muted Text",
+        "canonical": "#a3acba",
+        "tonalRamp": [
+          "#212225",
+          "#41454a",
+          "#626770",
+          "#828a95",
+          "#a3acba",
+          "#bac1cb",
+          "#d1d6dc",
+          "#e8eaee"
+        ]
+      },
+      "text-subtle": {
+        "role": "neutral",
+        "displayName": "Subtle Text",
+        "canonical": "#8c96a6",
+        "tonalRamp": [
+          "#1c1e21",
+          "#383c42",
+          "#545a64",
+          "#707885",
+          "#8c96a6",
+          "#a9b0bc",
+          "#c6cad2",
+          "#e2e5e9"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Brushed Gold",
+        "canonical": "#eaa43c",
+        "tonalRamp": [
+          "#2f210c",
+          "#5e4218",
+          "#8c6224",
+          "#bb8330",
+          "#eaa43c",
+          "#efbb6d",
+          "#f4d29e",
+          "#fae8ce"
+        ]
+      },
+      "accent-strong": {
+        "role": "primary",
+        "displayName": "Gold Lip",
+        "canonical": "#ffd88e",
+        "tonalRamp": [
+          "#332b1c",
+          "#665639",
+          "#998255",
+          "#ccad72",
+          "#ffd88e",
+          "#ffe2aa",
+          "#ffecc6",
+          "#fff5e3"
+        ]
+      },
+      "accent-deep": {
+        "role": "primary",
+        "displayName": "Gold Shade",
+        "canonical": "#a8651a",
+        "tonalRamp": [
+          "#221405",
+          "#43280a",
+          "#653d10",
+          "#865115",
+          "#a8651a",
+          "#be8c53",
+          "#d4b28c",
+          "#e9d8c6"
+        ]
+      },
+      "accent-ink": {
+        "role": "primary",
+        "displayName": "Gold Ink",
+        "canonical": "#2b1804",
+        "tonalRamp": [
+          "#090501",
+          "#110a02",
+          "#1a0e02",
+          "#221303",
+          "#2b1804",
+          "#605243",
+          "#958c82",
+          "#cac5c0"
+        ]
+      },
+      "anchor": {
+        "role": "secondary",
+        "displayName": "Anchor Cyan",
+        "canonical": "#55c9ea",
+        "tonalRamp": [
+          "#11282f",
+          "#22505e",
+          "#33798c",
+          "#44a1bb",
+          "#55c9ea",
+          "#80d6ef",
+          "#aae4f4",
+          "#d4f2fa"
+        ]
+      },
+      "anchor-strong": {
+        "role": "secondary",
+        "displayName": "Current Anchor",
+        "canonical": "#a9ecfa",
+        "tonalRamp": [
+          "#222f32",
+          "#445e64",
+          "#658e96",
+          "#87bdc8",
+          "#a9ecfa",
+          "#bef1fb",
+          "#d4f6fc",
+          "#eafafe"
+        ]
+      },
+      "session": {
+        "role": "secondary",
+        "displayName": "Session Indigo",
+        "canonical": "#7c83f7",
+        "tonalRamp": [
+          "#191a31",
+          "#323463",
+          "#4a4f94",
+          "#6369c6",
+          "#7c83f7",
+          "#9da2f9",
+          "#bec1fb",
+          "#dee0fd"
+        ]
+      },
+      "session-strong": {
+        "role": "secondary",
+        "displayName": "Session Light",
+        "canonical": "#b4b9ff",
+        "tonalRamp": [
+          "#242533",
+          "#484a66",
+          "#6c6f99",
+          "#9094cc",
+          "#b4b9ff",
+          "#c7caff",
+          "#dadcff",
+          "#eceeff"
+        ]
+      },
+      "safe": {
+        "role": "tertiary",
+        "displayName": "Safe Green",
+        "canonical": "#3ddc97",
+        "tonalRamp": [
+          "#0c2c1e",
+          "#18583c",
+          "#25845b",
+          "#31b079",
+          "#3ddc97",
+          "#6ee5b1",
+          "#9eeecb",
+          "#cef6e5"
+        ]
+      },
+      "warn": {
+        "role": "tertiary",
+        "displayName": "Warn Yellow",
+        "canonical": "#f3c04a",
+        "tonalRamp": [
+          "#31260f",
+          "#614d1e",
+          "#92732c",
+          "#c29a3b",
+          "#f3c04a",
+          "#f6d077",
+          "#f9e0a4",
+          "#fcefd2"
+        ]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Danger Rose",
+        "canonical": "#fb7185",
+        "tonalRamp": [
+          "#32171b",
+          "#642d35",
+          "#974450",
+          "#c95a6a",
+          "#fb7185",
+          "#fc94a4",
+          "#fdb8c2",
+          "#fedce0"
+        ]
+      },
+      "filed": {
+        "role": "tertiary",
+        "displayName": "Filed Verdigris",
+        "canonical": "#8fa89d",
+        "tonalRamp": [
+          "#1d221f",
+          "#39433f",
+          "#56655e",
+          "#72867e",
+          "#8fa89d",
+          "#abbeb6",
+          "#c7d4ce",
+          "#e3e9e6"
+        ]
+      },
+      "epic": {
+        "role": "tertiary",
+        "displayName": "Epic Periwinkle",
+        "canonical": "#a99bff",
+        "tonalRamp": [
+          "#221f33",
+          "#443e66",
+          "#655d99",
+          "#877ccc",
+          "#a99bff",
+          "#beb4ff",
+          "#d4cdff",
+          "#eae6ff"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The one big figure or title of a page."
+      },
+      "heading": {
+        "displayName": "Heading",
+        "purpose": "The title of a screen or a Settings section."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "A card, dialog or panel."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Rows, descriptions and prose."
+      },
+      "small": {
+        "displayName": "Small",
+        "purpose": "Meta, table headers, tab labels."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Counts and small chrome, 11px floor."
+      },
+      "anchor": {
+        "displayName": "Anchor",
+        "purpose": "Every anchor and code, in Fira Code."
+      }
+    },
+    "shadows": [
+      {
+        "name": "raised",
+        "value": "inset 0 1px 0 rgb(255 255 255 / 0.05), 0 1px 2px rgb(0 0 0 / 0.35), 0 6px 12px -8px rgb(0 0 0 / 0.45)",
+        "purpose": "A card or panel standing on the canvas."
+      },
+      {
+        "name": "key",
+        "value": "inset 0 1px 0 rgb(255 255 255 / 0.07), 0 1px 1px rgb(0 0 0 / 0.35)",
+        "purpose": "A pressable key."
+      },
+      {
+        "name": "well",
+        "value": "inset 0 2px 4px rgb(0 0 0 / 0.5), inset 0 -1px 0 rgb(255 255 255 / 0.04), 0 1px 0 rgb(255 255 255 / 0.035)",
+        "purpose": "A field or a tube trough."
+      },
+      {
+        "name": "lift",
+        "value": "inset 0 1px 0 rgb(255 255 255 / 0.12), 0 1px 2px rgb(0 0 0 / 0.55), 0 10px 22px -8px rgb(0 0 0 / 0.65)",
+        "purpose": "A popover or the dock."
+      },
+      {
+        "name": "modal",
+        "value": "inset 0 1px 0 rgb(255 255 255 / 0.06), 0 2px 6px rgb(0 0 0 / 0.6), 0 40px 80px -24px rgb(0 0 0 / 0.9)",
+        "purpose": "Dialogs and sheets."
+      },
+      {
+        "name": "glow",
+        "value": "0 0 28px -6px #eaa43c24",
+        "purpose": "The one halo, for a session at work."
+      }
+    ],
+    "motion": [
+      {
+        "name": "press",
+        "value": "90ms",
+        "purpose": "A press answers at once."
+      },
+      {
+        "name": "quick",
+        "value": "140ms",
+        "purpose": "Hover and colour changes."
+      },
+      {
+        "name": "move",
+        "value": "220ms",
+        "purpose": "A pane or popover moving."
+      },
+      {
+        "name": "slow",
+        "value": "320ms",
+        "purpose": "A seal or a reveal."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "laptop",
+        "value": "1280px"
+      },
+      {
+        "name": "compact-header",
+        "value": "1100px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one gold key of a screen.",
+      "html": "<button class=\"ds-btn-primary\">Accept</button>",
+      "css": ".ds-btn-primary{height:36px;padding:0 14px;border:1px solid #a8651a;border-radius:5px;background:linear-gradient(180deg,#ffd88e,#eaa43c 50%,#c27a22);color:#2b1804;font:600 13.5px \"Fira Sans\",sans-serif;cursor:pointer;box-shadow:inset 0 1px 0 rgb(255 255 255 / 0.4),0 1px 2px rgb(0 0 0 / 0.5)}.ds-btn-primary:hover{filter:brightness(1.06)}.ds-btn-primary:focus-visible{outline:2px solid #eaa43c;outline-offset:2px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "The default key.",
+      "html": "<button class=\"ds-btn-secondary\">Send back</button>",
+      "css": ".ds-btn-secondary{height:36px;padding:0 14px;border:1px solid #3b4558;border-radius:5px;background:linear-gradient(180deg,#252c3b,#1d2330);color:#f2f5f9;font:400 13.5px \"Fira Sans\",sans-serif;cursor:pointer;box-shadow:inset 0 1px 0 rgb(255 255 255 / 0.07),0 1px 1px rgb(0 0 0 / 0.35)}.ds-btn-secondary:hover{background:#262d3c}.ds-btn-secondary:focus-visible{outline:2px solid #eaa43c;outline-offset:2px}"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "status-pill-review",
+      "description": "One word, the state of a record. Review is solid gold.",
+      "html": "<span class=\"ds-pill ds-pill-review\">To review</span> <span class=\"ds-pill ds-pill-done\">Done</span>",
+      "css": ".ds-pill{display:inline-flex;align-items:center;height:22px;padding:0 8px;border:1px solid;border-radius:9999px;font:500 11.5px \"Fira Sans\",sans-serif;white-space:nowrap}.ds-pill-review{background:#eaa43c;border-color:#eaa43c;color:#2b1804}.ds-pill-done{background:#3ddc971a;border-color:#3ddc974d;color:#3ddc97}"
+    },
+    {
+      "name": "Anchor Chip",
+      "kind": "chip",
+      "refersTo": "anchor-chip",
+      "description": "An anchor in cyan Fira Code.",
+      "html": "<span class=\"ds-anchor\">project:vega</span>",
+      "css": ".ds-anchor{display:inline-block;padding:1px 6px;border:1px solid #55c9ea45;border-radius:3px;background:#55c9ea1c;color:#55c9ea;font:400 11.5px \"Fira Code\",ui-monospace,monospace}"
+    },
+    {
+      "name": "Sub-navigation",
+      "kind": "nav",
+      "refersTo": "sub-nav",
+      "description": "Tabs with counts and a gold rule under the current one.",
+      "html": "<div class=\"ds-subnav\"><a class=\"on\">Needs me <b class=\"hot\">3</b></a><a>Open <b>12</b></a><a>Filed <b>409</b></a></div>",
+      "css": ".ds-subnav{display:flex;gap:2px;border-bottom:1px solid #2a3243;font:400 12.5px \"Fira Sans\",sans-serif}.ds-subnav a{position:relative;padding:8px 12px 10px;color:#a3acba;cursor:pointer}.ds-subnav a.on{color:#f2f5f9}.ds-subnav a.on::after{content:\"\";position:absolute;left:8px;right:8px;bottom:-1px;height:2px;border-radius:9999px;background:#eaa43c}.ds-subnav b{margin-left:6px;font:400 11.5px \"Fira Code\",monospace;color:#8c96a6}.ds-subnav b.hot{padding:0 6px;border-radius:9999px;background:#eaa43c;color:#2b1804;font-weight:500}"
+    },
+    {
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "A recessed text field.",
+      "html": "<input class=\"ds-field\" placeholder=\"Filter by title or anchor\">",
+      "css": ".ds-field{height:36px;width:260px;padding:0 12px;border:1px solid #5e6a82;border-radius:5px;background:linear-gradient(180deg,#0a0d13,#0d1017);color:#f2f5f9;font:400 13.5px \"Fira Sans\",sans-serif;box-shadow:inset 0 2px 4px rgb(0 0 0 / 0.5),0 1px 0 rgb(255 255 255 / 0.035)}.ds-field:focus{outline:none;border-color:#a8651a;box-shadow:0 0 0 3px #eaa43c24}"
+    },
+    {
+      "name": "Plan Tube",
+      "kind": "custom",
+      "refersTo": "plan-tube",
+      "description": "The gold progress tube, done over total.",
+      "html": "<span class=\"ds-tube\"><i style=\"width:60%\"></i></span>",
+      "css": ".ds-tube{display:block;width:140px;height:8px;padding:1px;border-radius:9999px;background:#0a0d13;box-shadow:inset 0 2px 4px rgb(0 0 0 / 0.5)}.ds-tube i{display:block;height:100%;border-radius:9999px;background:linear-gradient(180deg,rgb(255 255 255 / 0.5),rgb(0 0 0 / 0) 50%,rgb(0 0 0 / 0.28)),linear-gradient(180deg,#f4c47a,#eaa43c 50%,#a8651a);box-shadow:0 0 8px -1px #eaa43c8c}"
+    },
+    {
+      "name": "Header Capsule",
+      "kind": "nav",
+      "refersTo": "header-capsule",
+      "description": "Usage, queue and review in one capsule; review is the only amber segment.",
+      "html": "<div class=\"ds-capsule\"><span>3%</span><span>2 queued</span><span class=\"rev\">3 to review</span></div>",
+      "css": ".ds-capsule{display:inline-flex;align-items:center;gap:2px;height:36px;padding:0 4px;border:1px solid #2a3243;border-radius:8px;background:#151922;font:400 12.5px \"Fira Sans\",sans-serif;color:#a3acba}.ds-capsule span{padding:0 10px;height:28px;display:flex;align-items:center;border-radius:5px}.ds-capsule .rev{color:#eaa43c}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Night Ledger",
+    "overview": "Rekall is a ledger kept at night beside a terminal. Everything is a row in a table that answers one question, what waits for me, and the screen is dark so it does not compete with the session next to it. Colour is rationed: brushed gold marks where you are and what you do next, a single cool cyan marks the strings you copy, and green, yellow and red mean the state of a record and nothing else.",
+    "keyCharacteristics": [
+      "Dark only; the world is a blue-slate well with brushed-gold and cyan light.",
+      "Three roles carry all colour: amber (here, next), cyan (anchors), status (record state).",
+      "Tables and tabs over cards and panels; the status pill, the plan tube and the copy-anchor chip are the vocabulary every screen shares.",
+      "Motion shows a state change or a session at work, and Reduced motion keeps every change."
+    ],
+    "rules": [
+      {
+        "name": "The One Amber Rule",
+        "body": "On any screen exactly one thing is asking to be done, and it is the amber one. The review count is the only amber segment of the header capsule.",
+        "section": "colors"
+      },
+      {
+        "name": "The Cyan Is Copyable Rule",
+        "body": "Cyan means an anchor you can paste after /rk. Do not use it for links, selection or decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The State Is Not Style Rule",
+        "body": "Green, yellow and red describe a record. They never decorate a chart series, a tab or a button.",
+        "section": "colors"
+      },
+      {
+        "name": "The Eight Steps Rule",
+        "body": "The type scale has eight sizes and none between them; a bracketed pixel size is a bug and design-tokens.spec.ts fails on it.",
+        "section": "typography"
+      },
+      {
+        "name": "The Subtle Floor Rule",
+        "body": "Text never goes below Subtle in contrast, and an opacity modifier is never used to quieten it.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Light Rule",
+        "body": "One light source, top left, on every surface. A shadow that falls the other way is wrong.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep exactly one amber thing asking for action on a screen, and let the review count be the only amber segment of the header.",
+      "Do show an anchor as a cyan Fira Code chip with a copy key, wherever a task, project or note is named.",
+      "Do show a project's company beside its name wherever the name could be ambiguous.",
+      "Do read sizes, radii, durations and colours from the tokens in main.css.",
+      "Do make a state change visible without motion."
+    ],
+    "donts": [
+      "Don't introduce a palette, a typeface or a new token family.",
+      "Don't use amber, cyan or the status colours for decoration, series colours or selection that is not \"here\".",
+      "Don't add a light theme or a mobile layout; both are out of scope.",
+      "Don't put a bracketed font size, a bracketed radius or a numeric duration-* in a component.",
+      "Don't let Claude's work read as accepted: only the console marks a step done."
+    ]
+  }
+}
