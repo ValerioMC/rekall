@@ -246,7 +246,7 @@ async fn accepting_a_task_on_the_pull_request_flow_merges_its_pull_request_and_n
     let step = world.step(&task, "First", 0, TaskStepState::Claimed).await;
     worktrees.ensure(task.id).await.unwrap();
     git.leave_commits("rekall/one");
-    let link = rekall_store::task_tracker_link::Model { task_id: task.id, issue_key: Some("12".into()), issue_url: None, sync_error: None, created_at: Instant::now(), updated_at: Instant::now() };
+    let link = rekall_store::task_tracker_link::Model { task_id: task.id, issue_key: Some("12".into()), issue_url: None, sync_error: None, synced_fingerprint: None, created_at: Instant::now(), updated_at: Instant::now() };
     rekall_store::repository::task_tracker_link::save(world.db(), link).await.unwrap();
     let _ = start_cleaner_with(&world, worktrees, world.pull_requests_over(git.clone(), host.clone()));
 

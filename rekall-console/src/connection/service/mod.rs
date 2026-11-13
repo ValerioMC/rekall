@@ -7,3 +7,4 @@ pub(super) mod jira_issue_service;
 pub(super) mod kubeconfig_preview_service;
 pub(super) mod project_connection_service;
 pub(super) mod repository_discovery_service;
+pub(super) mod task_tracker_sync_service;

@@ -6,7 +6,7 @@ use rekall_kernel::{jstr, Id, RekallError, Result};
 use rekall_store::{project, task, task_tracker_link, Slug, TaskKind, TaskStatus, TaskStepState};
 use rekall_store::repository as repo;
 use rekall_core::review::TaskReviewService;
-use rekall_core::task::{TaskContentChangedEvent, TaskDeletedEvent};
+use rekall_core::task::{TaskCreatedEvent, TaskDeletedEvent};
 use rekall_core::timeentry::TimeEntryService;
 use rekall_core::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
@@ -63,7 +63,7 @@ impl TaskService {
         require_no_other_active_quick(tx, &task).await?;
         task.clone().into_active_model().insert(tx.db()).await?;
         if command.tracker_issue_key.is_none() {
-            tx.publish(TaskContentChangedEvent { task_id: task.id });
+            tx.publish(TaskCreatedEvent { task_id: task.id });
         } else {
             self.keep_imported_issue_in(tx, &task, &command).await?;
         }
@@ -77,6 +77,7 @@ impl TaskService {
             issue_key: command.tracker_issue_key.clone(),
             issue_url: command.tracker_issue_url.clone(),
             sync_error: None,
+            synced_fingerprint: None,
             created_at: now,
             updated_at: now,
         };
@@ -95,9 +96,6 @@ impl TaskService {
             require_epic_kept_whole(&tx, &before, &task).await?;
             require_epic_stepless(&tx, &task).await?;
             let task = repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
-            if before.title != task.title || before.description != task.description {
-                tx.publish(TaskContentChangedEvent { task_id: id });
-            }
             if before.description != task.description {
                 self.feedback.track_description_in(&mut tx, &task, before.description.as_deref(), task.description.as_deref()).await?;
             }

@@ -149,17 +149,24 @@ written as sent): choosing a binding releases the one the project had, and it is
 connection is a GitLab, GitHub or Jira one and the target names where issues go (`tracker_rules.rs`: a Jira
 project key, a GitLab project path of at least two segments, a GitHub `owner/repo`). A task writes to it
 through `TaskTrackerService` (`rekall-core/src/connection/`): the console's `TaskService`, a session creating a
-task (`TaskAuthoringService`) and one replacing a description (`TaskDescriptionService`) publish a
-`TaskContentChangedEvent` once their transaction commits when a task is created or its title or description
-changes, and `TaskTrackerRunner` (`rekall-infra/src/tracker/`) pushes that task, one at a time in the order
-they changed. The push reads the task, its project's task-manager binding and the stored credential,
+task (`TaskAuthoringService`) publish a `TaskCreatedEvent` once their transaction commits, and
+`TaskTrackerRunner` (`rekall-infra/src/tracker/`) has `TaskTrackerService::create_missing` create the issue,
+one task at a time in the order they were created, with the task's title alone: an edit publishes nothing,
+because every write is an entry in the issue's history. The description reaches the issue when the person
+presses the sync key beside the issue's link, `POST /api/tasks/{id}/tracker-sync`
+(`TaskTrackerSyncService` in `rekall-console`, `TaskTrackerService::sync_content` in `rekall-core`), which
+writes the title and the description, creating the issue when the task has none, and answers with the
+task. `task_tracker_link.synced_fingerprint` holds a fingerprint (FNV-1a, which no Rust release changes)
+of what was last written, and the task's `trackerContentSynced` says whether it still matches the task's
+title and description; a link that predates the column has none and counts as unsynced. A write, automatic
+or asked for, reads the task, its project's task-manager binding and the stored credential,
 asks the `TaskTracker` port (`HttpTaskTracker` in `rekall-infra`: GitLab `POST`/`PUT
 /api/v4/projects/{path}/issues`, GitHub `POST`/`PATCH /repos/{owner}/{repo}/issues` under the API root
 `github_api_root` gives, Jira `POST /issue` and `PUT /issue/{key}` under `/rest/api/3` with an Atlassian
 document description on Cloud and `/rest/api/2` with text on Data Center, or a fake through
 `StartOptions::task_tracker`) outside any transaction, and then keeps the issue's key and URL on the task, or
-the failure in `tracker_sync_error`. The task is written only when it is a plain task (not an epic, not a
-quick one); a task that has a key is rewritten and one without is created, so a change after a failure tries
+the failure in `tracker_sync_error`, and a sync that fails also answers 409 with it. The task is written only when it is a plain task (not an epic, not a
+quick one); a task that has a key is rewritten and one without is created, so a sync after a failure tries
 again. A task imported from the project's own Jira task manager arrives with its key and is not announced,
 and the credential never leaves `TaskTrackerService`: a failure message names the system and the HTTP
 status, never the credential.

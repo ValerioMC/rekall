@@ -1,7 +1,7 @@
 use rekall_kernel::Instant;
-use rekall_store::{company, task_pull_request, ProjectStatus, TaskKind, TaskStepState};
+use rekall_store::{company, task_pull_request, task_tracker_link, ProjectStatus, TaskKind, TaskStepState};
 use rekall_core::step::{NewStep, StepEdit};
-use rekall_core::task::TaskContentChangedEvent;
+use rekall_core::task::TaskCreatedEvent;
 use rekall_core::{EventBus, Services};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
@@ -181,7 +181,7 @@ async fn putting_an_epic_to_done_leaves_its_review_line_alone() {
 fn announced_tasks(feed: &mut tokio::sync::broadcast::Receiver<rekall_core::PublishedEvent>) -> Vec<Id> {
     let mut tasks = Vec::new();
     while let Ok(event) = feed.try_recv() {
-        if let Some(changed) = event.downcast::<TaskContentChangedEvent>() {
+        if let Some(changed) = event.downcast::<TaskCreatedEvent>() {
             tasks.push(changed.task_id);
         }
     }
@@ -211,18 +211,45 @@ async fn a_task_imported_with_its_issue_is_not_announced_for_a_push_back() {
 }
 
 #[tokio::test]
-async fn an_edit_is_announced_only_when_the_title_or_the_description_changed() {
+async fn an_edit_is_never_announced_for_the_task_manager() {
     let world = world().await;
     let task = world.service.create(command("pay", world.project_id, TaskKind::Task, None)).await.unwrap();
     let mut feed = world.events.subscribe();
-    let same_content = TaskCommand { status: Some(TaskStatus::InProgress), ..command("pay", world.project_id, TaskKind::Task, None) };
-    let retitled = TaskCommand { title: Some("Pay the invoice".into()), ..command("pay", world.project_id, TaskKind::Task, None) };
+    let retitled = TaskCommand { title: Some("Pay the invoice".into()), description: Some("Before Friday.".into()), ..command("pay", world.project_id, TaskKind::Task, None) };
 
-    world.service.update(task.id, same_content).await.unwrap();
-    assert!(announced_tasks(&mut feed).is_empty());
     world.service.update(task.id, retitled).await.unwrap();
 
-    assert_eq!(announced_tasks(&mut feed), [task.id]);
+    assert!(announced_tasks(&mut feed).is_empty());
+}
+
+#[tokio::test]
+async fn the_task_view_says_whether_the_content_was_written_to_the_issue() {
+    let world = world().await;
+    let imported = TaskCommand {
+        tracker_issue_key: Some("12".into()),
+        tracker_issue_url: Some("https://github.com/acme/app/issues/12".into()),
+        ..command("pay", world.project_id, TaskKind::Task, None)
+    };
+    let task = world.service.create(imported).await.unwrap();
+    assert!(!task.tracker_content_synced);
+    let model = rekall_store::repository::task::require(&world.db, task.id).await.unwrap();
+    let now = Instant::now();
+    let written = task_tracker_link::Model {
+        task_id: task.id,
+        issue_key: Some("12".into()),
+        issue_url: None,
+        sync_error: None,
+        synced_fingerprint: Some(rekall_store::task_tracker_link::content_fingerprint(&model.title, "")),
+        created_at: now,
+        updated_at: now,
+    };
+    rekall_store::repository::task_tracker_link::save(&world.db, written).await.unwrap();
+    assert!(world.service.get(task.id).await.unwrap().tracker_content_synced);
+
+    let edited = TaskCommand { description: Some("Before Friday.".into()), ..command("pay", world.project_id, TaskKind::Task, None) };
+    world.service.update(task.id, edited).await.unwrap();
+
+    assert!(!world.service.get(task.id).await.unwrap().tracker_content_synced);
 }
 
 #[tokio::test]

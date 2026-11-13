@@ -3,6 +3,7 @@ import {
   deleteTask as apiDeleteTask,
   fetchTask,
   reviewTask as apiReviewTask,
+  syncTaskTracker as apiSyncTaskTracker,
   updateTask as apiUpdateTask
 } from '@/features/catalog/api/catalog.api'
 import type { TaskInput } from '@/features/catalog/api/catalog.api'
@@ -138,6 +139,16 @@ export function useTaskWrites(
     return fresh
   }
 
+  /** A refusal is kept on the task by the server, so the task is read again before the failure is rethrown. */
+  async function syncTaskTracker(id: TaskId): Promise<void> {
+    try {
+      storeTask(await apiSyncTaskTracker(id))
+    } catch (failure) {
+      await reloadTask(id)
+      throw failure
+    }
+  }
+
   function applyTaskReview(review: TaskReview): void {
     tasks.value = tasks.value.map((task) =>
       task.id === review.taskId
@@ -173,6 +184,7 @@ export function useTaskWrites(
     setTaskEpic,
     saveTaskDescription,
     reloadTask,
+    syncTaskTracker,
     applyTaskReview,
     applyTaskCreated,
     acceptTask

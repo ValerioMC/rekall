@@ -94,8 +94,10 @@ export interface Task {
   /** The issue the project's task manager holds for this task: Jira's key, GitLab's iid or GitHub's number. */
   readonly trackerIssueKey: string | null
   readonly trackerIssueUrl: string | null
-  /** Why the last write to the task manager failed; the next change to the task tries again. */
+  /** Why the last write to the task manager failed; the next sync tries again. */
   readonly trackerSyncError: string | null
+  /** The issue holds the title and the description the task has now. The person syncs them; nothing does it on its own. */
+  readonly trackerContentSynced: boolean
   /** The pull request or merge request of the task's branch, on a project whose pull request flow is on. */
   readonly pullRequestNumber: number | null
   readonly pullRequestUrl: string | null

@@ -385,7 +385,7 @@ async fn a_root_path_belongs_to_a_gitlab_or_github_connection_only() {
 }
 
 #[tokio::test]
-async fn a_task_created_and_edited_in_a_project_with_a_task_manager_is_written_to_the_tracker() {
+async fn a_task_created_in_a_project_with_a_task_manager_gets_its_issue_and_its_edits_wait_for_a_sync() {
     let secrets = Arc::new(InMemorySecretStore::new());
     let tracker = Arc::new(ScriptedTaskTracker::new());
     let options = StartOptions { no_restart: true, secrets: Some(secrets.clone()), task_tracker: Some(tracker.clone()), ..StartOptions::default() };
@@ -404,13 +404,19 @@ async fn a_task_created_and_edited_in_a_project_with_a_task_manager_is_written_t
     await_until(5, || async { !app.get_task(&task).await["trackerIssueKey"].is_null() }).await;
     let created = app.get_task(&task).await;
     assert_eq!(created["trackerIssueKey"], "acme/vega-1");
-    assert_eq!(tracker.created().len(), 1, "a task that existed before the choice is not written until it changes");
+    assert_eq!(tracker.created().len(), 1, "a task that existed before the choice is not written until it is synced");
     assert!(app.get_task(&earlier).await["trackerIssueKey"].is_null());
+    assert_eq!(created["trackerContentSynced"], true);
 
-    let edited = app.put(&format!("/api/tasks/{task}"), json!({ "label": "pay", "title": "Pay the invoice", "status": "TODO", "projectId": vega })).await;
+    let edited = app.put(&format!("/api/tasks/{task}"), json!({ "label": "pay", "title": "Pay the invoice", "description": "Before Friday.", "status": "TODO", "projectId": vega })).await;
     assert_eq!(edited.status, 200, "{}", edited.text);
-    await_until(5, || async { !tracker.updated().is_empty() }).await;
+    assert_eq!(edited.get("trackerContentSynced").as_bool(), Some(false));
+    assert!(tracker.updated().is_empty(), "an edit is not written to the issue");
+
+    let synced = app.post_empty(&format!("/api/tasks/{task}/tracker-sync")).await;
+    assert_eq!((synced.status, synced.get("trackerContentSynced").as_bool()), (200, Some(true)), "{}", synced.text);
     assert_eq!(tracker.updated()[0].0, "acme/vega-1");
     assert_eq!(tracker.updated()[0].1.title, "Pay the invoice");
-    assert_eq!(tracker.created().len(), 1, "an edit rewrites the issue instead of creating another");
+    assert_eq!(tracker.updated()[0].1.description, "Before Friday.");
+    assert_eq!(tracker.created().len(), 1, "a sync rewrites the issue instead of creating another");
 }

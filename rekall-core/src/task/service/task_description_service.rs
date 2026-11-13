@@ -2,7 +2,7 @@ use rekall_kernel::{RekallError, Result};
 use rekall_store::repository as repo;
 use rekall_store::task::{Model, DESCRIPTION_MAX_CHARACTERS};
 
-use crate::task::{DescriptionReplaced, TaskContentChangedEvent};
+use crate::task::DescriptionReplaced;
 use crate::{in_write, load, text_rule, Ctx};
 
 /// Replaces one task's description for a session. It does not go through the console's revision
@@ -25,9 +25,6 @@ impl TaskDescriptionService {
             let after = Model { description: Some(validated_body(body)?), ..before.clone() };
             let changed = after != before;
             repo::update_if_changed(tx.db(), &before, after, self.ctx.now()).await?;
-            if changed {
-                tx.publish(TaskContentChangedEvent { task_id: before.id });
-            }
             Ok(DescriptionReplaced { task_anchor: before.anchor(&project.label), changed })
         })
     }

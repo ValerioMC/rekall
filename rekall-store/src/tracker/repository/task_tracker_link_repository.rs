@@ -17,7 +17,7 @@ pub async fn save(db: &impl ConnectionTrait, link: Model) -> Result<(), RekallEr
     Entity::insert(link.into_active_model())
         .on_conflict(
             OnConflict::column(Column::TaskId)
-                .update_columns([Column::IssueKey, Column::IssueUrl, Column::SyncError, Column::UpdatedAt])
+                .update_columns([Column::IssueKey, Column::IssueUrl, Column::SyncError, Column::SyncedFingerprint, Column::UpdatedAt])
                 .to_owned(),
         )
         .exec(db)

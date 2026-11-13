@@ -9,10 +9,8 @@ use tracing::{info, warn};
 use crate::connection::{Secret, SecretStore, TaskTracker, TrackerEndpoint, TrackerFailure, TrackerIssue, TrackerLink};
 use crate::{in_read, in_write, load, Ctx};
 
-const ISSUE_TITLE_MAX_CHARACTERS: usize = 200;
-
-/// Writes a task to the project's task manager: the issue is created when the task has none and
-/// rewritten when it has. A failure is kept on the task and retried by its next change.
+/// Writes a task to the project's task manager: its title when the task is created, and its
+/// title and description only when the person asks. A failure is kept on the task.
 #[derive(Clone)]
 pub struct TaskTrackerService {
     ctx: Ctx,
@@ -20,7 +18,7 @@ pub struct TaskTrackerService {
     tracker: Arc<dyn TaskTracker>,
 }
 
-/// What a push found to write and where.
+/// What a write found to send and where.
 struct Delivery {
     task: task::Model,
     issue_key: Option<String>,
@@ -33,20 +31,23 @@ impl TaskTrackerService {
         Self { ctx, secrets, tracker }
     }
 
-    /// A project without a task manager, an epic and a quick task are left alone.
-    pub async fn push(&self, task_id: Id) -> Result<()> {
+    /// Creates the issue of a task that has none, with its title alone. A project without a task
+    /// manager, an epic and a quick task are left alone.
+    pub async fn create_missing(&self, task_id: Id) -> Result<()> {
         let Some(delivery) = self.read(task_id).await? else { return Ok(()) };
-        match self.deliver(&delivery).await {
-            Ok(Some(link)) => {
-                info!(task_id = %task_id, issue = %link.key, "A task was created in the project's task manager");
-                self.keep_issue(task_id, link).await
-            }
-            Ok(None) => self.keep_failure(task_id, None).await,
-            Err(failure) => {
-                warn!(%failure, task_id = %task_id, "A task could not be written to the project's task manager");
-                self.keep_failure(task_id, Some(failure.message().to_string())).await
-            }
+        if delivery.issue_key.is_some() {
+            return Ok(());
         }
+        let issue = TrackerIssue::titled(&delivery.task);
+        self.write(&delivery, &issue).await
+    }
+
+    /// Writes the task's title and description to its issue, creating the issue when the task has
+    /// none. The failure is kept on the task and also returned, so the person who asked sees it.
+    pub async fn sync_content(&self, task_id: Id) -> Result<()> {
+        let delivery = self.read(task_id).await?.ok_or_else(|| RekallError::illegal("This task has no task manager to write to."))?;
+        let issue = TrackerIssue::of(&delivery.task);
+        self.write(&delivery, &issue).await
     }
 
     /// Removes the issue a deleted task held from the project's task manager, which the task's own
@@ -80,14 +81,28 @@ impl TaskTrackerService {
         })
     }
 
+    async fn write(&self, delivery: &Delivery, issue: &TrackerIssue) -> Result<()> {
+        let task_id = delivery.task.id;
+        match self.deliver(delivery, issue).await {
+            Ok(created) => {
+                info!(task_id = %task_id, "A task was written to the project's task manager");
+                self.keep_written(task_id, created, issue.fingerprint()).await
+            }
+            Err(failure) => {
+                warn!(%failure, task_id = %task_id, "A task could not be written to the project's task manager");
+                self.keep_failure(task_id, failure.message().to_string()).await?;
+                Err(failure)
+            }
+        }
+    }
+
     /// The link of the issue it created, or none when it rewrote the issue the task already had.
-    async fn deliver(&self, delivery: &Delivery) -> Result<Option<TrackerLink>> {
+    async fn deliver(&self, delivery: &Delivery, issue: &TrackerIssue) -> Result<Option<TrackerLink>> {
         let endpoint = self.endpoint(&delivery.binding, &delivery.connection).await?;
-        let issue = issue_of(&delivery.task);
         let kind = delivery.connection.kind;
         match delivery.issue_key.as_deref() {
-            Some(key) => self.tracker.update(&endpoint, key, &issue).await.map(|()| None),
-            None => self.tracker.create(&endpoint, &issue).await.map(Some),
+            Some(key) => self.tracker.update(&endpoint, key, issue).await.map(|()| None),
+            None => self.tracker.create(&endpoint, issue).await.map(Some),
         }
         .map_err(|failure| RekallError::conflict(failure_message(kind, &failure)))
     }
@@ -110,12 +125,19 @@ impl TaskTrackerService {
         })
     }
 
-    async fn keep_issue(&self, task_id: Id, link: TrackerLink) -> Result<()> {
-        self.keep_link(task_id, |held| task_tracker_link::Model { issue_key: Some(link.key), issue_url: Some(link.url), sync_error: None, ..held }).await
+    async fn keep_written(&self, task_id: Id, created: Option<TrackerLink>, fingerprint: String) -> Result<()> {
+        self.keep_link(task_id, |held| {
+            let (issue_key, issue_url) = match created {
+                Some(link) => (Some(link.key), Some(link.url)),
+                None => (held.issue_key.clone(), held.issue_url.clone()),
+            };
+            task_tracker_link::Model { issue_key, issue_url, sync_error: None, synced_fingerprint: Some(fingerprint), ..held }
+        })
+        .await
     }
 
-    async fn keep_failure(&self, task_id: Id, failure: Option<String>) -> Result<()> {
-        self.keep_link(task_id, |held| task_tracker_link::Model { sync_error: failure, ..held }).await
+    async fn keep_failure(&self, task_id: Id, failure: String) -> Result<()> {
+        self.keep_link(task_id, |held| task_tracker_link::Model { sync_error: Some(failure), ..held }).await
     }
 
     /// Saves what the push found on the task's link, creating it the first time, and moves the
@@ -125,7 +147,7 @@ impl TaskTrackerService {
             let task = load::task_or_unknown(tx.db(), task_id).await?;
             let now = self.ctx.now();
             let existing = repo::task_tracker_link::find_of_task(tx.db(), task_id).await?;
-            let held = existing.clone().unwrap_or(task_tracker_link::Model { task_id, issue_key: None, issue_url: None, sync_error: None, created_at: now, updated_at: now });
+            let held = existing.clone().unwrap_or(task_tracker_link::Model { task_id, issue_key: None, issue_url: None, sync_error: None, synced_fingerprint: None, created_at: now, updated_at: now });
             let changed = change(held.clone());
             if existing.as_ref() == Some(&changed) || (existing.is_none() && changed == held) {
                 return Ok(());
@@ -137,10 +159,6 @@ impl TaskTrackerService {
             Ok(())
         })
     }
-}
-
-fn issue_of(task: &task::Model) -> TrackerIssue {
-    TrackerIssue { title: task.title.chars().take(ISSUE_TITLE_MAX_CHARACTERS).collect(), description: task.description.clone().unwrap_or_default() }
 }
 
 /// A Jira project key is written upper-case, a repository path as typed without its slashes at the ends.

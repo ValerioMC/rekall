@@ -38,7 +38,7 @@ function task(id: string, title: string, review: Partial<Pick<Task, 'reviewState
     graphLaidAt: null,
     releaseSkipped: false,
     kind: 'TASK',
-    epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
+    epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, trackerContentSynced: true, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
     anchor: `project:vega task:${id}`,
     updatedAt: '2026-09-20T10:00:00Z'
   }

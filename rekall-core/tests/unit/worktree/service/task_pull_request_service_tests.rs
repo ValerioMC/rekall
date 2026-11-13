@@ -117,7 +117,7 @@ async fn the_body_names_the_issue_and_lists_the_commits_by_step() {
     let world = world(true).await;
     let task = world.claimed_task("report").await;
     let now = Instant::now();
-    let link = task_tracker_link::Model { task_id: task.id, issue_key: Some("12".into()), issue_url: None, sync_error: None, created_at: now, updated_at: now };
+    let link = task_tracker_link::Model { task_id: task.id, issue_key: Some("12".into()), issue_url: None, sync_error: None, synced_fingerprint: None, created_at: now, updated_at: now };
     repo::task_tracker_link::save(&world.ctx.db, link).await.unwrap();
     let step = task_step::Model::new(task.id, "Add the port".into(), 0, now);
     step.clone().into_active_model().insert(&world.ctx.db).await.unwrap();
@@ -159,7 +159,7 @@ async fn an_accepted_task_has_its_pull_request_merged_once_and_its_issue_closed(
     let world = world(true).await;
     let task = world.with_pull_request("report").await;
     let now = Instant::now();
-    let link = task_tracker_link::Model { task_id: task.id, issue_key: Some("12".into()), issue_url: None, sync_error: None, created_at: now, updated_at: now };
+    let link = task_tracker_link::Model { task_id: task.id, issue_key: Some("12".into()), issue_url: None, sync_error: None, synced_fingerprint: None, created_at: now, updated_at: now };
     repo::task_tracker_link::save(&world.ctx.db, link).await.unwrap();
 
     let first = world.service.merge_accepted(task.id).await.unwrap();

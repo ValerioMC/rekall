@@ -1,13 +1,13 @@
 use rekall_core::connection::TaskTrackerService;
-use rekall_core::task::{TaskContentChangedEvent, TaskDeletedEvent};
+use rekall_core::task::{TaskCreatedEvent, TaskDeletedEvent};
 use rekall_core::{EventBus, PublishedEvent};
 use rekall_kernel::Id;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::warn;
 
-/// Writes a task to its project's task manager once the transaction that created it or changed its
-/// title or description has committed, and removes the issue of one that was deleted. Tasks are written one after another, in the order they
-/// changed, so an edit never overtakes the creation it follows.
+/// Creates the issue of a task in its project's task manager once the transaction that created the
+/// task has committed, and removes the issue of one that was deleted. Later edits are written only
+/// when the person asks. Tasks are handled one after another, in the order they changed.
 pub struct TaskTrackerRunner;
 
 impl TaskTrackerRunner {
@@ -18,14 +18,14 @@ impl TaskTrackerRunner {
             loop {
                 match bus.recv().await {
                     Ok(event) => {
-                        if let Some(task_id) = changed_task(&event) {
-                            push(&tracker, task_id).await;
+                        if let Some(task_id) = created_task(&event) {
+                            create_issue(&tracker, task_id).await;
                         }
                         if let Some(deleted) = event.downcast::<TaskDeletedEvent>() {
                             remove(&tracker, deleted).await;
                         }
                     }
-                    Err(RecvError::Lagged(missed)) => warn!(missed, "The task manager's runner missed events; the tasks they named are written on their next change"),
+                    Err(RecvError::Lagged(missed)) => warn!(missed, "The task manager's runner missed events; the tasks they named get their issue when the person syncs them"),
                     Err(RecvError::Closed) => return,
                 }
             }
@@ -33,12 +33,12 @@ impl TaskTrackerRunner {
     }
 }
 
-fn changed_task(event: &PublishedEvent) -> Option<Id> {
-    event.downcast::<TaskContentChangedEvent>().map(|changed| changed.task_id)
+fn created_task(event: &PublishedEvent) -> Option<Id> {
+    event.downcast::<TaskCreatedEvent>().map(|created| created.task_id)
 }
 
-async fn push(tracker: &TaskTrackerService, task_id: Id) {
-    if let Err(failure) = tracker.push(task_id).await {
+async fn create_issue(tracker: &TaskTrackerService, task_id: Id) {
+    if let Err(failure) = tracker.create_missing(task_id).await {
         warn!(%failure, %task_id, "A task could not be written to the project's task manager");
     }
 }

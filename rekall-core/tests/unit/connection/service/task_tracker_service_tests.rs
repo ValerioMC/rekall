@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use rekall_kernel::{Id, Instant};
 use rekall_store::{company, external_connection, project, project_connection, task, task_tracker_link, ConnectionKind, ProjectStatus, TaskKind};
-use sea_orm::{ActiveModelTrait, IntoActiveModel};
+use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use super::*;
 use crate::connection::{InMemorySecretStore, ScriptedTaskTracker, TrackerFailure};
@@ -53,23 +53,23 @@ impl World {
 
     async fn link_issue(&self, id: Id, key: &str) {
         let now = Instant::now();
-        let link = task_tracker_link::Model { task_id: id, issue_key: Some(key.into()), issue_url: None, sync_error: None, created_at: now, updated_at: now };
+        let link = task_tracker_link::Model { task_id: id, issue_key: Some(key.into()), issue_url: None, sync_error: None, synced_fingerprint: None, created_at: now, updated_at: now };
         rekall_store::repository::task_tracker_link::save(&self.ctx.db, link).await.unwrap();
     }
 }
 
 #[tokio::test]
-async fn a_task_without_an_issue_creates_one_and_keeps_its_link() {
+async fn a_task_without_an_issue_creates_one_with_its_title_alone_and_keeps_its_link() {
     let world = world(ConnectionKind::Gitlab, Some("acme/app"), true).await;
     let id = world.task("first", |_| {}).await;
 
-    world.service.push(id).await.unwrap();
+    world.service.create_missing(id).await.unwrap();
 
     let created = world.tracker.created();
     assert_eq!(created.len(), 1);
     assert_eq!(created[0].0, "acme/app");
     assert_eq!(created[0].1.title, "Task first");
-    assert_eq!(created[0].1.description, "Do it.");
+    assert_eq!(created[0].1.description, "");
     let link = world.link(id).await.unwrap();
     assert_eq!(link.issue_key.as_deref(), Some("acme/app-1"));
     assert_eq!(link.issue_url.as_deref(), Some("https://tracker.example.com/issues/acme/app-1"));
@@ -77,17 +77,53 @@ async fn a_task_without_an_issue_creates_one_and_keeps_its_link() {
 }
 
 #[tokio::test]
-async fn a_task_that_has_an_issue_rewrites_it_instead_of_creating_another() {
+async fn a_task_that_has_an_issue_is_not_written_again_by_its_creation() {
     let world = world(ConnectionKind::Github, Some("acme/app"), true).await;
     let id = world.task("first", |_| {}).await;
     world.link_issue(id, "12").await;
 
-    world.service.push(id).await.unwrap();
+    world.service.create_missing(id).await.unwrap();
+
+    assert!(world.tracker.created().is_empty());
+    assert!(world.tracker.updated().is_empty());
+}
+
+#[tokio::test]
+async fn syncing_a_task_without_an_issue_creates_it_with_its_description() {
+    let world = world(ConnectionKind::Gitlab, Some("acme/app"), true).await;
+    let id = world.task("first", |_| {}).await;
+
+    world.service.sync_content(id).await.unwrap();
+
+    assert_eq!(world.tracker.created()[0].1.description, "Do it.");
+    assert!(world.link(id).await.unwrap().issue_key.is_some());
+}
+
+#[tokio::test]
+async fn syncing_a_task_that_has_an_issue_rewrites_it_instead_of_creating_another() {
+    let world = world(ConnectionKind::Github, Some("acme/app"), true).await;
+    let id = world.task("first", |_| {}).await;
+    world.link_issue(id, "12").await;
+
+    world.service.sync_content(id).await.unwrap();
 
     assert!(world.tracker.created().is_empty());
     let updated = world.tracker.updated();
     assert_eq!(updated.len(), 1);
     assert_eq!(updated[0].0, "12");
+    assert_eq!(updated[0].1.description, "Do it.");
+}
+
+#[tokio::test]
+async fn a_sync_keeps_the_fingerprint_of_what_it_wrote() {
+    let world = world(ConnectionKind::Github, Some("acme/app"), true).await;
+    let id = world.task("first", |_| {}).await;
+    world.link_issue(id, "12").await;
+    let written = TrackerIssue::of(&task::Entity::find_by_id(id).one(&world.ctx.db).await.unwrap().unwrap());
+
+    world.service.sync_content(id).await.unwrap();
+
+    assert_eq!(world.link(id).await.unwrap().synced_fingerprint, Some(written.fingerprint()));
 }
 
 #[tokio::test]
@@ -95,48 +131,51 @@ async fn a_jira_project_key_is_written_upper_case() {
     let world = world(ConnectionKind::Jira, Some("eng"), true).await;
     let id = world.task("first", |_| {}).await;
 
-    world.service.push(id).await.unwrap();
+    world.service.create_missing(id).await.unwrap();
 
     assert_eq!(world.tracker.created()[0].0, "ENG");
 }
 
 #[tokio::test]
-async fn a_project_without_a_task_manager_writes_nothing() {
+async fn a_project_without_a_task_manager_creates_nothing_and_refuses_a_sync() {
     let world = world(ConnectionKind::Gitlab, Some("acme/app"), false).await;
     let id = world.task("first", |_| {}).await;
 
-    world.service.push(id).await.unwrap();
+    world.service.create_missing(id).await.unwrap();
+    let refused = world.service.sync_content(id).await;
 
+    assert!(refused.is_err());
     assert!(world.tracker.created().is_empty());
     assert!(world.link(id).await.is_none());
 }
 
 #[tokio::test]
-async fn an_epic_and_a_quick_task_are_not_pushed() {
+async fn an_epic_and_a_quick_task_are_not_created() {
     let world = world(ConnectionKind::Gitlab, Some("acme/app"), true).await;
     let epic = world.task("epic", |task| task.kind = TaskKind::Epic).await;
     let quick = world.task("quick", |task| task.quick = true).await;
 
-    world.service.push(epic).await.unwrap();
-    world.service.push(quick).await.unwrap();
+    world.service.create_missing(epic).await.unwrap();
+    world.service.create_missing(quick).await.unwrap();
 
     assert!(world.tracker.created().is_empty());
 }
 
 #[tokio::test]
-async fn a_refusal_is_kept_on_the_task_and_cleared_by_the_next_push_that_works() {
+async fn a_refusal_is_kept_on_the_task_and_returned_and_cleared_by_the_next_sync_that_works() {
     let world = world(ConnectionKind::Gitlab, Some("acme/app"), true).await;
     let id = world.task("first", |_| {}).await;
     world.tracker.fail_with(TrackerFailure::Rejected { status: 401 });
 
-    world.service.push(id).await.unwrap();
+    let refused = world.service.sync_content(id).await;
 
+    assert!(refused.unwrap_err().message().contains("rejected the stored credential (HTTP 401)"));
     let failed = world.link(id).await.unwrap();
     assert_eq!(failed.issue_key, None);
     assert!(failed.sync_error.unwrap().contains("rejected the stored credential (HTTP 401)"));
 
     world.tracker.recover();
-    world.service.push(id).await.unwrap();
+    world.service.sync_content(id).await.unwrap();
 
     let recovered = world.link(id).await.unwrap();
     assert!(recovered.issue_key.is_some());
@@ -148,7 +187,7 @@ async fn a_binding_without_a_target_is_kept_as_a_failure() {
     let world = world(ConnectionKind::Gitlab, None, true).await;
     let id = world.task("first", |_| {}).await;
 
-    world.service.push(id).await.unwrap();
+    assert!(world.service.create_missing(id).await.is_err());
 
     assert!(world.tracker.created().is_empty());
     assert!(world.link(id).await.unwrap().sync_error.unwrap().contains("target"));

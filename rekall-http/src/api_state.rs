@@ -76,6 +76,7 @@ pub struct ApiState {
     pub repository_discovery: connection::RepositoryDiscoveryService,
     pub connection_access: connection::ConnectionAccessQueryService,
     pub jira_issues: connection::JiraIssueService,
+    pub task_tracker_sync: connection::TaskTrackerSyncService,
     pub icons: catalog::ProjectIconService,
     pub directories: filesystem::DirectoryListingService,
     pub chat: chat::ChatService,
@@ -105,6 +106,7 @@ struct Wired {
     component_catalog: component::ProjectComponentCatalogService,
     repository_discovery: connection::RepositoryDiscoveryService,
     jira_issues: connection::JiraIssueService,
+    task_tracker_sync: connection::TaskTrackerSyncService,
     vulnerability_fixes: vulnerability::VulnerabilityFixService,
     graphs: graph::DeploymentGraphService,
     graph_attach: graph::GraphAttachService,
@@ -128,6 +130,7 @@ impl Wired {
             component_catalog.clone(),
         );
         let jira_issues = connection::JiraIssueService::new(ctx.clone(), project_connections.clone(), tasks.clone(), ports.secrets.clone(), ports.jira.clone());
+        let task_tracker_sync = connection::TaskTrackerSyncService::new(ports.task_tracker.clone(), tasks.clone());
         let vulnerability_fixes = vulnerability::VulnerabilityFixService::new(ctx.clone(), services.exposures.clone(), tasks.clone(), services.steps.clone());
         let graphs = graph::DeploymentGraphService::new(ctx.clone());
         let graph_attach = graph::GraphAttachService::new(
@@ -141,7 +144,7 @@ impl Wired {
         );
         let terminals = terminal::TerminalService::new(ports.terminals.clone(), ports.task_worktrees.clone());
         let quick_tasks = quick::QuickTaskService::new(ctx.clone(), tasks.clone(), terminals.clone());
-        Self { tasks, project_connections, projects, connections, component_catalog, repository_discovery, jira_issues, vulnerability_fixes, graphs, graph_attach, terminals, quick_tasks }
+        Self { tasks, project_connections, projects, connections, component_catalog, repository_discovery, jira_issues, task_tracker_sync, vulnerability_fixes, graphs, graph_attach, terminals, quick_tasks }
     }
 }
 
@@ -158,7 +161,7 @@ impl ApiState {
         ports: ApiPorts,
     ) -> Self {
         let ctx = services.ctx.clone();
-        let Wired { tasks, project_connections, projects, connections, component_catalog, repository_discovery, jira_issues, vulnerability_fixes, graphs, graph_attach, terminals, quick_tasks } =
+        let Wired { tasks, project_connections, projects, connections, component_catalog, repository_discovery, jira_issues, task_tracker_sync, vulnerability_fixes, graphs, graph_attach, terminals, quick_tasks } =
             Wired::of(&ctx, &services, &ports);
         Self {
             companies: catalog::CompanyService::new(ctx.clone()),
@@ -189,6 +192,7 @@ impl ApiState {
             repository_discovery,
             connection_access: connection::ConnectionAccessQueryService::new(ctx.clone()),
             jira_issues,
+            task_tracker_sync,
             icons: catalog::ProjectIconService::new(ctx.clone()),
             directories: filesystem::DirectoryListingService::new(user_home),
             steps: services.steps,

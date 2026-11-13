@@ -31,7 +31,7 @@ async fn a_task_of_a_project_with_a_task_manager(ctx: &Ctx) -> Id {
 }
 
 #[tokio::test]
-async fn a_task_whose_content_changed_is_written_to_the_task_manager() {
+async fn a_created_task_gets_its_issue_in_the_task_manager() {
     let database = rekall_store::open_in_memory().await.unwrap();
     let events = EventBus::new();
     let ctx = Ctx::new(database.conn.clone(), events.clone());
@@ -43,7 +43,7 @@ async fn a_task_whose_content_changed_is_written_to_the_task_manager() {
     let tracker = Arc::new(ScriptedTaskTracker::new());
     TaskTrackerRunner::start(&events, TaskTrackerService::new(ctx.clone(), secrets, tracker.clone()));
 
-    events.publish(TaskContentChangedEvent { task_id });
+    events.publish(TaskCreatedEvent { task_id });
 
     for _ in 0..100 {
         if !tracker.created().is_empty() {

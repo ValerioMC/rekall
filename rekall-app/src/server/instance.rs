@@ -125,6 +125,7 @@ impl Instance {
             restore: Arc::new(DatabaseRestoreService::new(backups.clone(), restarter.clone())),
             database_folders: Arc::new(DatabaseFolderRegistry::new(DatabaseRegistryStore::new(&config.home), config.user_home.clone())),
             restart: Arc::new(restarter),
+            task_tracker: task_tracker.clone(),
             task_worktrees: queue.worktrees.clone(),
             protected_credential_references: protected_references(&config.home, &config.user_home),
             release_feed: config.update_check.enabled.then_some(release_feed_of(options, config)),

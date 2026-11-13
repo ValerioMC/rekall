@@ -54,7 +54,7 @@ function makeTask(reviewState: TaskStepState, wrapup: Partial<Task> = {}): Task 
     graphLaidAt: null,
     releaseSkipped: false,
     kind: 'TASK',
-    epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
+    epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, trackerContentSynced: true, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
     anchor: 'project:rekall task:application-improvements',
     updatedAt: '2026-09-09T10:00:00Z',
     ...wrapup

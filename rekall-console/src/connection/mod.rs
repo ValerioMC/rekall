@@ -27,6 +27,7 @@ pub use view::discovered_repository_view::DiscoveredRepositoryView;
 pub use view::discovery_outcome::DiscoveryOutcome;
 pub use command::jira_import_command::JiraImportCommand;
 pub use service::jira_issue_service::JiraIssueService;
+pub use service::task_tracker_sync_service::TaskTrackerSyncService;
 pub use view::jira_issue_view::JiraIssueView;
 pub use view::kube_context_view::KubeContextView;
 pub use service::kubeconfig_preview_service::KubeconfigPreviewService;

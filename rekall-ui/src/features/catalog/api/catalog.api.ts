@@ -169,6 +169,11 @@ export async function deleteTask(id: TaskId): Promise<void> {
   await request(() => apiClient(`/api/tasks/${id}`, { method: 'DELETE' }))
 }
 
+/** Writes the task's title and description to its issue in the project's task manager, creating the issue if it has none. */
+export async function syncTaskTracker(id: TaskId): Promise<Task> {
+  return request(async () => TaskSchema.parse(await apiClient(`/api/tasks/${id}/tracker-sync`, { method: 'POST' })))
+}
+
 /** Accept (`DONE`) or send back (`OPEN`) a stepless task's review line; other states are refused. */
 export async function reviewTask(id: TaskId, reviewState: TaskStepState): Promise<Task> {
   return request(async () =>
