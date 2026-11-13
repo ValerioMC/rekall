@@ -530,4 +530,4 @@ Each file keeps the decisions of one area and the reasons for them, as the code 
 | [design/vulnerabilities.md](design/vulnerabilities.md) | The inventory, the advisory feed, the scan, verdicts and fix tasks |
 | [design/terminals.md](design/terminals.md) | Open in terminal, the in-app PTY terminal, credential sessions |
 | [design/claude-and-tokens.md](design/claude-and-tokens.md) | The Claude folder editor and the memory review; reading token usage from transcripts |
-| [design/console-ui.md](design/console-ui.md) | The report, the navigator, design tokens, the header |
+| [design/console-ui.md](design/console-ui.md) | The console structure (Work, task page, Review), the report, design tokens, the header |
