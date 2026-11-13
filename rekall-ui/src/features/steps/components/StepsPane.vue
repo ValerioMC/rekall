@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
-import { storeToRefs } from 'pinia'
+import { nextTick, ref } from 'vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import StepAddForm from '@/features/steps/components/StepAddForm.vue'
 import StepChecklist from '@/features/steps/components/StepChecklist.vue'
@@ -11,151 +10,36 @@ import StepFlowView from '@/features/flow/components/StepFlowView.vue'
 import PlanAdherencePanel from '@/features/adherence/components/PlanAdherencePanel.vue'
 import TaskBranchPanel from '@/features/worktree/components/TaskBranchPanel.vue'
 import GraphAttachPanel from '@/features/graph/components/GraphAttachPanel.vue'
-import { useConsoleStore } from '@/stores/console.store'
-import { useAsyncAction } from '@/composables/useAsyncAction'
-import { useToastStore } from '@/stores/toast.store'
-import { useCheckStream } from '@/features/check/composables/useCheckStream'
-import { useChecksStore } from '@/features/check/store/checks.store'
-import { provideStepEditor } from '@/features/steps/composables/useStepEditor'
-import { groupBySession } from '@/features/steps/lib/step-sessions'
-import { stepIsComplete, type TaskStep } from '@/features/steps/model/task-step'
+import { useTaskPlan } from '@/features/steps/composables/useTaskPlan'
 import type { TaskStepId } from '@/model/branded'
 
-const store = useConsoleStore()
-const { selectedTask, selectedTaskSteps } = storeToRefs(store)
-const { run } = useAsyncAction()
-const checks = useChecksStore()
-const toast = useToastStore()
-
-const editor = provideStepEditor({
-  steps: () => selectedTaskSteps.value,
-  save: (id, changes) => void run(() => store.saveStep(id, changes)),
-  markUnsaved: () => (store.saveState = 'unsaved')
-})
-
-// Draft steps sit on a staging shelf below the checklist until they are promoted.
-const checklistSteps = computed(() => selectedTaskSteps.value.filter((step) => step.state !== 'DRAFT'))
-const draftSteps = computed(() => selectedTaskSteps.value.filter((step) => step.state === 'DRAFT'))
-const sessions = computed(() => groupBySession(checklistSteps.value))
-const allDone = computed(() => checklistSteps.value.every((step) => step.done))
-const currentId = computed(() => checklistSteps.value.find((step) => step.state === 'OPEN')?.id ?? null)
-const running = computed(() => checklistSteps.value.some((step) => step.state === 'RUNNING'))
-const firstClaimed = computed(() => checklistSteps.value.find((step) => step.state === 'CLAIMED') ?? null)
-
-const hideDone = ref(false)
-const visibleSteps = computed(() =>
-  hideDone.value ? checklistSteps.value.filter((step) => !step.done) : checklistSteps.value
-)
-
-// A task whose steps carry routes opens on its flow; any other on the list.
-const view = ref<'list' | 'flow'>('list')
-const isFlow = computed(() => checklistSteps.value.some((step) => step.links.length > 0))
-
-// A task is laid once, and a graph waits for drafts to be promoted or deleted.
-const canLayGraph = computed(() => !draftSteps.value.length && selectedTask.value?.graphLaidAt === null)
+const plan = useTaskPlan()
+const {
+  task: selectedTask,
+  editor,
+  allSteps: selectedTaskSteps,
+  checklistSteps,
+  draftSteps,
+  visibleSteps,
+  sessions,
+  allDone,
+  currentId,
+  running,
+  firstClaimed,
+  canLayGraph,
+  hideDone,
+  view,
+  reopenArmed,
+  promoting,
+  deleting,
+  deletingBlast,
+  newTitle,
+  newSkills,
+  newSession
+} = plan
 
 const checklistEl = ref<InstanceType<typeof StepChecklist> | null>(null)
 const draftsEl = ref<InstanceType<typeof StepDraftShelf> | null>(null)
-
-function stepAwaitingDecision(excluding: TaskStepId | null): TaskStep | undefined {
-  return checklistSteps.value.find((step) => step.state === 'CLAIMED' && step.id !== excluding)
-}
-
-function nextUnfinishedStep(excluding: TaskStepId | null): TaskStep | undefined {
-  return checklistSteps.value.find((step) => !stepIsComplete(step.state) && step.id !== excluding)
-}
-
-/** A claim waiting for a person comes first, then the first step still to finish, then the first draft. */
-function openFirstUnfinished(): void {
-  const next = stepAwaitingDecision(null) ?? nextUnfinishedStep(null) ?? draftSteps.value[0]
-  if (next) editor.open(next)
-}
-
-watch(
-  () => selectedTask.value?.id ?? null,
-  () => {
-    editor.flush()
-    hideDone.value = false
-    view.value = isFlow.value ? 'flow' : 'list'
-    editor.close()
-    openFirstUnfinished()
-  },
-  { immediate: true }
-)
-
-// What the checks found on this task's claims: read when it opens, and again as a session's claim writes more.
-watch(
-  () => selectedTask.value?.id ?? null,
-  (taskId) => {
-    if (taskId) void run(() => checks.loadResults(taskId))
-  },
-  { immediate: true }
-)
-useCheckStream({
-  onChecks: (event) => void checks.applyProjectEvent(event.projectId),
-  onResults: (event) => void checks.applyResultEvent(event.taskId)
-})
-
-// Something outside this pane (search, the review queue) asked for one step: open it, showing
-// the done ones if that is where it is, then clear the request so it is honoured once.
-watch(
-  () => [store.stepToOpen, visibleSteps.value.length] as const,
-  ([stepId]) => {
-    if (!stepId) return
-    const step = selectedTaskSteps.value.find((candidate) => candidate.id === stepId)
-    if (!step) return
-    if (step.done) hideDone.value = false
-    editor.open(step)
-    store.clearStepToOpen()
-  },
-  { immediate: true }
-)
-
-const reopenArmed = ref<TaskStepId | null>(null)
-watch(editor.expandedId, () => (reopenArmed.value = null))
-
-function offerToReopenAccepted(step: TaskStep): void {
-  toast.notify(`Accepted ${step.title}`, {
-    label: 'Reopen',
-    run: () => void run(() => store.reopenStep(step.id))
-  })
-}
-
-/** Ticks an open step or accepts a claimed one; the open detail moves on to the next claim to review, else the next step. */
-async function markForward(step: TaskStep): Promise<void> {
-  if (step.state === 'DONE') return
-  const wasOpenHere = editor.expandedId.value === step.id
-  const wasClaimed = step.state === 'CLAIMED'
-  editor.flush()
-  const outcome = await run(() => (wasClaimed ? store.acceptStep(step.id) : store.toggleStep(step.id)))
-  if (wasClaimed && outcome !== null) offerToReopenAccepted(step)
-  if (!wasOpenHere) return
-  const next = stepAwaitingDecision(step.id) ?? nextUnfinishedStep(step.id)
-  if (next) editor.open(next)
-  else editor.close()
-}
-
-async function chooseSession(step: TaskStep, startsSession: boolean): Promise<void> {
-  editor.flush()
-  await run(() => store.beginStepSession(step.id, startsSession))
-}
-
-async function sendBack(step: TaskStep): Promise<void> {
-  editor.flush()
-  await run(() => store.sendBackStep(step.id))
-  editor.open(selectedTaskSteps.value.find((candidate) => candidate.id === step.id) ?? step)
-}
-
-async function reopen(step: TaskStep): Promise<void> {
-  if (reopenArmed.value !== step.id) {
-    reopenArmed.value = step.id
-    return
-  }
-  reopenArmed.value = null
-  editor.flush()
-  await run(() => store.reopenStep(step.id))
-  editor.open(step)
-}
 
 async function reviewFirst(): Promise<void> {
   const step = firstClaimed.value
@@ -165,66 +49,9 @@ async function reviewFirst(): Promise<void> {
   checklistEl.value?.reveal(step.id)
 }
 
-async function move(step: TaskStep, by: number): Promise<void> {
-  editor.flush()
-  await run(() => store.moveStep(step.id, step.position + by))
-}
-
-const promoting = ref<TaskStepId | null>(null)
-
-async function promote(step: TaskStep): Promise<void> {
-  editor.flush()
-  promoting.value = step.id
-  try {
-    await run(() => store.promoteStep(step.id))
-  } finally {
-    promoting.value = null
-  }
-}
-
-async function returnToDraft(step: TaskStep): Promise<void> {
-  editor.flush()
-  await run(() => store.returnStepToDraft(step.id))
-}
-
-const deleting = ref<TaskStep | null>(null)
-const deletingBlast = computed(() =>
-  deleting.value?.bodyMarkdown?.trim()
-    ? 'the step and the detail written under it · not recoverable'
-    : 'one step · not recoverable'
-)
-
-async function remove(): Promise<void> {
-  const step = deleting.value
-  deleting.value = null
-  if (!step) return
-  if (editor.expandedId.value === step.id) editor.close()
-  await run(() => store.removeStep(step.id))
-}
-
-const newTitle = ref('')
-const newSkills = ref<readonly string[]>([])
-const newSession = ref(false)
-
-/** A new step starts as a draft, opened for writing its detail. */
 async function add(): Promise<void> {
-  const title = newTitle.value.trim()
-  if (!title || !selectedTask.value) return
-  const skills = newSkills.value
-  const opensSession = newSession.value
-  newTitle.value = ''
-  newSkills.value = []
-  newSession.value = false
-  const created = await run(async () => {
-    const step = await store.addStep(selectedTask.value!.id, title)
-    if (skills.length) await store.assignStepSkills(step.id, skills)
-    if (opensSession) await store.beginStepSession(step.id, true)
-    return step
-  })
-  if (!created) return
-  editor.flush()
-  editor.open(created)
-  await scrollToDrafts()
+  const created = await plan.add()
+  if (created) await scrollToDrafts()
 }
 
 async function focusAdd(): Promise<void> {
@@ -238,12 +65,12 @@ async function scrollToDrafts(): Promise<void> {
   ;(draftsEl.value?.$el as HTMLElement | undefined)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
 }
 
-/** The flow's "Detail" opens that step on the list, where its detail is written. */
 /** A graph just laid on the task is shown as the flow it is; one without routes stays a list. */
 function showAttachedGraph(): void {
-  view.value = isFlow.value ? 'flow' : 'list'
+  view.value = plan.isFlow.value ? 'flow' : 'list'
 }
 
+/** The flow's "Detail" opens that step on the list, where its detail is written. */
 async function openFromFlow(id: TaskStepId): Promise<void> {
   const step = selectedTaskSteps.value.find((candidate) => candidate.id === id)
   if (!step) return
@@ -253,8 +80,6 @@ async function openFromFlow(id: TaskStepId): Promise<void> {
   await nextTick()
   checklistEl.value?.reveal(id, 'auto')
 }
-
-onUnmounted(editor.flush)
 </script>
 
 <template>
@@ -307,13 +132,13 @@ onUnmounted(editor.flush)
               :all-done="allDone"
               :reopen-armed="reopenArmed"
               :sessions="sessions"
-              @session="chooseSession"
-              @mark-forward="markForward"
-              @to-draft="returnToDraft"
-              @move="move"
+              @session="plan.chooseSession"
+              @mark-forward="plan.markForward"
+              @to-draft="plan.returnToDraft"
+              @move="plan.move"
               @remove="(step) => (deleting = step)"
-              @send-back="sendBack"
-              @reopen="reopen"
+              @send-back="plan.sendBack"
+              @reopen="plan.reopen"
             />
 
             <GraphAttachPanel v-if="canLayGraph" class="mt-6" :task="selectedTask" has-steps @attached="showAttachedGraph" />
@@ -326,10 +151,10 @@ onUnmounted(editor.flush)
             :task-steps="selectedTaskSteps"
             :task="selectedTask"
             :promoting="promoting"
-            @promote="promote"
-            @move="move"
+            @promote="plan.promote"
+            @move="plan.move"
             @remove="(step) => (deleting = step)"
-            @session="chooseSession"
+            @session="plan.chooseSession"
           />
         </template>
       </div>
@@ -351,7 +176,7 @@ onUnmounted(editor.flush)
         :blast="deletingBlast"
         confirm-label="Delete step"
         @cancel="deleting = null"
-        @confirm="remove"
+        @confirm="plan.removeDeleting"
       />
     </Transition>
   </section>

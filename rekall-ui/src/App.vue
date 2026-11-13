@@ -10,6 +10,7 @@ import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import NoteListPane from '@/features/notes/components/NoteListPane.vue'
 import NotePane from '@/features/notes/components/NotePane.vue'
 import StepsPane from '@/features/steps/components/StepsPane.vue'
+import TaskPage from '@/features/task/components/TaskPage.vue'
 import WorkPage from '@/features/work/components/WorkPage.vue'
 import WrapupPane from '@/features/wrapup/components/WrapupPane.vue'
 import SettingsPanel from '@/features/settings/components/SettingsPanel.vue'
@@ -46,6 +47,7 @@ const store = useConsoleStore()
 const route = useRoute()
 const taskEditor = useTaskEditor()
 const onWork = computed(() => route.name === 'work' || route.name === 'work-board')
+const onTask = computed(() => route.name === 'task')
 const { selectedTaskId, selectedTask, paneFocus, reviewQueue, isLoading } = storeToRefs(store)
 const runQueue = useRunQueueStore()
 const deviations = useDeviationsStore()
@@ -128,7 +130,7 @@ function onKeydown(event: KeyboardEvent): void {
 
   const key = event.key.toLowerCase()
 
-  if (onWork.value) {
+  if (onWork.value || onTask.value) {
     onWorkKey(key, event)
     return
   }
@@ -254,6 +256,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
     <div class="flex min-h-0 flex-1">
       <WorkPage v-if="onWork" @new-task="taskEditor.beginCreate()" />
+      <TaskPage v-else-if="onTask" />
       <template v-else>
       <NoteListPane ref="noteList" />
       <!-- A place focus is sent to (the skip link, a pane shortcut), never a control, so it

@@ -15,6 +15,7 @@ function newRouter() {
     routes: [
       { path: '/', name: 'work', component: stub },
       { path: '/work/board', name: 'work-board', component: stub },
+      { path: '/task/:id/:tab?', name: 'task', component: stub },
       { path: '/console', name: 'console', component: stub },
       { path: '/projects/:id', name: 'project-detail', component: stub }
     ]
@@ -109,14 +110,13 @@ describe('the board', () => {
   })
 
   it('opens the task as a page from its sheet', async () => {
-    const { wrapper, router, store } = await mountBoard()
+    const { wrapper, router } = await mountBoard()
     const push = vi.spyOn(router, 'push')
     await wrapper.get('[data-testid="board-lane-review"] [data-testid="board-card"]').trigger('click')
 
     await wrapper.get('[data-testid="sheet-open-page"]').trigger('click')
 
-    expect(store.selectedTaskId).toBe('PR-2')
-    expect(push).toHaveBeenCalledWith({ name: 'console' })
+    expect(push).toHaveBeenCalledWith({ name: 'task', params: { id: 'PR-2', tab: 'plan' } })
   })
 
   it('opens the ledger on Filed from the shelf', async () => {

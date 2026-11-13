@@ -22,7 +22,7 @@ const BAR = 'mb-3 flex flex-wrap items-center gap-2 rounded-card border px-3 py-
 
 <template>
   <div v-if="step.state === 'RUNNING'" :class="[BAR, 'border-accent/60 bg-accent-soft']" data-testid="step-running-bar">
-    <span class="min-w-0 flex-1 text-caption leading-snug text-text-muted">
+    <span class="min-w-[min(100%,15rem)] flex-1 text-caption leading-snug text-text-muted">
       A session is on this step now. Log its latest commit here as it lands, without waiting for the
       step to be claimed.
     </span>
@@ -30,7 +30,7 @@ const BAR = 'mb-3 flex flex-wrap items-center gap-2 rounded-card border px-3 py-
   </div>
 
   <div v-else-if="step.state === 'CLAIMED'" :class="[BAR, 'border-accent/25 bg-accent-soft/40']" data-testid="step-review-bar">
-    <span class="min-w-0 flex-1 text-caption leading-snug text-text-muted">
+    <span class="min-w-[min(100%,15rem)] flex-1 text-caption leading-snug text-text-muted">
       A session claimed this. Accept it to tick the box, or send it back for another pass: what it
       worked from is sealed above, and the feedback goes underneath.
     </span>
@@ -54,7 +54,7 @@ const BAR = 'mb-3 flex flex-wrap items-center gap-2 rounded-card border px-3 py-
   </div>
 
   <div v-else-if="step.state === 'DONE'" :class="[BAR, 'border-border']" data-testid="step-reopen-bar">
-    <span class="min-w-0 flex-1 text-caption leading-snug text-text-muted">
+    <span class="min-w-[min(100%,15rem)] flex-1 text-caption leading-snug text-text-muted">
       Accepted. Reopening drops it back to open and clears the review it passed.
     </span>
     <button

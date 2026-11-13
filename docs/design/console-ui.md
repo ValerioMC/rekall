@@ -62,9 +62,11 @@ in the build by the terminal, session, run queue and usage stores. A number the 
 | `#/settings/:section` | `/settings/:section` | Settings |
 
 The routes that exist today keep their paths: the redesign changes what a screen shows, not where it
-lives. `/` is the Work ledger instead of the three-column console, and `/task`, `/review` and
-`/settings` are new. Until the task page exists, a ledger row opens the task in the old two-pane
-console, which lives at `/console`.
+lives. `/` is the Work ledger instead of the three-column console, and `/review` and `/settings`
+are new. A ledger row, a card and the sheet open the task page at `/task/:id/plan`. The old two-pane
+console lives at `/console` until every tab of the task page is built; the Wrapup, Notes,
+Description, Time and Deviations tabs open there for now, and Open in terminal and the session
+dock still show the terminal in it.
 
 ### The grouped menu
 
@@ -126,12 +128,18 @@ time and tokens, Open in terminal, and Resume session or Watch the session. Unde
 Plan, Wrapup, Notes, Description, Time and Deviations, with counts where a count means something
 (steps, notes, deviations) and an amber one on Plan while a step waits for review.
 
-**Plan** is two zones. The left is the step list with the seals, a summary line with the plan tube,
-Hide done, Review next, and the drafts under their own heading with Promote; a new step is a
-draft. The right is the **decision panel** of the selected step: for a claimed step the claim, its
-check results, Accept and Send back, and Up next to review; for a running one the Watch the session
-key; for an open one Give to a session; for a draft Promote. Nothing but a person marks a step
-done, and Claude moves a step only up to claimed. Wrapup shows the state text with its author and
+**Plan** is two zones. The left is the step list: a row is the step's seal, its number, its title
+and when it last moved, and its hover keys (Accept or Done, New session, To draft, move, delete).
+Above it sit the plan tube, a line that says who has to act, List or Flow when the steps have
+routes, Hide done, Review next and Accept all once only claims are left; under it the drafts with
+Promote, the adherence and branch panels, and the line that adds a draft (a new step is a draft).
+The right is the **decision panel** of the selected step, which opens on the first claim waiting
+for a decision: the step's state, what a person can do about it (Accept and Send back on a claim,
+Mark done myself and the session key on an open or running one, Reopen on a done one), its check
+results, commits, sealed passes, skills, checks and detail, and Up next to review. A task handed in
+whole shows its own decision, Accept task or Send back, in the same place. Nothing but a person
+marks a step done, and Claude moves a step only up to claimed. The panel and the list share the
+step editor, so a title or detail typed in the panel is saved as it was in the old checklist. Wrapup shows the state text with its author and
 age. Notes is a list beside a markdown reader and editor. Description keeps review and rewrite.
 Time shows tracked time, sessions and tokens. Deviations lists them by step.
 

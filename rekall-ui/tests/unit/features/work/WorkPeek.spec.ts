@@ -171,16 +171,15 @@ describe('the row peek', () => {
     expect(reviewTask).toHaveBeenCalledWith('PR-2', 'OPEN')
   })
 
-  it('opens the task in the console from its peek', async () => {
-    const { store } = seed()
+  it('opens the task as a page from its peek', async () => {
+    seed()
     const push = vi.spyOn(router, 'push').mockResolvedValue(undefined)
     const wrapper = await mountWork()
     await rowOf(wrapper, 'Plan the launch').trigger('click')
 
     await wrapper.get('[data-testid="peek-open-task"]').trigger('click')
 
-    expect(store.selectedTaskId).toBe('PR-1')
-    expect(push).toHaveBeenCalledWith({ name: 'console' })
+    expect(push).toHaveBeenCalledWith({ name: 'task', params: { id: 'PR-1', tab: 'plan' } })
   })
 
   it('shows what runs and what is next when nothing is claimed', async () => {
