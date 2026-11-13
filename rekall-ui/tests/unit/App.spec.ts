@@ -6,9 +6,6 @@ import { router } from '@/router'
 import { useConsoleStore } from '@/stores/console.store'
 import { useWorkStore } from '@/features/work/store/work.store'
 import { mountWithHeaderChrome } from './support/mountWithHeaderChrome'
-import { useChatDockStore } from '@/features/chat/store/chatDock.store'
-import { useTerminalStore } from '@/features/claude/store/terminal.store'
-import { chatSession } from './features/chat/support'
 import type { Company, Project, Task } from '@/features/catalog/model/catalog'
 import type { RekallDocument } from '@/features/notes/model/document'
 import type { TaskStep } from '@/features/steps/model/task-step'
@@ -335,10 +332,6 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-function chatSessionOn(taskId: TaskId) {
-  return chatSession({ taskId })
-}
-
 async function mountConsole(path = '/console') {
   setActivePinia(createPinia())
   await router.push(path)
@@ -352,15 +345,6 @@ async function mountConsole(path = '/console') {
 }
 
 const mountWork = (): ReturnType<typeof mountConsole> => mountConsole('/')
-
-/** Waits for the URL to carry the task: the console's first location write may still be in flight and would undo an earlier pick. */
-async function openTaskTitled(title: string): Promise<void> {
-  const store = useConsoleStore()
-  const picked = store.tasks.find((candidate) => candidate.title === title)!
-  store.selectTask(picked.id)
-  await vi.waitFor(() => expect(router.currentRoute.value.query.task).toBe(picked.id))
-  await flushPromises()
-}
 
 describe('the console', () => {
   beforeEach(() => {
@@ -376,53 +360,12 @@ describe('the console', () => {
     document.body.innerHTML = ''
   })
 
-  it('opens on the resume screen rather than an empty page', async () => {
-    const wrapper = await mountConsole()
-
-    expect(wrapper.text()).toContain('Continue writing')
-    expect(wrapper.findAll('[data-testid="resume-row"]')).toHaveLength(1)
-  })
-
   it('renders the Work screen with the project scope above the ledger', async () => {
     const wrapper = await mountWork()
 
     expect(wrapper.find('[data-testid="anchor-trigger"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="work-page"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('All work')
-  })
-
-  it('walks from a task to its notes to the editor', async () => {
-    const wrapper = await mountConsole()
-
-    await openTaskTitled('Report builder')
-    await flushPromises()
-
-    expect(wrapper.findAll('[data-testid="note-card"]')).toHaveLength(1)
-    expect(wrapper.text()).toContain('kmaster14.md')
-    // The anchor is on screen and is the string you would paste after /rk.
-    expect(wrapper.text()).toContain('task:PR-1')
-  })
-
-  it('adds information to the task in view on N', async () => {
-    const wrapper = await mountConsole()
-    await openTaskTitled('Retry policy')
-    await flushPromises()
-
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'n' }))
-    await flushPromises()
-
-    expect(createDocument).toHaveBeenCalledWith(expect.objectContaining({ kind: 'notes', taskId: retry }))
-    wrapper.unmount()
-  })
-
-  it('sets a task status from the number keys, with no form and no save', async () => {
-    await mountConsole()
-
-    await openTaskTitled('Report builder')
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: '4' }))
-    await flushPromises()
-
-    expect(updateTask).toHaveBeenCalledWith(validator, expect.objectContaining({ status: 'DONE' }))
   })
 
   /**
@@ -486,67 +429,6 @@ describe('the console', () => {
     expect(updateTask).not.toHaveBeenCalled()
   })
 
-  /**
-   * Copy and paste belong to the browser. Cmd/Ctrl+K is the one deliberate chord; every other
-   * shortcut is a bare key, so a modified key must pass straight through without preventDefault.
-   */
-  it('leaves a Cmd or Ctrl chord alone so copy and paste work inside the app', async () => {
-    await mountConsole()
-    await openTaskTitled('Report builder')
-    await flushPromises()
-
-    const copy = new KeyboardEvent('keydown', { key: 'c', metaKey: true, cancelable: true })
-    window.dispatchEvent(copy)
-    const paste = new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, cancelable: true })
-    window.dispatchEvent(paste)
-    await flushPromises()
-
-    expect(copy.defaultPrevented).toBe(false)
-    expect(paste.defaultPrevented).toBe(false)
-    // The chord did nothing: the pane is still the note, not the terminal.
-    expect(useConsoleStore().paneFocus).toBe('note')
-  })
-
-  /** The bare key it shares a letter with still works. */
-  it('toggles the terminal pane on a bare C', async () => {
-    await mountConsole()
-    await openTaskTitled('Report builder')
-    await flushPromises()
-
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }))
-    // The terminal pane is an async component: its chunk has to land before the test moves on,
-    // or the patch that mounts it lands after a later test has wiped the DOM out from under it.
-    await vi.dynamicImportSettled()
-    await flushPromises()
-
-    expect(useConsoleStore().paneFocus).toBe('terminal')
-  })
-
-  /** With a chat session in play the key belongs to the chat window; the terminal pane stays shut. */
-  it('shows and hides the chat window on a bare C when the task has a chat session', async () => {
-    vi.stubGlobal('EventSource', class { addEventListener(): void {} close(): void {} })
-    const wrapper = await mountConsole()
-    await openTaskTitled('Report builder')
-    await flushPromises()
-    const dock = useChatDockStore()
-    dock.hide()
-    useTerminalStore().upsert(chatSessionOn(useConsoleStore().selectedTaskId!))
-
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }))
-    await vi.dynamicImportSettled()
-    await flushPromises()
-
-    expect(dock.hidden).toBe(false)
-    expect(useConsoleStore().paneFocus).toBe('note')
-    expect(wrapper.find('[data-testid="chat-window"]').exists()).toBe(true)
-
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }))
-    await flushPromises()
-
-    expect(dock.hidden).toBe(true)
-    expect(wrapper.find('[data-testid="chat-window"]').exists()).toBe(false)
-  })
-
   // Clicked rather than pressed: earlier tests leave their consoles mounted, and a window-level Q
   // would open a queue panel in every one of them and hold the modal gate for the rest of the file.
   it('carries the run queue beacon in the top bar, which opens the queue', async () => {
@@ -557,23 +439,6 @@ describe('the console', () => {
 
     expect(document.body.querySelector('[data-testid="run-queue-panel"]')).not.toBeNull()
     wrapper.unmount()
-  })
-
-  /** The anchor on the terminal pane is a copy chip, like the one on the description and steps panes. */
-  it('carries a copyable anchor chip on the terminal pane', async () => {
-    const wrapper = await mountConsole()
-    await openTaskTitled('Report builder')
-
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }))
-    // The terminal pane is an async component: its chunk has to land before it renders.
-    await vi.dynamicImportSettled()
-    await flushPromises()
-
-    const chip = wrapper.find('[data-testid="copy-terminal-anchor"]')
-    expect(chip.exists()).toBe(true)
-    expect(chip.element.tagName).toBe('BUTTON')
-    expect(chip.text()).not.toContain('copy')
-    expect(chip.find('[data-testid="copy-glyph"]').attributes('data-copied')).toBe('false')
   })
 
   describe('creating, editing and deleting a record', () => {
@@ -656,9 +521,8 @@ describe('the console', () => {
     })
 
     it('opens the selected task for editing on E, with its values loaded', async () => {
-      const wrapper = await mountConsole()
+      const wrapper = await mountConsole(`/task/${validator}`)
 
-      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }))
       await flushPromises()
 
@@ -669,9 +533,8 @@ describe('the console', () => {
 
     /** The description has its own pane; the popup neither shows it nor loses it on save. */
     it('edits a task without a description field and saves the description it already has', async () => {
-      const wrapper = await mountConsole()
+      const wrapper = await mountConsole(`/task/${retry}`)
 
-      await openTaskTitled('Retry policy')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }))
       await flushPromises()
       await wrapper.find('[data-testid="record-save"]').trigger('click')
@@ -702,9 +565,8 @@ describe('the console', () => {
 
     /** The same field that decides where a task lands is what moves it afterwards. */
     it('moves a task to another project, and gives it that project’s next code', async () => {
-      const wrapper = await mountConsole()
+      const wrapper = await mountConsole(`/task/${validator}`)
 
-      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }))
       await flushPromises()
 
@@ -728,9 +590,8 @@ describe('the console', () => {
 
     /** Nothing is deleted without the number of things going with it on screen first. */
     it('states the blast radius before deleting, and deletes once confirmed', async () => {
-      const wrapper = await mountConsole()
+      const wrapper = await mountConsole(`/task/${validator}`)
 
-      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }))
       await flushPromises()
 
@@ -759,440 +620,6 @@ describe('the console', () => {
 
       expect(createTask).not.toHaveBeenCalled()
       expect(wrapper.find('[data-testid="record-dialog"]').exists()).toBe(true)
-    })
-  })
-
-  /**
-   * The wrapup is the answer to the question you arrive with — what is this now — so it sits
-   * above the notes rather than among them, and it has a pane of its own because none of the
-   * note editor's controls mean anything for it.
-   */
-  describe('the wrapup', () => {
-    it('pins the wrapup above the notes of the task in view', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Report builder')
-      await flushPromises()
-
-      const card = wrapper.find('[data-testid="wrapup-card"]')
-      expect(card.exists()).toBe(true)
-      expect(card.text()).toContain('Wrapup')
-      expect(card.text()).toContain('Claude')
-      // It is not one of the notes, and the notes list is unchanged by its presence.
-      expect(wrapper.findAll('[data-testid="note-card"]')).toHaveLength(1)
-    })
-
-    it('opens it on W, and says whose words are on screen', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Report builder')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('Written by')
-      expect(wrapper.text()).toContain('Claude')
-      expect(wrapper.text()).toContain('Il builder gira su POST /api/v1/pipelines')
-      // The note editor's controls are absent rather than disabled: a wrapup has no kind and
-      // no second task it could belong to.
-      expect(wrapper.find('[data-testid="assign-open"]').exists()).toBe(false)
-      // Only one way to copy the anchor once a wrapup exists: the header button, not a second
-      // one duplicating it next to the metadata.
-      expect(wrapper.find('[data-testid="copy-wrapup-anchor"]').attributes('aria-label'))
-        .toBe('Copy /rk task:PR-1')
-      expect(wrapper.find('[data-testid="copy-wrapup-command"]').exists()).toBe(false)
-    })
-
-    /**
-     * The note whose timestamp is newer than the wrapup is the cheap half of "this may be out
-     * of date", and it is reported as a fact rather than as an alarm.
-     */
-    it('says how many notes were written after it', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Report builder')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('1 note is newer than this')
-    })
-
-    /**
-     * The primary way a wrapup gets written is Claude, pasting the anchor the header already
-     * offers plus `wrapup`; the empty state points there instead of duplicating that button.
-     */
-    it('points to the anchor for a task that has none, and offers a way to write it by hand', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Retry policy')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('Nobody has said what this is yet')
-      expect(wrapper.find('[data-testid="copy-wrapup-anchor"]').attributes('aria-label'))
-        .toBe('Copy /rk task:PR-2')
-      expect(wrapper.find('[data-testid="copy-wrapup-command"]').exists()).toBe(false)
-
-      await wrapper.find('[data-testid="write-wrapup-by-hand"]').trigger('click')
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('Describe the state, not the session')
-    })
-
-    /** The key that took you there takes you back, the same way B works. */
-    it('toggles back to the note on a second W', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Report builder')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
-      await flushPromises()
-      expect(wrapper.text()).toContain('Written by')
-
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
-      await flushPromises()
-
-      expect(wrapper.text()).not.toContain('Written by')
-      expect(wrapper.text()).toContain('kmaster14.md')
-    })
-
-    /**
-     * Autosave replaces the wrapup in the store with an equal but distinct object. Reacting to
-     * the object rather than to its identity would reload the editor and flip it back to
-     * reading in the middle of a sentence.
-     */
-    it('stays in the editor when the autosave comes back', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Report builder')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
-      await flushPromises()
-
-      const writeTab = () => wrapper.findAll('button').find((button) => button.text() === 'write')!
-      await writeTab().trigger('click')
-      expect(writeTab().attributes('aria-pressed')).toBe('true')
-
-      await useConsoleStore().saveWrapupBody(validator, 'Riscritto a mano.')
-      await flushPromises()
-
-      expect(writeTab().attributes('aria-pressed')).toBe('true')
-    })
-
-    /**
-     * The confirmation has no field to hold focus, so nothing used to stop a key from reaching
-     * the console underneath: W switched the pane behind the dialog and took the dialog with it.
-     */
-    it('makes the shortcuts inert while it is asking whether to delete', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Report builder')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
-      await flushPromises()
-      await wrapper.findAll('button').find((button) => button.text() === 'Delete')!.trigger('click')
-      await flushPromises()
-
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('The task and its notes stay')
-
-      // Dismissed rather than left standing: the gate is app-wide, so a dialog this test walks
-      // away from would make every shortcut in every later test inert.
-      await wrapper.findAll('button').find((button) => button.text() === 'Keep it')!.trigger('click')
-      await flushPromises()
-
-      expect(wrapper.text()).not.toContain('The task and its notes stay')
-      expect(deleteWrapup).not.toHaveBeenCalled()
-    })
-
-    it('states what deleting a wrapup does and does not take with it', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Report builder')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
-      await flushPromises()
-
-      await wrapper.findAll('button').find((button) => button.text() === 'Delete')!.trigger('click')
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('The task and its notes stay')
-      expect(deleteWrapup).not.toHaveBeenCalled()
-
-      await wrapper
-        .findAll('button')
-        .find((button) => button.text() === 'Delete wrapup')!
-        .trigger('click')
-      await flushPromises()
-
-      expect(deleteWrapup).toHaveBeenCalledWith(validator)
-    })
-  })
-
-  /**
-   * The description is the brief the work is measured against, so it is a markdown document with
-   * a pane of its own rather than a line under the title. It used to be typed into the create
-   * dialog and then be readable nowhere.
-   */
-  describe('the description', () => {
-    it('pins it between the timer and the wrapup of the task in view', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Retry policy')
-      await flushPromises()
-
-      const card = wrapper.find('[data-testid="description-card"]')
-      expect(card.exists()).toBe(true)
-      expect(card.text()).toContain('Description')
-      expect(card.text()).toContain('Ritenta solo gli errori 5xx')
-
-      const html = wrapper.html()
-      expect(html.indexOf('data-testid="description-card"')).toBeLessThan(
-        html.indexOf('data-testid="wrapup-card"')
-      )
-    })
-
-    it('opens the whole pane on D, in markdown', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Retry policy')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('Ritenta solo gli errori 5xx')
-      expect(wrapper.find('[data-testid="copy-description-anchor"]').exists()).toBe(true)
-      // Its own pane, not the note editor with another title on it.
-      expect(wrapper.find('[data-testid="assign-open"]').exists()).toBe(false)
-    })
-
-    /** A task nobody has described has one thing to do, so the editor is already open. */
-    it('opens the editor straight away on a task nobody has described', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Report builder')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
-      await flushPromises()
-
-      expect(wrapper.find('[data-testid="write-description"]').exists()).toBe(false)
-      expect(wrapper.text()).not.toContain('Nothing says what this task is')
-      expect(wrapper.find('[data-testid="description-actions"] [data-testid="description-mode-write"]').exists()).toBe(true)
-      expect(wrapper.find('[data-testid="description-actions"] [aria-label="Mode"]').classes()).not.toContain('invisible')
-    })
-
-    /** With a description on the task, the pane opens on it in read mode, without a page in between. */
-    it('reads the description back on a task that has one', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Retry policy')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
-      await flushPromises()
-
-      expect(wrapper.find('[data-testid="copy-description-anchor"]').exists()).toBe(true)
-      expect(wrapper.text()).toContain('Ritenta solo gli errori 5xx')
-      expect(wrapper.text()).not.toContain('Nothing says what this task is')
-    })
-
-    /** The key that took you there takes you back, the same way W and B work. */
-    it('toggles back to the note on a second D', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Retry policy')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
-      await flushPromises()
-      expect(wrapper.find('[data-testid="copy-description-anchor"]').exists()).toBe(true)
-
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
-      await flushPromises()
-
-      expect(wrapper.find('[data-testid="copy-description-anchor"]').exists()).toBe(false)
-      expect(wrapper.text()).toContain('kmaster14.md')
-    })
-
-    it('toggles the description between read and write on R', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Retry policy')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
-      await flushPromises()
-
-      const mode = () => wrapper.findAll('[aria-label="Mode"] button')
-      expect(mode()[1]!.attributes('aria-pressed')).toBe('true') // opens on read
-
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }))
-      await flushPromises()
-      expect(mode()[0]!.attributes('aria-pressed')).toBe('true')
-
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }))
-      await flushPromises()
-      expect(mode()[1]!.attributes('aria-pressed')).toBe('true')
-    })
-  })
-
-  describe('the note editor', () => {
-    it('toggles a note between write and read on R', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Report builder')
-      await flushPromises()
-
-      const mode = () => wrapper.findAll('[aria-label="Mode"] button')
-      expect(mode()[0]!.attributes('aria-pressed')).toBe('true') // opens on write
-
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }))
-      await flushPromises()
-      expect(mode()[1]!.attributes('aria-pressed')).toBe('true')
-    })
-  })
-
-  describe('the checklist', () => {
-    /** The cue to run `/rk … wrapup` by hand: work finished that the wrapup cannot mention. */
-    it('says on the wrapup card how many steps closed since it was written', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Report builder')
-      await flushPromises()
-
-      expect(wrapper.find('[data-testid="wrapup-misses-steps"]').text()).toBe(
-        '1 step done since this was written'
-      )
-    })
-
-    it('pins how much is left above the notes, and names what is next', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Report builder')
-      await flushPromises()
-
-      const card = wrapper.find('[data-testid="steps-card"]')
-      expect(card.exists()).toBe(true)
-      expect(card.find('[data-testid="steps-progress"]').text()).toBe('1/2')
-      // The number says how much is left, the title says what it is.
-      expect(card.text()).toContain('Next: Write the tests')
-    })
-
-    /**
-     * The whole point of the pane, and the reason the detail is not in the description: an open
-     * step carries what it has to do, a done one is a line.
-     */
-    it('opens on S, with the open step in full and the done one struck through', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Report builder')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
-      await flushPromises()
-
-      expect(wrapper.find('[data-testid="steps-count"]').text()).toBe('1/2')
-      expect(wrapper.findAll('[data-testid="step-row"]')).toHaveLength(2)
-      expect(wrapper.text()).toContain('Write the tests')
-      expect(wrapper.text()).toContain('Aggregate the rows')
-    })
-
-    /** A box is ticked in one click, with no dialog and no save button between. */
-    it('ticks a step where it stands', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Report builder')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
-      await flushPromises()
-
-      await wrapper.findAll('[data-testid="step-checkbox"]')[1]!.trigger('click')
-      await flushPromises()
-
-      expect(patchStep).toHaveBeenCalledWith('s2', { done: true })
-      await vi.waitFor(() => expect(useConsoleStore().openStepCount).toBe(0))
-      await flushPromises()
-      // Nothing is left open, so the pane stops showing a detail rather than the last one.
-      expect(wrapper.find('[data-testid="step-detail"]').exists()).toBe(false)
-    })
-
-    /**
-     * The reviewer's complaint the pane was built around: a done box that reopened on the next
-     * click. The node no longer walks a step backwards, so clicking a done one does nothing.
-     */
-    it('does nothing when the box of a done step is clicked', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Report builder')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
-      await flushPromises()
-
-      await wrapper.findAll('[data-testid="step-checkbox"]')[0]!.trigger('click')
-      await flushPromises()
-
-      expect(patchStep).not.toHaveBeenCalled()
-    })
-
-    /** Reopening an accepted step is deliberate: its own button, in its detail, armed before it fires. */
-    it('reopens a done step only after the reopen button is confirmed', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Report builder')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
-      await flushPromises()
-
-      await wrapper.findAll('[data-testid="step-title"]')[0]!.trigger('click')
-      await flushPromises()
-
-      const reopen = wrapper.find('[data-testid="step-reopen"]')
-      expect(reopen.exists()).toBe(true)
-
-      await reopen.trigger('click')
-      await flushPromises()
-      expect(patchStep).not.toHaveBeenCalled()
-      expect(wrapper.find('[data-testid="step-reopen"]').text()).toContain('Confirm')
-
-      await wrapper.find('[data-testid="step-reopen"]').trigger('click')
-      await flushPromises()
-      expect(patchStep).toHaveBeenCalledWith('s1', { done: false })
-    })
-
-    /**
-     * The pane opens on the work rather than on the list: the first open step is expanded, with
-     * its detail rendered as markdown, because that is what you came here to read.
-     */
-    it('opens on the next step with its detail rendered', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Report builder')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
-      await flushPromises()
-
-      const detail = wrapper.find('[data-testid="step-detail"]')
-      expect(detail.exists()).toBe(true)
-      expect(detail.text()).toContain('settimana vuota')
-      // Markdown, not a textarea of it: the same surface the description and the notes use.
-      expect(wrapper.find('[data-testid="step-detail-read"]').exists()).toBe(true)
-      expect(wrapper.find('[data-testid="step-detail-field"]').exists()).toBe(false)
-    })
-
-    /** The detail is written where it is read, in markdown, and the toggle is the pane's own. */
-    it('switches the detail to the markdown editor on write', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Report builder')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
-      await flushPromises()
-
-      await wrapper.find('[data-testid="step-detail-write"]').trigger('click')
-      await flushPromises()
-
-      expect(wrapper.find('[data-testid="step-detail-field"]').exists()).toBe(true)
-      expect(
-        (wrapper.find('[data-testid="step-title-field"]').element as HTMLInputElement).value
-      ).toBe('Write the tests')
-    })
-
-    /** The key that took you there takes you back, the same way W and D do. */
-    it('toggles back to the note on a second S', async () => {
-      const wrapper = await mountConsole()
-
-      await openTaskTitled('Report builder')
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
-      await flushPromises()
-      expect(wrapper.find('[data-testid="new-step"]').exists()).toBe(true)
-
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
-      await flushPromises()
-
-      expect(wrapper.find('[data-testid="new-step"]').exists()).toBe(false)
-      expect(wrapper.text()).toContain('kmaster14.md')
     })
   })
 })

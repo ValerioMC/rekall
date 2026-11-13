@@ -433,14 +433,6 @@ describe('console store', () => {
     })
   })
 
-  it('offers the most recently written notes first', () => {
-    expect(store.recentDocuments.map((document) => document.title)).toEqual([
-      'kmaster14.md',
-      'CONTEXT.md',
-      'onboarding.md'
-    ])
-  })
-
   it('keeps the selection when the new scope still contains it', () => {
     store.selectTask(validator)
     store.setScope(acme)
@@ -485,18 +477,6 @@ describe('console store', () => {
       expect(store.paneFocus).toBe('wrapup')
 
       store.selectTask(retry)
-      expect(store.paneFocus).toBe('note')
-    })
-
-    /** What the keyboard does. A one-way door would need a second key to undo it. */
-    it('toggles the pane, and does nothing at all with no task in view', () => {
-      store.toggleWrapup()
-      expect(store.paneFocus).toBe('note')
-
-      store.selectTask(validator)
-      store.toggleWrapup()
-      expect(store.paneFocus).toBe('wrapup')
-      store.toggleWrapup()
       expect(store.paneFocus).toBe('note')
     })
 
@@ -718,19 +698,6 @@ describe('console store', () => {
       expect(store.tasks.find((task) => task.id === validator)?.description).toBeNull()
     })
 
-    /** The pane it is written in is reached and left on one key, like the wrapup's. */
-    it('opens and closes its pane without touching the note in view', async () => {
-      store.selectTask(validator)
-      expect(store.paneFocus).toBe('note')
-
-      store.toggleDescription()
-      expect(store.paneFocus).toBe('description')
-
-      store.toggleDescription()
-      expect(store.paneFocus).toBe('note')
-      expect(store.selectedDocId).toBe('d1')
-    })
-
     /** Autosave fires on a pause, not on a change, so it lands on text that is already saved. */
     it('sends nothing when the text is what is already stored', async () => {
       await store.saveTaskDescription(validator, '')
@@ -867,19 +834,6 @@ describe('console store', () => {
       expect(store.selectedTaskSteps.map((step) => step.title)).toEqual(['Write the tests'])
       const task = store.tasks.find((candidate) => candidate.id === validator)!
       expect([task.stepCount, task.stepsDone]).toEqual([1, 0])
-    })
-
-    /** Four surfaces, and the key that took you to one takes you back, the way W and D do. */
-    it('toggles its pane, and does nothing at all with no task in view', () => {
-      store.selectedTaskId = null
-      store.toggleSteps()
-      expect(store.paneFocus).toBe('note')
-
-      store.selectTask(validator)
-      store.toggleSteps()
-      expect(store.paneFocus).toBe('steps')
-      store.toggleSteps()
-      expect(store.paneFocus).toBe('note')
     })
 
     /**

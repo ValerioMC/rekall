@@ -64,9 +64,10 @@ in the build by the terminal, session, run queue and usage stores. A number the 
 The routes that exist today keep their paths: the redesign changes what a screen shows, not where it
 lives. `/` is the Work ledger instead of the three-column console, and `/review` and `/settings`
 are new. A ledger row, a card and the sheet open the task page at `/task/:id/plan`; a note in view
-is part of the path (`/task/:id/notes/:noteId`). The old two-pane console lives at `/console` until
-the session dock is rebuilt: Open in terminal, the dock and a deep link to a terminal still show the
-terminal in it.
+is part of the path (`/task/:id/notes/:noteId`). `/console` is the terminal host and nothing else: Open in terminal, the dock and a deep link to a
+terminal show the session there, and a visit with no terminal open goes on to the task page of the task
+in view, or to Work. The notes list, the steps, wrapup, description and deviation panes of the old
+console are gone; their tabs are on the task page.
 
 ### The grouped menu
 

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import { defineComponent } from 'vue'
 import SubNav from '@/components/ui/SubNav.vue'
 
 const ITEMS = [
@@ -36,7 +35,7 @@ describe('SubNav', () => {
   })
 
   it('renders an item with a route as a link', async () => {
-    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: defineComponent({ template: '<div />' }) }, { path: '/plan', component: defineComponent({ template: '<div />' }) }] })
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { render: () => null } }, { path: '/plan', component: { render: () => null } }] })
     await router.push('/')
     const wrapper = mount(SubNav, {
       props: { items: [{ id: 'plan', label: 'Plan', to: '/plan' }], label: 'Task', modelValue: 'plan' },

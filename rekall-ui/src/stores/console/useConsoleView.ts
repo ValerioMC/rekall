@@ -8,7 +8,7 @@ const byTitle = (a: { readonly title: string }, b: { readonly title: string }): 
 
 /** The rows inside the company or project in scope; `visibleTasks` lists them by title. */
 export function useConsoleView(state: ConsoleState) {
-  const { companies, projects, tasks, documents, scopeCompany, scopeProject, hideQuickTasks } = state
+  const { companies, projects, tasks, scopeCompany, scopeProject, hideQuickTasks } = state
 
   const projectInScope = (project: Project): boolean =>
     (scopeCompany.value === null || project.companyId === scopeCompany.value) &&
@@ -44,10 +44,6 @@ export function useConsoleView(state: ConsoleState) {
     () => projects.value.find((project) => project.id === scopeProject.value) ?? null
   )
 
-  const recentDocuments = computed(() =>
-    [...documents.value].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 4)
-  )
-
   const scopedProjects = computed(() => projects.value.filter(projectInScope))
 
   const scopePath = computed<string[]>(() => {
@@ -69,7 +65,6 @@ export function useConsoleView(state: ConsoleState) {
     scopedCompany,
     scopedProject,
     scopedProjects,
-    recentDocuments,
     scopePath,
     scopeAnchor
   }

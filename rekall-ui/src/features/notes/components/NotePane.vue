@@ -7,7 +7,6 @@ import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
-import ConsoleHome from '@/components/console/ConsoleHome.vue'
 import NoteContextModeSwitch from '@/features/notes/components/NoteContextModeSwitch.vue'
 import NoteDeleteConfirm from '@/features/notes/components/NoteDeleteConfirm.vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -99,7 +98,9 @@ async function confirmDelete(): Promise<void> {
 
 <template>
   <section class="flex min-h-0 min-w-0 flex-1 flex-col bg-canvas" aria-label="Note">
-    <ConsoleHome v-if="!selectedDocument" />
+    <div v-if="!selectedDocument" class="grid flex-1 place-items-center px-6 text-center" data-testid="note-empty">
+      <p class="max-w-[40ch] text-body text-text-muted">No note on this task yet. Add information from the list on the left.</p>
+    </div>
 
     <template v-else>
       <header class="texture-dots flex shrink-0 items-start gap-3.5 border-b border-border px-5 py-3.5">

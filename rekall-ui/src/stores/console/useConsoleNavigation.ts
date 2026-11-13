@@ -2,7 +2,6 @@ import { computed } from 'vue'
 import type { CompanyId, DocumentId, ProjectId, TaskId, TaskStepId } from '@/model/branded'
 import type { ConsoleLocation, PaneFocus } from '@/model/console-location'
 import { isEpic } from '@/features/catalog/model/catalog'
-import type { ReviewItem } from '@/features/catalog/model/review'
 import type { SearchHit } from '@/features/search/model/search'
 import type { ConsoleState } from './console-state'
 import type { useConsoleView } from './useConsoleView'
@@ -100,11 +99,6 @@ export function useConsoleNavigation(
     if (paneFocus.value === 'deviation') paneFocus.value = 'note'
   }
 
-  function togglePane(pane: TaskPane): void {
-    if (selectedTaskId.value === null) return
-    paneFocus.value = paneFocus.value === pane ? 'note' : pane
-  }
-
   /** Brings a task into view on its steps pane, with one step open. */
   function openStep(taskId: TaskId, stepId: TaskStepId): void {
     if (selectedTaskId.value !== taskId) selectTask(taskId)
@@ -114,16 +108,6 @@ export function useConsoleNavigation(
 
   function clearStepToOpen(): void {
     stepToOpen.value = null
-  }
-
-  /** Opens a review item where it is reviewed: the step, or the description's review bar. */
-  function openReviewItem(item: ReviewItem): void {
-    if (item.stepId) {
-      openStep(item.taskId, item.stepId)
-      return
-    }
-    selectTask(item.taskId)
-    paneFocus.value = 'description'
   }
 
   /** Opens whatever a search hit points at, on the pane that shows that text. */
@@ -149,18 +133,11 @@ export function useConsoleNavigation(
     showLocation,
     setScope,
     openWrapup: () => openPane('wrapup'),
-    openDescription: () => openPane('description'),
-    openSteps: () => openPane('steps'),
     openDeviation,
     closeDeviation,
     openTerminal: () => openPane('terminal'),
-    toggleDescription: () => togglePane('description'),
-    toggleWrapup: () => togglePane('wrapup'),
-    toggleSteps: () => togglePane('steps'),
-    toggleTerminal: () => togglePane('terminal'),
     openStep,
     clearStepToOpen,
-    openReviewItem,
     openSearchHit
   }
 }

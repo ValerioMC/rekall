@@ -58,7 +58,6 @@ export const useConsoleStore = defineStore('console', () => {
     scopeAnchor: view.scopeAnchor,
     scopedTasks: view.scopedTasks,
     visibleTasks: view.visibleTasks,
-    recentDocuments: view.recentDocuments,
     ...selected,
     ...navigation,
     load: refreshes.load,

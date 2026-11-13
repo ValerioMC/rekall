@@ -3,7 +3,6 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
 import type { RekallDocument } from '@/features/notes/model/document'
 import type { SearchHit } from '@/features/search/model/search'
-import type { ReviewItem } from '@/features/catalog/model/review'
 import type { DocumentId, TaskId, TaskStepId } from '@/model/branded'
 import { taskFixture } from './support/taskFixture'
 
@@ -68,24 +67,6 @@ describe('opening from search and from the review queue', () => {
     expect(store.selectedDocId).toBe(note.id)
     expect(store.selectedTaskId).toBe(retry)
     expect(store.paneFocus).toBe('note')
-  })
-
-  it('a claimed step opens on its steps pane, a stepless task on its description and review bar', () => {
-    const item = (stepId: TaskStepId | null): ReviewItem => ({
-      key: stepId ?? report,
-      taskId: report,
-      stepId,
-      taskTitle: 'Report builder',
-      stepTitle: stepId ? 'Wire it' : null,
-      anchor: 'project:vega task:t1',
-      claimedAt: null
-    })
-
-    store.openReviewItem(item('s1' as TaskStepId))
-    expect([store.paneFocus, store.stepToOpen]).toEqual(['steps', 's1'])
-
-    store.openReviewItem(item(null))
-    expect(store.paneFocus).toBe('description')
   })
 })
 

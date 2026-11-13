@@ -76,14 +76,14 @@ describe('the console location in the history', () => {
     await openConsoleAt('/')
     store.selectTask(report)
     await settle()
-    store.openSteps()
+    store.openWrapup()
     await settle()
     store.selectTask(retry)
     await settle()
 
     router.back()
     await settle()
-    expect([store.selectedTaskId, store.paneFocus]).toEqual([report, 'steps'])
+    expect([store.selectedTaskId, store.paneFocus]).toEqual([report, 'wrapup'])
 
     router.back()
     await settle()
