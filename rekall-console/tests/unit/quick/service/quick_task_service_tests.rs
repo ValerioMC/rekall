@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
+use rekall_core::review::TaskReviewService;
 use rekall_core::claude::{SessionKind, TerminalEnded, TerminalHost, TerminalOpening, TerminalView};
 use rekall_core::worktree::{ScriptedWorktreeHost, TaskWorktreeService, WorktreeLayout};
 use rekall_core::{Ctx, EventBus, Services};
@@ -89,6 +90,7 @@ fn view_on(target: &TerminalTarget) -> TerminalView {
 struct World {
     service: QuickTaskService,
     tasks: TaskService,
+    review: TaskReviewService,
     host: Arc<FakeHost>,
     project_id: Id,
 }
@@ -118,7 +120,7 @@ async fn world(refuse_with: Option<&'static str>) -> World {
     let tasks = TaskService::new(ctx.clone(), services.review.clone(), services.time_entries.clone());
     let host = Arc::new(FakeHost { refuse_with, openings: Mutex::new(Vec::new()) });
     let service = QuickTaskService::new(ctx.clone(), tasks.clone(), TerminalService::new(host.clone(), TaskWorktreeService::new(ctx.clone(), Arc::new(ScriptedWorktreeHost::new()), WorktreeLayout::new(std::env::temp_dir().join("rekall-quick-worktrees")))));
-    World { service, tasks, host, project_id: project.id }
+    World { service, tasks, review: services.review.clone(), host, project_id: project.id }
 }
 
 fn command(project_id: Id, text: &str) -> QuickTaskCommand {
@@ -154,10 +156,21 @@ async fn a_blank_text_is_refused_and_nothing_is_created() {
 #[tokio::test]
 async fn a_second_quick_task_is_refused_while_the_first_is_still_being_worked() {
     let world = world(None).await;
-    world.service.create(command(world.project_id, "First change")).await.unwrap();
+    let first = world.service.create(command(world.project_id, "First change")).await.unwrap();
+    world.review.session_running(first.task.id, true).await.unwrap();
     let refusal = world.service.create(command(world.project_id, "Second change")).await.unwrap_err();
     assert!(matches!(refusal, RekallError::Conflict(_)), "{refusal}");
     assert_eq!(world.tasks.list(Some(world.project_id)).await.unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn a_quick_task_whose_session_ended_without_a_wrapup_does_not_block_the_next() {
+    let world = world(None).await;
+    let abandoned = world.service.create(command(world.project_id, "First change")).await.unwrap();
+    world.review.session_running(abandoned.task.id, true).await.unwrap();
+    world.review.session_running(abandoned.task.id, false).await.unwrap();
+    let next = world.service.create(command(world.project_id, "Second change")).await.unwrap();
+    assert!(next.task.quick);
 }
 
 #[tokio::test]

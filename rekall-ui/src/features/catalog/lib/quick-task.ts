@@ -7,14 +7,14 @@ export const QUICK_TASK_HELP =
 export const QUICK_TASK_BUSY_REASON =
   'A quick task is already being worked on this project. It can be started again once its wrapup is written.'
 
-/** Mirrors the server's limit: a quick task not yet claimed by a wrapup. */
+/** Mirrors the server's limit: a quick task with a session on it. One whose session ended is back to open and does not count. */
 export function activeQuickTask(tasks: readonly Task[], projectId: ProjectId): Task | null {
   return (
     tasks.find(
       (task) =>
         task.projectId === projectId &&
         task.quick &&
-        (task.reviewState === 'OPEN' || task.reviewState === 'RUNNING')
+        task.reviewState === 'RUNNING'
     ) ?? null
   )
 }

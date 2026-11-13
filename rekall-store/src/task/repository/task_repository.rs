@@ -121,12 +121,13 @@ pub async fn label_taken(db: &impl ConnectionTrait, project_id: Id, label: &str,
     Ok(query.one(db).await?.is_some())
 }
 
-/// Whether the project has a quick task that is still being worked: not yet claimed by a wrapup.
+/// Whether the project has a quick task with a session on it. One whose session ended without a
+/// wrapup is back to `OPEN` and does not count: nothing is working it.
 pub async fn active_quick_exists(db: &impl ConnectionTrait, project_id: Id) -> Result<bool, RekallError> {
     let found = Entity::find()
         .filter(Column::ProjectId.eq(project_id))
         .filter(Column::Quick.eq(true))
-        .filter(Column::ReviewState.is_in([TaskStepState::Open, TaskStepState::Running]))
+        .filter(Column::ReviewState.eq(TaskStepState::Running))
         .one(db)
         .await?;
     Ok(found.is_some())
