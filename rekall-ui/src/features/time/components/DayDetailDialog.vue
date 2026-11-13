@@ -49,9 +49,8 @@ const groups = computed<DayGroup[]>(() => {
 })
 
 function openTask(taskId: TaskId): void {
-  store.selectTask(taskId)
   emit('close')
-  if (router.currentRoute.value.name !== 'console') void router.push({ name: 'console' })
+  void router.push(`/task/${taskId}`)
 }
 
 onMounted(async () => {
