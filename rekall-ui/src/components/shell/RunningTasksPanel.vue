@@ -36,9 +36,8 @@ async function stop(taskId: TaskId): Promise<void> {
 }
 
 function jumpTo(taskId: TaskId): void {
-  store.selectTask(taskId)
   emit('close')
-  if (router.currentRoute.value.name !== 'console') void router.push({ name: 'console' })
+  void router.push(`/task/${taskId}`)
 }
 </script>
 

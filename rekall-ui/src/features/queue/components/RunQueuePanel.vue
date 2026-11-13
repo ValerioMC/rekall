@@ -9,6 +9,7 @@
  */
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppDialog from '@/components/ui/AppDialog.vue'
@@ -36,6 +37,7 @@ const emit = defineEmits<{ close: [] }>()
 
 const store = useRunQueueStore()
 const consoleStore = useConsoleStore()
+const router = useRouter()
 const terminals = useTerminalStore()
 const chat = useChatStore()
 const toast = useToastStore()
@@ -94,8 +96,8 @@ function clearSettled(): void {
 }
 
 function openTask(item: RunQueueItem): void {
-  consoleStore.selectTask(item.taskId)
   emit('close')
+  void router.push(`/task/${item.taskId}`)
 }
 
 async function watchSession(item: RunQueueItem): Promise<void> {
@@ -112,6 +114,7 @@ async function watchSession(item: RunQueueItem): Promise<void> {
   } else {
     if (terminal) terminals.select(terminal.id)
     consoleStore.openTerminal()
+    if (router.currentRoute.value.name !== 'console') void router.push({ name: 'console' })
   }
   emit('close')
 }

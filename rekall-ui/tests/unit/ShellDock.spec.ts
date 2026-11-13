@@ -337,14 +337,13 @@ describe('ShellDock', () => {
 
   describe('the running panel', () => {
     it('jumps to the task and closes', async () => {
-      const { wrapper, console } = await mountDock([], [running()])
+      const { wrapper } = await mountDock([], [running()])
 
       await wrapper.get('[data-testid="running-dock-toggle"]').trigger('click')
       await wrapper.get('[data-testid="running-dock-jump"]').trigger('click')
       await flushPromises()
 
-      expect(console.selectedTaskId).toBe(TASK)
-      expect(push).toHaveBeenCalledWith({ name: 'console' })
+      expect(push).toHaveBeenCalledWith(`/task/${TASK}`)
       expect(wrapper.find('[data-testid="dock-panel"]').exists()).toBe(false)
     })
 
