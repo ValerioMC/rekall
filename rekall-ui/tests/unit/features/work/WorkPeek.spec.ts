@@ -78,6 +78,16 @@ describe('the row peek', () => {
     expect(wrapper.find('[data-testid="work-peek"]').exists()).toBe(false)
   })
 
+  it('shows only the first lines of a long description when the task has no steps', async () => {
+    const { work } = seed([task('PR-3', { title: 'Write the guide', description: 'word '.repeat(400) })])
+    work.view = 'open'
+    const wrapper = await mountWork()
+
+    await rowOf(wrapper, 'Write the guide').trigger('click')
+
+    expect(wrapper.get('[data-testid="peek-description"]').classes()).toContain('line-clamp-3')
+  })
+
   it('keeps one peek open: opening another row closes the first', async () => {
     seed([task('PR-2', { title: 'Fix the login', reviewActive: true, reviewState: 'CLAIMED' })])
     const wrapper = await mountWork()

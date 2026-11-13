@@ -166,7 +166,7 @@ onUnmounted(() => settleTimers.forEach((timer) => window.clearTimeout(timer)))
         <span class="text-caption text-text-subtle">{{ step.state === 'RUNNING' ? 'working' : 'next' }}</span>
       </div>
     </template>
-    <p v-else class="border-t border-border py-2.5 text-small text-text-muted" data-testid="peek-description">
+    <p v-else class="line-clamp-3 border-t border-border py-2.5 text-small text-text-muted" data-testid="peek-description">
       {{ task.description || 'No description yet.' }}
     </p>
 
