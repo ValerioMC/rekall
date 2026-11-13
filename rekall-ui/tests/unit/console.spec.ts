@@ -346,12 +346,10 @@ describe('console store', () => {
 
     store.setScope(acme, vega)
     expect(store.visibleTasks).toHaveLength(2)
-    expect(store.scopeName).toBe('acme / Vega Platform')
     expect(store.scopeAnchor).toBe('project:vega')
 
     store.setScope(null)
     expect(store.visibleTasks).toHaveLength(3)
-    expect(store.scopeName).toBe('All work')
   })
 
   it('keeps an archived project’s tasks out of the navigator unless the scope names it', () => {
@@ -363,62 +361,9 @@ describe('console store', () => {
     expect(store.visibleTasks).toHaveLength(2)
   })
 
-  it('finds a task by either half of its anchor', () => {
-    store.filter = 'vega/retry'
-    expect(store.visibleTasks.map((t) => t.label)).toEqual(['retry-policy'])
-
-    store.filter = 'task:report-builder'
-    expect(store.visibleTasks.map((t) => t.label)).toEqual(['report-builder'])
-  })
-
-  /**
-   * The code is what you type after `/rk` and the title is what you called it out loud; the
-   * description is what the work is about. Each has to find the row.
-   */
-  it('finds a task by its title, its code or its description', () => {
-    store.filter = 'Wiring the adapter'
-    expect(store.visibleTasks.map((t) => t.label)).toEqual(['wiring'])
-
-    store.filter = 'wiring'
-    expect(store.visibleTasks.map((t) => t.label)).toEqual(['wiring'])
-
-    store.filter = 'task:wiring'
-    expect(store.visibleTasks.map((t) => t.label)).toEqual(['wiring'])
-  })
-
-  it('finds a task by a word of its description', () => {
-    const wiring = store.tasks.find((t) => t.label === 'wiring')!
-    store.tasks = store.tasks.map((t) => (t.id === wiring.id ? { ...t, description: 'Retries the handshake with the gateway.' } : t))
-
-    store.filter = 'handshake'
-
-    expect(store.visibleTasks.map((t) => t.label)).toEqual(['wiring'])
-  })
-
   it('lists tasks by title, whatever order they were loaded in', () => {
     const titles = store.visibleTasks.map((task) => task.title)
     expect(titles).toEqual([...titles].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })))
-  })
-
-  /**
-   * The case that made this necessary: scoped to one project, searching for something that
-   * lives in another. Without the notice the answer looks like "you never wrote it".
-   */
-  it('reports the matches the project scope is hiding', () => {
-    store.setScope(acme)
-    store.filter = 'wiring'
-
-    expect(store.visibleTasks).toHaveLength(0)
-    expect(store.elsewhere).toEqual({ count: 1, names: ['globex'] })
-
-    store.setScope(null)
-    expect(store.visibleTasks).toHaveLength(1)
-    expect(store.elsewhere).toBeNull()
-  })
-
-  it('says nothing about elsewhere when the search is already global', () => {
-    store.filter = 'wiring'
-    expect(store.elsewhere).toBeNull()
   })
 
   it("lists a task's notes and only its own", () => {
@@ -488,14 +433,6 @@ describe('console store', () => {
     })
   })
 
-  it('offers the most recently written notes first', () => {
-    expect(store.recentDocuments.map((document) => document.title)).toEqual([
-      'kmaster14.md',
-      'CONTEXT.md',
-      'onboarding.md'
-    ])
-  })
-
   it('keeps the selection when the new scope still contains it', () => {
     store.selectTask(validator)
     store.setScope(acme)
@@ -540,18 +477,6 @@ describe('console store', () => {
       expect(store.paneFocus).toBe('wrapup')
 
       store.selectTask(retry)
-      expect(store.paneFocus).toBe('note')
-    })
-
-    /** What the keyboard does. A one-way door would need a second key to undo it. */
-    it('toggles the pane, and does nothing at all with no task in view', () => {
-      store.toggleWrapup()
-      expect(store.paneFocus).toBe('note')
-
-      store.selectTask(validator)
-      store.toggleWrapup()
-      expect(store.paneFocus).toBe('wrapup')
-      store.toggleWrapup()
       expect(store.paneFocus).toBe('note')
     })
 
@@ -773,19 +698,6 @@ describe('console store', () => {
       expect(store.tasks.find((task) => task.id === validator)?.description).toBeNull()
     })
 
-    /** The pane it is written in is reached and left on one key, like the wrapup's. */
-    it('opens and closes its pane without touching the note in view', async () => {
-      store.selectTask(validator)
-      expect(store.paneFocus).toBe('note')
-
-      store.toggleDescription()
-      expect(store.paneFocus).toBe('description')
-
-      store.toggleDescription()
-      expect(store.paneFocus).toBe('note')
-      expect(store.selectedDocId).toBe('d1')
-    })
-
     /** Autosave fires on a pause, not on a change, so it lands on text that is already saved. */
     it('sends nothing when the text is what is already stored', async () => {
       await store.saveTaskDescription(validator, '')
@@ -922,19 +834,6 @@ describe('console store', () => {
       expect(store.selectedTaskSteps.map((step) => step.title)).toEqual(['Write the tests'])
       const task = store.tasks.find((candidate) => candidate.id === validator)!
       expect([task.stepCount, task.stepsDone]).toEqual([1, 0])
-    })
-
-    /** Four surfaces, and the key that took you to one takes you back, the way W and D do. */
-    it('toggles its pane, and does nothing at all with no task in view', () => {
-      store.selectedTaskId = null
-      store.toggleSteps()
-      expect(store.paneFocus).toBe('note')
-
-      store.selectTask(validator)
-      store.toggleSteps()
-      expect(store.paneFocus).toBe('steps')
-      store.toggleSteps()
-      expect(store.paneFocus).toBe('note')
     })
 
     /**

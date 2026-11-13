@@ -3,20 +3,25 @@ import { createRouter, createWebHistory } from 'vue-router'
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', name: 'console', component: () => import('@/App.vue') },
+    { path: '/', name: 'work', component: () => import('@/App.vue') },
+    { path: '/work', redirect: '/' },
+    { path: '/work/board', name: 'work-board', component: () => import('@/App.vue') },
+    { path: '/task/:id/:tab?/:noteId?', name: 'task', component: () => import('@/App.vue') },
+    { path: '/review/:key?', name: 'review', component: () => import('@/App.vue') },
+    { path: '/console', name: 'console', component: () => import('@/App.vue') },
     {
       path: '/projects',
       name: 'projects',
       component: () => import('@/features/catalog/components/ProjectListPage.vue')
     },
     {
-      path: '/projects/:id',
+      path: '/projects/:id/:tab?',
       name: 'project-detail',
       component: () => import('@/features/catalog/components/ProjectDetailPage.vue'),
       props: true
     },
     {
-      path: '/companies',
+      path: '/companies/:id?',
       name: 'companies',
       component: () => import('@/features/catalog/components/CompanyListPage.vue')
     },
@@ -48,6 +53,11 @@ export const router = createRouter({
       path: '/claude',
       name: 'claude',
       component: () => import('@/features/claude-resources/components/ClaudeResourcesPage.vue')
+    },
+    {
+      path: '/settings/:section?',
+      name: 'settings',
+      component: () => import('@/features/settings/components/SettingsPage.vue')
     },
     {
       path: '/calendar',

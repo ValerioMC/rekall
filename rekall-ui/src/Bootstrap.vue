@@ -6,6 +6,11 @@ import DatabaseUnreachable from '@/features/settings/components/DatabaseUnreacha
 import ShellDock from '@/components/shell/ShellDock.vue'
 import AppHeaderChrome from '@/components/shell/AppHeaderChrome.vue'
 import LeaveDialog from '@/components/shell/LeaveDialog.vue'
+import SendBackConfirm from '@/features/review/components/SendBackConfirm.vue'
+import { usePreferenceEffects } from '@/features/settings/composables/usePreferenceEffects'
+import CommandPalette from '@/features/search/components/CommandPalette.vue'
+import { usePaletteShortcut } from '@/features/search/composables/usePaletteShortcut'
+import { usePaletteStore } from '@/features/search/store/palette.store'
 import UpdateDialog from '@/components/shell/UpdateDialog.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
 import ChatReopenTag from '@/features/chat/components/ChatReopenTag.vue'
@@ -25,6 +30,7 @@ import type { DatabaseStatus } from '@/features/settings/model/settings'
 const ChatWindow = defineAsyncComponent(() => import('@/features/chat/components/ChatWindow.vue'))
 
 const store = useConsoleStore()
+const palette = usePaletteStore()
 const terminals = useTerminalStore()
 const update = useUpdateStore()
 const toast = useToastStore()
@@ -39,6 +45,8 @@ const onConsole = computed(() => route.name === 'console')
 const chatOverPage = computed(() => !onConsole.value && chatWindowShown.value)
 useChatDockArea(pageArea, false, () => !onConsole.value)
 useRevealOpenedChat()
+usePaletteShortcut()
+usePreferenceEffects()
 
 let refreshing = false
 
@@ -97,7 +105,9 @@ onUnmounted(() => {
           <ChatReopenTag v-if="!onConsole" />
         </div>
       </div>
-      <ShellDock v-if="!onConsole" placement="screen" />
+      <ShellDock />
+      <CommandPalette v-if="palette.isOpen" />
+      <SendBackConfirm />
       <UpdateDialog v-if="update.promptOpen" />
     </template>
     <FirstRunSetup v-else-if="status.status === 'SETUP_NEEDED'" />

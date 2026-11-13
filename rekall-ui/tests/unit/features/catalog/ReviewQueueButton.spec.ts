@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { mount } from '@vue/test-utils'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import ReviewQueueButton from '@/features/catalog/components/ReviewQueueButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Task } from '@/features/catalog/model/catalog'
@@ -62,6 +63,16 @@ const claimedStep: TaskStep = {
   updatedAt: '2026-09-22T09:00:00Z'
 }
 
+const stub = { template: '<div />' }
+
+function mountButton() {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/review/:key?', name: 'review', component: stub }]
+  })
+  return mount(ReviewQueueButton, { global: { plugins: [router] } })
+}
+
 describe('the Review button', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -72,28 +83,17 @@ describe('the Review button', () => {
     store.tasks = [report]
     store.steps = [{ ...claimedStep, state: 'RUNNING' }]
 
-    const wrapper = mount(ReviewQueueButton)
-
-    expect(wrapper.find('[data-testid="review-queue-open"]').exists()).toBe(false)
+    expect(mountButton().find('[data-testid="review-queue-open"]').exists()).toBe(false)
   })
 
-  it('counts what waits, lists it, and opens the one picked', async () => {
+  it('counts what waits and links to the Review screen', () => {
     const store = useConsoleStore()
     store.tasks = [report]
     store.steps = [claimedStep]
-    store.openReviewItem = vi.fn()
 
-    const wrapper = mount(ReviewQueueButton, { attachTo: document.body })
+    const wrapper = mountButton()
+
     expect(wrapper.find('[data-testid="review-queue-count"]').text()).toBe('1')
-
-    await wrapper.find('[data-testid="review-queue-open"]').trigger('click')
-    const row = wrapper.find('[data-testid="review-queue-item"]')
-    expect(row.text()).toContain('Wire the export')
-    expect(row.text()).toContain('Report builder')
-
-    await row.trigger('click')
-    expect(store.openReviewItem).toHaveBeenCalledWith(expect.objectContaining({ stepId: 's1', taskId: 't1' }))
-    expect(wrapper.find('[data-testid="review-queue"]').exists()).toBe(false)
-    wrapper.unmount()
+    expect(wrapper.get('[data-testid="review-queue-open"]').attributes('href')).toBe('/review')
   })
 })

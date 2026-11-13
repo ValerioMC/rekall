@@ -54,6 +54,24 @@
         ],
         "createdAt": "2026-11-13T13:09:41.374Z",
         "reason": "functional: hatched weekend bars on the time report mirror the existing report (assistant triage, not user confirmed)"
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "rekall-ui/src/components/console/AnchorBar.vue"
+        ],
+        "createdAt": "2026-11-13T18:32:47.224Z",
+        "reason": "The kbd keycap has a thicker bottom edge by design; it is a key, not an accent border on a card."
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "rekall-ui/src/features/settings/components/KeyboardSection.vue"
+        ],
+        "createdAt": "2026-11-13T18:32:47.245Z",
+        "reason": "The kbd keycap has a thicker bottom edge by design; it is a key, not an accent border on a card."
       }
     ]
   }

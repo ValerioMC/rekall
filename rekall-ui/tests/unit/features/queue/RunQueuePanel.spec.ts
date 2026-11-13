@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
+import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import RunQueuePanel from '@/features/queue/components/RunQueuePanel.vue'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { useConsoleStore } from '@/stores/console.store'
@@ -60,11 +61,14 @@ function queue(over: Partial<RunQueue>): RunQueue {
   return { ...EMPTY_RUN_QUEUE, updatedAt: new Date(Date.UTC(2026, 8, 23, 10, 0, clock)).toISOString(), ...over }
 }
 
+let router: Router
+
 async function mountPanel(current: RunQueue) {
   setActivePinia(createPinia())
+  router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:p(.*)*', component: { render: () => null } }] })
   api.fetchRunQueue.mockResolvedValue(current)
   useRunQueueStore().apply(current)
-  const wrapper = mount(RunQueuePanel, { attachTo: document.body })
+  const wrapper = mount(RunQueuePanel, { attachTo: document.body, global: { plugins: [router] } })
   await flushPromises()
   return wrapper
 }
@@ -215,7 +219,9 @@ describe('the run queue panel', () => {
 
     await wrapper.findAll('[data-testid="run-queue-open"]')[0]!.trigger('click')
 
-    expect(useConsoleStore().selectedTaskId).toBe('t-a')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/task/t-a')
     expect(wrapper.emitted('close')).toHaveLength(1)
     wrapper.unmount()
   })

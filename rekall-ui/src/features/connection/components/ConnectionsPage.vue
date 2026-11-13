@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
+import ProjectsSubNav from '@/features/catalog/components/ProjectsSubNav.vue'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
 import ConnectionCompaniesDialog from '@/features/connection/components/ConnectionCompaniesDialog.vue'
 import ConnectionDeleteDialog from '@/features/connection/components/ConnectionDeleteDialog.vue'
@@ -165,6 +166,8 @@ async function backToList(): Promise<void> {
         >
       </template>
     </AppCatalogHeader>
+
+    <div class="shrink-0 px-4 pt-3"><ProjectsSubNav active="connections" /></div>
 
     <p class="sr-only" role="status" aria-live="polite" data-testid="connections-live">{{ announcement }}</p>
 

@@ -60,7 +60,7 @@ The app is a Tauri v2 window over the same server `rekall-server` runs, on the s
 
 ## Connect Claude Code
 
-**Settings > Claude Code** in the app registers the MCP server for every folder and installs the `/rk` command in one click, with its mode files in `~/.claude/rk/`. It also repairs a registration that points at the wrong port, carries an older command or a missing or older mode file, or is shadowed in one folder by a registration made without `--scope user`. While a registration is out of date, a warning triangle sits on the Settings key in the top bar until Repair is run.
+**Settings > Sessions and run queue** in the app registers the MCP server for every folder and installs the `/rk` command in one click, with its mode files in `~/.claude/rk/`. It also repairs a registration that points at the wrong port, carries an older command or a missing or older mode file, or is shadowed in one folder by a registration made without `--scope user`. While a registration is out of date, a warning triangle sits on the Settings key in the top bar until Repair is run.
 
 From a terminal:
 
@@ -79,7 +79,7 @@ mkdir -p ~/.claude/rk && cp .claude/rk/*.md ~/.claude/rk/
 
 **Fix wording** and **Restructure**, a split button on the description pane beside the Write/Read toggle, have a session rewrite the task's description with `/rk … rewrite fix` or `rewrite restructure` (see the table below). It is disabled while the description is blank or has unsaved changes. When the new text arrives an **Undo** puts the old one back; Rekall keeps no history, so that text is held in the console window only and is gone once you edit, leave the task or close the console.
 
-**Open in terminal**, on a task, hands the session to your own terminal app in the project's folder with `/rk` already running. Set the folder in the **Folder** field of the project page's **Settings** tab, under **Repository**. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Claude Code** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside the desktop app. **Run here** runs a session inside the app instead, as a terminal or, if you pick **Chat** under **Settings > Claude Code > Session view**, as a chat window; see [Terminals](docs/guide/sessions.md) and its [Chat view](docs/guide/sessions.md#chat-view).
+**Open in terminal**, on a task, hands the session to your own terminal app in the project's folder with `/rk` already running. Set the folder in the **Folder** field of the project page's **Settings** tab, under **Repository**. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Sessions and run queue** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside the desktop app. **Run here** runs a session inside the app instead, as a terminal or, if you pick **Chat** under **Settings > Sessions and run queue > Session view**, as a chat window; see [Terminals](docs/guide/sessions.md) and its [Chat view](docs/guide/sessions.md#chat-view).
 
 ## Anchor syntax
 
@@ -147,7 +147,7 @@ The guides describe each area as it behaves today, with its REST routes and prop
 | Commits | A ledger of commits per task or step; commit on claim | [workflow](docs/guide/workflow.md#commits) |
 | Pull requests | A project that turns on **Merge through a pull request** pushes each task's branch and opens a GitHub pull request or GitLab merge request when its work is claimed, merges it with a merge commit when the task is accepted, and has a session resolve a conflict | [workflow](docs/guide/workflow.md#pull-request-flow) |
 | Review | Accept a claim, send a step back, and keep revisions of a description in a tab beside it (each aimed at the work or the plan), run as numbered passes that a session replies to; the review queue and its notifications | [workflow](docs/guide/workflow.md#description-review) |
-| Terminals | A real `claude` in a pseudo-terminal inside the app, or the same `claude` as a chat window (Settings > Claude Code > Session view); the run queue, which can work up to four tasks at once in git worktrees of their own; the usage meter | [sessions](docs/guide/sessions.md) |
+| Terminals | A real `claude` in a pseudo-terminal inside the app, or the same `claude` as a chat window (Settings > Sessions and run queue > Session view); the run queue, which can work up to four tasks at once in git worktrees of their own; the usage meter | [sessions](docs/guide/sessions.md) |
 | Token usage | Tokens Claude Code generated per task and step, read from its transcripts | [sessions](docs/guide/sessions.md#token-usage) |
 | Projects | Page, sections, components, icons, autoconfigure; connections to GitLab, GitHub, Kubernetes, Jira and Grafana shared across companies; a task manager (GitLab, GitHub or Jira) that receives the project's tasks, and a main branch their work is merged into | [projects](docs/guide/projects.md) |
 | Console | Search, notes, tags, skills, the markdown editor, timers | [console](docs/guide/console.md) |

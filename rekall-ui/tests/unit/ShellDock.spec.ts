@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ShellDock from '@/components/shell/ShellDock.vue'
-import type { DockPlacement } from '@/components/shell/dock-placement'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
@@ -133,14 +132,14 @@ function running(over: Partial<TimeEntry> = {}): TimeEntry {
   }
 }
 
-async function mountDock(open: Terminal[], entries: TimeEntry[] = [], placement: DockPlacement = 'screen') {
+async function mountDock(open: Terminal[], entries: TimeEntry[] = []) {
   setActivePinia(createPinia())
   const console = useConsoleStore()
   const terminals = useTerminalStore()
   console.tasks = [task]
   console.timeEntries = entries
   terminals.terminals = open
-  const wrapper = mount(ShellDock, { attachTo: document.body, props: { placement } })
+  const wrapper = mount(ShellDock, { attachTo: document.body })
   await flushPromises()
   return { wrapper, console, terminals }
 }
@@ -178,22 +177,9 @@ describe('ShellDock', () => {
       expect(wrapper.find('[data-testid="terminal-dock-toggle"]').exists()).toBe(false)
     })
 
-    it('is a fixed capsule on a screen without a navigator', async () => {
+    it('is a fixed capsule in the corner of the window', async () => {
       const { wrapper } = await mountDock([terminal()])
       expect(wrapper.get('[data-testid="shell-dock"]').classes()).toContain('fixed')
-    })
-
-    it('sits in the flow at the foot of the navigator, taking no corner of the window', async () => {
-      const { wrapper } = await mountDock([terminal()], [], 'navigator')
-      const classes = wrapper.get('[data-testid="shell-dock"]').classes()
-      expect(classes).toContain('relative')
-      expect(classes).not.toContain('fixed')
-    })
-
-    it('raises the sheet over the navigator list', async () => {
-      const { wrapper } = await mountDock([terminal()], [], 'navigator')
-      await wrapper.get('[data-testid="terminal-dock-toggle"]').trigger('click')
-      expect(wrapper.get('[data-testid="dock-panel"]').classes()).toContain('bottom-full')
     })
 
     it('counts the live terminals on the sessions segment', async () => {
@@ -351,14 +337,13 @@ describe('ShellDock', () => {
 
   describe('the running panel', () => {
     it('jumps to the task and closes', async () => {
-      const { wrapper, console } = await mountDock([], [running()])
+      const { wrapper } = await mountDock([], [running()])
 
       await wrapper.get('[data-testid="running-dock-toggle"]').trigger('click')
       await wrapper.get('[data-testid="running-dock-jump"]').trigger('click')
       await flushPromises()
 
-      expect(console.selectedTaskId).toBe(TASK)
-      expect(push).toHaveBeenCalledWith({ name: 'console' })
+      expect(push).toHaveBeenCalledWith(`/task/${TASK}`)
       expect(wrapper.find('[data-testid="dock-panel"]').exists()).toBe(false)
     })
 

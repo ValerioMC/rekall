@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { storeToRefs } from 'pinia'
+import LibrarySubNav from '@/features/diagram/components/LibrarySubNav.vue'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
@@ -102,11 +103,13 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 <template>
   <div class="relative flex min-h-0 flex-1 flex-col bg-canvas">
-    <AppCatalogHeader title="Claude">
+    <AppCatalogHeader title="Library">
       <template #title-suffix>
         <span v-if="catalog" class="hidden truncate font-mono text-caption text-text-subtle lg:block" :title="catalog.root">{{ catalog.root }}</span>
       </template>
     </AppCatalogHeader>
+
+    <div class="shrink-0 px-6 pt-3"><LibrarySubNav active="claude" /></div>
 
     <main class="flex min-h-0 flex-1" aria-label="Claude resources">
       <ResourceRail

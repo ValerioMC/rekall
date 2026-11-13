@@ -14,6 +14,10 @@ import { relativeTime } from '@/common/format/relative-time'
  * task's other deviations, and every move is a history entry, so the browser's arrows go back and
  * forth between them as they do between panes.
  */
+/** On the task page the title is above the tabs and a deviation has no pane to close back to. */
+const props = defineProps<{ embedded?: boolean }>()
+const emit = defineEmits<{ 'open-step': [] }>()
+
 const store = useConsoleStore()
 const { selectedTask, selectedTaskSteps, selectedDeviationStep } = storeToRefs(store)
 
@@ -37,7 +41,9 @@ function go(by: 1 | -1): void {
 }
 
 function openStep(): void {
-  if (selectedTask.value && stepOfDeviation.value) store.openStep(selectedTask.value.id, stepOfDeviation.value.id)
+  if (!selectedTask.value || !stepOfDeviation.value) return
+  store.openStep(selectedTask.value.id, stepOfDeviation.value.id)
+  if (props.embedded) emit('open-step')
 }
 
 defineExpose({ step: go })
@@ -49,13 +55,14 @@ defineExpose({ step: go })
 
     <template v-else>
       <header class="flex shrink-0 items-start gap-3.5 border-b border-border px-5 py-3.5">
-        <div class="min-w-0 flex-1">
+        <div v-if="!embedded" class="min-w-0 flex-1">
           <p class="eyebrow flex items-center gap-1.5">
             <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
             Deviation
           </p>
           <TaskTitleRow :task="selectedTask" copy-testid="copy-deviation-anchor" />
         </div>
+        <span v-else class="flex-1" />
 
         <div v-if="deviations.length > 1" class="flex shrink-0 items-center gap-1" role="group" aria-label="Deviations of this task">
           <AppButton
@@ -89,7 +96,7 @@ defineExpose({ step: go })
           </AppButton>
         </div>
 
-        <AppButton variant="quiet" size="sm" data-testid="deviation-close" title="Back to the notes (Esc)" @click="store.closeDeviation()">
+        <AppButton v-if="!embedded" variant="quiet" size="sm" data-testid="deviation-close" title="Back to the notes (Esc)" @click="store.closeDeviation()">
           Close
         </AppButton>
       </header>

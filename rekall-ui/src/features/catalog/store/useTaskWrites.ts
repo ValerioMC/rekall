@@ -168,6 +168,11 @@ export function useTaskWrites(
     await timers.rereadTimerStoppedByAccept(id)
   }
 
+  /** Returns a task handed in whole to its session: its review line goes back to open. */
+  async function sendBackTask(id: TaskId): Promise<void> {
+    storeTask(await apiReviewTask(id, 'OPEN'))
+  }
+
   /** A session created a task. Nothing is selected: the reader stays where they were. */
   async function applyTaskCreated(): Promise<void> {
     await Promise.all([refreshes.refreshTasks(), refreshes.refreshProjects(), refreshes.refreshCompanies()])
@@ -186,6 +191,7 @@ export function useTaskWrites(
     syncTaskTracker,
     applyTaskReview,
     applyTaskCreated,
-    acceptTask
+    acceptTask,
+    sendBackTask
   }
 }

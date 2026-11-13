@@ -4,6 +4,7 @@ import AppCard from '@/components/ui/AppCard.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
+import TimeSubNav from '@/features/time/components/TimeSubNav.vue'
 import ReportRidge from '@/features/time/components/ReportRidge.vue'
 import ReportCompanySection from '@/features/time/components/ReportCompanySection.vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -108,7 +109,7 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
 
 <template>
   <div class="flex-1 min-h-0 overflow-y-auto bg-canvas" data-testid="report-scroller">
-    <AppCatalogHeader title="Report">
+    <AppCatalogHeader title="Time">
       <template #actions>
         <div class="flex shrink-0 gap-0.5 rounded-card bg-canvas p-0.5" role="group" aria-label="Period">
           <button
@@ -146,7 +147,8 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
       </template>
     </AppCatalogHeader>
 
-    <div class="mx-auto flex max-w-[1240px] flex-col gap-5 px-8 py-6">
+    <div class="mx-auto flex max-w-[1240px] flex-col gap-5 px-8 pb-6 pt-4">
+      <TimeSubNav active="report" />
       <AppCard :padded="false">
         <div class="flex flex-wrap items-end justify-between gap-4 px-5 pb-4 pt-5">
           <div class="min-w-0">

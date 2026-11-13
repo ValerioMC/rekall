@@ -20,6 +20,9 @@ import { rkWrapupCommand } from '@/common/format/rk-command'
 import { WRAPUP_AUTHOR_LABEL } from '@/features/wrapup/model/wrapup'
 import { isEpic } from '@/features/catalog/model/catalog'
 
+/** On the task page the title is already above the tabs, so the pane keeps only its actions. */
+defineProps<{ embedded?: boolean }>()
+
 const store = useConsoleStore()
 const terminals = useTerminalStore()
 const openSession = useOpenSession()
@@ -117,13 +120,14 @@ async function sendWrapupHere(message: string): Promise<void> {
 
     <template v-else>
       <header class="flex shrink-0 items-start gap-3.5 border-b border-border px-5 py-3.5">
-        <div class="min-w-0 flex-1">
+        <div v-if="!embedded" class="min-w-0 flex-1">
           <p class="eyebrow flex items-center gap-1.5">
             <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
             Wrapup
           </p>
           <TaskTitleRow :task="selectedTask" copy-testid="copy-wrapup-anchor" />
         </div>
+        <span v-else class="flex-1" />
 
         <LaunchClaudeCodeButton
           v-if="!isEpic(selectedTask)"

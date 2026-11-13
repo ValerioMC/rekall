@@ -17,77 +17,203 @@ The company filter holds ids, and an empty selection means every company rather 
 chips are built from the unfiltered period, so narrowing to one client never removes the way back
 to the others.
 
-## The navigator's project group
+## Structure
 
-A project in the navigator is a flat header with no box, edge or raised face: its mark, its name,
-its task count and a chevron, over the project's tokens. The header takes the project's tint only
-when pointed at, and the tinted rail under it is what groups the tasks. Folding a project animates the height through `AppCollapse` and makes the folded rows
-inert; a task that joins a shelf slides in (`nav-row`) and the rows below it glide into place.
-Reduced motion cuts every one of these to an instant change.
+The console has no permanent task list and no fixed columns. A person moves between screens grouped
+under one menu, all inside one shell: the header, the page, and the sessions dock at the bottom left.
 
-## The navigator's filing drawer
+```mermaid
+flowchart LR
+  Menu[Grouped menu] --> Work
+  Menu --> Review
+  Menu --> Projects
+  Menu --> Time
+  Menu --> Library
+  Menu --> Security
+  Menu --> Settings
+  Work -->|row, card or ⌘K| Task[Task page]
+  Review -->|task link| Task
+  Projects -->|project page, Tasks tab| Work
+  Task -->|Accept, Send back| Review
+```
 
-A finished task does not leave the navigator, and after a while that is most of the list: a
-project with thirty closed tasks buries the three still open. So `DONE` tasks are folded into a
-drawer, one per project in the company-wide view and one below the status groups when a single
-project is in scope. The drawer is shut on every load and reopens only for the session: the
-point is that finished work starts out of the way, not that the window remembers you looked at
-it once. This is the opposite of the project collapse next to it, which persists in
-`localStorage`, because that one is a layout preference and this one is a default.
+The mockup in `.impeccable/mocks/redesign/app/index.html` is the source of truth for layout,
+hierarchy and the copy of labels. Open it in a browser: it is a static site with hash routes and
+in-memory demo data. Its simulated session, which claims a step after a few seconds, is replaced
+in the build by the terminal, session, run queue and usage stores. A number the mockup invents
+(the filed total, lane totals, adherence counts) comes from the real source or is left out.
 
-The split is `common/catalog/partition-tasks.ts`, a pure function, so the rule that a `DONE`
-task is filed lives in one tested place rather than in the template. `console.store` is
-untouched: `visibleTasks` stays the one honest list, the tasks/notes counter still counts all
-of it, and `J`/`K` still walks it. A filed task that gets selected, by search or by walking,
-opens the drawer it sits in, because a selection you cannot see is one you cannot tell you made.
+### Screen map
 
-## The navigator row
+| Mockup route | Real route | Screen |
+|---|---|---|
+| `#/work` | `/` (`/work` redirects to it) | Work ledger |
+| `#/work/board` | `/work/board` | Work board |
+| `#/task/:id/:tab` | `/task/:id/:tab` | Task page, tab `plan`, `wrapup`, `notes`, `description`, `time` or `deviations` |
+| `#/review/:key` | `/review/:key?` | Review queue |
+| `#/projects`, `#/projects/:id/:tab` | `/projects`, `/projects/:id/:tab` | Project list, project page |
+| `#/companies` | `/companies` | Companies |
+| `#/connections/:id` | `/connections/:id?` | Connections |
+| `#/time/report` | `/report` | Time report |
+| `#/time/calendar` | `/calendar` | Calendar |
+| `#/library/diagrams` | `/diagrams` | Diagram gallery and viewer |
+| `#/library/claude` | `/claude` | Claude files |
+| `#/security` | `/security` | Security |
+| `#/settings/:section` | `/settings/:section` | Settings |
 
-A row is two lines with air around them rather than one crushed line. The status pip is a
-coloured core inside a soft halo of the same hue, so a state carries its own weight instead of
-being a hard dot shoved against the title; while a timer runs the pip becomes a sweeping ping,
-because "worked right now" should read before the colour does. Progress, a wrapup mark and the
-note count sit in a steady right-hand column and do not move: a number that vanishes the moment
-you reach for it is a number you stop trusting, so edit rides in as its own chip on hover
-instead of displacing them.
+The routes that exist today keep their paths: the redesign changes what a screen shows, not where it
+lives. `/` is the Work ledger instead of the three-column console, and `/review` and `/settings`
+are new. A ledger row, a card and the sheet open the task page at `/task/:id/plan`; a note in view
+is part of the path (`/task/:id/notes/:noteId`). `/console` is the terminal host and nothing else: Open in terminal, the dock and a deep link to a
+terminal show the session there, and a visit with no terminal open goes on to the task page of the task
+in view, or to Work. The notes list, the steps, wrapup, description and deviation panes of the old
+console are gone; their tabs are on the task page.
 
-Under the pip a second, smaller mark reports the sessions opened on the task (`TaskSessionMark`,
-read by `taskSessionState` from the terminal list): an indigo arc that glows and spins against the
-task mark's orbit while a session is open, an indigo disc with a check once the task's work is
-handed in and awaits review, a pulsing amber dot while a chat waits for an approval, and a dim
-standing ring once every session has ended. A task nothing was opened on draws no mark. The mark follows the
-sessions of this run only, because sessions are not persisted.
+### The grouped menu
 
-A project heading is also two lines: the title and task count on top, the company name and the
-project's token total below, so none of the three is fighting the others for the same 12 pixels. The
-navigator is given the width for this rather than made to crush it.
+The menu key in the header names the screen on display and opens every screen under its section:
+Work (Work, Review), Projects (Projects, Companies, Connections), Time (Report, Calendar), Library
+(Diagrams, Claude files), Security and Settings. The review count rides on the key and on the
+Review entry, so folding the menu never hides what waits for the person. ⌘K opens the switcher:
+Go to, Projects, Tasks (with their state or review count) and Notes, filtered by title or anchor,
+and, for a phrase of three letters or more, an In the text group with what the server found in
+descriptions, steps, wrapups and notes. It opens on every screen, from ⌘K or a click on the `/rk`
+field (`CommandPalette`, mounted once by `Bootstrap`); a task opens its page, a note its Notes tab, a
+step hit its Plan with the step open. It is how a person changes task, since there is no list to click.
 
-## The selected surface
+## Work
 
-A selected row sits on the raised surface, warmed from its left by its tint (the project's
-identity hue in the navigators, the accent elsewhere), held by a tinted hairline, and marked by a
-short solid capsule in the left gutter, clear of the top and bottom edges. Its relief is
-`--shadow-key`, the same as a key and a tag chip, so
-selection reads by colour and outline, never by standing taller than its neighbours. A hovered
-row only takes the raised surface's colour. The status pip of a selected row gains a thin
-accent ring. `selected-row` and `selected-card` in `main.css` are the same idea at two scales.
+Work is one table, the ledger, grouped by project. A project heading carries its mark, its name,
+the company beside it, the task count, how many wait for review, and its tokens. The columns are
+Task (the title, with a copy-anchor button shown on hover), Status (a pill), Plan (the plan tube
+and done over total), Needs you, Notes, Tokens and Updated. The anchor chip is not on every row.
+Sorting is on Task, Needs you, Tokens and Updated.
 
-A tag badge (`tag-chip`) is the tag picker's quiet key: a neutral face warmed a few percent by the
-tag's colour, a tinted hairline, and the colour itself carried by the glowing icon.
+The head holds the scope select (all work, a company, or a project), a filter on title and anchor,
+the Ledger or Board layout toggle, the density (Comfortable or Compact) and New task. Under it the
+views are sub-navigation tabs with counts: **Needs me** (the default), Running, Open and Filed. A
+finished task never fills the table: each project folds its `DONE` tasks into one `N filed` line
+that opens in place. The rules for which tasks a tab shows, the counts, the sort and the fold are
+pure functions in `features/work/lib/work-view-rules.ts`, over the rows `work-rows.ts` builds. Scope,
+view and density are layout preferences kept in `localStorage` by `common/config/work-preferences.ts`;
+the sort and the filter are not.
+
+**Needs me** counts claimed steps plus tasks handed in whole. With nothing narrowing the scope that
+number is the same one as the menu badge, the header review segment and the Review queue, and the
+tests hold the two to each other. A scope narrows the tab counts to its tasks, so a count never
+promises rows the table does not list.
+
+A row expands in place, one at a time, to its **peek**: the task's `/rk` anchor with copy, up to
+three claimed steps each with Send back and Accept, a task handed in whole with Accept task and
+Send back, Open task, and the session key (`OpenTerminalButton`, which reads Run here, or Working while
+a session runs). A person can clear a task's claims without leaving Work.
+
+Accepting stamps the step's seal in place and keeps the row listed for a moment, so the arrival is
+seen before the task leaves a tab it no longer belongs to; every count updates at once. The toast
+offers Reopen. Sending back has no Undo: only a session can claim a step again.
+
+### Board
+
+The board is a layout toggle of Work. Its lanes are To do, In progress (a running task wears the
+session mark), Awaiting your review (the amber one) and Filed, collapsed to a shelf with a count. A
+card is the project mark, a two-line title, the plan tube and one footer line. A card opens a 600px
+sheet over the board with the same peek and Open as page; Escape or a click outside closes it. The
+board and the ledger agree on every task and count: To do holds the to do and backlog tasks, In
+progress the in-progress, running and blocked ones, and together with Awaiting your review they
+hold exactly what the ledger lists on Open (`lib/work-lanes.ts`). A lane lists its first forty cards
+and says how many more there are. The layout is the route, `/` for the ledger and `/work/board`
+for the board.
+
+## The task page
+
+A task is a page at `/task/:id/:tab`. Its header holds the breadcrumb (Work, then company and
+project), the title, the status pill that changes the status, the copyable `/rk` anchor, tracked
+time and tokens, Open in terminal, and Resume session or Watch the session. Under it the tabs are
+Plan, Wrapup, Notes, Description, Time and Deviations, with counts where a count means something
+(steps, notes, deviations) and an amber one on Plan while a step waits for review.
+
+**Plan** is two zones. The left is the step list: a row is the step's seal, its number, its title
+and when it last moved, and its hover keys (Accept or Done, New session, To draft, move, delete).
+Above it sit the plan tube, a line that says who has to act, List or Flow when the steps have
+routes, Hide done, Review next and Accept all once only claims are left; under it the drafts with
+Promote, the adherence and branch panels, and the line that adds a draft (a new step is a draft).
+The right is the **decision panel** of the selected step, which opens on the first claim waiting
+for a decision: the step's state, what a person can do about it (Accept and Send back on a claim,
+Mark done myself and the session key on an open or running one, Reopen on a done one), its check
+results, commits, sealed passes, skills, checks and detail, and Up next to review. A task handed in
+whole shows its own decision, Accept task or Send back, in the same place. Nothing but a person
+marks a step done, and Claude moves a step only up to claimed. The panel and the list share the
+step editor, so a title or detail typed in the panel is saved as it was in the old checklist.
+
+The other tabs hold the panes the console had, with the title row left to the page header. Wrapup
+keeps its author and age, the freshness tag, Versions, Wrapup here and the editor. Notes is a list
+of the task's notes (a ring marks one loaded on request, Add information, Delete) beside the note
+pane. Description keeps the review bar, Fix wording and the revisions; on a task that belongs to an
+epic a card names the epic, and an epic's page has no Plan and opens on its tasks and shared
+description. Time shows tracked time, sessions and tokens with the timer and the log of sessions.
+Deviations opens on the first and walks them by step. A task selected elsewhere (search, the review
+queue) is followed to its page, on the tab that shows the pane it asked for.
+
+## Review
+
+Review is its own screen at `/review/:key?`: a queue of every claimed step and every task handed in
+whole, the longest waiting first, beside the same decision panel as Plan. The queue is the
+console's `reviewQueue`, so its length is the Needs me count, the badge on the Review entry of the
+menu and the header review segment, which is a link to this screen (the popover list it used to
+open is gone). The item in view is in the URL; after a decision the item leaves the queue and the
+next one in its order opens, or the one before it at the end. Under the panel sits the task's
+adherence (steps accepted at the first pass, sent back, deviations) from the real adherence data.
+With nothing waiting the screen says "Nothing waits for you." over the large done seal. The
+shortcuts A, S and J/K shown by the mockup are a proposal and are not built until they are
+approved.
+
+## The other sections
+
+**Projects.** Projects, Companies and Connections share one sub-navigation with counts
+(`ProjectsSubNav`). The list is a card per project under its company, with the identity mark, anchor,
+status pill, a composition bar (filed, to review, in progress, to do: `lib/project-composition.ts`)
+and counts. The project page is a route per tab (`/projects/:id/:tab`): Tasks (the Work ledger
+narrowed to the project through `work.focusProject`), Blueprint, Pages, Components, Diagrams,
+Deployment, Connections and Settings; Blueprint and Deployment keep what the old page held beyond
+the mockup's six. Companies is a list with a detail pane (`/companies/:id`); Connections are grouped
+by kind with Check and the credential reveal. The company is named beside a project on the cards'
+group, the project page, a company's detail and the ⌘K palette.
+
+**Time** has the Report and the Calendar behind one sub-navigation; the grouping stays
+`common/report/time-report.ts`. **Library** has Diagrams (a gallery grouped by project, and the
+viewer with the Walkthrough) and Claude files (a tree of Memories, Skills, Commands and Agents with
+an editor). **Security** is the overview with its alert banner, the Needs attention list and the
+project rail. **Settings** is a screen at `/settings/:section?` with a rail of sections and the key `Settings` in the
+menu: General (the databases), Appearance (density, which is the Work ledger's, motion, text scale),
+Review (open the next item after a decision, confirm before sending work back), Sessions and run queue
+(Claude Code and its protections), Notifications, Time and usage (the workday goal the report's dashed
+line reads, the percentage the usage meter warns from), Connections (a link to the screen),
+Data and backup, Keyboard and About. The browser-side choices live in `usePreferencesStore`, saved in
+`localStorage` through `common/config/ui-preferences.ts`: Reduced motion sets `data-motion` on the
+document, where the stylesheet drops the loops and keeps every state change; the text scale is the
+document's font size; every send back goes through `sendBackGuard`. A session's concurrency, terminal
+command and retention have no home in the server's settings and are not offered.
+
+Every screen shares the ledger vocabulary: the status pill, the plan tube, anchors as copy buttons,
+sub-navigation tabs with counts, the step seal and the same motion. Reduced motion drops the loops
+(the running comet, the tube sheen, the orb pulse) and keeps every state change visible.
 
 ## Labels
 
 The kicker above a title, "Description", "Time", "Tracked this week", a form-section label in a
 dialog, a company name in the scope popover, was tracked-out capitals everywhere. It is now
 ordinary case in the shared `eyebrow` utility, a hair of tracking and nothing more, so it names
-its section without shouting over the content beneath it. In the three writing panes it is
-preceded by a 3px accent tick, the same mark on all of them, which is how you tell at a glance
-which of the four surfaces is on screen. Raw status enums that used to be printed as-is
+its section without shouting over the content beneath it. In the writing tabs of a task (Wrapup,
+Notes, Description) it is preceded by a 3px accent tick, the same mark on all of them, which is how
+you tell at a glance which surface is on screen. Raw status enums that used to be printed as-is
 (`PAUSED`) now go through their label map (`Paused`) wherever they are shown.
 
 The filed tone is a muted verdigris, `--color-filed`. It is deliberately neither the green of a
 live `DONE` status nor the grey of disabled chrome: a shelf of finished tasks should read as an
 archive, not as a list that has gone dim.
+
+A tag badge (`tag-chip`) is the tag picker's quiet key: a neutral face warmed a few percent by the
+tag's colour, a tinted hairline, and the colour itself carried by the glowing icon.
 
 ## Tokens, not values
 
@@ -116,26 +242,18 @@ an `icon` size and `pressed`, which lights a toggle as `key-lit` and sets `aria-
 toolbar keys stop being hand-built from the keycap utilities. A control drawn smaller than 24px
 takes `hit-target`, which grows the pointer target, not the glyph.
 
-The two fixed panes are tokens too, `--spacing-nav` and `--spacing-notelist`. Below a 1280px
-window both narrow to 272px, so at the desktop shell's 960px minimum the note still keeps a
-column of about 420px.
-
-The header is one 48px row (`--spacing-header`, shared by the pane headers so their rules line
-up), a four-cell grid: the 24px mark with the history arrows, the screen tabs centred in a flexible cell, a centre cell of at most 620px and a flexible right cell. A screen teleports exactly two children into the last two, so the tabs sit in the same place on every screen; the console puts the `/rk` field in the centre and the readings and tools on the right, the others a title and actions. A
-screen tab is text with an amber rule under the screen you are on (`nav-tab`, `nav-tab-current`), and a
-tab whose screen counts something that needs the reader wears it (`NavAlertCount`, from `useNavAlerts`).
-Under a 1280px window the tabs fold into one key (`AppNavMenu`) naming the screen on display, which opens
-every screen as a vertical menu, a group's screens under its name; the sum of the tabs' alerts rides on
-the key, so folding never hides a warning.
-On the console the `/rk` field is also the location bar: at rest it shows the open note's or
-task's anchors, or the scope's, as chips, and focused it is the search. Everything right of
-the tabs is the same piece, a 36px `header-capsule` with the field's corner: usage, the run queue
-and the review count share one (`HeaderStatus`, segments drawn with `status-segment`), where
-review is the only amber segment because it is the only one asking for action; the save dot,
-Tags and Settings (`header-key`) share the other. The save state is
-a dot whose word is for screen readers and the tooltip. The bar gives way under 1280px: the
-anchors keep only the last one, the review segment drops its words;
-under 1100px the `⌘K` hint goes.
+The header is one 48px row (`--spacing-header`), a three-cell grid. The left cell holds the 24px
+mark, the menu key and the history arrows. The menu key is a three-line burger that names the screen
+on display, opens every screen grouped under its section (`AppNavMenu`) and carries the sum of the
+alerts, the review count, so folding never hides a warning. The centre cell, at most 620px, is the
+`/rk` field: at rest it shows the open task's or project's anchors as chips, and `⌘K` or a click opens
+the switcher. The right cell is one 36px `header-capsule` with the field's corner, usage, the run
+queue and the review count (`HeaderStatus`, segments drawn with `status-segment`), where review is
+the only amber segment because it is the only one asking for action; beside it the save dot, Tags
+and Settings (`header-key`). The save state is a dot whose word is for screen readers and the
+tooltip. The bar gives way under 1280px: the anchors keep only the last one and the review segment
+drops its words; under 1100px the `⌘K` hint goes. The usage segment opens the usage detail and the
+queue segment opens the list of queued and running tasks.
 
 The run queue shows a task's steps in two places, from one value (`runProgress(queue).steps`: the
 steps that count, how many are settled, the current one; a claim settles a step because the queue
@@ -151,13 +269,6 @@ that opens it carries `aria-expanded`/`aria-controls` and a 44px hit area.
 The calendar (`CalendarPage`, `CalendarDayCell`) heads each day with its total and a load bar:
 its length is the day against an eight-hour day, its segments the projects largest first
 (`common/calendar/day-shares.ts`). An eighth column totals each week; today wears an amber ring.
-
-The console with nothing open is a desk (`ConsoleHome`, its parts under `components/console/home/`):
-a headline that counts the live sessions and what waits for review (`situationOf`), the week's
-tracked time as seven bars (`trackedLastDays`), a review card and a running-sessions card, the
-four notes touched last as tiles, and the keys. It lays out on a container query, so the same
-markup is one column in the 420px pane at the window's floor and two to four columns when wide.
-
 
 ## The chat window
 

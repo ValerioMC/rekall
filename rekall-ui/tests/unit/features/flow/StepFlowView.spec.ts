@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import StepsPane from '@/features/steps/components/StepsPane.vue'
+import TaskPlanTab from '@/features/task/components/TaskPlanTab.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import type { TaskStep } from '@/features/steps/model/task-step'
 import { finishedFlow, flowStep, releaseFlow, releaseTask, TASK, visit } from './flow.fixtures'
 
 /**
- * The steps pane showing a flow: it opens on the graph when the steps carry routes, lights the
+ * The plan tab showing a flow: it opens on the graph when the steps carry routes, lights the
  * step the work stands on, counts the moves and visits, follows a session's move without a
  * reload, and sends route edits and the reset through the store.
  */
@@ -29,8 +29,9 @@ function seed(steps: TaskStep[]) {
 }
 
 function render() {
-  return mount(StepsPane, {
+  return mount(TaskPlanTab, {
     attachTo: document.body,
+    props: { task: releaseTask() },
     global: {
       plugins: [pinia],
       stubs: {
@@ -64,18 +65,15 @@ describe('the flow view', () => {
 
     expect(pane.find('[data-testid="step-flow-view"]').exists()).toBe(true)
     expect(pane.findAll('[data-testid="flow-node"]')).toHaveLength(5)
-    expect(pane.get('[data-testid="steps-view-flow"]').attributes('aria-pressed')).toBe('true')
+    expect(pane.get('[data-testid="segment-flow"]').attributes('aria-pressed')).toBe('true')
   })
 
-  it('stays on the list for a checklist with no routes, and switches on request', async () => {
+  it('stays on the list for a checklist with no routes, and offers no flow', () => {
     seed([flowStep('one', 0), flowStep('two', 1)])
     const pane = render()
+
     expect(pane.find('[data-testid="step-flow-view"]').exists()).toBe(false)
-
-    await pane.get('[data-testid="steps-view-flow"]').trigger('click')
-
-    expect(pane.find('[data-testid="step-flow-view"]').exists()).toBe(true)
-    expect(pane.find('[data-testid="flow-hint"]').text()).toContain('still a list')
+    expect(pane.find('[data-testid="segment-flow"]').exists()).toBe(false)
   })
 
   it('lights the step the work stands on and counts every visit', () => {
@@ -210,15 +208,6 @@ describe('the flow view', () => {
 
     expect(pane.get('[data-testid="flow-end"]').classes()).toContain('flow-terminal-reached')
     expect(pane.find('[data-current="true"]').exists()).toBe(false)
-  })
-
-  it('shows a start and an end even on a plain checklist', async () => {
-    seed([flowStep('one', 0), flowStep('two', 1)])
-    const pane = render()
-    await pane.get('[data-testid="steps-view-flow"]').trigger('click')
-
-    expect(pane.find('[data-testid="flow-start"]').exists()).toBe(true)
-    expect(pane.find('[data-testid="flow-end"]').exists()).toBe(true)
   })
 
   it('adds a route that ends the flow when End is picked as its target', async () => {

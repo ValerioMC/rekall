@@ -174,11 +174,8 @@
   --spacing-control: 36px;
   --spacing-header: 48px;
 
-  /* The two fixed panes. The third takes what is left, because the note is the product. The
-     navigator carries a two-line row with a trace and a status pip, so it is given the width
-     to breathe rather than made to crush them onto one line. */
+  /* The rail of a two-pane screen: Security's projects. */
   --spacing-nav: 304px;
-  --spacing-notelist: 312px;
   /* The diagram screen's inspector: wide enough for a code excerpt at 80 columns of 11px mono. */
   --spacing-inspector: 392px;
 
@@ -199,7 +196,6 @@
 @media (max-width: 1279px) {
   :root {
     --spacing-nav: 272px;
-    --spacing-notelist: 272px;
   }
 }
 
@@ -569,16 +565,6 @@
   }
 }
 
-/* Held queue: {@link key-slate} with an amber label. */
-@utility key-warn {
-  @apply key-slate;
-  color: var(--color-warn);
-
-  &:hover:not(:disabled) {
-    color: var(--color-warn);
-  }
-}
-
 /*
  * A key held down and lit: a work in progress. The face sinks into a darker well with an inner
  * shade and the label takes the accent colour. The light lives in the label, never in a glow.
@@ -624,32 +610,6 @@
 
 @utility tube-safe {
   --tube: var(--color-safe);
-}
-
-/* The next step, not started: an empty channel with a gold hairline lit along its floor. */
-@utility tube-next {
-  background: linear-gradient(
-    180deg,
-    transparent,
-    color-mix(in srgb, var(--color-accent) 30%, transparent)
-  );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 30%, transparent);
-}
-
-/* A glass orb, the icon's cyan sphere: a hot specular spot, a body, a rim of light. */
-@utility orb-cyan {
-  border-radius: 9999px;
-  background: radial-gradient(
-    circle at 32% 28%,
-    #eafcff 0%,
-    var(--color-anchor-strong) 18%,
-    var(--color-anchor) 52%,
-    #1d7fa6 100%
-  );
-  box-shadow:
-    inset 0 -2px 3px rgb(8 60 90 / 0.5),
-    0 0 10px 1px color-mix(in srgb, var(--color-anchor) 55%, transparent),
-    0 1px 2px rgb(0 0 0 / 0.6);
 }
 
 /* A panel lit in gold: the running step, the live timer. Warm glass over slate, a bright upper
@@ -768,23 +728,6 @@
 }
 
 /*
- * The selected card. The same idea as {@link selected-row} carried to the bordered cards in the
- * middle pane: a raised surface lit from its top-left corner, an accent border, and a soft inner
- * hairline that holds the whole card. It already owns a border and a radius, so this only
- * recolours and lifts it rather than drawing a second frame.
- */
-@utility selected-card {
-  border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
-  background:
-    radial-gradient(170px 66px at 16px -6px, var(--color-accent-soft), transparent 70%),
-    linear-gradient(180deg, #252c3b, var(--color-surface-raised));
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.06),
-    0 1px 2px rgb(0 0 0 / 0.35),
-    0 0 0 1px color-mix(in srgb, var(--color-accent) 14%, transparent);
-}
-
-/*
  * The dossier: what `/rk` hands a session about the task in view.
  *
  * The description, the checklist, the wrapup and the notes are not four unrelated cards, they are
@@ -823,122 +766,6 @@
       transparent 100%
     );
   }
-}
-
-@utility dossier-section {
-  position: relative;
-  z-index: 1;
-  display: block;
-  width: 100%;
-  padding: 10px 12px 11px 38px;
-  text-align: left;
-  transition: background-color var(--motion-quick) ease;
-
-  &:hover {
-    background: color-mix(in srgb, var(--color-surface-hover) 72%, transparent);
-  }
-
-  /* Drawn inside the section: the strip clips its corners, and a ring outside it would be cut. */
-  outline: none;
-
-  &:focus-visible {
-    outline: 2px solid var(--color-accent);
-    outline-offset: -2px;
-  }
-}
-
-/* The seam above a section. It starts after the rail, so the rail reads as unbroken. */
-@utility dossier-seam {
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 38px;
-    right: 12px;
-    height: 1px;
-    background: var(--color-border);
-  }
-}
-
-@utility dossier-section-selected {
-  background:
-    radial-gradient(240px 72px at 20px 20px, var(--color-accent-soft), transparent 72%),
-    color-mix(in srgb, var(--color-surface-hover) 64%, transparent);
-
-  &:hover {
-    background:
-      radial-gradient(240px 72px at 20px 20px, var(--color-accent-soft), transparent 72%),
-      color-mix(in srgb, var(--color-surface-hover) 80%, transparent);
-  }
-}
-
-/* A piece's node on the rail. Opaque, so the rail passes behind it rather than through it. */
-@utility dossier-node {
-  position: absolute;
-  left: 13px;
-  top: 11px;
-  display: grid;
-  place-items: center;
-  width: 15px;
-  height: 15px;
-  border-radius: 9999px;
-  background: radial-gradient(circle at 35% 28%, #313a4c, var(--color-surface) 80%);
-  border: 1px solid var(--color-border-strong);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.12),
-    0 1px 2px rgb(0 0 0 / 0.6);
-  color: var(--color-text-muted);
-  transition:
-    color var(--motion-quick) ease,
-    border-color var(--motion-quick) ease,
-    box-shadow var(--motion-quick) ease;
-}
-
-@utility dossier-node-empty {
-  border-style: dashed;
-  color: var(--color-text-subtle);
-  background: var(--color-surface);
-}
-
-@utility dossier-node-lit {
-  color: var(--color-accent);
-  border-color: color-mix(in srgb, var(--color-accent) 62%, transparent);
-  background: radial-gradient(circle at 35% 28%, #4a3a1c, #2a2012 80%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 226 160 / 0.35),
-    0 0 0 3px color-mix(in srgb, var(--color-accent) 12%, transparent),
-    0 0 12px -2px color-mix(in srgb, var(--color-accent) 60%, transparent),
-    0 1px 2px rgb(0 0 0 / 0.6);
-}
-
-/* A note's node: smaller than a piece's, because a note hangs off the context rather than
-   being one of its fixed parts. */
-@utility dossier-leaf {
-  position: absolute;
-  left: 16.5px;
-  top: 15px;
-  width: 8px;
-  height: 8px;
-  border-radius: 9999px;
-  background: var(--color-text-subtle);
-  box-shadow: 0 0 0 3px var(--color-surface-raised);
-  transition:
-    background-color var(--motion-quick) ease,
-    box-shadow var(--motion-quick) ease;
-}
-
-@utility dossier-leaf-reference {
-  background: var(--color-surface-raised);
-  border: 1.5px solid var(--color-text-subtle);
-  box-shadow: 0 0 0 3px var(--color-surface-raised), inset 0 1px 1px rgb(0 0 0 / 0.5);
-}
-
-@utility dossier-leaf-lit {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  box-shadow:
-    0 0 0 3px var(--color-surface-raised),
-    0 0 10px 0 color-mix(in srgb, var(--color-accent) 60%, transparent);
 }
 
 /*
@@ -1008,24 +835,17 @@
   color: var(--color-text-subtle);
 }
 
-/*
- * The shelf a task returns to when it is done.
- *
- * Revealed filed rows hang off a verdigris rail and sit at reduced weight, lifting to full
- * only under the pointer or keyboard focus: present enough to read and reopen, quiet enough
- * that the live work above it stays the thing the eye lands on.
- */
-@utility filed-shelf {
-  margin-left: 7px;
-  border-left: 2px solid var(--color-filed-line);
-  padding-left: 3px;
-}
+/* The ledger's columns, shared by its header and its rows so they line up. Notes and tokens give way first. */
+@utility ledger-columns {
+  display: grid;
+  grid-template-columns: 22px minmax(260px, 1fr) 140px 190px 118px 56px 78px 56px;
+  align-items: center;
+  column-gap: 14px;
+  padding-inline: 12px;
 
-/* Parked work: a dashed rail in the border tone, so it reads as not started rather than as done. */
-@utility backlog-shelf {
-  margin-left: 7px;
-  border-left: 2px dashed var(--color-border-strong);
-  padding-left: 3px;
+  @media (max-width: 1180px) {
+    grid-template-columns: 22px minmax(200px, 1fr) 130px 160px 110px 56px;
+  }
 }
 
 @utility filed-row {
@@ -1052,24 +872,6 @@
     var(--color-surface-raised);
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-key);
-}
-
-/*
- * The header of a project or scope in the navigator: no box, no edge, no raised face. It is a row
- * that takes the project's tint when pointed at, so the rail under it is what groups the tasks.
- */
-@utility nav-group-header {
-  transition: background-color var(--motion-quick) ease;
-
-  &:hover,
-  &:focus-within {
-    background: var(--project-tint-soft, var(--color-surface-raised));
-  }
-}
-
-/* The drawer body arrives rather than appears, the same way a dialog does. */
-@utility drawer-open {
-  animation: drawer 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* An anchor, wherever it appears: the one string worth copying, in the one colour it owns. */
@@ -1158,47 +960,6 @@
 }
 
 /*
- * A screen tab in the header: plain text on the bar, and an amber rule along the bar's bottom
- * edge under the screen you are on. Amber is "where you are", as on the navigator's selection.
- */
-@utility nav-tab {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 100%;
-  padding: 0 12px;
-  font-size: var(--text-small);
-  color: var(--color-text-subtle);
-  transition: color var(--motion-quick) ease;
-
-  &:hover {
-    color: var(--color-text);
-  }
-
-  &::after {
-    content: '';
-    position: absolute;
-    left: 10px;
-    right: 10px;
-    bottom: -1px;
-    height: 2px;
-    border-radius: 2px 2px 0 0;
-    background: var(--color-accent);
-    transform: scaleX(0);
-    transition: transform var(--motion-move) ease;
-  }
-}
-
-@utility nav-tab-current {
-  color: var(--color-text);
-
-  &::after {
-    transform: scaleX(1);
-  }
-}
-
-/*
  * A group of header controls: one 36px well with a hairline, the same shape as the `/rk` field
  * beside it, so the bar reads as a row of matching pieces whatever sits inside each one.
  */
@@ -1211,7 +972,7 @@
   padding: 0 4px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
-  background: var(--color-canvas);
+  background: var(--color-surface);
 }
 
 /*
@@ -1649,91 +1410,10 @@
  * The checklist node stops being a target and starts being a light: a warm ring breathing out
  * of it once a second, in the accent that already means "here, and what happens next". It runs
  * only while the step is RUNNING, the same discipline the running dock keeps, so a pane at rest
- * never has a heartbeat in it. Paired with `energy-stream` running the length of the path that
- * led here.
+ * never has a heartbeat in it.
  */
 @utility step-node-running {
   animation: step-pulse 1.7s ease-in-out infinite;
-}
-
-/*
- * The whole travelled path of the checklist, as one lit conduit.
- *
- * Not a glow on the single segment that touches the running node: the work has come the length
- * of the finished steps, so the light does too. A static gradient forms the conduit, brighter
- * toward the bottom where the running node sits; two heads of light fall down it, half a beat
- * apart, in the direction the work is moving, and are clipped as they reach the node that
- * breathes. `top`, `height` and `--stream-height` are set inline from measured node positions.
- * The heads travel by `transform`: animating their `top` makes WebKit scroll the pane. Runs on
- * the same 1.7s beat as `step-pulse`, so the arrival and the breath stay in step.
- */
-@utility energy-stream {
-  position: absolute;
-  left: 11px;
-  z-index: 5;
-  width: 2px;
-  transform: translateX(-50%);
-  border-radius: 9999px;
-  overflow: hidden;
-  width: 3px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-accent) 30%, transparent) 0%,
-    color-mix(in srgb, var(--color-accent) 60%, transparent) 55%,
-    var(--color-accent-strong) 100%
-  );
-  box-shadow:
-    inset 1px 0 0 rgb(255 255 255 / 0.35),
-    0 0 10px -1px color-mix(in srgb, var(--color-accent) 55%, transparent);
-
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    inset-inline: -1px;
-    height: 34px;
-    border-radius: 9999px;
-    background: linear-gradient(
-      180deg,
-      transparent 0%,
-      color-mix(in srgb, var(--color-accent) 45%, transparent) 42%,
-      var(--color-accent-strong) 80%,
-      color-mix(in srgb, var(--color-accent) 82%, white) 100%
-    );
-    filter: blur(0.4px);
-    animation: energy-descent 1.7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-  }
-
-  /* A second head, half a beat behind and dimmer, so the conduit reads as a stream and not a
-     single blip crossing an empty wire. */
-  &::before {
-    opacity: 0.38;
-    animation-delay: -0.85s;
-  }
-}
-
-/* The connector on a finished row above the running one: solid, stepped back to half light so
-   the live conduit leads. `--rail-tint` turns it green once the whole checklist is done, with
-   the seals and the ledger. */
-@utility spent-rail {
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--rail-tint, var(--color-accent)) 70%, white),
-    color-mix(in srgb, var(--rail-tint, var(--color-accent)) 55%, black)
-  );
-  box-shadow: 0 1px 1px rgb(0 0 0 / 0.5);
-  opacity: 0.7;
-}
-
-/* The connector below a step not yet reached: dotted, a path drawn but not walked. The spent
-   rail above is solid, so the checklist's line reads as travelled up to where the work is. */
-@utility pending-rail {
-  background: repeating-linear-gradient(
-    180deg,
-    var(--color-border-strong) 0 2px,
-    transparent 2px 5px
-  );
 }
 
 /*
@@ -1792,23 +1472,6 @@
   100% {
     box-shadow: 0 0 0 0 transparent;
     transform: scale(1);
-  }
-}
-
-@keyframes energy-descent {
-  0% {
-    transform: translateY(-34px);
-    opacity: 0;
-  }
-  12% {
-    opacity: 1;
-  }
-  82% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(var(--stream-height));
-    opacity: 0;
   }
 }
 
@@ -1906,5 +1569,14 @@
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
+  }
+
+  /* Motion set to Reduced in Settings: the loops stop and every state change lands at once. */
+  :root[data-motion='reduced'] *,
+  :root[data-motion='reduced'] *::before,
+  :root[data-motion='reduced'] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
