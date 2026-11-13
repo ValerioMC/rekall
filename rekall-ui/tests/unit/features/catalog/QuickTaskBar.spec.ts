@@ -78,7 +78,7 @@ describe('QuickTaskBar', () => {
 
   it('is held back with the reason while a quick task is still being worked on the project', async () => {
     const store = useConsoleStore()
-    store.tasks = [{ ...STARTED.task } as Task]
+    store.tasks = [{ ...STARTED.task, reviewState: 'RUNNING' } as Task]
     const wrapper = mountBar()
 
     expect(wrapper.get('[data-testid="quick-task-help"]').text()).toBe(QUICK_TASK_BUSY_REASON)
@@ -88,6 +88,13 @@ describe('QuickTaskBar', () => {
   it('is free again once the wrapup claimed the earlier quick task', () => {
     const store = useConsoleStore()
     store.tasks = [{ ...STARTED.task, reviewState: 'CLAIMED' } as Task]
+
+    expect(mountBar().get('[data-testid="quick-task-input"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('is free again when the earlier quick task lost its session and is back to open', () => {
+    const store = useConsoleStore()
+    store.tasks = [{ ...STARTED.task, reviewState: 'OPEN' } as Task]
 
     expect(mountBar().get('[data-testid="quick-task-input"]').attributes('disabled')).toBeUndefined()
   })

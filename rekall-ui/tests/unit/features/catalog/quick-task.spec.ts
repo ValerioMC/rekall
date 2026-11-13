@@ -11,9 +11,12 @@ function quick(id: string, change: Partial<Task> = {}): Task {
 }
 
 describe('activeQuickTask', () => {
-  it('is a quick task of the project that is open or running', () => {
-    expect(activeQuickTask([quick('a')], PROJECT)?.id).toBe('a')
+  it('is a quick task of the project with a session on it', () => {
     expect(activeQuickTask([quick('a', { reviewState: 'RUNNING' })], PROJECT)?.id).toBe('a')
+  })
+
+  it('is none when the session ended without a wrapup and the task is back to open', () => {
+    expect(activeQuickTask([quick('a', { reviewState: 'OPEN' })], PROJECT)).toBeNull()
   })
 
   it('is none once the wrapup claimed it, or it was accepted', () => {
