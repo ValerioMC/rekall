@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { loadWorkPreferences, saveWorkPreferences } from '@/common/config/work-preferences'
 import { toggledSet } from '@/common/config/persisted-set'
 import { groupByProject, isInView, matchesQuery, rowsOfView, sortRows, viewCounts } from '@/features/work/lib/work-view-rules'
+import { workLanes } from '@/features/work/lib/work-lanes'
 import { workRows } from '@/features/work/lib/work-rows'
 import type { WorkDensity, WorkSort, WorkView } from '@/features/work/model/work-view'
 import { useConsoleStore } from '@/stores/console.store'
@@ -28,6 +29,7 @@ export const useWorkStore = defineStore('work', () => {
   const unfoldedFiled = ref<ReadonlySet<ProjectId>>(new Set())
   const peekedTaskId = ref<TaskId | null>(null)
   const lingering = ref<ReadonlySet<TaskId>>(new Set())
+  const sheetTaskId = ref<TaskId | null>(null)
 
   const rows = computed(() =>
     workRows(consoleStore.scopedTasks, consoleStore.steps, (taskId) => tokenUsage.ofTask(taskId).generated)
@@ -40,6 +42,7 @@ export const useWorkStore = defineStore('work', () => {
       sort.value
     )
   )
+  const lanes = computed(() => workLanes(searchedRows.value))
   const finished = computed(() =>
     view.value === 'filed' ? [] : sortRows(rowsOfView(searchedRows.value, 'filed'), sort.value)
   )
@@ -53,6 +56,14 @@ export const useWorkStore = defineStore('work', () => {
 
   function togglePeek(taskId: TaskId): void {
     peekedTaskId.value = peekedTaskId.value === taskId ? null : taskId
+  }
+
+  function openSheet(taskId: TaskId): void {
+    sheetTaskId.value = taskId
+  }
+
+  function closeSheet(): void {
+    sheetTaskId.value = null
   }
 
   function linger(taskId: TaskId): void {
@@ -92,5 +103,5 @@ export const useWorkStore = defineStore('work', () => {
     })
   )
 
-  return { view, density, sort, query, unfoldedFiled, peekedTaskId, rows, counts, shown, groups, toggleFiled, togglePeek, linger }
+  return { view, density, sort, query, unfoldedFiled, peekedTaskId, sheetTaskId, rows, lanes, counts, shown, groups, toggleFiled, togglePeek, openSheet, closeSheet, linger }
 })

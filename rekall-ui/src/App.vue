@@ -45,7 +45,7 @@ const ChatWindow = defineAsyncComponent(() => import('@/features/chat/components
 const store = useConsoleStore()
 const route = useRoute()
 const taskEditor = useTaskEditor()
-const onWork = computed(() => route.name === 'work')
+const onWork = computed(() => route.name === 'work' || route.name === 'work-board')
 const { selectedTaskId, selectedTask, paneFocus, reviewQueue, isLoading } = storeToRefs(store)
 const runQueue = useRunQueueStore()
 const deviations = useDeviationsStore()

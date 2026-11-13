@@ -87,6 +87,11 @@ const peeked = computed(() => work.peekedTaskId === task.value.id)
       {{ ageLabel(task.updatedAt, now) }}
     </span>
   </div>
-  <WorkPeek v-if="peeked" :row="row" />
+  <div
+    v-if="peeked"
+    class="mb-1.5 rounded-b-control bg-surface-raised px-3 pb-3.5 pl-12 pt-1.5 shadow-[inset_0_0_0_1px_var(--color-border-strong)]"
+  >
+    <WorkPeek :row="row" />
+  </div>
   </div>
 </template>

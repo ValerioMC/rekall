@@ -5,6 +5,7 @@ export const router = createRouter({
   routes: [
     { path: '/', name: 'work', component: () => import('@/App.vue') },
     { path: '/work', redirect: '/' },
+    { path: '/work/board', name: 'work-board', component: () => import('@/App.vue') },
     { path: '/console', name: 'console', component: () => import('@/App.vue') },
     {
       path: '/projects',

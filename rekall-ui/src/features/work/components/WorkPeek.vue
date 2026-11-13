@@ -120,10 +120,7 @@ onUnmounted(() => settleTimers.forEach((timer) => window.clearTimeout(timer)))
 </script>
 
 <template>
-  <div
-    class="mb-1.5 rounded-b-control bg-surface-raised px-3 pb-3.5 pl-12 pt-1.5 shadow-[inset_0_0_0_1px_var(--color-border-strong)]"
-    data-testid="work-peek"
-  >
+  <div data-testid="work-peek">
     <div class="flex flex-wrap items-center gap-2.5 pb-2.5 pt-2 text-small text-text-muted">
       <span class="anchor-chip px-1.5 py-px font-mono text-caption" data-testid="peek-anchor">{{ rkCommand(task.anchor) }}</span>
       <CopyAnchorButton :anchor="task.anchor" />

@@ -112,7 +112,11 @@ The board is a layout toggle of Work. Its lanes are To do, In progress (a runnin
 session mark), Awaiting your review (the amber one) and Filed, collapsed to a shelf with a count. A
 card is the project mark, a two-line title, the plan tube and one footer line. A card opens a 600px
 sheet over the board with the same peek and Open as page; Escape or a click outside closes it. The
-board and the ledger agree on every task and count.
+board and the ledger agree on every task and count: To do holds the to do and backlog tasks, In
+progress the in-progress, running and blocked ones, and together with Awaiting your review they
+hold exactly what the ledger lists on Open (`lib/work-lanes.ts`). A lane lists its first forty cards
+and says how many more there are. The layout is the route, `/` for the ledger and `/work/board`
+for the board.
 
 ## The task page
 

@@ -6,6 +6,7 @@ import SegmentedControl, { type SegmentOption } from '@/components/ui/SegmentedC
 import SubNav, { type SubNavItem } from '@/components/ui/SubNav.vue'
 import QuickTaskFilter from '@/features/catalog/components/QuickTaskFilter.vue'
 import ScopePicker from '@/features/catalog/components/ScopePicker.vue'
+import { useWorkLayout, type WorkLayout } from '@/features/work/composables/useWorkLayout'
 import { useConsoleStore } from '@/stores/console.store'
 import { useWorkStore } from '@/features/work/store/work.store'
 import { WORK_VIEWS, WORK_VIEW_LABEL, type WorkDensity, type WorkView } from '@/features/work/model/work-view'
@@ -16,6 +17,13 @@ const store = useConsoleStore()
 const work = useWorkStore()
 const { tasks, scopedProjects } = storeToRefs(store)
 const { view, density, query, counts } = storeToRefs(work)
+
+const layout = useWorkLayout()
+
+const LAYOUT_OPTIONS: readonly SegmentOption<WorkLayout>[] = [
+  { value: 'ledger', label: 'Ledger' },
+  { value: 'board', label: 'Board' }
+]
 
 const hasQuickTasks = computed(() => tasks.value.some((task) => task.quick))
 const canCreate = computed(() => scopedProjects.value.length > 0)
@@ -47,11 +55,12 @@ const tabs = computed<SubNavItem<WorkView>[]>(() =>
       />
       <QuickTaskFilter v-if="hasQuickTasks" />
       <span class="flex-1" />
-      <SegmentedControl v-model="density" :options="DENSITY_OPTIONS" label="Density" />
+      <SegmentedControl v-model="layout" :options="LAYOUT_OPTIONS" label="Layout" />
+      <SegmentedControl v-if="layout === 'ledger'" v-model="density" :options="DENSITY_OPTIONS" label="Density" />
       <AppButton v-if="canCreate" variant="primary" data-testid="new-task" @click="$emit('newTask')">
         <span aria-hidden="true">+</span> New task
       </AppButton>
     </div>
-    <SubNav v-model="view" :items="tabs" label="Work views" />
+    <SubNav v-if="layout === 'ledger'" v-model="view" :items="tabs" label="Work views" />
   </div>
 </template>

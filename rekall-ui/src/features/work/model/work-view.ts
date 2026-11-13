@@ -76,3 +76,12 @@ export interface WorkGroup {
 export type WorkCounts = Readonly<Record<WorkView, number>>
 
 export type TokensOfTask = (taskId: TaskId) => number
+
+export type WorkLaneId = 'todo' | 'progress' | 'review' | 'filed'
+
+/** One column of the board: the rows of the tasks that stand in that state. */
+export interface WorkLane {
+  readonly id: WorkLaneId
+  readonly label: string
+  readonly rows: readonly WorkRow[]
+}
