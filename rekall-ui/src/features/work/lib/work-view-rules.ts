@@ -11,8 +11,12 @@ const VIEW_RULES: Readonly<Record<WorkView, (row: WorkRow) => boolean>> = {
   filed: (row) => row.kind === 'filed'
 }
 
+export function isInView(row: WorkRow, view: WorkView): boolean {
+  return VIEW_RULES[view](row)
+}
+
 export function rowsOfView(rows: readonly WorkRow[], view: WorkView): WorkRow[] {
-  return rows.filter(VIEW_RULES[view])
+  return rows.filter((row) => isInView(row, view))
 }
 
 /** Every word of the query has to appear in the title or the code, whatever the case. */

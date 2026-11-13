@@ -1,31 +1,23 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRouter } from 'vue-router'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
 import WorkProjectGroup from '@/features/work/components/WorkProjectGroup.vue'
 import WorkSortKey from '@/features/work/components/WorkSortKey.vue'
 import { useNow } from '@/composables/useNow'
 import { useConsoleStore } from '@/stores/console.store'
 import { useWorkStore } from '@/features/work/store/work.store'
-import type { TaskId } from '@/model/branded'
 
 const MINUTE_MS = 60_000
 
 const store = useConsoleStore()
 const work = useWorkStore()
-const router = useRouter()
 const { projects } = storeToRefs(store)
 const { view, density, sort, groups, unfoldedFiled } = storeToRefs(work)
 const now = useNow(MINUTE_MS)
 
 const nothingWaits = computed(() => view.value === 'needs' && work.query.trim() === '')
 const noProject = computed(() => projects.value.length === 0)
-
-function openTask(taskId: TaskId): void {
-  store.selectTask(taskId)
-  void router.push({ name: 'console' })
-}
 </script>
 
 <template>
@@ -51,7 +43,6 @@ function openTask(taskId: TaskId): void {
       :density="density"
       :now="now"
       :filed-unfolded="unfoldedFiled.has(group.projectId)"
-      @open="openTask"
       @toggle-filed="work.toggleFiled(group.projectId)"
     />
 

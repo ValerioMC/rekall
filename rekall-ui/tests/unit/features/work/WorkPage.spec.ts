@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import WorkPage from '@/features/work/components/WorkPage.vue'
@@ -146,18 +146,6 @@ describe('WorkPage', () => {
     const wrapper = await mountWork()
 
     expect(wrapper.get('[data-testid="work-row"]').classes()).toContain('h-[34px]')
-  })
-
-  it('opens the task a row names in the console', async () => {
-    const { store } = seed()
-    const push = vi.spyOn(router, 'push').mockResolvedValue(undefined)
-    const wrapper = await mountWork()
-
-    await wrapper.findAll('[data-testid="work-row"]').find((row) => row.text().includes('Plan the launch'))!.trigger('click')
-    await flushPromises()
-
-    expect(store.selectedTaskId).toBe('PR-1')
-    expect(push).toHaveBeenCalledWith({ name: 'console' })
   })
 
   it('shows the project with its company wherever tasks are grouped', async () => {

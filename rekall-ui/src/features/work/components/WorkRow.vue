@@ -11,11 +11,12 @@ import { isEpic } from '@/features/catalog/model/catalog'
 import { ageLabel } from '@/features/work/lib/age-label'
 import { WORK_KIND_LABEL, WORK_KIND_TONE, type WorkDensity, type WorkRow } from '@/features/work/model/work-view'
 import { useConsoleStore } from '@/stores/console.store'
+import { useWorkStore } from '@/features/work/store/work.store'
+import WorkPeek from '@/features/work/components/WorkPeek.vue'
 
 const props = defineProps<{ row: WorkRow; density: WorkDensity; now: number }>()
 
-defineEmits<{ open: [] }>()
-
+const work = useWorkStore()
 const { steps } = storeToRefs(useConsoleStore())
 
 const task = computed(() => props.row.task)
@@ -23,17 +24,26 @@ const mark = computed(() => taskMark(task.value, steps.value, false))
 const hasPlan = computed(() => task.value.stepCount > 0)
 const needsLabel = computed(() => (props.row.claimedSteps > 0 ? `${props.row.claimedSteps} to review` : 'Review'))
 const filed = computed(() => props.row.kind === 'filed')
+const peeked = computed(() => work.peekedTaskId === task.value.id)
 </script>
 
 <template>
+  <div>
   <div
-    class="ledger-columns group/row focus-ring relative cursor-pointer rounded-control transition-colors duration-(--motion-quick) hover:bg-surface hover:text-text"
-    :class="[density === 'compact' ? 'h-[34px]' : 'h-11', filed ? 'text-filed' : 'text-text-muted']"
+    class="ledger-columns group/row focus-ring relative cursor-pointer rounded-control transition-colors duration-(--motion-quick)"
+    :class="[
+      density === 'compact' ? 'h-[34px]' : 'h-11',
+      filed ? 'text-filed' : 'text-text-muted',
+      peeked
+        ? 'rounded-b-none bg-surface-raised text-text shadow-[inset_0_0_0_1px_var(--color-border-strong)]'
+        : 'hover:bg-surface hover:text-text'
+    ]"
     role="button"
     tabindex="0"
+    :aria-expanded="peeked"
     data-testid="work-row"
-    @click="$emit('open')"
-    @keydown.enter.self="$emit('open')"
+    @click="work.togglePeek(task.id)"
+    @keydown.enter.self="work.togglePeek(task.id)"
   >
     <span class="relative grid size-3.5 place-items-center">
       <TaskMark :state="mark.state" :status="task.status" :accepted="mark.accepted" />
@@ -44,6 +54,7 @@ const filed = computed(() => props.row.kind === 'filed')
       <CopyAnchorButton
         :anchor="task.anchor"
         class="opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100"
+        :class="peeked && 'opacity-100'"
         @click.stop
       />
     </span>
@@ -75,5 +86,7 @@ const filed = computed(() => props.row.kind === 'filed')
     <span class="text-right font-mono text-caption tabular-nums text-text-subtle">
       {{ ageLabel(task.updatedAt, now) }}
     </span>
+  </div>
+  <WorkPeek v-if="peeked" :row="row" />
   </div>
 </template>

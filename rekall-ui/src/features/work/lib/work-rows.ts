@@ -24,7 +24,7 @@ function runningTaskIds(tasks: readonly Task[], steps: readonly TaskStep[]): Set
 }
 
 /** A task handed in whole: it has no checklist and its wrapup claimed it. The review queue counts it too. */
-function handedInWhole(task: Task): boolean {
+export function handedInWhole(task: Task): boolean {
   return task.reviewActive && task.reviewState === 'CLAIMED'
 }
 

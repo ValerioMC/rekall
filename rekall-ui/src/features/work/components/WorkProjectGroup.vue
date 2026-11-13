@@ -4,12 +4,11 @@ import { RouterLink } from 'vue-router'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
 import WorkRowView from '@/features/work/components/WorkRow.vue'
 import { formatTokens } from '@/common/format/token-count'
-import type { TaskId } from '@/model/branded'
 import type { WorkDensity, WorkGroup } from '@/features/work/model/work-view'
 
 const props = defineProps<{ group: WorkGroup; density: WorkDensity; now: number; filedUnfolded: boolean }>()
 
-defineEmits<{ open: [taskId: TaskId]; toggleFiled: [] }>()
+defineEmits<{ toggleFiled: [] }>()
 
 const taskCountLabel = computed(() => `${props.group.rows.length} ${props.group.rows.length === 1 ? 'task' : 'tasks'}`)
 </script>
@@ -40,7 +39,6 @@ const taskCountLabel = computed(() => `${props.group.rows.length} ${props.group.
       :row="row"
       :density="density"
       :now="now"
-      @open="$emit('open', row.task.id)"
     />
 
     <template v-if="group.filed.length > 0">
@@ -69,7 +67,6 @@ const taskCountLabel = computed(() => `${props.group.rows.length} ${props.group.
           :row="row"
           :density="density"
           :now="now"
-          @open="$emit('open', row.task.id)"
         />
       </template>
     </template>

@@ -99,8 +99,12 @@ promises rows the table does not list.
 
 A row expands in place, one at a time, to its **peek**: the task's `/rk` anchor with copy, up to
 three claimed steps each with Send back and Accept, a task handed in whole with Accept task and
-Send back, Open task, and Resume session or the running state. A person can clear a task's claims
-without leaving Work.
+Send back, Open task, and the session key (`OpenTerminalButton`, which reads Run here, or Working while
+a session runs). A person can clear a task's claims without leaving Work.
+
+Accepting stamps the step's seal in place and keeps the row listed for a moment, so the arrival is
+seen before the task leaves a tab it no longer belongs to; every count updates at once. The toast
+offers Reopen. Sending back has no Undo: only a session can claim a step again.
 
 ### Board
 
