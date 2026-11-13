@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
+import LibrarySubNav from './LibrarySubNav.vue'
 import DiagramGallery from './gallery/DiagramGallery.vue'
 import DiagramViewer from './viewer/DiagramViewer.vue'
 import ExplainCodeDialog from './dialogs/ExplainCodeDialog.vue'
@@ -140,7 +141,7 @@ const blast = computed(() =>
 <template>
   <div class="relative flex min-h-0 flex-1 flex-col bg-canvas">
     <template v-if="!store.selectedId">
-      <AppCatalogHeader title="Diagrams">
+      <AppCatalogHeader title="Library">
         <template #actions>
           <AppButton size="sm" variant="secondary" data-testid="diagram-import-open" @click="showImport = true">Import</AppButton>
           <AppButton size="sm" variant="secondary" data-testid="diagram-explain-open" @click="showExplain = true">
@@ -153,6 +154,7 @@ const blast = computed(() =>
           </AppButton>
         </template>
       </AppCatalogHeader>
+      <div class="mx-auto w-full max-w-[1240px] px-8 pt-4"><LibrarySubNav active="diagrams" /></div>
       <DiagramGallery
         :summaries="store.summaries"
         :projects="console_.scopedProjects"
