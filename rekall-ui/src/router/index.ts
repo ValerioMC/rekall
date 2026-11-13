@@ -3,7 +3,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', name: 'console', component: () => import('@/App.vue') },
+    { path: '/', name: 'work', component: () => import('@/App.vue') },
+    { path: '/work', redirect: '/' },
+    { path: '/console', name: 'console', component: () => import('@/App.vue') },
     {
       path: '/projects',
       name: 'projects',

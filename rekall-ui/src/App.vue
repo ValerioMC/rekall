@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useRoute } from 'vue-router'
 import AnchorBar from '@/components/console/AnchorBar.vue'
 import DescriptionPane from '@/features/catalog/components/DescriptionPane.vue'
 import DeviationPane from '@/features/deviations/components/DeviationPane.vue'
 import EpicPane from '@/features/catalog/components/epic/EpicPane.vue'
-import NavigatorPane from '@/components/console/NavigatorPane.vue'
+import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import NoteListPane from '@/features/notes/components/NoteListPane.vue'
 import NotePane from '@/features/notes/components/NotePane.vue'
 import StepsPane from '@/features/steps/components/StepsPane.vue'
+import WorkPage from '@/features/work/components/WorkPage.vue'
 import WrapupPane from '@/features/wrapup/components/WrapupPane.vue'
 import SettingsPanel from '@/features/settings/components/SettingsPanel.vue'
 import TagsPanel from '@/features/tags/components/TagsPanel.vue'
@@ -30,6 +32,7 @@ import { useModalGate } from '@/composables/useModalGate'
 import { useStepStream } from '@/features/steps/composables/useStepStream'
 import { useClaimNotifications } from '@/composables/useClaimNotifications'
 import { useConsoleLocation } from '@/composables/useConsoleLocation'
+import { useTaskEditor } from '@/features/catalog/composables/useTaskEditor'
 import { isEpic } from '@/features/catalog/model/catalog'
 import { type TaskStatus } from '@/features/catalog/model/task-status'
 
@@ -40,6 +43,9 @@ const TerminalPane = defineAsyncComponent(() => import('@/features/claude/compon
 const ChatWindow = defineAsyncComponent(() => import('@/features/chat/components/ChatWindow.vue'))
 
 const store = useConsoleStore()
+const route = useRoute()
+const taskEditor = useTaskEditor()
+const onWork = computed(() => route.name === 'work')
 const { selectedTaskId, selectedTask, paneFocus, reviewQueue, isLoading } = storeToRefs(store)
 const runQueue = useRunQueueStore()
 const deviations = useDeviationsStore()
@@ -82,7 +88,6 @@ const STATUS_BY_KEY: Record<string, TaskStatus> = {
 }
 
 const anchorBar = ref<InstanceType<typeof AnchorBar> | null>(null)
-const navigator = ref<InstanceType<typeof NavigatorPane> | null>(null)
 const descriptionPane = ref<InstanceType<typeof DescriptionPane> | null>(null)
 const epicPane = ref<InstanceType<typeof EpicPane> | null>(null)
 const notePane = ref<InstanceType<typeof NotePane> | null>(null)
@@ -91,6 +96,16 @@ const deviationPane = ref<InstanceType<typeof DeviationPane> | null>(null)
 const settingsOpen = ref(false)
 const claudeConnection = useClaudeConnectionStore()
 const tagsOpen = ref(false)
+
+function onWorkKey(key: string, event: KeyboardEvent): void {
+  if (key === 'q') {
+    event.preventDefault()
+    runQueue.openPanel()
+  } else if (key === 't') {
+    event.preventDefault()
+    taskEditor.beginCreate()
+  }
+}
 
 function onKeydown(event: KeyboardEvent): void {
   if (isModalOpen.value > 0) return
@@ -112,6 +127,11 @@ function onKeydown(event: KeyboardEvent): void {
   if (typing) return
 
   const key = event.key.toLowerCase()
+
+  if (onWork.value) {
+    onWorkKey(key, event)
+    return
+  }
 
   if (paneFocus.value === 'deviation') {
     if (event.key === 'Escape') {
@@ -173,13 +193,13 @@ function onKeydown(event: KeyboardEvent): void {
 
   if (key === 't') {
     event.preventDefault()
-    navigator.value?.beginCreate()
+    taskEditor.beginCreate()
     return
   }
 
   if (key === 'e') {
     event.preventDefault()
-    navigator.value?.editSelected()
+    taskEditor.editSelected()
     return
   }
 
@@ -233,7 +253,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     />
 
     <div class="flex min-h-0 flex-1">
-      <NavigatorPane ref="navigator" />
+      <WorkPage v-if="onWork" @new-task="taskEditor.beginCreate()" />
+      <template v-else>
       <NoteListPane ref="noteList" />
       <!-- A place focus is sent to (the skip link, a pane shortcut), never a control, so it
            draws no ring: the pane that appears in it is what says where you are. -->
@@ -254,8 +275,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         </Transition>
         <ChatReopenTag />
       </div>
+      </template>
     </div>
 
+    <Transition name="dialog">
+      <RecordDialog v-if="taskEditor.editing.value" :draft="taskEditor.editing.value" @close="taskEditor.close()" />
+    </Transition>
     <Transition name="dialog">
       <SettingsPanel v-if="settingsOpen" @close="settingsOpen = false" />
     </Transition>

@@ -4,6 +4,7 @@ import { flushPromises } from '@vue/test-utils'
 import App from '@/App.vue'
 import { router } from '@/router'
 import { useConsoleStore } from '@/stores/console.store'
+import { useWorkStore } from '@/features/work/store/work.store'
 import { mountWithHeaderChrome } from './support/mountWithHeaderChrome'
 import { useChatDockStore } from '@/features/chat/store/chatDock.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
@@ -338,9 +339,9 @@ function chatSessionOn(taskId: TaskId) {
   return chatSession({ taskId })
 }
 
-async function mountConsole() {
+async function mountConsole(path = '/console') {
   setActivePinia(createPinia())
-  await router.push('/')
+  await router.push(path)
   // App itself no longer loads the catalog on mount — that moved to Bootstrap, the one place
   // guaranteed to run regardless of which route is entered — so the test stands in for it.
   await useConsoleStore().load()
@@ -348,6 +349,17 @@ async function mountConsole() {
   mounted.push(wrapper)
   await flushPromises()
   return wrapper
+}
+
+const mountWork = (): ReturnType<typeof mountConsole> => mountConsole('/')
+
+/** Waits for the URL to carry the task: the console's first location write may still be in flight and would undo an earlier pick. */
+async function openTaskTitled(title: string): Promise<void> {
+  const store = useConsoleStore()
+  const picked = store.tasks.find((candidate) => candidate.title === title)!
+  store.selectTask(picked.id)
+  await vi.waitFor(() => expect(router.currentRoute.value.query.task).toBe(picked.id))
+  await flushPromises()
 }
 
 describe('the console', () => {
@@ -371,27 +383,18 @@ describe('the console', () => {
     expect(wrapper.findAll('[data-testid="resume-row"]')).toHaveLength(1)
   })
 
-  it('renders the three panes with the project scope fixed above the list', async () => {
-    const wrapper = await mountConsole()
+  it('renders the Work screen with the project scope above the ledger', async () => {
+    const wrapper = await mountWork()
 
     expect(wrapper.find('[data-testid="anchor-input"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="work-page"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('All work')
-    expect(wrapper.findAll('[data-testid="task-row"]')).toHaveLength(2)
-  })
-
-  /** A row has to carry both names: the one you read and the one you type. */
-  it('shows a task by its title with its code underneath', async () => {
-    const wrapper = await mountConsole()
-    const row = wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!
-
-    expect(row.text()).toContain('Report builder')
-    expect(row.text()).toContain('PR-1')
   })
 
   it('walks from a task to its notes to the editor', async () => {
     const wrapper = await mountConsole()
 
-    await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+    await openTaskTitled('Report builder')
     await flushPromises()
 
     expect(wrapper.findAll('[data-testid="note-card"]')).toHaveLength(1)
@@ -400,15 +403,13 @@ describe('the console', () => {
     expect(wrapper.text()).toContain('task:PR-1')
   })
 
-  it('filters the task list as the anchor bar is typed into', async () => {
+  it('filters the tasks the search lists as the anchor bar is typed into', async () => {
     const wrapper = await mountConsole()
 
     await wrapper.find('[data-testid="anchor-input"]').setValue('retry')
     await flushPromises()
 
-    const rows = wrapper.findAll('[data-testid="task-row"]')
-    expect(rows).toHaveLength(1)
-    expect(rows[0]!.text()).toContain('Retry policy')
+    expect(useConsoleStore().visibleTasks.map((task) => task.title)).toEqual(['Retry policy'])
   })
 
   /** The chips copy a whole `/rk …` line, and this field is where half of them get pasted. */
@@ -418,14 +419,12 @@ describe('the console', () => {
     await wrapper.find('[data-testid="anchor-input"]').setValue('/rk retry')
     await flushPromises()
 
-    const rows = wrapper.findAll('[data-testid="task-row"]')
-    expect(rows).toHaveLength(1)
-    expect(rows[0]!.text()).toContain('Retry policy')
+    expect(useConsoleStore().visibleTasks.map((task) => task.title)).toEqual(['Retry policy'])
   })
 
   it('adds information to the task in view on N', async () => {
     const wrapper = await mountConsole()
-    await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Retry policy'))!.trigger('click')
+    await openTaskTitled('Retry policy')
     await flushPromises()
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'n' }))
@@ -436,9 +435,9 @@ describe('the console', () => {
   })
 
   it('sets a task status from the number keys, with no form and no save', async () => {
-    const wrapper = await mountConsole()
+    await mountConsole()
 
-    await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+    await openTaskTitled('Report builder')
     window.dispatchEvent(new KeyboardEvent('keydown', { key: '4' }))
     await flushPromises()
 
@@ -450,7 +449,7 @@ describe('the console', () => {
    * make choosing a project a two-step act; this shows the whole tree and takes one click.
    */
   it('shows companies with their projects nested in one picker', async () => {
-    const wrapper = await mountConsole()
+    const wrapper = await mountWork()
 
     await wrapper.find('[data-testid="scope-trigger"]').trigger('click')
 
@@ -466,7 +465,7 @@ describe('the console', () => {
   })
 
   it('narrows to a project and says so in the breadcrumb', async () => {
-    const wrapper = await mountConsole()
+    const wrapper = await mountWork()
 
     await wrapper.find('[data-testid="scope-trigger"]').trigger('click')
     await wrapper.findAll('[data-testid="scope-project"]')[1]?.trigger('click')
@@ -474,11 +473,13 @@ describe('the console', () => {
 
     expect(wrapper.find('[data-testid="scope-trigger"]').text()).toContain('Vega Platform')
     expect(wrapper.find('[data-testid="scope-trigger"]').text()).toContain('project:vega')
-    expect(wrapper.findAll('[data-testid="task-row"]')).toHaveLength(2)
+    useWorkStore().view = 'open'
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid="work-row"]')).toHaveLength(2)
   })
 
   it('offers creating a company and a project where projects are chosen', async () => {
-    const wrapper = await mountConsole()
+    const wrapper = await mountWork()
 
     await wrapper.find('[data-testid="scope-trigger"]').trigger('click')
 
@@ -508,8 +509,8 @@ describe('the console', () => {
    * shortcut is a bare key, so a modified key must pass straight through without preventDefault.
    */
   it('leaves a Cmd or Ctrl chord alone so copy and paste work inside the app', async () => {
-    const wrapper = await mountConsole()
-    await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+    await mountConsole()
+    await openTaskTitled('Report builder')
     await flushPromises()
 
     const copy = new KeyboardEvent('keydown', { key: 'c', metaKey: true, cancelable: true })
@@ -526,8 +527,8 @@ describe('the console', () => {
 
   /** The bare key it shares a letter with still works. */
   it('toggles the terminal pane on a bare C', async () => {
-    const wrapper = await mountConsole()
-    await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+    await mountConsole()
+    await openTaskTitled('Report builder')
     await flushPromises()
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }))
@@ -543,7 +544,7 @@ describe('the console', () => {
   it('shows and hides the chat window on a bare C when the task has a chat session', async () => {
     vi.stubGlobal('EventSource', class { addEventListener(): void {} close(): void {} })
     const wrapper = await mountConsole()
-    await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+    await openTaskTitled('Report builder')
     await flushPromises()
     const dock = useChatDockStore()
     dock.hide()
@@ -579,7 +580,7 @@ describe('the console', () => {
   /** The anchor on the terminal pane is a copy chip, like the one on the description and steps panes. */
   it('carries a copyable anchor chip on the terminal pane', async () => {
     const wrapper = await mountConsole()
-    await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+    await openTaskTitled('Report builder')
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }))
     // The terminal pane is an async component: its chunk has to land before it renders.
@@ -675,7 +676,7 @@ describe('the console', () => {
     it('opens the selected task for editing on E, with its values loaded', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }))
       await flushPromises()
 
@@ -688,8 +689,7 @@ describe('the console', () => {
     it('edits a task without a description field and saves the description it already has', async () => {
       const wrapper = await mountConsole()
 
-      const retryRow = wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Retry policy'))!
-      await retryRow.trigger('click')
+      await openTaskTitled('Retry policy')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }))
       await flushPromises()
       await wrapper.find('[data-testid="record-save"]').trigger('click')
@@ -707,7 +707,7 @@ describe('the console', () => {
      * scope picker goes there instead of opening the quick-edit dialog.
      */
     it('sends the project pencil to the project page rather than opening the dialog', async () => {
-      const wrapper = await mountConsole()
+      const wrapper = await mountWork()
 
       const pushSpy = vi.spyOn(router, 'push')
 
@@ -722,7 +722,7 @@ describe('the console', () => {
     it('moves a task to another project, and gives it that project’s next code', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }))
       await flushPromises()
 
@@ -748,7 +748,7 @@ describe('the console', () => {
     it('states the blast radius before deleting, and deletes once confirmed', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }))
       await flushPromises()
 
@@ -789,7 +789,7 @@ describe('the console', () => {
     it('pins the wrapup above the notes of the task in view', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       await flushPromises()
 
       const card = wrapper.find('[data-testid="wrapup-card"]')
@@ -803,7 +803,7 @@ describe('the console', () => {
     it('opens it on W, and says whose words are on screen', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
       await flushPromises()
 
@@ -827,7 +827,7 @@ describe('the console', () => {
     it('says how many notes were written after it', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
       await flushPromises()
 
@@ -841,7 +841,7 @@ describe('the console', () => {
     it('points to the anchor for a task that has none, and offers a way to write it by hand', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Retry policy'))!.trigger('click')
+      await openTaskTitled('Retry policy')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
       await flushPromises()
 
@@ -860,7 +860,7 @@ describe('the console', () => {
     it('toggles back to the note on a second W', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
       await flushPromises()
       expect(wrapper.text()).toContain('Written by')
@@ -880,7 +880,7 @@ describe('the console', () => {
     it('stays in the editor when the autosave comes back', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
       await flushPromises()
 
@@ -901,7 +901,7 @@ describe('the console', () => {
     it('makes the shortcuts inert while it is asking whether to delete', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
       await flushPromises()
       await wrapper.findAll('button').find((button) => button.text() === 'Delete')!.trigger('click')
@@ -924,7 +924,7 @@ describe('the console', () => {
     it('states what deleting a wrapup does and does not take with it', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
       await flushPromises()
 
@@ -953,7 +953,7 @@ describe('the console', () => {
     it('pins it between the timer and the wrapup of the task in view', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Retry policy'))!.trigger('click')
+      await openTaskTitled('Retry policy')
       await flushPromises()
 
       const card = wrapper.find('[data-testid="description-card"]')
@@ -970,7 +970,7 @@ describe('the console', () => {
     it('opens the whole pane on D, in markdown', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Retry policy'))!.trigger('click')
+      await openTaskTitled('Retry policy')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
       await flushPromises()
 
@@ -984,7 +984,7 @@ describe('the console', () => {
     it('opens the editor straight away on a task nobody has described', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
       await flushPromises()
 
@@ -998,7 +998,7 @@ describe('the console', () => {
     it('reads the description back on a task that has one', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Retry policy'))!.trigger('click')
+      await openTaskTitled('Retry policy')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
       await flushPromises()
 
@@ -1011,7 +1011,7 @@ describe('the console', () => {
     it('toggles back to the note on a second D', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Retry policy'))!.trigger('click')
+      await openTaskTitled('Retry policy')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
       await flushPromises()
       expect(wrapper.find('[data-testid="copy-description-anchor"]').exists()).toBe(true)
@@ -1026,7 +1026,7 @@ describe('the console', () => {
     it('toggles the description between read and write on R', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Retry policy'))!.trigger('click')
+      await openTaskTitled('Retry policy')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
       await flushPromises()
 
@@ -1047,7 +1047,7 @@ describe('the console', () => {
     it('toggles a note between write and read on R', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       await flushPromises()
 
       const mode = () => wrapper.findAll('[aria-label="Mode"] button')
@@ -1064,7 +1064,7 @@ describe('the console', () => {
     it('says on the wrapup card how many steps closed since it was written', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       await flushPromises()
 
       expect(wrapper.find('[data-testid="wrapup-misses-steps"]').text()).toBe(
@@ -1075,7 +1075,7 @@ describe('the console', () => {
     it('pins how much is left above the notes, and names what is next', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       await flushPromises()
 
       const card = wrapper.find('[data-testid="steps-card"]')
@@ -1092,7 +1092,7 @@ describe('the console', () => {
     it('opens on S, with the open step in full and the done one struck through', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
       await flushPromises()
 
@@ -1106,7 +1106,7 @@ describe('the console', () => {
     it('ticks a step where it stands', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
       await flushPromises()
 
@@ -1127,7 +1127,7 @@ describe('the console', () => {
     it('does nothing when the box of a done step is clicked', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
       await flushPromises()
 
@@ -1141,7 +1141,7 @@ describe('the console', () => {
     it('reopens a done step only after the reopen button is confirmed', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
       await flushPromises()
 
@@ -1168,7 +1168,7 @@ describe('the console', () => {
     it('opens on the next step with its detail rendered', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
       await flushPromises()
 
@@ -1184,7 +1184,7 @@ describe('the console', () => {
     it('switches the detail to the markdown editor on write', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
       await flushPromises()
 
@@ -1201,7 +1201,7 @@ describe('the console', () => {
     it('toggles back to the note on a second S', async () => {
       const wrapper = await mountConsole()
 
-      await wrapper.findAll('[data-testid="task-row"]').find((row) => row.text().includes('Report builder'))!.trigger('click')
+      await openTaskTitled('Report builder')
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
       await flushPromises()
       expect(wrapper.find('[data-testid="new-step"]').exists()).toBe(true)

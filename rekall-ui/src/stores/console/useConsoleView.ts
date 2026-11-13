@@ -18,7 +18,7 @@ function matchesTask(task: Task, needle: string): boolean {
 const byTitle = (a: { readonly title: string }, b: { readonly title: string }): number =>
   compareText(a.title, b.title)
 
-/** What the navigator lists: the rows inside the company or project in scope that match the filter, by title. */
+/** What the search lists: the rows inside the company or project in scope that match the filter, by title. `scopedTasks` is the same rows before the filter. */
 export function useConsoleView(state: ConsoleState) {
   const { companies, projects, tasks, documents, scopeCompany, scopeProject, filter, hideQuickTasks } = state
 
@@ -40,10 +40,12 @@ export function useConsoleView(state: ConsoleState) {
   const isShelved = (task: Task): boolean =>
     archivedProjectIds.value.has(task.projectId) && scopeProject.value !== task.projectId
 
+  const scopedTasks = computed(() =>
+    tasks.value.filter((task) => inScope(task) && !isShelved(task) && !(hideQuickTasks.value && task.quick))
+  )
+
   const visibleTasks = computed(() =>
-    tasks.value
-      .filter((task) => inScope(task) && !isShelved(task) && !(hideQuickTasks.value && task.quick) && matchesTask(task, filter.value))
-      .sort(byTitle)
+    scopedTasks.value.filter((task) => matchesTask(task, filter.value)).sort(byTitle)
   )
 
   const scopedCompany = computed(
@@ -85,6 +87,7 @@ export function useConsoleView(state: ConsoleState) {
 
   return {
     inScope,
+    scopedTasks,
     visibleTasks,
     scopedCompany,
     scopedProject,

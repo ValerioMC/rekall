@@ -47,7 +47,7 @@ in the build by the terminal, session, run queue and usage stores. A number the 
 
 | Mockup route | Real route | Screen |
 |---|---|---|
-| `#/work` | `/` and `/work` | Work ledger |
+| `#/work` | `/` (`/work` redirects to it) | Work ledger |
 | `#/work/board` | `/work/board` | Work board |
 | `#/task/:id/:tab` | `/task/:id/:tab` | Task page, tab `plan`, `wrapup`, `notes`, `description`, `time` or `deviations` |
 | `#/review/:key` | `/review/:key` | Review queue |
@@ -63,7 +63,8 @@ in the build by the terminal, session, run queue and usage stores. A number the 
 
 The routes that exist today keep their paths: the redesign changes what a screen shows, not where it
 lives. `/` is the Work ledger instead of the three-column console, and `/task`, `/review` and
-`/settings` are new.
+`/settings` are new. Until the task page exists, a ledger row opens the task in the old two-pane
+console, which lives at `/console`.
 
 ### The grouped menu
 
@@ -86,12 +87,15 @@ The head holds the scope select (all work, a company, or a project), a filter on
 the Ledger or Board layout toggle, the density (Comfortable or Compact) and New task. Under it the
 views are sub-navigation tabs with counts: **Needs me** (the default), Running, Open and Filed. A
 finished task never fills the table: each project folds its `DONE` tasks into one `N filed` line
-that opens in place, by `common/catalog/partition-tasks.ts`. Scope, view and density are layout
-preferences kept in `localStorage`, as the project collapse was.
+that opens in place. The rules for which tasks a tab shows, the counts, the sort and the fold are
+pure functions in `features/work/lib/work-view-rules.ts`, over the rows `work-rows.ts` builds. Scope,
+view and density are layout preferences kept in `localStorage` by `common/config/work-preferences.ts`;
+the sort and the filter are not.
 
-**Needs me** counts claimed steps plus tasks handed in whole. That number is the same one as the
-menu badge, the header review segment and the Review queue: the three must always agree, so it is
-derived once and read from there.
+**Needs me** counts claimed steps plus tasks handed in whole. With nothing narrowing the scope that
+number is the same one as the menu badge, the header review segment and the Review queue, and the
+tests hold the two to each other. A scope narrows the tab counts to its tasks, so a count never
+promises rows the table does not list.
 
 A row expands in place, one at a time, to its **peek**: the task's `/rk` anchor with copy, up to
 three claimed steps each with Send back and Accept, a task handed in whole with Accept task and

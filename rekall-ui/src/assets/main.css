@@ -1028,6 +1028,19 @@
   padding-left: 3px;
 }
 
+/* The ledger's columns, shared by its header and its rows so they line up. Notes and tokens give way first. */
+@utility ledger-columns {
+  display: grid;
+  grid-template-columns: 22px minmax(260px, 1fr) 140px 190px 118px 56px 78px 56px;
+  align-items: center;
+  column-gap: 14px;
+  padding-inline: 12px;
+
+  @media (max-width: 1180px) {
+    grid-template-columns: 22px minmax(200px, 1fr) 130px 160px 110px 56px;
+  }
+}
+
 @utility filed-row {
   opacity: 0.55;
   transition: opacity var(--motion-quick) ease;

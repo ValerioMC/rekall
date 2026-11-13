@@ -28,7 +28,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         to: '/',
         label: 'Work',
         hint: 'Tasks, steps and sessions',
-        routes: ['console'],
+        routes: ['work', 'console'],
         alert: 'review-queue'
       }
     ]

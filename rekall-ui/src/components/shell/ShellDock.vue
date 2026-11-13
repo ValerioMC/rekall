@@ -5,48 +5,17 @@ import { useRoute } from 'vue-router'
 import { useConsoleStore } from '@/stores/console.store'
 import { useChatWindowShown } from '@/features/chat/composables/useChatWindowShown'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
-import type { DockPlacement } from '@/components/shell/dock-placement'
 import RunningTasksPanel from './RunningTasksPanel.vue'
 import TerminalSessionsPanel from './TerminalSessionsPanel.vue'
 
 /**
- * Live work: one bar, two segments, one panel open at a time.
- *
- * On the console the bar is the foot of the navigator (`navigator`), a strip as wide as the
- * list with the sheet rising over it, so the right edge of every pane stays free for its own
- * buttons. On the other screens there is no navigator and it is a capsule in the bottom left
- * corner (`screen`). The sheet belongs to whichever segment was pressed last: pressing the
- * other switches; pressing the same one again, Escape, or a click anywhere else closes it. A
- * segment that has nothing to show leaves, and takes its sheet with it; when neither has
- * anything, so does the bar.
+ * Live work: one capsule in the bottom left corner of every screen, two segments, one panel open
+ * at a time. The sheet belongs to whichever segment was pressed last: pressing the other
+ * switches; pressing the same one again, Escape, or a click anywhere else closes it. A segment
+ * that has nothing to show leaves, and takes its sheet with it; when neither has anything, so
+ * does the capsule.
  */
 type DockPanel = 'running' | 'sessions'
-
-interface DockLayout {
-  root: string
-  sheet: string
-  bar: string
-  segment: string
-}
-
-const LAYOUTS = {
-  navigator: {
-    root: 'relative shrink-0 border-t border-border bg-surface',
-    sheet: 'absolute inset-x-2 bottom-full mb-2',
-    bar: 'dock-bar flex h-10 items-stretch',
-    segment: 'min-w-0 flex-1'
-  },
-  screen: {
-    root: 'fixed bottom-2.5 left-4 z-(--z-sticky) flex flex-col items-start gap-2',
-    sheet: 'w-[320px]',
-    bar: 'dock-bar glass flex h-10 items-stretch overflow-hidden rounded-full border border-border-strong shadow-lift',
-    segment: ''
-  }
-} as const satisfies Record<DockPlacement, DockLayout>
-
-const props = defineProps<{ placement: DockPlacement }>()
-
-const layout = computed(() => LAYOUTS[props.placement])
 
 const store = useConsoleStore()
 const terminals = useTerminalStore()
@@ -111,16 +80,16 @@ onUnmounted(() => {
   <div
     v-if="visible"
     ref="root"
-    :class="layout.root"
+    class="fixed bottom-2.5 left-4 z-(--z-sticky) flex flex-col items-start gap-2"
     data-testid="shell-dock"
   >
     <Transition name="popover" mode="out-in">
-      <RunningTasksPanel v-if="open === 'running'" :class="layout.sheet" @close="close" />
-      <TerminalSessionsPanel v-else-if="open === 'sessions'" :class="layout.sheet" @close="close" />
+      <RunningTasksPanel v-if="open === 'running'" class="w-[320px]" @close="close" />
+      <TerminalSessionsPanel v-else-if="open === 'sessions'" class="w-[320px]" @close="close" />
     </Transition>
 
     <div
-      :class="layout.bar"
+      class="dock-bar glass flex h-10 items-stretch overflow-hidden rounded-full border border-border-strong shadow-lift"
       role="toolbar"
       aria-label="Live work"
       data-testid="shell-dock-bar"
@@ -128,7 +97,6 @@ onUnmounted(() => {
       <button
         v-if="showsRunning"
         class="dock-segment dock-segment-time"
-        :class="layout.segment"
         :aria-expanded="open === 'running'"
         aria-controls="dock-panel-running"
         data-testid="running-dock-toggle"
@@ -143,7 +111,7 @@ onUnmounted(() => {
       <button
         v-if="showsSessions"
         class="dock-segment dock-segment-session"
-        :class="[layout.segment, awaitingApproval && 'text-warn']"
+        :class="awaitingApproval && 'text-warn'"
         :aria-expanded="open === 'sessions'"
         aria-controls="dock-panel-sessions"
         data-testid="terminal-dock-toggle"
