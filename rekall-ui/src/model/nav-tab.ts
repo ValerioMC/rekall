@@ -1,9 +1,11 @@
-/** Something a screen counts that needs the reader, shown on its tab from any screen. */
-export type NavAlert = 'open-vulnerabilities'
+/** Something a screen counts that needs the reader, shown beside it in the menu and summed on the key. */
+export type NavAlert = 'open-vulnerabilities' | 'review-queue'
+
+export type NavAlertTone = 'danger' | 'accent'
 
 /**
- * One screen the header switcher can take the reader to. `routes` are every route name it owns;
- * `alert` names the count its tab wears while it is above zero.
+ * One screen the header menu can take the reader to. `routes` are every route name it owns;
+ * `alert` names the count it wears while it is above zero.
  */
 export type NavScreen = Readonly<{
   to: string
@@ -13,22 +15,26 @@ export type NavScreen = Readonly<{
   alert?: NavAlert
 }>
 
-/** Screens that share one slot in the switcher and open from it as a menu, to save header width. */
 export type NavGroup = Readonly<{
   label: string
   screens: readonly NavScreen[]
 }>
 
-export type NavEntry =
-  Readonly<{ kind: 'screen'; screen: NavScreen }> | Readonly<{ kind: 'group'; group: NavGroup }>
-
-const screen = (value: NavScreen): NavEntry => ({ kind: 'screen', screen: value })
-const group = (value: NavGroup): NavEntry => ({ kind: 'group', group: value })
-
-export const NAV_ENTRIES: readonly NavEntry[] = [
-  screen({ to: '/', label: 'Console', hint: 'Tasks, steps and sessions', routes: ['console'] }),
-  group({
-    label: 'Catalog',
+export const NAV_GROUPS: readonly NavGroup[] = [
+  {
+    label: 'Work',
+    screens: [
+      {
+        to: '/',
+        label: 'Work',
+        hint: 'Tasks, steps and sessions',
+        routes: ['console'],
+        alert: 'review-queue'
+      }
+    ]
+  },
+  {
+    label: 'Projects',
     screens: [
       {
         to: '/projects',
@@ -44,50 +50,56 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
         routes: ['connections']
       }
     ]
-  }),
-  screen({ to: '/diagrams', label: 'Diagrams', hint: 'Generated diagrams', routes: ['diagrams'] }),
-  screen({
-    to: '/security',
-    label: 'Security',
-    hint: 'Critical advisories and the projects they reach',
-    routes: ['security'],
-    alert: 'open-vulnerabilities'
-  }),
-  screen({ to: '/claude', label: 'Claude', hint: 'Instructions, memories and skills', routes: ['claude'] }),
-  group({
+  },
+  {
     label: 'Time',
     screens: [
-      { to: '/calendar', label: 'Calendar', hint: 'Your work, day by day', routes: ['calendar'] },
-      { to: '/report', label: 'Report', hint: 'Time tracked, by period', routes: ['report'] }
+      { to: '/report', label: 'Report', hint: 'Time tracked, by period', routes: ['report'] },
+      { to: '/calendar', label: 'Calendar', hint: 'Your work, day by day', routes: ['calendar'] }
     ]
-  })
+  },
+  {
+    label: 'Library',
+    screens: [
+      { to: '/diagrams', label: 'Diagrams', hint: 'Generated diagrams', routes: ['diagrams'] },
+      { to: '/claude', label: 'Claude files', hint: 'Instructions, memories and skills', routes: ['claude'] }
+    ]
+  },
+  {
+    label: 'Security',
+    screens: [
+      {
+        to: '/security',
+        label: 'Security',
+        hint: 'Critical advisories and the projects they reach',
+        routes: ['security'],
+        alert: 'open-vulnerabilities'
+      }
+    ]
+  }
 ]
 
 export function isScreenActive(target: NavScreen, routeName: string | null): boolean {
   return routeName !== null && target.routes.includes(routeName)
 }
 
-/** The group's member on screen, so the slot can wear its name; `null` when the reader is elsewhere. */
-export function activeScreenOf(target: NavGroup, routeName: string | null): NavScreen | null {
-  return target.screens.find((member) => isScreenActive(member, routeName)) ?? null
+export function screensOf(groups: readonly NavGroup[]): readonly NavScreen[] {
+  return groups.flatMap((group) => group.screens)
 }
 
-/** The screen on display among every entry, so a collapsed switcher can wear its name. */
-export function activeScreenIn(entries: readonly NavEntry[], routeName: string | null): NavScreen | null {
-  for (const entry of entries) {
-    const current = entry.kind === 'screen' ? (isScreenActive(entry.screen, routeName) ? entry.screen : null) : activeScreenOf(entry.group, routeName)
-    if (current) return current
-  }
-  return null
+/** The screen on display, so the menu key can wear its name; `null` when the reader is elsewhere. */
+export function activeScreenIn(groups: readonly NavGroup[], routeName: string | null): NavScreen | null {
+  return screensOf(groups).find((screen) => isScreenActive(screen, routeName)) ?? null
 }
 
-/** Every screen an entry holds: the screen itself, or a group's members. */
-export function screensOf(entry: NavEntry): readonly NavScreen[] {
-  return entry.kind === 'screen' ? [entry.screen] : entry.group.screens
-}
-
-/** What a tab's alert count says, read out and shown on hover. */
+/** What an alert count says, read out and shown on hover. */
 export function alertLabel(alert: NavAlert | undefined, count: number): string {
   if (alert === 'open-vulnerabilities') return `${count} critical ${count === 1 ? 'advisory reaches' : 'advisories reach'} your projects`
+  if (alert === 'review-queue') return `${count} waiting for your review`
   return `${count} need attention`
+}
+
+/** Amber is for what waits on the reader to act; the danger tone is for a risk that exists whatever they do. */
+export function alertTone(alert: NavAlert | undefined): NavAlertTone {
+  return alert === 'open-vulnerabilities' ? 'danger' : 'accent'
 }

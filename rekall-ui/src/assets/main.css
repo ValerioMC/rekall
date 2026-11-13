@@ -1158,47 +1158,6 @@
 }
 
 /*
- * A screen tab in the header: plain text on the bar, and an amber rule along the bar's bottom
- * edge under the screen you are on. Amber is "where you are", as on the navigator's selection.
- */
-@utility nav-tab {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 100%;
-  padding: 0 12px;
-  font-size: var(--text-small);
-  color: var(--color-text-subtle);
-  transition: color var(--motion-quick) ease;
-
-  &:hover {
-    color: var(--color-text);
-  }
-
-  &::after {
-    content: '';
-    position: absolute;
-    left: 10px;
-    right: 10px;
-    bottom: -1px;
-    height: 2px;
-    border-radius: 2px 2px 0 0;
-    background: var(--color-accent);
-    transform: scaleX(0);
-    transition: transform var(--motion-move) ease;
-  }
-}
-
-@utility nav-tab-current {
-  color: var(--color-text);
-
-  &::after {
-    transform: scaleX(1);
-  }
-}
-
-/*
  * A group of header controls: one 36px well with a hairline, the same shape as the `/rk` field
  * beside it, so the bar reads as a row of matching pieces whatever sits inside each one.
  */
@@ -1211,7 +1170,7 @@
   padding: 0 4px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
-  background: var(--color-canvas);
+  background: var(--color-surface);
 }
 
 /*

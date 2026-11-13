@@ -12,8 +12,8 @@ const clearsTrafficLights = platform === 'macos'
 <!-- The one header instance for every screen: mounted once by Bootstrap, above `router-view`, so
      it never unmounts on navigation. Each screen teleports its own content (a search bar, a page
      title, its actions) into `#app-header-extra` rather than rendering a header of its own. One
-     48px row on a three-cell grid (`app-header-grid`): the menu key with the history arrows or the
-     screen tabs; a centre cell; a right cell. The sides are equal, so the centre cell is at exactly
+     48px row on a three-cell grid (`app-header-grid`): the menu key with the history arrows; a centre
+     cell; a right cell. The sides are equal, so the centre cell is at exactly
      half the grid. The left cell never depends on the screen, so the key sits in the same place on
      every one. The slot is `display: contents`: a screen teleports exactly two children, which land
      in the centre and right cells. On macOS the system's own window buttons float over the left
