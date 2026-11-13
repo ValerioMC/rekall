@@ -4,7 +4,6 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import TaskPage from '@/features/task/components/TaskPage.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import { usePreferencesStore } from '@/features/settings/store/preferences.store'
 import { useToastStore } from '@/stores/toast.store'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { TaskStep } from '@/features/steps/model/task-step'
@@ -215,21 +214,6 @@ describe('TaskPage', () => {
 
     expect(page.find('[data-testid="description-tab-stub"]').exists()).toBe(true)
     expect(page.get('[data-testid="sub-nav-description"]').attributes('aria-selected')).toBe('true')
-  })
-
-  it('centres the page in a column as wide as the remembered width allows, and widens it from the menu', async () => {
-    seed()
-    const page = await mountAt('/task/rk-1')
-    const column = page.get('[data-testid="task-column"]')
-
-    expect(column.attributes('style')).toContain('max-width: 1360px')
-
-    await page.get('[data-testid="task-width"]').trigger('click')
-    const items = page.findAll('[data-testid="popover-menu-item"]')
-    await items.find((item) => item.text() === 'Full')!.trigger('click')
-
-    expect(column.attributes('style')).toContain('max-width: none')
-    expect(usePreferencesStore().taskWidth).toBe('full')
   })
 
   it('offers the actions once, on the line of the breadcrumb', async () => {

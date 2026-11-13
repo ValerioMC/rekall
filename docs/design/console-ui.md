@@ -133,10 +133,10 @@ for the board.
 
 ## The task page
 
-A task is a page at `/task/:id/:tab`, opened on its Description when no tab is named. The whole
-page is one column centred in the window, as wide as the page-width choice (Narrow, Standard,
-Wide or Full, from the key at the right of the tab strip; Wide at first) allows; the choice is kept in the
-browser and holds for every tab and every task. The header is two lines: the breadcrumb (Work,
+A task is a page at `/task/:id/:tab`, opened on its Description when no tab is named. The page
+is as wide as the window. The page-width choice (Narrow, Standard, Wide or Full, from the key at
+the right of the tab strip; Wide at first) sets only how wide the description editor is, centred
+in the page; the choice is kept in the browser and holds for every task. The header is two lines: the breadcrumb (Work,
 then company and project) with the task's actions at its right (Log commit, Open in terminal and
 Run here, each offered once), and the title alone beneath. The tab strip is Description, Plan,
 Wrapup, Notes, Time and Deviations, with counts where a count means something (steps, notes,

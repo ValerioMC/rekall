@@ -5,6 +5,7 @@ import DescriptionPane from '@/features/catalog/components/DescriptionPane.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import * as componentsApi from '@/features/project/api/project-components.api'
 import { useConsoleStore } from '@/stores/console.store'
+import { usePreferencesStore } from '@/features/settings/store/preferences.store'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { TaskStepState } from '@/features/steps/model/task-step'
 import type { ProjectComponent } from '@/features/project/model/project-component'
@@ -208,6 +209,28 @@ describe('DescriptionPane mode', () => {
     await flushPromises()
 
     expect(wrapper.getComponent(AppModeToggle).props('modelValue')).toBe('write')
+  })
+})
+
+describe('DescriptionPane width', () => {
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+  })
+
+  it('limits only the editor to the remembered page width', async () => {
+    seed('OPEN', { description: 'A brief.' })
+    const wrapper = render()
+    await flushPromises()
+    const editorColumn = wrapper.get('[data-testid="description-editor-column"]')
+
+    expect(editorColumn.attributes('style')).toContain('max-width: 1360px')
+    expect(wrapper.get('[data-testid="description-view-strip"]').attributes('style')).toBeUndefined()
+
+    usePreferencesStore().taskWidth = 'full'
+    await flushPromises()
+
+    expect(editorColumn.attributes('style')).toContain('max-width: none')
   })
 })
 

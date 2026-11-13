@@ -6,6 +6,8 @@ import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import DescriptionReviewBar from '@/features/catalog/components/DescriptionReviewBar.vue'
 import TaskBranchPanel from '@/features/worktree/components/TaskBranchPanel.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import { usePreferencesStore } from '@/features/settings/store/preferences.store'
+import { columnMaxWidth } from '@/features/task/model/task-width'
 import { useSelectedProjectComponents } from '@/features/project/composables/useSelectedProjectComponents'
 import { useSelectedProjectConnections } from '@/features/connection/composables/useSelectedProjectConnections'
 import { useSelectedProjectTasks } from '@/features/catalog/composables/useSelectedProjectTasks'
@@ -25,6 +27,8 @@ import type { Feedback } from '@/features/feedback/model/feedback'
 const store = useConsoleStore()
 const { selectedTask, selectedTaskId, selectedTaskCommitReferences, selectedTaskFeedback, waitingCount, runningPass } = storeToRefs(store)
 const { run } = useAsyncAction()
+const preferences = usePreferencesStore()
+const editorStyle = computed(() => ({ maxWidth: columnMaxWidth(preferences.taskWidth) }))
 
 const { draft, mode, scheduleSave, toggleMode } = useDescriptionDraft({ openEmptyInEditor: true })
 
@@ -130,21 +134,23 @@ defineExpose({ toggleMode })
       </div>
 
       <div v-else class="min-h-0 flex-1 overflow-y-auto p-4">
-        <Transition name="fade-quick" mode="out-in">
-          <AppMarkdownEditor
-            v-if="mode === 'write'"
-            key="write"
-            v-model="draft"
-            height="100%"
-            :page-fullscreen="false"
-            :path-root="selectedTask?.projectRepoFolder"
-            :components="projectComponents"
-            :connections="projectConnections"
-            :tasks="projectTasks"
-            @update:model-value="scheduleSave"
-          />
-          <AppMarkdownEditor v-else key="read" :model-value="draft" :components="projectComponents" :connections="projectConnections" :tasks="projectTasks" readonly />
-        </Transition>
+        <div class="mx-auto h-full" :style="editorStyle" data-testid="description-editor-column">
+          <Transition name="fade-quick" mode="out-in">
+            <AppMarkdownEditor
+              v-if="mode === 'write'"
+              key="write"
+              v-model="draft"
+              height="100%"
+              :page-fullscreen="false"
+              :path-root="selectedTask?.projectRepoFolder"
+              :components="projectComponents"
+              :connections="projectConnections"
+              :tasks="projectTasks"
+              @update:model-value="scheduleSave"
+            />
+            <AppMarkdownEditor v-else key="read" :model-value="draft" :components="projectComponents" :connections="projectConnections" :tasks="projectTasks" readonly />
+          </Transition>
+        </div>
       </div>
 
     </template>
