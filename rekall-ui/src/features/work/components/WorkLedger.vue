@@ -13,7 +13,7 @@ const MINUTE_MS = 60_000
 const store = useConsoleStore()
 const work = useWorkStore()
 const { projects } = storeToRefs(store)
-const { view, density, sort, groups, unfoldedFiled } = storeToRefs(work)
+const { view, density, sort, groups, unfoldedFiled, foldedEpics } = storeToRefs(work)
 const now = useNow(MINUTE_MS)
 
 const nothingWaits = computed(() => view.value === 'needs' && work.query.trim() === '')
@@ -43,7 +43,9 @@ const noProject = computed(() => projects.value.length === 0)
       :density="density"
       :now="now"
       :filed-unfolded="unfoldedFiled.has(group.projectId)"
+      :folded-epics="foldedEpics"
       @toggle-filed="work.toggleFiled(group.projectId)"
+      @toggle-epic="work.toggleEpic"
     />
 
     <div

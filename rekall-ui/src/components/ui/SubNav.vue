@@ -43,5 +43,11 @@ const active = defineModel<Id>({ required: true })
         {{ item.count }}
       </span>
     </component>
+    <template v-if="$slots.trailing">
+      <span class="flex-1" />
+      <div class="flex items-center gap-2 pb-1.5 pl-3">
+        <slot name="trailing" />
+      </div>
+    </template>
   </div>
 </template>

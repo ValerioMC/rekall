@@ -9,10 +9,13 @@ import TaskDeviationsTab from '@/features/task/components/TaskDeviationsTab.vue'
 import TaskDescriptionTab from '@/features/task/components/TaskDescriptionTab.vue'
 import TaskNotesTab from '@/features/task/components/TaskNotesTab.vue'
 import TaskPlanTab from '@/features/task/components/TaskPlanTab.vue'
+import TaskTabMeta from '@/features/task/components/TaskTabMeta.vue'
 import TaskTimeTab from '@/features/task/components/TaskTimeTab.vue'
 import WrapupPane from '@/features/wrapup/components/WrapupPane.vue'
 import { taskTabItems } from '@/features/task/lib/task-tab-items'
 import { tabOfPane, taskTabOf } from '@/features/task/model/task-tab'
+import { columnMaxWidth } from '@/features/task/model/task-width'
+import { usePreferencesStore } from '@/features/settings/store/preferences.store'
 import { isEpic } from '@/features/catalog/model/catalog'
 import { workRows } from '@/features/work/lib/work-rows'
 import { useDeviationsStore } from '@/features/deviations/store/deviations.store'
@@ -23,12 +26,14 @@ import { asTaskId } from '@/model/branded'
 /**
  * A task as a page at `/task/:id/:tab`. The route names the task: it is selected in the console
  * store, which the step, note and wrapup components read, and a task that does not exist says so.
+ * Everything sits in one column centred in the window, as wide as the page-width choice allows.
  */
 const store = useConsoleStore()
 const route = useRoute()
 const router = useRouter()
 const deviations = useDeviationsStore()
 const tokenUsage = useTokenUsageStore()
+const preferences = usePreferencesStore()
 const { isLoading, selectedTask, selectedTaskSteps } = storeToRefs(store)
 
 const taskId = computed(() => asTaskId(String(route.params.id)))
@@ -39,6 +44,7 @@ const row = computed(() => {
   if (!task || task.id !== taskId.value) return null
   return workRows([task], store.steps, (id) => tokenUsage.ofTask(id).generated)[0] ?? null
 })
+const columnStyle = computed(() => ({ maxWidth: columnMaxWidth(preferences.taskWidth) }))
 const tabs = computed(() => {
   const task = selectedTask.value
   if (!task) return []
@@ -82,7 +88,7 @@ watch(
     if (selected === null) return
     const wanted = tabOfPane(pane)
     if (selected === taskId.value && (wanted === null || wanted === tab.value)) return
-    void router.push({ name: 'task', params: { id: selected, tab: wanted ?? 'plan' } })
+    void router.push({ name: 'task', params: { id: selected, tab: wanted ?? 'description' } })
   }
 )
 </script>
@@ -102,15 +108,17 @@ watch(
       </div>
     </div>
 
-    <template v-else-if="row">
-      <TaskPageHeader :row="row" />
-      <SubNav :model-value="tab" :items="tabs" label="Task" class="px-6" />
+    <div v-else-if="row" class="@container/task mx-auto flex min-h-0 w-full min-w-0 flex-1 flex-col" :style="columnStyle" data-testid="task-column">
+      <TaskPageHeader :task="row.task" />
+      <SubNav :model-value="tab" :items="tabs" label="Task" class="px-6">
+        <template #trailing><TaskTabMeta :row="row" /></template>
+      </SubNav>
       <TaskPlanTab v-if="tab === 'plan'" :task="row.task" />
       <WrapupPane v-else-if="tab === 'wrapup'" embedded />
       <TaskNotesTab v-else-if="tab === 'notes'" :task="row.task" />
       <TaskDescriptionTab v-else-if="tab === 'description'" :task="row.task" />
       <TaskTimeTab v-else-if="tab === 'time'" :task="row.task" />
       <TaskDeviationsTab v-else :task="row.task" />
-    </template>
+    </div>
   </div>
 </template>

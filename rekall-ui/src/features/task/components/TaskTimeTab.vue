@@ -44,7 +44,7 @@ function sessionSeconds(startedAt: string, stoppedAt: string | null): number {
 
 <template>
   <div class="min-h-0 flex-1 overflow-y-auto" data-testid="time-tab">
-    <div class="mx-auto flex w-full max-w-[860px] flex-col gap-5 px-6 py-5">
+    <div class="flex w-full flex-col gap-5 px-6 py-5">
       <div class="grid grid-cols-3 gap-3">
         <div class="rounded-card border border-border bg-surface px-4 py-3" data-testid="time-stat-tracked">
           <p class="text-caption text-text-subtle">Tracked</p>

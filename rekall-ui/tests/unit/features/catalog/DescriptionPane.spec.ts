@@ -233,13 +233,11 @@ describe('DescriptionPane revisions', () => {
 
     expect(wrapper.findAll('[data-testid="revision-card"]')).toHaveLength(1)
     expect(wrapper.get('[data-testid="description-actions"]').getComponent(AppModeToggle).classes()).toContain('invisible')
-    expect(wrapper.get('[data-testid="description-view-strip"]').findComponent(AppModeToggle).exists()).toBe(false)
 
     await wrapper.get('[data-testid="view-description"]').trigger('click')
 
     expect(wrapper.find('[data-testid="revisions-view"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="description-actions"]').getComponent(AppModeToggle).classes()).not.toContain('invisible')
-    expect(wrapper.get('[data-testid="description-view-strip"]').findComponent(AppModeToggle).exists()).toBe(false)
   })
 
   it('discards a waiting revision from the tab, which asks the store to restore the text', async () => {

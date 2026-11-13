@@ -179,7 +179,7 @@ describe('the row peek', () => {
 
     await wrapper.get('[data-testid="peek-open-task"]').trigger('click')
 
-    expect(push).toHaveBeenCalledWith({ name: 'task', params: { id: 'PR-1', tab: 'plan' } })
+    expect(push).toHaveBeenCalledWith({ name: 'task', params: { id: 'PR-1', tab: 'description' } })
   })
 
   it('shows what runs and what is next when nothing is claimed', async () => {

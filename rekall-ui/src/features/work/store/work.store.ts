@@ -27,6 +27,7 @@ export const useWorkStore = defineStore('work', () => {
   const sort = ref<WorkSort>('task')
   const query = ref('')
   const unfoldedFiled = ref<ReadonlySet<ProjectId>>(new Set())
+  const foldedEpics = ref<ReadonlySet<TaskId>>(new Set())
   const peekedTaskId = ref<TaskId | null>(null)
   const lingering = ref<ReadonlySet<TaskId>>(new Set())
   const sheetTaskId = ref<TaskId | null>(null)
@@ -64,6 +65,10 @@ export const useWorkStore = defineStore('work', () => {
 
   function toggleFiled(projectId: ProjectId): void {
     unfoldedFiled.value = toggledSet(unfoldedFiled.value, projectId)
+  }
+
+  function toggleEpic(epicId: TaskId): void {
+    foldedEpics.value = toggledSet(foldedEpics.value, epicId)
   }
 
   function togglePeek(taskId: TaskId): void {
@@ -115,5 +120,5 @@ export const useWorkStore = defineStore('work', () => {
     })
   )
 
-  return { view, density, sort, query, unfoldedFiled, peekedTaskId, sheetTaskId, rows, lanes, counts, shown, groups, focusProject, toggleFiled, togglePeek, openSheet, closeSheet, linger }
+  return { view, density, sort, query, unfoldedFiled, foldedEpics, peekedTaskId, sheetTaskId, rows, lanes, counts, shown, groups, focusProject, toggleFiled, toggleEpic, togglePeek, openSheet, closeSheet, linger }
 })

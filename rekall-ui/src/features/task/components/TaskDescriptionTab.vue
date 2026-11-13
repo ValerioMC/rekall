@@ -17,6 +17,6 @@ const epic = computed(() => (props.task.epicId ? store.tasks.find((task) => task
   <div class="flex min-h-0 min-w-0 flex-1 flex-col">
     <EpicMembershipCard v-if="epic" class="mx-5 mt-3 shrink-0" :epic="epic" @open="store.selectTask(epic.id)" />
     <EpicPane v-if="isEpic(task)" embedded />
-    <DescriptionPane v-else embedded />
+    <DescriptionPane v-else />
   </div>
 </template>

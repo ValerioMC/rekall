@@ -1,14 +1,32 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
+import { epicEntries } from '@/features/work/lib/epic-entries'
+import { useConsoleStore } from '@/stores/console.store'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
 import WorkRowView from '@/features/work/components/WorkRow.vue'
 import { formatTokens } from '@/common/format/token-count'
 import type { WorkDensity, WorkGroup } from '@/features/work/model/work-view'
+import type { TaskId } from '@/model/branded'
 
-const props = defineProps<{ group: WorkGroup; density: WorkDensity; now: number; filedUnfolded: boolean }>()
+const props = defineProps<{
+  group: WorkGroup
+  density: WorkDensity
+  now: number
+  filedUnfolded: boolean
+  foldedEpics: ReadonlySet<TaskId>
+}>()
 
-defineEmits<{ toggleFiled: [] }>()
+defineEmits<{ toggleFiled: []; toggleEpic: [epicId: TaskId] }>()
+
+const store = useConsoleStore()
+
+const entries = computed(() => epicEntries(props.group.rows, titleOfEpic))
+const filedEntries = computed(() => epicEntries(props.group.filed, titleOfEpic))
+
+function titleOfEpic(id: TaskId): string | null {
+  return store.tasks.find((candidate) => candidate.id === id)?.title ?? null
+}
 
 const taskCountLabel = computed(() => `${props.group.rows.length} ${props.group.rows.length === 1 ? 'task' : 'tasks'}`)
 </script>
@@ -33,13 +51,20 @@ const taskCountLabel = computed(() => `${props.group.rows.length} ${props.group.
       </span>
     </header>
 
-    <WorkRowView
-      v-for="row in group.rows"
-      :key="row.task.id"
-      :row="row"
-      :density="density"
-      :now="now"
-    />
+    <template v-for="entry in entries" :key="entry.row.task.id">
+      <WorkRowView
+        v-if="entry.kind === 'epic'"
+        :row="entry.row"
+        :density="density"
+        :now="now"
+        :epic="{ members: entry.members, folded: foldedEpics.has(entry.row.task.id) }"
+        @toggle-epic="$emit('toggleEpic', entry.row.task.id)"
+      />
+      <WorkRowView v-else :row="entry.row" :density="density" :now="now" :epic-title="entry.epicTitle" />
+      <template v-if="entry.kind === 'epic' && !foldedEpics.has(entry.row.task.id)">
+        <WorkRowView v-for="member in entry.members" :key="member.task.id" :row="member" :density="density" :now="now" nested />
+      </template>
+    </template>
 
     <template v-if="group.filed.length > 0">
       <button
@@ -61,13 +86,13 @@ const taskCountLabel = computed(() => `${props.group.rows.length} ${props.group.
         {{ group.filed.length }} filed
       </button>
       <template v-if="filedUnfolded">
-        <WorkRowView
-          v-for="row in group.filed"
-          :key="row.task.id"
-          :row="row"
-          :density="density"
-          :now="now"
-        />
+        <template v-for="entry in filedEntries" :key="entry.row.task.id">
+          <WorkRowView v-if="entry.kind === 'epic'" :row="entry.row" :density="density" :now="now" :epic="{ members: entry.members, folded: foldedEpics.has(entry.row.task.id) }" @toggle-epic="$emit('toggleEpic', entry.row.task.id)" />
+          <WorkRowView v-else :row="entry.row" :density="density" :now="now" :epic-title="entry.epicTitle" />
+          <template v-if="entry.kind === 'epic' && !foldedEpics.has(entry.row.task.id)">
+            <WorkRowView v-for="member in entry.members" :key="member.task.id" :row="member" :density="density" :now="now" nested />
+          </template>
+        </template>
       </template>
     </template>
   </section>

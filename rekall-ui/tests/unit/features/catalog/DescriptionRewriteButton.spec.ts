@@ -10,12 +10,13 @@ import type { ProjectId, TaskId, TerminalId } from '@/model/branded'
 
 const openTerminal = vi.fn()
 const sendTerminalInput = vi.fn()
+const closeTerminal = vi.fn()
 const fetchTask = vi.fn()
 
 vi.mock('@/features/claude/api/terminal.api', () => ({
   fetchTerminals: vi.fn(),
   openTerminal: (...args: unknown[]) => openTerminal(...args),
-  closeTerminal: vi.fn(),
+  closeTerminal: (...args: unknown[]) => closeTerminal(...args),
   sendTerminalInput: (...args: unknown[]) => sendTerminalInput(...args)
 }))
 
@@ -120,6 +121,8 @@ describe('the rewrite key of the description pane', () => {
     vi.useFakeTimers()
     openTerminal.mockResolvedValue(liveTerminal())
     sendTerminalInput.mockResolvedValue(undefined)
+    closeTerminal.mockReset()
+    closeTerminal.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
@@ -157,6 +160,29 @@ describe('the rewrite key of the description pane', () => {
 
     expect(openTerminal).not.toHaveBeenCalled()
     expect(sendTerminalInput).toHaveBeenCalledWith('term-1', `/rk ${ANCHOR} rewrite fix\r`)
+  })
+
+  it('closes the session it opened once the new text is in, so the task is released', async () => {
+    fetchTask.mockResolvedValueOnce(task(ROUGH)).mockResolvedValue(task(POLISHED))
+    const { wrapper } = pane()
+
+    await pressFix(wrapper)
+    await advance(400)
+    expect(closeTerminal).not.toHaveBeenCalled()
+    await advance(4000)
+
+    expect(closeTerminal).toHaveBeenCalledWith('term-1')
+  })
+
+  it('leaves a session that was already live running after the rewrite', async () => {
+    useTerminalStore().upsert(liveTerminal())
+    fetchTask.mockResolvedValue(task(POLISHED))
+    const { wrapper } = pane()
+
+    await pressFix(wrapper)
+    await advance(4400)
+
+    expect(closeTerminal).not.toHaveBeenCalled()
   })
 
   it('restructures from the menu', async () => {

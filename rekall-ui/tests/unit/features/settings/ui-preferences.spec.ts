@@ -30,6 +30,14 @@ describe('the stored UI preferences', () => {
     })
   })
 
+  it('keep the width of the task page, and fall back on one they do not know', () => {
+    window.localStorage.setItem(KEY, JSON.stringify({ taskWidth: 'wide' }))
+    expect(loadUiPreferences().taskWidth).toBe('wide')
+
+    window.localStorage.setItem(KEY, JSON.stringify({ taskWidth: 'huge' }))
+    expect(loadUiPreferences().taskWidth).toBe('standard')
+  })
+
   it('survive unreadable storage', () => {
     window.localStorage.setItem(KEY, '{broken')
 
@@ -39,10 +47,11 @@ describe('the stored UI preferences', () => {
   it('are written when the store changes, and a goal outside its range is held to it', async () => {
     const preferences = usePreferencesStore()
     preferences.motion = 'reduced'
+    preferences.taskWidth = 'narrow'
     preferences.setWorkdayGoal(0)
     preferences.setUsageWarning(120)
     await nextTick()
 
-    expect(JSON.parse(window.localStorage.getItem(KEY)!)).toMatchObject({ motion: 'reduced', workdayGoalHours: 1, usageWarningPercent: 100 })
+    expect(JSON.parse(window.localStorage.getItem(KEY)!)).toMatchObject({ motion: 'reduced', taskWidth: 'narrow', workdayGoalHours: 1, usageWarningPercent: 100 })
   })
 })

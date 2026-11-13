@@ -85,3 +85,8 @@ export interface WorkLane {
   readonly label: string
   readonly rows: readonly WorkRow[]
 }
+
+/** What a project's ledger lists in one place: a task alone, or an epic with the tasks it gathers under it. */
+export type WorkEntry =
+  | { readonly kind: 'task'; readonly row: WorkRow; readonly epicTitle: string | null }
+  | { readonly kind: 'epic'; readonly row: WorkRow; readonly members: readonly WorkRow[] }
