@@ -5,5 +5,56 @@
       "maxFindings": 5,
       "maxChars": 8000
     }
+  },
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/redesign/b-ledger.html"
+        ],
+        "createdAt": "2026-11-13T12:39:52.355Z",
+        "reason": "false positive: segmented control buttons fill the bordered container by design; table header text is vertically centred in a fixed 36px row (assistant triage, not user confirmed)"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/redesign/c-board.html"
+        ],
+        "createdAt": "2026-11-13T12:39:52.388Z",
+        "reason": "false positive: segmented control buttons fill the bordered container by design; table header text is vertically centred in a fixed 36px row (assistant triage, not user confirmed)"
+      },
+      {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/redesign/app/index.html"
+        ],
+        "createdAt": "2026-11-13T13:09:41.309Z",
+        "reason": "sanctioned: the working-session pulse is the console's own 'worked right now' signal, which the user asked to keep (assistant triage, not user confirmed)"
+      },
+      {
+        "rule": "dark-glow",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/redesign/app/index.html"
+        ],
+        "createdAt": "2026-11-13T13:09:41.341Z",
+        "reason": "sanctioned: the gold/green progress tube glow is the console's existing tube-gold look, part of the energy the user asked to keep (assistant triage, not user confirmed)"
+      },
+      {
+        "rule": "repeating-stripes-gradient",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/redesign/app/index.html"
+        ],
+        "createdAt": "2026-11-13T13:09:41.374Z",
+        "reason": "functional: hatched weekend bars on the time report mirror the existing report (assistant triage, not user confirmed)"
+      }
+    ]
   }
 }

@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rekall redesign A: Desk</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  .app { height: 100%; display: grid; grid-template-rows: 48px 1fr; }
+  .body { display: grid; grid-template-columns: 64px 1fr; min-height: 0; }
+
+  .rail { border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 0; background: var(--canvas); }
+  .rail .item { position: relative; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; color: var(--muted); }
+  .rail .item:hover { background: var(--raised); }
+  .rail .item.on { background: var(--raised); box-shadow: inset 0 0 0 1px var(--border-strong); }
+  .rail .item.on::before { content: ''; position: absolute; left: -12px; top: 10px; bottom: 10px; width: 3px; border-radius: 3px; background: var(--accent); }
+  .rail .badge { position: absolute; right: -3px; top: -3px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--accent); color: var(--accent-ink); font: 600 var(--t-micro)/17px var(--font-mono); text-align: center; border: 2px solid var(--canvas); }
+  .rail hr { width: 24px; border: 0; border-top: 1px solid var(--border); margin: 2px 0; }
+
+  .main { display: grid; grid-template-rows: auto 1fr; min-height: 0; min-width: 0; }
+  .head { padding: 18px 32px 0; border-bottom: 1px solid var(--border); }
+  .crumbs { display: flex; align-items: center; gap: 8px; font-size: var(--t-small); color: var(--muted); }
+  .crumbs .sw { margin-left: auto; }
+  .title { font-size: var(--t-display); font-weight: 500; letter-spacing: -.01em; margin: 8px 0 12px; text-wrap: balance; }
+  .meta { display: flex; align-items: center; gap: 18px; font-size: var(--t-small); color: var(--muted); padding-bottom: 14px; flex-wrap: wrap; }
+  .meta .grow { flex: 1; }
+  .meta b { color: var(--text); font-weight: 500; }
+  .tabs { display: flex; gap: 2px; }
+  .tabs button { position: relative; padding: 10px 12px 11px; color: var(--muted); display: flex; gap: 7px; align-items: center; font-size: var(--t-body); }
+  .tabs button:hover { color: var(--text); }
+  .tabs button.on { color: var(--text); }
+  .tabs button.on::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; background: var(--accent); }
+  .tabs .n { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .tabs .n.hot { color: var(--accent); }
+
+  .stage { display: grid; grid-template-columns: minmax(0, 1fr) 440px; min-height: 0; }
+  .plan { overflow: auto; padding: 22px 32px 40px; }
+  .sumline { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; margin-bottom: 18px; }
+  .sumline p { margin-top: 9px; font-size: var(--t-small); color: var(--muted); }
+  .sumline p b { color: var(--accent-strong); font-weight: 500; }
+  .steps { list-style: none; padding: 0; }
+  .step { display: grid; grid-template-columns: 22px 28px minmax(0, 1fr) auto; align-items: center; gap: 4px; padding: 0 12px; height: 46px; border-radius: var(--r-control); cursor: pointer; color: var(--muted); border-top: 1px solid transparent; }
+  .step:hover { background: var(--surface); color: var(--text); }
+  .step.sel { background: var(--raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }
+  .step .no { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .step .when { font-size: var(--t-caption); color: var(--subtle); }
+  .step.done { color: var(--subtle); }
+  .step.done .t { text-decoration: line-through; text-decoration-color: var(--border-strong); }
+  .more { margin: 8px 0 0 50px; color: var(--muted); font-size: var(--t-small); }
+
+  .decide { border-left: 1px solid var(--border); background: var(--surface); overflow: auto; padding: 22px 24px 28px; display: flex; flex-direction: column; gap: 16px; }
+  .decide h2 { font-size: var(--t-title); font-weight: 500; line-height: 1.35; }
+  .decide .k { font-size: var(--t-caption); color: var(--subtle); display: flex; gap: 8px; align-items: center; }
+  .claim { font-size: var(--t-body); color: var(--muted); line-height: 1.55; }
+  .claim code { font: 400 var(--t-small) var(--font-mono); color: var(--text); background: var(--raised); padding: 1px 5px; border-radius: var(--r-key); }
+  .checks { border: 1px solid var(--border); border-radius: var(--r-card); }
+  .checks div { display: flex; justify-content: space-between; padding: 8px 12px; font-size: var(--t-small); color: var(--muted); }
+  .checks div + div { border-top: 1px solid var(--border); }
+  .checks .ok { color: var(--safe); }
+  .actions { display: flex; gap: 8px; padding-top: 2px; }
+  .upnext { margin-top: auto; border-top: 1px solid var(--border); padding-top: 14px; }
+  .un { display: grid; grid-template-columns: 22px 1fr; height: 30px; align-items: center; font-size: var(--t-small); color: var(--muted); }
+  .un .no { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .actions .btn { flex: 1; justify-content: center; height: 36px; }
+  .quiet-row { display: flex; justify-content: space-between; font-size: var(--t-caption); color: var(--subtle); }
+
+  .panel[hidden] { display: none; }
+  .pad { padding: 28px 32px; max-width: 760px; }
+  .pad h3 { font-size: var(--t-title); font-weight: 500; margin-bottom: 10px; }
+  .pad p { color: var(--muted); line-height: 1.6; max-width: 66ch; }
+  .notes { display: grid; gap: 2px; }
+  .notes a { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--r-control); color: var(--text); text-decoration: none; }
+  .notes a:hover { background: var(--surface); }
+
+  /* ⌘K switcher: the list, summoned instead of parked */
+  .scrim { position: fixed; inset: 0; background: #0d1017cc; display: grid; justify-items: center; align-items: start; padding-top: 92px; z-index: 5; opacity: 0; pointer-events: none; transition: opacity .14s; }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+  .pal { width: min(660px, calc(100vw - 32px)); max-height: 640px; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px; box-shadow: 0 24px 60px #000a; overflow: hidden; transform: translateY(-6px); transition: transform .22s var(--ease); }
+  .scrim.open .pal { transform: none; }
+  .pal-in { display: flex; align-items: center; gap: 10px; padding: 0 16px; height: 50px; border-bottom: 1px solid var(--border); color: var(--subtle); }
+  .pal-in input { flex: 1; background: none; border: 0; color: var(--text); font: inherit; font-size: var(--t-title); outline: none; }
+  .pal-chips { display: flex; gap: 6px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+  .chipf { height: 24px; padding: 0 10px; border-radius: 12px; border: 1px solid var(--border); color: var(--muted); font-size: var(--t-caption); display: inline-flex; align-items: center; gap: 6px; }
+  .chipf.on { background: var(--accent-soft); color: var(--accent-strong); border-color: #eaa43c55; }
+  .pal-list { overflow: auto; padding: 6px 8px 10px; }
+  .grp { display: flex; align-items: center; gap: 8px; padding: 12px 8px 6px; font-size: var(--t-caption); color: var(--muted); }
+  .grp b { color: var(--text); font-weight: 500; }
+  .prow { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 6px; height: 36px; padding: 0 10px; border-radius: var(--r-control); color: var(--muted); }
+  .prow:hover, .prow.cur { background: var(--raised); color: var(--text); }
+  .prow .r { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .prow .r.hot { color: var(--accent); }
+  .pal-foot { display: flex; gap: 14px; padding: 9px 16px; border-top: 1px solid var(--border); font-size: var(--t-caption); color: var(--subtle); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="top"></div>
+  <div class="body">
+    <nav class="rail" id="rail" aria-label="Projects"></nav>
+    <main class="main">
+      <div class="head">
+        <div class="crumbs"><span>ESA</span><span class="dim">/</span><b style="color:var(--text);font-weight:500">STVW</b>
+          <span class="dim">·</span><span>task 9 of 55</span>
+          <button class="btn sw" id="open-sw">Switch task <kbd>⌘K</kbd></button>
+        </div>
+        <h1 class="title">check metricbridge integration situation</h1>
+        <div class="meta">
+          <span class="pill review">Awaiting your review</span>
+          <span class="anchor" title="Copy the /rk anchor">/rk project:stvv task:check-metricbridge-integration-situation <span id="cp"></span></span>
+          <span class="grow"></span>
+          <span>5h across <b>10 sessions</b></span>
+          <span><b class="num">731k</b> tokens</span>
+          <button class="btn quiet" id="term"></button>
+          <button class="btn primary" id="resume"></button>
+        </div>
+        <div class="tabs" role="tablist" id="tabs"></div>
+      </div>
+
+      <div class="stage" id="stage">
+        <section class="plan" id="panel-plan">
+          <div class="sumline">
+            <div>
+              <div id="bar"></div>
+              <p><b>23 steps are claimed and waiting for you.</b> 1 of 24 done · plan adherence 100% at first pass</p>
+            </div>
+            <div style="display:flex;gap:8px"><button class="btn quiet sm">Hide done</button><button class="btn sm" id="next">Review next</button></div>
+          </div>
+          <ul class="steps" id="steps"></ul>
+          <p class="more">13 more claimed steps</p>
+        </section>
+
+        <aside class="decide" id="decide">
+          <div class="k"><span class="mk-slot"></span>Step 2 of 24 · claimed 7 days ago</div>
+          <h2>Integrate metricbridge in stvv-core-backend (log-preprocessing, knowledge-manager, ingestion-registry) and push</h2>
+          <p class="claim">Branch <code>feat/remainig-project-integration</code> created from <code>develop</code>. Metricbridge added to the three apps following <code>apps/process-admin</code>; deploy settings left for step 4. Unpushed local work kept in <code>git stash -u</code>.</p>
+          <div class="checks">
+            <div><span>Build</span><span class="ok">passed</span></div>
+            <div><span>Lint</span><span class="ok">passed</span></div>
+            <div><span>Tests</span><span class="ok">14 / 14</span></div>
+          </div>
+          <div class="actions"><button class="btn">Send back</button><button class="btn primary">Accept</button></div>
+          <div class="quiet-row"><button class="btn quiet sm" style="padding:0">Open the full step brief</button><span>Pass 1 · 2 files in the diff</span></div>
+          <div class="upnext">
+            <div class="k" style="margin-bottom:6px">Up next to review</div>
+            <div class="un"><span class="no">3</span><span class="trunc">Verify stvv-core-backend integration after propagation</span></div>
+            <div class="un"><span class="no">4</span><span class="trunc">Add the metricbridge deploy settings to the stvv-core-backend apps</span></div>
+            <div class="un"><span class="no">5</span><span class="trunc">Verify the metricbridge deploy settings of the stvv-core-backend apps</span></div>
+          </div>
+        </aside>
+      </div>
+
+      <section class="panel pad" id="panel-wrapup" hidden>
+        <h3>Wrapup <span class="dim" style="font-weight:400;font-size:var(--t-caption)">· Claude · yesterday</span></h3>
+        <p>Metricbridge is integrated in 13 services on branch feat/remaining project integration (codev), and all 13 run. Nine merge requests are open on codev, none has conflicts, nothing is merged. The reference pattern is mcps/weaviate-mcp; the services that remain are listed in the note on merge requests.</p>
+      </section>
+      <section class="panel pad" id="panel-notes" hidden>
+        <h3>Notes <span class="dim" style="font-weight:400">6</span></h3>
+        <div class="notes" id="notes"></div>
+      </section>
+      <section class="panel pad" id="panel-description" hidden>
+        <h3>Description</h3>
+        <p>Context: in the project folder we have the following repository. I want to know, and I want only to read, which services already carry metricbridge, which still miss it, and what stops each one from being integrated.</p>
+      </section>
+      <section class="panel pad" id="panel-time" hidden>
+        <h3>Time</h3><p>5h across 10 sessions, stopped yesterday.</p>
+      </section>
+      <section class="panel pad" id="panel-deviations" hidden>
+        <h3>Deviations <span class="dim" style="font-weight:400">1</span></h3><p>Step 22 left the plan: the SSE finding changed the order of the two MCP upgrades.</p>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" role="dialog" aria-modal="true" aria-label="Switch task">
+  <div class="pal">
+    <div class="pal-in"><span id="si"></span><input id="q" placeholder="Search by title or anchor" aria-label="Search tasks"></div>
+    <div class="pal-chips"><span class="chipf on">All work</span><span class="chipf">Needs my review · 38</span><span class="chipf">Running · 1</span><span class="chipf">Hide filed</span></div>
+    <div class="pal-list" id="pal"></div>
+    <div class="pal-foot"><span><kbd>↑</kbd> <kbd>↓</kbd> walk</span><span><kbd>⏎</kbd> open</span><span><kbd>esc</kbd> close</span></div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+  document.getElementById('top').outerHTML = topbar('Console', anchorBar('stvv', 'check-metricbridge-…'))
+  document.getElementById('cp').innerHTML = icon('copy', 13)
+  document.getElementById('term').innerHTML = icon('terminal', 15) + 'Open in terminal'
+  document.getElementById('resume').innerHTML = icon('play', 13) + 'Resume session'
+  document.getElementById('si').innerHTML = icon('search')
+  document.querySelector('.mk-slot').outerHTML = mk('claimed')
+  document.getElementById('bar').innerHTML = segs(1, 23, 24)
+
+  document.getElementById('rail').innerHTML =
+    `<button class="item" title="All work · 344 tasks" aria-label="All work">${icon('grid', 18)}<span class="badge">38</span></button><hr>` +
+    PROJECTS.map((p) => {
+      const n = TASKS.filter((t) => t.p === p.id && t.review).length
+      return `<button class="item ${p.id === 'stv' ? 'on' : ''}" title="${p.company} / ${p.name}" aria-label="${p.name}"><span class="avatar" style="background:${p.hue}">${p.initial}</span>${p.id === 'stv' ? '<span class="badge">23</span>' : n ? `<span class="badge">${n}</span>` : ''}</button>`
+    }).join('') + `<button class="item" aria-label="New project" title="New project" style="color:var(--subtle)">${icon('plus', 18)}</button>`
+
+  const tabDefs = [['plan', 'Plan', '24', true], ['wrapup', 'Wrapup', '', false], ['notes', 'Notes', '6', false], ['description', 'Description', '', false], ['time', 'Time', '', false], ['deviations', 'Deviations', '1', false]]
+  document.getElementById('tabs').innerHTML = tabDefs.map(([id, name, n, on]) => `<button role="tab" data-t="${id}" class="${on ? 'on' : ''}">${name}${n ? `<span class="n ${id === 'plan' ? 'hot' : ''}">${n}</span>` : ''}</button>`).join('')
+
+  document.getElementById('steps').innerHTML = STEPS.map((s, i) =>
+    `<li class="step ${s.s} ${s.sel ? 'sel' : ''}">${mk(s.s)}<span class="no">${i + 1}</span><span class="t trunc">${s.t}</span><span class="when">${s.ago || 'done'}</span></li>`).join('')
+
+  document.getElementById('notes').innerHTML = ['merge-requests.md', 'mcp-sse-findings.md', 'redeploy-when-another-branch.md', 'verify-method.md', 'tempo-query-caution.md', 'solution-overview.md']
+    .map((n) => `<a href="#">${icon('note', 15)}<span class="mono" style="font-size:var(--t-small)">${n}</span></a>`).join('')
+
+  const panels = ['wrapup', 'notes', 'description', 'time', 'deviations']
+  document.getElementById('tabs').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return
+    document.querySelectorAll('#tabs button').forEach((x) => x.classList.toggle('on', x === b))
+    const id = b.dataset.t
+    document.getElementById('stage').style.display = id === 'plan' ? '' : 'none'
+    panels.forEach((p) => (document.getElementById('panel-' + p).hidden = p !== id))
+  })
+  document.getElementById('steps').addEventListener('click', (e) => {
+    const li = e.target.closest('.step'); if (!li || li.classList.contains('done')) return
+    document.querySelectorAll('.step').forEach((x) => x.classList.toggle('sel', x === li))
+    const i = [...li.parentNode.children].indexOf(li)
+    const d = document.getElementById('decide')
+    d.querySelector('h2').textContent = STEPS[i].t
+    d.querySelector('.k').lastChild.textContent = `Step ${i + 1} of 24 · claimed ${STEPS[i].ago}`
+  })
+
+  /* palette */
+  const pal = document.getElementById('pal')
+  function renderPal(filter) {
+    const f = (filter || '').toLowerCase()
+    pal.innerHTML = PROJECTS.map((p) => {
+      const rows = TASKS.filter((t) => t.p === p.id && (!f || t.title.toLowerCase().includes(f) || t.label.includes(f)))
+      if (!rows.length) return ''
+      return `<div class="grp"><span class="avatar sm" style="background:${p.hue}">${p.initial}</span><b>${p.name}</b><span>${p.company}</span></div>` +
+        rows.map((t) => {
+          const r = t.review ? `<span class="r hot">${t.claimed ? t.claimed + ' to review' : 'review'}</span>` : t.steps[1] ? `<span class="r">${t.steps[0]}/${t.steps[1]}</span>` : `<span class="r">${t.ago}</span>`
+          return `<div class="prow ${t.selected ? 'cur' : ''}">${mk(t.status)}<span class="trunc">${t.title}</span>${r}</div>`
+        }).join('')
+    }).join('')
+  }
+  renderPal('')
+  const scrim = document.getElementById('scrim')
+  const open = (v) => { scrim.classList.toggle('open', v); if (v) setTimeout(() => document.getElementById('q').focus(), 30) }
+  document.getElementById('open-sw').onclick = () => open(true)
+  scrim.addEventListener('click', (e) => { if (e.target === scrim) open(false) })
+  document.getElementById('q').addEventListener('input', (e) => renderPal(e.target.value))
+  addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); open(true) } if (e.key === 'Escape') open(false) })
+  if (location.hash === '#switch') open(true)
+</script>
+</body>
+</html>

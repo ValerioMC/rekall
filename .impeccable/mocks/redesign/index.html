@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rekall console redesign: three structures</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  body { overflow: auto; }
+  main { max-width: 1240px; margin: 0 auto; padding: 40px 32px 72px; }
+  h1 { font-size: var(--t-display); font-weight: 500; letter-spacing: -.01em; }
+  .lede { color: var(--muted); max-width: 70ch; margin: 10px 0 36px; line-height: 1.6; }
+  .pair { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 32px; align-items: start; margin-bottom: 48px; padding-top: 28px; border-top: 1px solid var(--border); }
+  .pair img { width: 100%; display: block; border: 1px solid var(--border); border-radius: var(--r-card); }
+  .pair h2 { font-size: var(--t-heading); font-weight: 500; margin-bottom: 8px; }
+  .pair p { color: var(--muted); line-height: 1.6; margin-bottom: 12px; }
+  .pair ul { padding-left: 18px; color: var(--muted); line-height: 1.6; margin-bottom: 16px; }
+  .pair li { margin-bottom: 4px; }
+  .pair li b { color: var(--text); font-weight: 500; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { text-decoration: none; }
+  .tag { font-size: var(--t-caption); color: var(--accent-strong); margin-bottom: 8px; }
+  .cmp { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .cmp div { border: 1px solid var(--border); border-radius: var(--r-card); padding: 14px 16px; background: var(--surface); color: var(--muted); font-size: var(--t-small); line-height: 1.55; }
+  .cmp b { display: block; color: var(--text); font-weight: 500; margin-bottom: 4px; font-size: var(--t-body); }
+  @media (max-width: 900px) { .pair { grid-template-columns: 1fr; } .cmp { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Rekall console: three alternatives to the three columns</h1>
+  <div class="row" style="margin:14px 0 6px"><a class="btn primary" href="app/index.html" style="height:36px;padding:0 18px;font-size:var(--t-body)">Open the full prototype (Ledger, every screen)</a></div>
+  <p class="lede">Today the navigator row carries about ten signals (pip, session mark, tag, anchor, epic, steps, drafts, review dot, wrapup, notes, skills, tokens) and the middle column stacks six cards, so three panes compete at once. In all three, a list row keeps a mark, a title and one thing that needs the person; everything else is one click away. Same palette, type and tokens as the console; real demo data. Nothing in <code>rekall-ui</code> was touched.</p>
+
+  <section class="pair">
+    <a href="current.png"><img src="current.png" alt="Current console, three columns"></a>
+    <div><div class="tag">Today</div><h2>Navigator, task info, workspace</h2><p>The task list is always on screen, 300px wide, with two-line rows and a stacked info column beside it. Selecting a task opens a fourth thing (the note) in the remaining space.</p></div>
+  </section>
+
+  <section class="pair">
+    <a href="a-desk.html"><img src="a1.png" alt="Desk"></a>
+    <div>
+      <div class="tag">A · the roll's lead</div>
+      <h2>Desk: the task is the page</h2>
+      <p>No list column. A 64px rail holds projects with their review counts; the task fills the screen with tabs (Plan, Wrapup, Notes, Description, Time, Deviations), and ⌘K or "Switch task" summons the list when you want it.</p>
+      <ul><li><b>Reviewing is the main verb:</b> a decision panel on the right shows the claim, its checks, Accept and Send back, and what is next.</li><li><b>Six stacked cards become tabs.</b></li><li><b>Cost:</b> you no longer see sibling tasks at a glance.</li></ul>
+      <div class="row"><a class="btn primary" href="a-desk.html">Open</a><a class="btn" href="a-desk.html#switch">See the switcher</a></div>
+    </div>
+  </section>
+
+  <section class="pair">
+    <a href="b-ledger.html"><img src="b1.png" alt="Ledger"></a>
+    <div>
+      <div class="tag">B</div>
+      <h2>Ledger: one wide, sortable table</h2>
+      <p>Tasks grouped by project in columns: status, plan progress, what needs you, notes, tokens, updated. The selected row opens inline with its first claimed steps and Accept in place, so the common review needs no page change.</p>
+      <ul><li><b>Scans fastest</b> and sorts; the anchor appears as a copy button on hover.</li><li><b>Finished work</b> collapses to one "157 filed" line per project.</li><li><b>Cost:</b> a denser, more spreadsheet feel.</li></ul>
+      <div class="row"><a class="btn primary" href="b-ledger.html">Open</a></div>
+    </div>
+  </section>
+
+  <section class="pair">
+    <a href="c-board.html"><img src="c2.png" alt="Board"></a>
+    <div>
+      <div class="tag">C</div>
+      <h2>Board: lanes by state, detail in a sheet</h2>
+      <p>To do, In progress, Awaiting your review, Filed. A card is a project mark, a title, plan progress and one footer line. "Awaiting your review" is its own amber lane, which is the control loop made visible. A card opens a 600px sheet over the board and Esc closes it.</p>
+      <ul><li><b>Shows the whole pipeline</b> and where it jams.</li><li><b>Cost:</b> long lanes scroll, and ordering inside a lane needs a rule.</li></ul>
+      <div class="row"><a class="btn primary" href="c-board.html">Open</a><a class="btn" href="c-board.html#open">With the sheet open</a></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="cmp">
+      <div><b>Desk</b>Best when you work one task at a time and review its steps. Weakest at overview.</div>
+      <div><b>Ledger</b>Best for triage across 340 tasks and for sorting by what needs you. Closest to today's mental model.</div>
+      <div><b>Board</b>Best for seeing flow and the review backlog. Needs the most new behaviour (lane ordering).</div>
+    </div>
+  </section>
+</main>
+</body>
+</html>
