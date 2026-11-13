@@ -91,7 +91,6 @@ const STATUS_BY_KEY: Record<string, TaskStatus> = {
   '5': 'BACKLOG'
 }
 
-const anchorBar = ref<InstanceType<typeof AnchorBar> | null>(null)
 const descriptionPane = ref<InstanceType<typeof DescriptionPane> | null>(null)
 const epicPane = ref<InstanceType<typeof EpicPane> | null>(null)
 const notePane = ref<InstanceType<typeof NotePane> | null>(null)
@@ -118,12 +117,6 @@ function onKeydown(event: KeyboardEvent): void {
   const typing =
     !!target &&
     (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable)
-
-  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-    event.preventDefault()
-    anchorBar.value?.focus()
-    return
-  }
 
   // Shortcuts are bare keys; a Cmd/Ctrl/Alt chord belongs to the browser.
   if (event.metaKey || event.ctrlKey || event.altKey) return
@@ -251,7 +244,6 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     </a>
 
     <AnchorBar
-      ref="anchorBar"
       @open-settings="settingsOpen = true"
       @open-tags="tagsOpen = true"
     />

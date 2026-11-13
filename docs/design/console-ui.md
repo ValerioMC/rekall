@@ -74,8 +74,11 @@ The menu key in the header names the screen on display and opens every screen un
 Work (Work, Review), Projects (Projects, Companies, Connections), Time (Report, Calendar), Library
 (Diagrams, Claude files), Security and Settings. The review count rides on the key and on the
 Review entry, so folding the menu never hides what waits for the person. ⌘K opens the switcher:
-Go to, Projects, Tasks (with their state or review count) and Notes, filtered by title or anchor.
-It is how a person changes task, since there is no list to click.
+Go to, Projects, Tasks (with their state or review count) and Notes, filtered by title or anchor,
+and, for a phrase of three letters or more, an In the text group with what the server found in
+descriptions, steps, wrapups and notes. It opens on every screen, from ⌘K or a click on the `/rk`
+field (`CommandPalette`, mounted once by `Bootstrap`); a task opens its page, a note its Notes tab, a
+step hit its Plan with the step open. It is how a person changes task, since there is no list to click.
 
 ## Work
 

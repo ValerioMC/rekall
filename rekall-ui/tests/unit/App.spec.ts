@@ -386,7 +386,7 @@ describe('the console', () => {
   it('renders the Work screen with the project scope above the ledger', async () => {
     const wrapper = await mountWork()
 
-    expect(wrapper.find('[data-testid="anchor-input"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="anchor-trigger"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="work-page"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('All work')
   })
@@ -401,25 +401,6 @@ describe('the console', () => {
     expect(wrapper.text()).toContain('kmaster14.md')
     // The anchor is on screen and is the string you would paste after /rk.
     expect(wrapper.text()).toContain('task:PR-1')
-  })
-
-  it('filters the tasks the search lists as the anchor bar is typed into', async () => {
-    const wrapper = await mountConsole()
-
-    await wrapper.find('[data-testid="anchor-input"]').setValue('retry')
-    await flushPromises()
-
-    expect(useConsoleStore().visibleTasks.map((task) => task.title)).toEqual(['Retry policy'])
-  })
-
-  /** The chips copy a whole `/rk …` line, and this field is where half of them get pasted. */
-  it('drops a pasted /rk instead of searching for it', async () => {
-    const wrapper = await mountConsole()
-
-    await wrapper.find('[data-testid="anchor-input"]').setValue('/rk retry')
-    await flushPromises()
-
-    expect(useConsoleStore().visibleTasks.map((task) => task.title)).toEqual(['Retry policy'])
   })
 
   it('adds information to the task in view on N', async () => {
@@ -494,11 +475,12 @@ describe('the console', () => {
 
   /** Shortcuts must be inert while writing, or typing a note would navigate away from it. */
   it('ignores shortcuts while a field has focus', async () => {
-    const wrapper = await mountConsole()
-    const input = wrapper.find('[data-testid="anchor-input"]')
-    ;(input.element as HTMLInputElement).focus()
+    await mountConsole()
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+    input.focus()
 
-    input.element.dispatchEvent(new KeyboardEvent('keydown', { key: '4', bubbles: true }))
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: '4', bubbles: true }))
     await flushPromises()
 
     expect(updateTask).not.toHaveBeenCalled()

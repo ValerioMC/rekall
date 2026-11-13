@@ -31,7 +31,6 @@ export function createConsoleState() {
 
     scopeCompany: ref<CompanyId | null>(null),
     scopeProject: ref<ProjectId | null>(null),
-    filter: ref(''),
     /** Quick tasks stay out of the lists while this is on; they are shown by default. */
     hideQuickTasks: ref(false),
     selectedTaskId: ref<TaskId | null>(null),

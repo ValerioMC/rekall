@@ -2,46 +2,21 @@
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import HeaderStatus from '@/components/console/HeaderStatus.vue'
-import SearchHitList from '@/features/search/components/SearchHitList.vue'
 import SettingsTrigger from '@/components/console/SettingsTrigger.vue'
+import { usePaletteStore } from '@/features/search/store/palette.store'
 import { useConsoleStore } from '@/stores/console.store'
-import { searchText } from '@/features/search/api/search.api'
-import { isTextQuery } from '@/features/search/model/search'
-import type { SearchHit } from '@/features/search/model/search'
 
 const emit = defineEmits<{ openSettings: []; openTags: [] }>()
 
 const store = useConsoleStore()
-const {
-  filter,
-  scopePath,
-  scopeName,
-  saveState,
-  visibleTasks,
-  selectedTask,
-  scopeAnchor
-} = storeToRefs(store)
-
-const input = ref<HTMLInputElement | null>(null)
-const isFocused = ref(false)
-
-const placeholder = computed(() =>
-  scopePath.value.length === 0
-    ? // Short enough to show whole in the narrowest bar: a hint cut off mid-word reads as a bug.
-      'project:vega task:setup'
-    : `Find in ${scopeName.value}`
-)
+const palette = usePaletteStore()
+const { saveState, selectedTask, scopeAnchor } = storeToRefs(store)
 
 /** Where the reader is, as the anchors a session would be handed: the task, or the scope. */
 const location = computed<string[]>(() => {
   const anchors = selectedTask.value?.anchor ?? scopeAnchor.value
   return anchors.split(' ').filter((part) => part.length > 0)
 })
-
-/** At rest the bar is a location bar; the moment it is focused or holds a query it is a search. */
-const showsLocation = computed(() => !isFocused.value && !filter.value && location.value.length > 0)
-
-const resultCount = computed(() => visibleTasks.value.length)
 
 const CURRENT_CHIP = 'min-w-[5rem] shrink-[1000] text-anchor-strong'
 const PARENT_CHIP = 'min-w-[3.5rem] shrink'
@@ -64,160 +39,44 @@ watch(saveState, (value, previous) => {
     })
   }
 })
-
-const query = computed<string>({
-  get: () => filter.value,
-  set: (value) => {
-    filter.value = value.replace(/^\s*\/rk\s+/i, '')
-  }
-})
-
-// The filter matches titles, codes and descriptions as you type. For a phrase, the text behind them is searched
-// on the server too: descriptions, steps, wrapups and notes, listed under the bar.
-const SEARCH_DEBOUNCE_MS = 200
-const hits = ref<SearchHit[]>([])
-const activeHit = ref(-1)
-const searching = ref(false)
-const searchFailed = ref(false)
-let searchTimer: ReturnType<typeof setTimeout> | null = null
-let searchSequence = 0
-
-const showHits = computed(() => isFocused.value && isTextQuery(filter.value))
-
-watch(filter, (value) => {
-  if (searchTimer) clearTimeout(searchTimer)
-  activeHit.value = -1
-  const sequence = ++searchSequence
-  if (!isTextQuery(value)) {
-    hits.value = []
-    searching.value = false
-    return
-  }
-  searching.value = true
-  searchTimer = setTimeout(async () => {
-    try {
-      const found = await searchText(value.trim())
-      if (sequence !== searchSequence) return
-      hits.value = found
-      searchFailed.value = false
-    } catch {
-      if (sequence !== searchSequence) return
-      hits.value = []
-      searchFailed.value = true
-    } finally {
-      if (sequence === searchSequence) searching.value = false
-    }
-  }, SEARCH_DEBOUNCE_MS)
-})
-
-function moveHit(delta: number): void {
-  if (!showHits.value || hits.value.length === 0) return
-  const count = hits.value.length
-  activeHit.value = activeHit.value < 0 && delta < 0 ? count - 1 : (activeHit.value + delta + count) % count
-}
-
-function openHit(hit: SearchHit): void {
-  store.openSearchHit(hit)
-  filter.value = ''
-  input.value?.blur()
-}
-
-function onEnter(): void {
-  const hit = hits.value[activeHit.value]
-  if (showHits.value && hit) {
-    openHit(hit)
-    return
-  }
-  openFirst()
-}
-
-function openFirst(): void {
-  const first = visibleTasks.value[0]
-  if (first) store.selectTask(first.id)
-}
-
-function clear(): void {
-  filter.value = ''
-  input.value?.blur()
-}
-
-defineExpose({ focus: () => { input.value?.focus(); input.value?.select() } })
 </script>
 
 <template>
   <Teleport to="#app-header-extra">
     <div data-header-search class="relative min-w-0">
-      <span
-        class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-mono text-small text-anchor"
-        aria-hidden="true"
+      <button
+        type="button"
+        data-testid="anchor-trigger"
+        class="field focus-ring flex h-9 w-full items-center gap-2 rounded-card px-3 text-left font-mono text-small text-text"
+        aria-label="Search tasks, projects and notes"
+        aria-haspopup="dialog"
+        @click="palette.show()"
       >
-        /rk
-      </span>
-      <input
-        ref="input"
-        v-model="query"
-        data-testid="anchor-input"
-        type="text"
-        autocomplete="off"
-        spellcheck="false"
-        class="field h-9 w-full rounded-card pl-11 pr-16 font-mono text-small text-text max-[1099px]:pr-3"
-        :placeholder="showsLocation ? '' : placeholder"
-        aria-label="Find a task or a note"
-        :aria-describedby="showsLocation ? 'anchor-location' : undefined"
-        @focus="isFocused = true"
-        @blur="isFocused = false"
-        @keydown.enter="onEnter"
-        @keydown.down.prevent="moveHit(1)"
-        @keydown.up.prevent="moveHit(-1)"
-        @keydown.esc="clear"
-      />
-      <span
-        v-if="showsLocation"
-        id="anchor-location"
-        class="pointer-events-none absolute inset-y-0 left-11 right-16 flex min-w-0 items-center gap-1.5 overflow-hidden max-[1099px]:right-3"
-        data-testid="anchor-location"
-      >
-        <span class="sr-only">Showing</span>
-        <template v-for="(part, index) in location" :key="part">
-          <span
-            v-if="index > 0"
-            class="shrink-0 text-text-subtle"
-            aria-hidden="true"
-          >
-            &#8250;
-          </span>
-          <span
-            class="anchor-chip truncate px-1.5 text-caption leading-5"
-            :class="index === location.length - 1 ? CURRENT_CHIP : PARENT_CHIP"
-          >
-            {{ part }}
-          </span>
-        </template>
-      </span>
-      <SearchHitList
-        v-if="showHits"
-        :hits="hits"
-        :active-index="activeHit"
-        :searching="searching"
-        :failed="searchFailed"
-        :term="filter.trim()"
-        @pick="openHit"
-        @hover="activeHit = $event"
-      />
-      <span
-        class="pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 max-[1099px]:hidden"
-        aria-hidden="true"
-      >
-        <template v-if="filter.trim()">
-          <span class="font-mono text-caption text-text-subtle">{{ resultCount }} found</span>
-        </template>
+        <span class="shrink-0 text-anchor" aria-hidden="true">/rk</span>
+        <span
+          v-if="location.length > 0"
+          class="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden"
+          data-testid="anchor-location"
+        >
+          <span class="sr-only">Showing</span>
+          <template v-for="(part, index) in location" :key="part">
+            <span v-if="index > 0" class="shrink-0 text-text-subtle" aria-hidden="true">&#8250;</span>
+            <span
+              class="anchor-chip truncate px-1.5 text-caption leading-5"
+              :class="index === location.length - 1 ? CURRENT_CHIP : PARENT_CHIP"
+            >
+              {{ part }}
+            </span>
+          </template>
+        </span>
+        <span v-else class="min-w-0 flex-1 truncate text-text-subtle">project:vega task:setup</span>
         <kbd
-          v-else
-          class="rounded-key border border-b-2 border-border-strong bg-surface-raised px-1.5 font-mono text-micro leading-4 text-text-subtle"
+          class="shrink-0 rounded-key border border-b-2 border-border-strong bg-surface-raised px-1.5 font-mono text-micro leading-4 text-text-subtle max-[1099px]:hidden"
+          aria-hidden="true"
         >
           &#8984;K
         </kbd>
-      </span>
+      </button>
     </div>
 
     <div class="@container flex min-w-0 items-center gap-4">

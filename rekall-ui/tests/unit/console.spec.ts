@@ -346,12 +346,10 @@ describe('console store', () => {
 
     store.setScope(acme, vega)
     expect(store.visibleTasks).toHaveLength(2)
-    expect(store.scopeName).toBe('acme / Vega Platform')
     expect(store.scopeAnchor).toBe('project:vega')
 
     store.setScope(null)
     expect(store.visibleTasks).toHaveLength(3)
-    expect(store.scopeName).toBe('All work')
   })
 
   it('keeps an archived project’s tasks out of the navigator unless the scope names it', () => {
@@ -363,62 +361,9 @@ describe('console store', () => {
     expect(store.visibleTasks).toHaveLength(2)
   })
 
-  it('finds a task by either half of its anchor', () => {
-    store.filter = 'vega/retry'
-    expect(store.visibleTasks.map((t) => t.label)).toEqual(['retry-policy'])
-
-    store.filter = 'task:report-builder'
-    expect(store.visibleTasks.map((t) => t.label)).toEqual(['report-builder'])
-  })
-
-  /**
-   * The code is what you type after `/rk` and the title is what you called it out loud; the
-   * description is what the work is about. Each has to find the row.
-   */
-  it('finds a task by its title, its code or its description', () => {
-    store.filter = 'Wiring the adapter'
-    expect(store.visibleTasks.map((t) => t.label)).toEqual(['wiring'])
-
-    store.filter = 'wiring'
-    expect(store.visibleTasks.map((t) => t.label)).toEqual(['wiring'])
-
-    store.filter = 'task:wiring'
-    expect(store.visibleTasks.map((t) => t.label)).toEqual(['wiring'])
-  })
-
-  it('finds a task by a word of its description', () => {
-    const wiring = store.tasks.find((t) => t.label === 'wiring')!
-    store.tasks = store.tasks.map((t) => (t.id === wiring.id ? { ...t, description: 'Retries the handshake with the gateway.' } : t))
-
-    store.filter = 'handshake'
-
-    expect(store.visibleTasks.map((t) => t.label)).toEqual(['wiring'])
-  })
-
   it('lists tasks by title, whatever order they were loaded in', () => {
     const titles = store.visibleTasks.map((task) => task.title)
     expect(titles).toEqual([...titles].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })))
-  })
-
-  /**
-   * The case that made this necessary: scoped to one project, searching for something that
-   * lives in another. Without the notice the answer looks like "you never wrote it".
-   */
-  it('reports the matches the project scope is hiding', () => {
-    store.setScope(acme)
-    store.filter = 'wiring'
-
-    expect(store.visibleTasks).toHaveLength(0)
-    expect(store.elsewhere).toEqual({ count: 1, names: ['globex'] })
-
-    store.setScope(null)
-    expect(store.visibleTasks).toHaveLength(1)
-    expect(store.elsewhere).toBeNull()
-  })
-
-  it('says nothing about elsewhere when the search is already global', () => {
-    store.filter = 'wiring'
-    expect(store.elsewhere).toBeNull()
   })
 
   it("lists a task's notes and only its own", () => {
