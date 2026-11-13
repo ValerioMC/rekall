@@ -69,7 +69,7 @@ const taskCountLabel = computed(() => `${props.group.rows.length} ${props.group.
     <template v-if="group.filed.length > 0">
       <button
         type="button"
-        class="focus-ring flex h-[34px] w-full cursor-pointer items-center gap-2 rounded-control px-3 text-small text-filed transition-colors duration-(--motion-quick) hover:bg-filed-soft"
+        class="focus-ring flex h-(--spacing-row) w-full cursor-pointer items-center gap-2 rounded-control px-3 text-small text-filed transition-colors duration-(--motion-quick) hover:bg-filed-soft"
         :aria-expanded="filedUnfolded"
         data-testid="work-filed-fold"
         @click="$emit('toggleFiled')"

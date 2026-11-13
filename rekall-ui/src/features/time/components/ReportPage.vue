@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import SegmentedControl, { type SegmentOption } from '@/components/ui/SegmentedControl.vue'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import TimeSubNav from '@/features/time/components/TimeSubNav.vue'
@@ -21,6 +22,11 @@ import type { CompanyId } from '@/model/branded'
 const store = useConsoleStore()
 const toast = useToastStore()
 const now = useNow(30_000)
+
+const PERIOD_OPTIONS: readonly SegmentOption<ReportPeriod>[] = [
+  { value: 'week', label: 'Week' },
+  { value: 'month', label: 'Month' }
+]
 
 const period = ref<ReportPeriod>('week')
 const anchor = ref(new Date())
@@ -81,10 +87,6 @@ function goToCurrent(): void {
   anchor.value = new Date()
 }
 
-function setPeriod(next: ReportPeriod): void {
-  period.value = next
-}
-
 function toggleCompany(id: CompanyId): void {
   const next = new Set(selected.value)
   if (next.has(id)) next.delete(id)
@@ -111,43 +113,21 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
   <div class="flex-1 min-h-0 overflow-y-auto bg-canvas" data-testid="report-scroller">
     <AppCatalogHeader title="Time">
       <template #actions>
-        <div class="flex shrink-0 gap-0.5 rounded-card bg-canvas p-0.5" role="group" aria-label="Period">
-          <button
-            v-for="option in (['week', 'month'] as const)"
-            :key="option"
-            class="focus-ring flex h-7 items-center rounded-control px-3 text-small capitalize transition-colors"
-            :class="period === option ? 'bg-surface-raised text-text shadow-[0_1px_2px_rgb(0_0_0/0.4)]' : 'text-text-subtle hover:text-text'"
-            :aria-pressed="period === option"
-            :data-testid="`report-period-${option}`"
-            @click="setPeriod(option)"
-          >
-            {{ option }}
-          </button>
-        </div>
-        <button
-          class="focus-ring flex h-7 shrink-0 items-center gap-1.5 rounded-card border px-2.5 text-small transition-colors"
-          :class="
-            showSteps
-              ? 'border-border-strong bg-surface-raised text-text'
-              : 'border-border bg-canvas text-text-subtle hover:text-text'
-          "
-          :aria-pressed="showSteps"
-          data-testid="report-steps-toggle"
-          @click="showSteps = !showSteps"
-        >
+        <SegmentedControl v-model="period" :options="PERIOD_OPTIONS" label="Period" size="sm" />
+        <AppButton size="sm" variant="quiet" :pressed="showSteps" data-testid="report-steps-toggle" @click="showSteps = !showSteps">
           <svg class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
             <path d="M1.2 3.4 2.6 4.8l2.4-2.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
             <path d="M6.8 3.6h4M6.8 8.4h4M1.4 8.4h3.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
           </svg>
           Steps
-        </button>
+        </AppButton>
         <AppButton size="sm" variant="secondary" data-testid="report-copy" @click="copyReport">
           Copy as markdown
         </AppButton>
       </template>
     </AppCatalogHeader>
 
-    <div class="mx-auto flex max-w-[1240px] flex-col gap-5 px-8 pb-6 pt-4">
+    <div class="page-column flex flex-col gap-5 pb-6 pt-4">
       <TimeSubNav active="report" />
       <AppCard :padded="false">
         <div class="flex flex-wrap items-end justify-between gap-4 px-5 pb-4 pt-5">

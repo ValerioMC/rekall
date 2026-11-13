@@ -70,7 +70,7 @@ onMounted(async () => {
         type="text"
         data-testid="wrapup-here-message"
         :disabled="sending"
-        class="field text-text h-10 w-full rounded-control px-3 text-body disabled:opacity-60"
+        class="field text-text h-(--spacing-control) w-full rounded-control px-3 text-body disabled:opacity-60"
         placeholder="What to focus the wrapup on, in your own words"
         @keydown.enter.prevent="send"
       />

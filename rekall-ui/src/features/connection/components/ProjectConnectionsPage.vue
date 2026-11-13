@@ -147,7 +147,7 @@ watch(
         data-testid="manage-connections-link"
         >Manage connections</RouterLink
       >
-      <AppButton size="sm" variant="primary" data-testid="new-project-connection" @click="creating = true">New connection</AppButton>
+      <AppButton size="sm" variant="primary" data-testid="new-project-connection" @click="creating = true">+ New connection</AppButton>
     </header>
 
     <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
@@ -192,7 +192,7 @@ watch(
         </p>
         <div class="mt-3 flex flex-wrap items-center gap-3">
           <AppButton size="sm" variant="secondary" class="max-sm:min-h-11" data-testid="empty-new-connection" @click="creating = true"
-            >New connection</AppButton
+            >+ New connection</AppButton
           >
           <RouterLink
             :to="{ name: 'connections', query: hubQuery }"

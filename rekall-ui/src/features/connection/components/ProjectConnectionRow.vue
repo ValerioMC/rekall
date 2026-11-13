@@ -53,7 +53,7 @@ function commitLabel(): void {
 </script>
 
 <template>
-  <div class="group flex min-h-[34px] items-center gap-2 rounded-control pr-1 hover:bg-surface-raised" data-testid="project-connection">
+  <div class="group flex min-h-(--spacing-row) items-center gap-2 rounded-control pr-1 hover:bg-surface-raised" data-testid="project-connection">
     <input
       v-model="labelDraft"
       spellcheck="false"

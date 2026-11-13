@@ -86,7 +86,7 @@ const WEEKDAY_LABELS = weekdayLabels()
   <div class="min-h-0 flex-1 overflow-y-auto bg-canvas">
     <AppCatalogHeader title="Time" />
 
-    <div class="mx-auto max-w-[1320px] px-8 pb-6 pt-4">
+    <div class="page-column pb-6 pt-4">
       <TimeSubNav class="mb-5" active="calendar" />
       <div class="mb-5 flex flex-wrap items-end gap-x-6 gap-y-3">
         <div class="min-w-0">

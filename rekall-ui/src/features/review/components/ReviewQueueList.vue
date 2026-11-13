@@ -36,8 +36,8 @@ function lineOf(item: ReviewItem): string {
       v-for="item in items"
       :key="item.key"
       :to="{ name: 'review', params: { key: item.key } }"
-      class="focus-ring grid grid-cols-[22px_minmax(0,1fr)] items-start gap-2.5 rounded-control border-l-2 px-2.5 py-2 transition-colors duration-(--motion-quick)"
-      :class="current === item.key ? 'border-accent bg-surface-raised' : 'border-transparent hover:bg-surface-hover'"
+      class="focus-ring grid grid-cols-[22px_minmax(0,1fr)] items-start gap-2.5 rounded-control px-2.5 py-2 transition-colors duration-(--motion-quick)"
+      :class="current === item.key ? 'selected-row' : 'hover:bg-surface-hover'"
       :aria-current="current === item.key ? 'true' : undefined"
       data-testid="review-item"
     >

@@ -137,7 +137,7 @@ function onSearchKeydown(event: KeyboardEvent): void {
           v-model="query"
           type="text"
           data-testid="epic-field-search"
-          class="h-10 min-w-0 flex-1 bg-transparent text-body text-text outline-none placeholder:text-text-subtle"
+          class="h-(--spacing-control) min-w-0 flex-1 bg-transparent text-body text-text outline-none placeholder:text-text-subtle"
           placeholder="Find an epic by title or label"
           aria-label="Find an epic"
           spellcheck="false"

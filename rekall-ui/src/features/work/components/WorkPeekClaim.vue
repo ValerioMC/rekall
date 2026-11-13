@@ -13,7 +13,7 @@ defineEmits<{ accept: []; sendBack: [] }>()
 
 <template>
   <div
-    class="grid min-h-[38px] grid-cols-[22px_minmax(0,1fr)_auto_auto] items-center gap-2.5 border-t border-border text-small text-text"
+    class="grid min-h-(--spacing-row) grid-cols-[22px_minmax(0,1fr)_auto_auto] items-center gap-2.5 border-t border-border text-small text-text"
     data-testid="peek-claim"
   >
     <span class="size-5.5"><StepSeal :state="state" /></span>

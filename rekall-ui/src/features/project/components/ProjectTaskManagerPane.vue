@@ -57,7 +57,7 @@ async function write(binding: ProjectConnection, taskManager: boolean): Promise<
 
     <fieldset v-else class="flex flex-col gap-1" :disabled="isRunning">
       <legend class="sr-only">Task manager</legend>
-      <label class="flex min-h-[34px] cursor-pointer items-center gap-2 rounded-control px-2 hover:bg-surface-raised">
+      <label class="flex min-h-(--spacing-row) cursor-pointer items-center gap-2 rounded-control px-2 hover:bg-surface-raised">
         <input
           type="radio"
           name="task-manager"
@@ -71,7 +71,7 @@ async function write(binding: ProjectConnection, taskManager: boolean): Promise<
       <label
         v-for="binding in candidates"
         :key="binding.id"
-        class="flex min-h-[34px] items-center gap-2 rounded-control px-2 hover:bg-surface-raised"
+        class="flex min-h-(--spacing-row) items-center gap-2 rounded-control px-2 hover:bg-surface-raised"
         :class="lacksTarget(binding) ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'"
       >
         <input

@@ -78,7 +78,7 @@ function remove(name: string): void {
       >
         New session
       </button>
-      <AppButton variant="primary" type="submit" :disabled="!title.trim()" data-testid="add-step">
+      <AppButton variant="secondary" type="submit" :disabled="!title.trim()" data-testid="add-step">
         Add draft
       </AppButton>
     </div>

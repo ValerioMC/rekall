@@ -28,7 +28,7 @@ function replyLine(entry: Feedback): string {
 
 <template>
   <section
-    class="pass border-l-2 pl-3"
+    class="pass border-l pl-3"
     :class="running ? 'border-accent' : 'border-border'"
     :data-running="running"
     data-testid="feedback-pass"

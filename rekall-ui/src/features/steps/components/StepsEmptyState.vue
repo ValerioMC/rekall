@@ -49,7 +49,7 @@ async function copyPlan(chip: PlanChip): Promise<void> {
       on the ones still open, in full. A step starts as a draft, off the list, until you promote it.
     </p>
     <AppButton
-      variant="primary"
+      variant="secondary"
       class="mt-5"
       data-testid="write-first-step"
       @click="$emit('draft-first')"

@@ -158,7 +158,7 @@ onUnmounted(() => settleTimers.forEach((timer) => window.clearTimeout(timer)))
       <div
         v-for="step in upNext"
         :key="step.id"
-        class="grid min-h-[38px] grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-2.5 border-t border-border text-small text-text"
+        class="grid min-h-(--spacing-row) grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-2.5 border-t border-border text-small text-text"
         data-testid="peek-next"
       >
         <span class="size-5.5"><StepSeal :state="step.state" /></span>

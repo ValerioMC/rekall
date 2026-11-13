@@ -144,7 +144,7 @@ function indexOf(project: Project): number {
           v-model="query"
           type="text"
           data-testid="project-picker-search"
-          class="h-10 min-w-0 flex-1 bg-transparent text-body text-text outline-none placeholder:text-text-subtle"
+          class="h-(--spacing-control) min-w-0 flex-1 bg-transparent text-body text-text outline-none placeholder:text-text-subtle"
           placeholder="Find by project, company or label"
           spellcheck="false"
           autocomplete="off"

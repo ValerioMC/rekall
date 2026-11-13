@@ -99,11 +99,11 @@ async function confirmDelete(): Promise<void> {
       </template>
     </AppCatalogHeader>
 
-    <div class="mx-auto max-w-[1240px] px-8 pt-4">
+    <div class="page-column pt-4">
       <ProjectsSubNav active="companies" />
     </div>
 
-    <div class="mx-auto max-w-[1240px] px-8 py-6">
+    <div class="page-column py-6">
       <div class="mb-5 w-full max-w-[320px]">
         <AppInput v-model="search" type="search" placeholder="Find a company" />
       </div>

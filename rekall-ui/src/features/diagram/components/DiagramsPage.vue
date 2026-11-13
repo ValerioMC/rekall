@@ -154,7 +154,7 @@ const blast = computed(() =>
           </AppButton>
         </template>
       </AppCatalogHeader>
-      <div class="mx-auto w-full max-w-[1240px] px-8 pt-4"><LibrarySubNav active="diagrams" /></div>
+      <div class="page-column pt-4"><LibrarySubNav active="diagrams" /></div>
       <DiagramGallery
         :summaries="store.summaries"
         :projects="console_.scopedProjects"

@@ -52,9 +52,9 @@ const rowKey = computed(() => {
 
 <template>
   <li
-    class="group/step grid min-h-11 cursor-pointer grid-cols-[22px_22px_minmax(0,1fr)_auto] items-center gap-x-2.5 rounded-control border-l-2 px-2 py-1.5 transition-colors duration-(--motion-quick) focus-visible:outline-none"
+    class="group/step grid min-h-11 cursor-pointer grid-cols-[22px_22px_minmax(0,1fr)_auto] items-center gap-x-2.5 rounded-control px-2 py-1.5 transition-colors duration-(--motion-quick) focus-visible:outline-none"
     :class="[
-      selected ? 'border-accent bg-surface-raised' : 'border-transparent hover:bg-surface-hover',
+      selected ? 'selected-row' : 'hover:bg-surface-hover',
       step.state === 'RUNNING' && !selected && 'bg-session/10'
     ]"
     data-testid="plan-step"

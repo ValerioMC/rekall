@@ -162,94 +162,99 @@ async function backToList(): Promise<void> {
     <AppCatalogHeader title="Connections" compact>
       <template #actions>
         <AppButton variant="primary" size="sm" class="max-sm:min-h-11" data-testid="new-connection" @click="openSheet(null, null)"
-          >New connection</AppButton
+          >+ New connection</AppButton
         >
       </template>
     </AppCatalogHeader>
 
-    <div class="shrink-0 px-4 pt-3"><ProjectsSubNav active="connections" /></div>
+    <div class="page-column shrink-0 pt-4"><ProjectsSubNav active="connections" /></div>
 
     <p class="sr-only" role="status" aria-live="polite" data-testid="connections-live">{{ announcement }}</p>
 
-    <RouterLink
-      v-if="returnTo && backLabel"
-      :to="returnTo"
-      class="focus-ring mx-4 mt-3 inline-flex min-h-11 w-fit items-center gap-1.5 rounded-key text-small text-text-muted hover:text-text"
-      data-testid="back-link"
-    >
-      <span aria-hidden="true">←</span> Back to {{ backLabel }}
-    </RouterLink>
-
-    <ConnectionFilterBar
-      :class="selectedId ? 'max-[959px]:hidden' : ''"
-      :filter="filter"
-      :companies="companies"
-      :hide-clear="!sections.length"
-      @change="setFilter"
-      @clear="clearFilters"
-    />
-
-    <div class="grid min-h-0 flex-1 border-t border-border min-[960px]:grid-cols-[340px_minmax(0,1fr)]">
-      <div
-        class="min-h-0 overflow-y-auto border-border bg-surface/60 pb-4 min-[960px]:border-r"
-        :class="selectedId ? 'hidden min-[960px]:block' : ''"
-        data-testid="connections-list-pane"
+    <div class="page-column flex min-h-0 flex-1 flex-col pb-6 pt-6">
+      <RouterLink
+        v-if="returnTo && backLabel"
+        :to="returnTo"
+        class="focus-ring mb-3 inline-flex min-h-11 w-fit items-center gap-1.5 rounded-key text-small text-text-muted hover:text-text"
+        data-testid="back-link"
       >
-        <div v-if="showSkeleton" class="flex flex-col gap-2 p-4" aria-hidden="true" data-testid="connections-loading">
-          <div v-for="row in 4" :key="row" class="skeleton h-14 rounded-control" />
-        </div>
+        <span aria-hidden="true">←</span> Back to {{ backLabel }}
+      </RouterLink>
 
-        <AppEmptyState
-          v-else-if="loadFailed && !store.loaded"
-          class="m-4"
-          title="Connections did not load"
-          description="The list could not be read. Check that Rekall is running, then try again."
-          data-testid="connections-error"
-        >
-          <AppButton size="sm" variant="secondary" data-testid="retry-load" @click="load">Retry</AppButton>
-        </AppEmptyState>
-
-        <ConnectionEmptyState
-          v-else-if="!sections.length"
-          class="m-4"
-          :filtered="filtered && store.connections.length > 0"
-          :filter-summary="filterSummary"
-          :company-name="filteredCompanyName"
-          @start="openSheet(null, $event)"
-          @create="openSheet(null, null)"
+      <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-card border border-border bg-surface">
+        <ConnectionFilterBar
+          :class="selectedId ? 'max-[959px]:hidden' : ''"
+          :filter="filter"
+          :companies="companies"
+          :hide-clear="!sections.length"
+          @change="setFilter"
           @clear="clearFilters"
         />
 
-        <ConnectionList v-else :sections="sections" :selected-id="selectedId" />
-      </div>
+        <div class="grid min-h-0 flex-1 border-t border-border min-[960px]:grid-cols-[340px_minmax(0,1fr)]">
+          <div
+            class="min-h-0 overflow-y-auto border-border bg-surface/60 pb-4 min-[960px]:border-r"
+            :class="selectedId ? 'hidden min-[960px]:block' : ''"
+            data-testid="connections-list-pane"
+          >
+            <div v-if="showSkeleton" class="flex flex-col gap-2 p-4" aria-hidden="true" data-testid="connections-loading">
+              <div v-for="row in 4" :key="row" class="skeleton h-14 rounded-control" />
+            </div>
 
-      <div class="min-h-0 overflow-y-auto" :class="selectedId ? '' : 'hidden min-[960px]:block'" data-testid="connections-detail-pane">
-        <ConnectionDetail
-          v-if="selected"
-          ref="detailPane"
-          :key="selected.id"
-          :connection="selected"
-          @edit="openSheet(selected, null)"
-          @delete="askDelete"
-          @back="backToList"
-          @edit-companies="openCompanies"
-        />
-        <AppEmptyState
-          v-else-if="notFound"
-          class="m-5"
-          title="This connection no longer exists"
-          description="It was deleted, possibly from another window."
-          data-testid="connection-not-found"
-        >
-          <AppButton size="sm" variant="secondary" @click="select(null)">Back to connections</AppButton>
-        </AppEmptyState>
-        <AppEmptyState
-          v-else-if="store.loaded && sections.length"
-          class="m-5"
-          title="Pick a connection"
-          description="Select one on the left to see its credential and who it is shared with."
-          data-testid="nothing-selected"
-        />
+            <AppEmptyState
+              v-else-if="loadFailed && !store.loaded"
+              class="m-4"
+              title="Connections did not load"
+              description="The list could not be read. Check that Rekall is running, then try again."
+              data-testid="connections-error"
+            >
+              <AppButton size="sm" variant="secondary" data-testid="retry-load" @click="load">Retry</AppButton>
+            </AppEmptyState>
+
+            <ConnectionEmptyState
+              v-else-if="!sections.length"
+              class="m-4"
+              :filtered="filtered && store.connections.length > 0"
+              :filter-summary="filterSummary"
+              :company-name="filteredCompanyName"
+              @start="openSheet(null, $event)"
+              @create="openSheet(null, null)"
+              @clear="clearFilters"
+            />
+
+            <ConnectionList v-else :sections="sections" :selected-id="selectedId" />
+          </div>
+
+          <div class="min-h-0 overflow-y-auto" :class="selectedId ? '' : 'hidden min-[960px]:block'" data-testid="connections-detail-pane">
+            <ConnectionDetail
+              v-if="selected"
+              ref="detailPane"
+              :key="selected.id"
+              :connection="selected"
+              @edit="openSheet(selected, null)"
+              @delete="askDelete"
+              @back="backToList"
+              @edit-companies="openCompanies"
+            />
+            <AppEmptyState
+              v-else-if="notFound"
+              class="m-5"
+              title="This connection no longer exists"
+              description="It was deleted, possibly from another window."
+              data-testid="connection-not-found"
+            >
+              <AppButton size="sm" variant="secondary" @click="select(null)">Back to connections</AppButton>
+            </AppEmptyState>
+            <AppEmptyState
+              v-else-if="store.loaded && sections.length"
+              class="m-5"
+              title="Pick a connection"
+              description="Select one on the left to see its credential and who it is shared with."
+              data-testid="nothing-selected"
+            />
+          </div>
+        </div>
+
       </div>
     </div>
 

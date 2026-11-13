@@ -109,14 +109,14 @@ watch(
         class="field text-text h-8 w-[280px] max-w-full rounded-control px-2.5 text-small"
         data-testid="components-filter"
       />
-      <AppButton variant="primary" size="sm" data-testid="add-component" @click="startComposing">Add component</AppButton>
+      <AppButton variant="primary" size="sm" data-testid="add-component" @click="startComposing">+ Add component</AppButton>
     </header>
 
     <div class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)]" :class="{ 'lg:grid-cols-[minmax(0,1fr)_380px]': editing || composing }">
       <div class="min-h-0 overflow-y-auto px-4 py-3">
         <div v-if="loading" class="flex flex-col gap-1" role="status" aria-live="polite" aria-busy="true">
           <span class="sr-only">Loading components</span>
-          <div v-for="row in 5" :key="row" class="skeleton h-[34px] rounded-control" />
+          <div v-for="row in 5" :key="row" class="skeleton h-(--spacing-row) rounded-control" />
         </div>
 
         <div
@@ -130,7 +130,7 @@ watch(
         </div>
 
         <template v-else>
-          <p class="flex h-[30px] items-center gap-2 pl-1 font-mono text-caption text-text-muted" :title="repoFolder ?? undefined" data-testid="components-root">
+          <p class="flex h-(--spacing-row) items-center gap-2 pl-1 font-mono text-caption text-text-muted" :title="repoFolder ?? undefined" data-testid="components-root">
             <svg class="size-3.5 shrink-0 text-text-subtle" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h2.6l1.4 1.5h5A1.5 1.5 0 0 1 14 6v5.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5v-7Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" />
             </svg>
@@ -151,7 +151,7 @@ watch(
                 @open="open(entry.leaf.component)"
               />
               <template v-else>
-                <p class="flex h-[34px] items-center gap-2 pl-2 font-mono text-caption text-text-muted" data-testid="components-folder">
+                <p class="flex h-(--spacing-row) items-center gap-2 pl-2 font-mono text-caption text-text-muted" data-testid="components-folder">
                   {{ entry.branch.folder ?? 'Outside the project folder' }}
                   <span class="text-text-subtle">{{ entry.branch.leaves.length }}</span>
                 </p>

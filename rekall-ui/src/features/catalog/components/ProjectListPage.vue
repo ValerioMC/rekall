@@ -9,6 +9,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import SegmentedControl, { type SegmentOption } from '@/components/ui/SegmentedControl.vue'
 import CompanyMark from '@/components/ui/CompanyMark.vue'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
 import TokenCount from '@/components/ui/TokenCount.vue'
@@ -34,7 +35,10 @@ const router = useRouter()
 const { run } = useAsyncAction()
 
 const search = ref('')
-const statusFilter = ref<ProjectStatus | null>(null)
+type StatusChoice = ProjectStatus | 'ALL'
+
+const statusChoice = ref<StatusChoice>('ALL')
+const statusFilter = computed(() => (statusChoice.value === 'ALL' ? null : statusChoice.value))
 const companyFilter = ref<CompanyId | null>((route.query.company as CompanyId) ?? null)
 
 const editing = ref<RecordDraft | null>(null)
@@ -69,10 +73,14 @@ const statusCounts = computed(() => {
   return counts
 })
 
-const STATUS_OPTIONS: readonly { value: ProjectStatus | null; label: string }[] = [
-  { value: null, label: 'All' },
-  ...PROJECT_STATUSES.map((status) => ({ value: status, label: PROJECT_STATUS_LABEL[status] }))
-]
+const statusOptions = computed<readonly SegmentOption<StatusChoice>[]>(() => [
+  { value: 'ALL', label: 'All', count: statusCounts.value.get(null) ?? 0 },
+  ...PROJECT_STATUSES.map((status) => ({
+    value: status,
+    label: PROJECT_STATUS_LABEL[status],
+    count: statusCounts.value.get(status) ?? 0
+  }))
+])
 
 const groups = computed(() =>
   store.companies
@@ -146,46 +154,16 @@ async function confirmDelete(): Promise<void> {
       </template>
     </AppCatalogHeader>
 
-    <div class="mx-auto max-w-[1240px] px-8 pt-4">
+    <div class="page-column pt-4">
       <ProjectsSubNav active="projects" />
     </div>
 
-    <div class="mx-auto max-w-[1240px] px-8 py-6">
+    <div class="page-column py-6">
       <div class="mb-5 flex flex-wrap items-center gap-2.5">
         <div class="w-full max-w-[320px]">
           <AppInput v-model="search" type="search" placeholder="Find a project" />
         </div>
-        <!-- One segmented control rather than four loose pills: the options are exclusive, so
-             they read as one choice, sit at the search field's height, and each carries the
-             count it would show. -->
-        <div
-          class="flex h-(--spacing-control) items-center gap-0.5 rounded-control border border-border bg-surface p-0.5"
-          role="radiogroup"
-          aria-label="Status"
-        >
-          <button
-            v-for="option in STATUS_OPTIONS"
-            :key="option.label"
-            type="button"
-            role="radio"
-            :aria-checked="statusFilter === option.value"
-            class="focus-ring flex h-full items-center gap-1.5 rounded-[calc(var(--radius-control)-3px)] px-2.5 text-small transition-colors"
-            :class="
-              statusFilter === option.value
-                ? 'bg-surface-raised text-text shadow-[0_1px_2px_rgb(0_0_0/0.4)]'
-                : 'text-text-subtle hover:text-text'
-            "
-            @click="statusFilter = option.value"
-          >
-            {{ option.label }}
-            <span
-              class="font-mono text-micro tabular-nums"
-              :class="statusFilter === option.value ? 'text-accent' : 'text-text-subtle'"
-            >
-              {{ statusCounts.get(option.value) ?? 0 }}
-            </span>
-          </button>
-        </div>
+        <SegmentedControl v-model="statusChoice" :options="statusOptions" label="Status" />
 
         <button
           v-if="companyFilter"

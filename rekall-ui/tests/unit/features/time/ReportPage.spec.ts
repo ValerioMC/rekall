@@ -239,7 +239,7 @@ describe('ReportPage', () => {
   it('reframes the same sessions as a month without moving off them', async () => {
     const wrapper = await mountReport()
 
-    await wrapper.get('[data-testid="report-period-month"]').trigger('click')
+    await wrapper.get('[data-testid="segment-month"]').trigger('click')
 
     expect(wrapper.get('[data-testid="report-total"]').text()).toBe('5h')
     expect(wrapper.findAll('[data-testid="ridge-column"]')).toHaveLength(30)

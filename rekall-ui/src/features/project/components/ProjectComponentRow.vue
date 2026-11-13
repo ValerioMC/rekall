@@ -20,7 +20,7 @@ const shownPath = computed(() => (folderName(props.path) === props.component.nam
 <template>
   <button
     type="button"
-    class="focus-ring group flex h-[34px] w-full cursor-pointer items-center gap-2.5 rounded-control pl-2 pr-2.5 text-left transition-colors"
+    class="focus-ring group flex h-(--spacing-row) w-full cursor-pointer items-center gap-2.5 rounded-control pl-2 pr-2.5 text-left transition-colors"
     :class="open ? 'selected-row' : 'hover:bg-surface-raised'"
     :style="{ '--select-tint': hue.base, '--select-tint-soft': hue.soft }"
     :aria-current="open || undefined"

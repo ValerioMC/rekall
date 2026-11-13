@@ -48,7 +48,7 @@ const readyToAcceptAll = computed(() => props.claimed > 0 && props.done + props.
     </div>
 
     <div class="flex shrink-0 items-center gap-2">
-      <SegmentedControl v-if="canShowFlow" v-model="view" :options="VIEWS" label="Show the steps as" />
+      <SegmentedControl v-if="canShowFlow" v-model="view" :options="VIEWS" label="Show the steps as" size="sm" />
       <AppButton
         v-if="done > 0 || claimed > 0"
         variant="quiet"

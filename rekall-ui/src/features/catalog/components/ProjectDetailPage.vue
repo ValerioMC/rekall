@@ -158,7 +158,7 @@ watch([graphs, tab], () => {
   <div class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-canvas">
     <template v-if="!store.isLoading && !project">
       <AppCatalogHeader title="Project" />
-      <div class="mx-auto w-full max-w-[1800px] px-6 py-6 2xl:px-10">
+      <div class="page-column py-6">
         <AppEmptyState title="No project here" description="It may have been deleted, or the link is stale.">
           <RouterLink to="/projects"><AppButton variant="secondary" size="sm">Back to projects</AppButton></RouterLink>
         </AppEmptyState>
@@ -173,7 +173,7 @@ watch([graphs, tab], () => {
         </div>
         <div />
       </Teleport>
-      <div class="mx-auto flex w-full max-w-[1800px] flex-col gap-4 px-6 py-6 2xl:px-10" aria-hidden="true">
+      <div class="page-column flex flex-col gap-4 py-6" aria-hidden="true">
         <div class="skeleton h-32 rounded-card" />
         <div class="skeleton h-64 rounded-card" />
       </div>
@@ -211,7 +211,7 @@ watch([graphs, tab], () => {
         </template>
       </AppCatalogHeader>
 
-      <div class="mx-auto flex min-h-[540px] w-full max-w-[1280px] flex-1 basis-0 flex-col px-6" data-testid="project-workspace">
+      <div class="page-column flex min-h-[540px] flex-1 basis-0 flex-col" data-testid="project-workspace">
         <SubNav class="mt-4 shrink-0" :model-value="tab" :items="tabItems" label="Project pages" />
         <div class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] py-4">
           <Transition name="fade-quick" mode="out-in">
