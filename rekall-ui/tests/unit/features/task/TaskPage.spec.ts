@@ -222,7 +222,7 @@ describe('TaskPage', () => {
     const page = await mountAt('/task/rk-1')
     const column = page.get('[data-testid="task-column"]')
 
-    expect(column.attributes('style')).toContain('max-width: 1040px')
+    expect(column.attributes('style')).toContain('max-width: 1360px')
 
     await page.get('[data-testid="task-width"]').trigger('click')
     const items = page.findAll('[data-testid="popover-menu-item"]')

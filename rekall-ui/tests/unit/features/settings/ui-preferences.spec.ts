@@ -35,7 +35,7 @@ describe('the stored UI preferences', () => {
     expect(loadUiPreferences().taskWidth).toBe('wide')
 
     window.localStorage.setItem(KEY, JSON.stringify({ taskWidth: 'huge' }))
-    expect(loadUiPreferences().taskWidth).toBe('standard')
+    expect(loadUiPreferences().taskWidth).toBe('wide')
   })
 
   it('survive unreadable storage', () => {

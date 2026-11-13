@@ -32,8 +32,8 @@ watch(
 
 <template>
   <li
-    class="entry rounded-card border bg-surface"
-    :class="sealed ? 'entry-applied border-border bg-canvas' : inPass ? 'entry-running border-border' : 'entry-pending border-border'"
+    class="entry rounded-card border bg-canvas"
+    :class="sealed ? 'entry-applied border-border' : inPass ? 'entry-running border-border' : 'entry-pending border-border'"
     :data-state="entry.state"
     data-testid="revision-card"
   >
