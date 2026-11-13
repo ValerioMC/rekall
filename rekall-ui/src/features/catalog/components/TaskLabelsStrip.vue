@@ -10,7 +10,7 @@ import { skillsOfTag } from '@/features/skills/model/skill-assignment'
 import type { Task } from '@/features/catalog/model/catalog'
 
 /**
- * The task's tag and skills, in the description's header. The tag and the task's own skills are
+ * The task's tag and skills, in the description's properties line. The tag and the task's own skills are
  * changed in place; the tag's skills arrive dashed, since they are the tag's.
  */
 const props = defineProps<{ task: Task }>()
@@ -32,7 +32,7 @@ function save(names: readonly string[]): void {
 </script>
 
 <template>
-  <div class="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5" data-testid="task-labels">
+  <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5" data-testid="task-labels">
     <TaskTagControl :task="task" />
     <span class="h-4 w-px bg-border" aria-hidden="true" />
     <SkillField :model-value="own" :inherited="fromTag" owner="task" @update:model-value="save" />

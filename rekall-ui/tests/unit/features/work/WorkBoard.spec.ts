@@ -116,7 +116,7 @@ describe('the board', () => {
 
     await wrapper.get('[data-testid="sheet-open-page"]').trigger('click')
 
-    expect(push).toHaveBeenCalledWith({ name: 'task', params: { id: 'PR-2', tab: 'plan' } })
+    expect(push).toHaveBeenCalledWith({ name: 'task', params: { id: 'PR-2', tab: 'description' } })
   })
 
   it('opens the ledger on Filed from the shelf', async () => {

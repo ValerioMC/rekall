@@ -6,7 +6,7 @@ import { router } from '@/router'
 import { reviewQueue } from '@/features/catalog/model/review'
 import { useConsoleStore } from '@/stores/console.store'
 import { useWorkStore } from '@/features/work/store/work.store'
-import type { ProjectId } from '@/model/branded'
+import type { ProjectId, TaskId } from '@/model/branded'
 import { project, step, task } from './work-fixtures'
 
 const orion = 'p2' as ProjectId
@@ -96,6 +96,34 @@ describe('WorkPage', () => {
     const wrapper = await mountWork()
 
     expect(titles(wrapper)).toEqual(['Plan the launch'])
+  })
+
+  it('lists the tasks of an epic under it, and folds them from the epic row', async () => {
+    const { store, work } = seed()
+    store.tasks = [
+      task('PR-6', { title: 'Checkout rework', kind: 'EPIC' }),
+      task('PR-7', { title: 'Pay by card', epicId: 'PR-6' as TaskId }),
+      task('PR-8', { title: 'Pay by wire', epicId: 'PR-6' as TaskId }),
+      task('PR-9', { title: 'Unrelated' })
+    ]
+    work.view = 'open'
+    const wrapper = await mountWork()
+
+    expect(titles(wrapper)).toEqual(['Unrelated', 'Checkout rework', 'Pay by wire', 'Pay by card'])
+    expect(wrapper.get('[data-testid="work-epic-summary"]').text()).toBe('2 tasks')
+
+    await wrapper.get('[data-testid="work-epic-toggle"]').trigger('click')
+
+    expect(titles(wrapper)).toEqual(['Unrelated', 'Checkout rework'])
+  })
+
+  it('names the epic of a task listed without it', async () => {
+    const { store, work } = seed()
+    store.tasks = [task('PR-6', { title: 'Checkout rework', kind: 'EPIC', status: 'DONE' }), task('PR-7', { title: 'Pay by card', epicId: 'PR-6' as TaskId })]
+    work.view = 'open'
+    const wrapper = await mountWork()
+
+    expect(wrapper.get('[data-testid="work-row-epic"]').text()).toBe('Checkout rework')
   })
 
   it('says nothing waits when no step is claimed', async () => {

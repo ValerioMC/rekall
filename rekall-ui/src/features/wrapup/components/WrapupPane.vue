@@ -5,7 +5,6 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
-import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
 import WrapupHereDialog from '@/features/wrapup/components/WrapupHereDialog.vue'
 import WrapupFreshnessTag from '@/features/wrapup/components/WrapupFreshnessTag.vue'
 import WrapupVersionsPanel from '@/features/wrapup/components/WrapupVersionsPanel.vue'
@@ -128,14 +127,6 @@ async function sendWrapupHere(message: string): Promise<void> {
           <TaskTitleRow :task="selectedTask" copy-testid="copy-wrapup-anchor" />
         </div>
         <span v-else class="flex-1" />
-
-        <LaunchClaudeCodeButton
-          v-if="!isEpic(selectedTask)"
-          class="shrink-0"
-          :anchors="selectedTask.anchor"
-          :folder="selectedTask.projectRepoFolder"
-          missing-hint="Set this project's folder on its page to open a session from it"
-        />
 
         <AppButton
           v-if="liveTerminal"

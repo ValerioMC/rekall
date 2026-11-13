@@ -21,7 +21,8 @@ const MODE_OF_STYLE: Record<RewriteStyle, RewriteMode> = { FIX: 'REWRITE_FIX', R
 /**
  * Rewrite one task's description through a session: the `rewrite` line is typed into a live
  * session of the task, or a terminal is opened on it. A session that cannot start leaves the
- * description untouched. The server does not announce the write, so the task is read again until
+ * description untouched, and one opened for the rewrite is closed once the text is in so the task
+ * is released; a session that was already live is left to its owner. The server does not announce the write, so the task is read again until
  * its description changes or its session ends. The text it replaced is held in memory only, for
  * Undo: it is dropped once the person edits and with the task's view.
  */
@@ -90,11 +91,17 @@ export function useDescriptionRewrite(taskId: () => TaskId, anchor: () => string
     return started === true
   }
 
-  async function watchForTheNewText(before: string): Promise<void> {
+  async function releaseOpenedSession(): Promise<void> {
+    const opened = terminals.terminalForTask(taskId())
+    if (opened) await run(() => terminals.close(opened.id))
+  }
+
+  async function watchForTheNewText(before: string, openedForRewrite: boolean): Promise<void> {
     working.value = true
     const rewritten = await run(() => awaitRewrittenDescription(before))
     working.value = false
     if (rewritten === null) return
+    if (openedForRewrite) await releaseOpenedSession()
     replacedText.value = before
     finished.value = true
     await pause(DONE_HOLD_MS)
@@ -109,12 +116,13 @@ export function useDescriptionRewrite(taskId: () => TaskId, anchor: () => string
       return
     }
     replacedText.value = null
+    const openedForRewrite = terminals.terminalForTask(taskId()) === null
     launching.value = true
     const starting = launchSession(style)
     await pause(TRAVEL_MS)
     const started = await starting
     launching.value = false
-    if (started) await watchForTheNewText(before)
+    if (started) await watchForTheNewText(before, openedForRewrite)
   }
 
   async function undo(): Promise<void> {

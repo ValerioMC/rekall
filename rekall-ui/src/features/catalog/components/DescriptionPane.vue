@@ -10,13 +10,9 @@ import { useSelectedProjectComponents } from '@/features/project/composables/use
 import { useSelectedProjectConnections } from '@/features/connection/composables/useSelectedProjectConnections'
 import { useSelectedProjectTasks } from '@/features/catalog/composables/useSelectedProjectTasks'
 import { useDescriptionDraft } from '@/features/catalog/composables/useDescriptionDraft'
-import { identityHue } from '@/common/identity'
-import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
-import OpenTerminalButton from '@/features/claude/components/OpenTerminalButton.vue'
-import LogCommitButton from '@/features/commits/components/LogCommitButton.vue'
 import CommitReferenceRail from '@/features/commits/components/CommitReferenceRail.vue'
 import ContextSizeChip from '@/features/context/components/ContextSizeChip.vue'
-import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
+import TaskTokenChip from '@/features/tokens/components/TaskTokenChip.vue'
 import TaskLabelsStrip from '@/features/catalog/components/TaskLabelsStrip.vue'
 import DescriptionRewriteButton from '@/features/catalog/components/DescriptionRewriteButton.vue'
 import DescriptionViewTabs from '@/features/catalog/components/DescriptionViewTabs.vue'
@@ -25,9 +21,6 @@ import RevisionsPanel from '@/features/feedback/components/RevisionsPanel.vue'
 import type { DescriptionView } from '@/features/catalog/model/description-view'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import type { Feedback } from '@/features/feedback/model/feedback'
-
-/** On the task page the title is already above the tabs, so the pane keeps its labels and actions. */
-defineProps<{ embedded?: boolean }>()
 
 const store = useConsoleStore()
 const { selectedTask, selectedTaskId, selectedTaskCommitReferences, selectedTaskFeedback, waitingCount, runningPass } = storeToRefs(store)
@@ -38,8 +31,6 @@ const { draft, mode, scheduleSave, toggleMode } = useDescriptionDraft({ openEmpt
 const projectComponents = useSelectedProjectComponents()
 const projectConnections = useSelectedProjectConnections()
 const projectTasks = useSelectedProjectTasks()
-
-const hue = computed(() => identityHue(selectedTask.value?.projectId ?? ''))
 
 // The task-scoped review line, shown only while the task has no checklist.
 const reviewState = computed(() => {
@@ -76,96 +67,32 @@ defineExpose({ toggleMode })
     </p>
 
     <template v-else>
-      <div class="relative shrink-0 overflow-hidden border-b border-border">
-        <div
-          class="texture-grid pointer-events-none absolute inset-0 opacity-60"
-          :style="{ '--texture-tint': hue.base }"
-          aria-hidden="true"
-        />
-        <div
-          class="pointer-events-none absolute inset-x-0 top-0 h-px"
-          :style="{ background: hue.line }"
-          aria-hidden="true"
-        />
-
-        <header class="@container/description relative flex flex-wrap items-start gap-x-3.5 gap-y-2 px-5 py-3.5">
-          <div class="min-w-0 grow basis-full @min-[49rem]/description:basis-0">
-            <p v-if="!embedded" class="eyebrow flex items-center gap-1.5">
-              <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
-              Description
-            </p>
-            <ContextSizeChip v-if="embedded" :task-id="selectedTask.id" class="mb-1" />
-            <TaskTitleRow v-if="!embedded" :task="selectedTask" copy-testid="copy-description-anchor">
-              <template #flags>
-              <span
-                v-if="reviewState === 'RUNNING'"
-                class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent-soft px-2 py-0.5 text-micro font-semibold tracking-[0.02em] text-accent"
-                data-testid="description-running-flag"
-              >
-                <span class="relative grid size-2 place-items-center" aria-hidden="true">
-                  <span class="absolute inline-flex size-2 animate-ping rounded-full bg-accent/60" />
-                  <span class="relative inline-flex size-1.5 rounded-full bg-accent" />
-                </span>
-                running
-              </span>
-              <span
-                v-else-if="reviewState === 'CLAIMED'"
-                class="shrink-0 rounded-full border border-accent/40 px-2 py-0.5 text-micro font-semibold tracking-[0.02em] text-accent"
-                data-testid="description-claimed-flag"
-              >
-                Awaiting review
-              </span>
-              <span
-                v-else-if="reviewState === 'DONE'"
-                class="shrink-0 rounded-full bg-accent px-2 py-0.5 text-micro font-semibold tracking-[0.02em] text-accent-ink"
-                data-testid="description-accepted-flag"
-              >
-                Accepted
-              </span>
-              </template>
-              <template #trailing>
-                <ContextSizeChip :task-id="selectedTask.id" />
-              </template>
-            </TaskTitleRow>
-            <TaskLabelsStrip :task="selectedTask" />
-          </div>
-
-          <div class="flex shrink-0 items-center gap-1.5 @max-[71rem]/description:[&_[data-label]]:hidden" data-testid="description-actions">
-            <LogCommitButton
-              :task-id="selectedTask.id"
-              :folder="selectedTask.projectRepoFolder"
-            />
-            <OpenTerminalButton
-              :task-id="selectedTask.id"
-              :anchor="selectedTask.anchor"
-              :folder="selectedTask.projectRepoFolder"
-            />
-            <LaunchClaudeCodeButton
-              :task-id="selectedTask.id"
-              :anchors="selectedTask.anchor"
-              :folder="selectedTask.projectRepoFolder"
-              missing-hint="Set this project's folder on its page to open a session from it"
-            />
-            <DescriptionRewriteButton
-              :key="selectedTask.id"
-              :task-id="selectedTask.id"
-              :anchor="selectedTask.anchor"
-              :folder="selectedTask.projectRepoFolder"
-              :class="{ invisible: view !== 'description' }"
-              :inert="view !== 'description'"
-            />
-            <AppModeToggle
-              v-model="mode"
-              testid-prefix="description-mode"
-              :class="{ invisible: view !== 'description' }"
-              :inert="view !== 'description'"
-            />
-          </div>
-        </header>
+      <div class="flex h-9 shrink-0 items-end gap-3 border-b border-border px-5" data-testid="description-view-strip">
+        <DescriptionViewTabs v-model="view" :count="selectedTaskFeedback.length" :attention="needsAttention" :running="runningPass !== null" />
+        <span class="flex-1" />
+        <div class="flex items-center gap-1.5 pb-1" data-testid="description-actions">
+          <ContextSizeChip :task-id="selectedTask.id" />
+          <DescriptionRewriteButton
+            :key="selectedTask.id"
+            :task-id="selectedTask.id"
+            :anchor="selectedTask.anchor"
+            :folder="selectedTask.projectRepoFolder"
+            :class="{ invisible: view !== 'description' }"
+            :inert="view !== 'description'"
+          />
+          <AppModeToggle
+            v-model="mode"
+            testid-prefix="description-mode"
+            :class="{ invisible: view !== 'description' }"
+            :inert="view !== 'description'"
+          />
+        </div>
       </div>
 
-      <div class="flex h-8 shrink-0 items-end border-b border-border px-5" data-testid="description-view-strip">
-        <DescriptionViewTabs v-model="view" :count="selectedTaskFeedback.length" :attention="needsAttention" :running="runningPass !== null" />
+      <div class="flex min-w-0 shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-5 py-2" data-testid="description-properties">
+        <TaskLabelsStrip :task="selectedTask" class="min-w-0" />
+        <span class="flex-1" />
+        <TaskTokenChip :task="selectedTask" />
       </div>
 
       <div

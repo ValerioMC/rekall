@@ -4,10 +4,22 @@ export type Motion = (typeof MOTIONS)[number]
 export const SCALES = [90, 100, 110, 125] as const
 export type Scale = (typeof SCALES)[number]
 
+export const TASK_WIDTHS = ['narrow', 'standard', 'wide', 'full'] as const
+export type TaskWidth = (typeof TASK_WIDTHS)[number]
+
+/** How wide the task page's column is, from its centre; `full` has no limit. */
+export const TASK_WIDTH_PIXELS: Readonly<Record<TaskWidth, number | null>> = {
+  narrow: 760,
+  standard: 1040,
+  wide: 1360,
+  full: null
+}
+
 /** What the console remembers per browser about how it looks and how it asks; the server never sees it. */
 export interface UiPreferences {
   readonly motion: Motion
   readonly scale: Scale
+  readonly taskWidth: TaskWidth
   readonly reviewAutoAdvance: boolean
   readonly reviewConfirmSendBack: boolean
   readonly workdayGoalHours: number
@@ -20,6 +32,7 @@ export const USAGE_WARNING_RANGE = { min: 50, max: 100 } as const
 export const DEFAULT_UI_PREFERENCES: UiPreferences = {
   motion: 'full',
   scale: 100,
+  taskWidth: 'standard',
   reviewAutoAdvance: true,
   reviewConfirmSendBack: false,
   workdayGoalHours: 8,
@@ -48,6 +61,7 @@ export function loadUiPreferences(): UiPreferences {
     return {
       motion: oneOf(MOTIONS, stored.motion, defaults.motion),
       scale: oneOf(SCALES, stored.scale, defaults.scale),
+      taskWidth: oneOf(TASK_WIDTHS, stored.taskWidth, defaults.taskWidth),
       reviewAutoAdvance: flag(stored.reviewAutoAdvance, defaults.reviewAutoAdvance),
       reviewConfirmSendBack: flag(stored.reviewConfirmSendBack, defaults.reviewConfirmSendBack),
       workdayGoalHours: withinRange(stored.workdayGoalHours, WORKDAY_GOAL_RANGE, defaults.workdayGoalHours),

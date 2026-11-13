@@ -49,7 +49,7 @@ in the build by the terminal, session, run queue and usage stores. A number the 
 |---|---|---|
 | `#/work` | `/` (`/work` redirects to it) | Work ledger |
 | `#/work/board` | `/work/board` | Work board |
-| `#/task/:id/:tab` | `/task/:id/:tab` | Task page, tab `plan`, `wrapup`, `notes`, `description`, `time` or `deviations` |
+| `#/task/:id/:tab` | `/task/:id/:tab` | Task page, tab `description`, `plan`, `wrapup`, `notes`, `time` or `deviations` |
 | `#/review/:key` | `/review/:key?` | Review queue |
 | `#/projects`, `#/projects/:id/:tab` | `/projects`, `/projects/:id/:tab` | Project list, project page |
 | `#/companies` | `/companies` | Companies |
@@ -63,7 +63,7 @@ in the build by the terminal, session, run queue and usage stores. A number the 
 
 The routes that exist today keep their paths: the redesign changes what a screen shows, not where it
 lives. `/` is the Work ledger instead of the three-column console, and `/review` and `/settings`
-are new. A ledger row, a card and the sheet open the task page at `/task/:id/plan`; a note in view
+are new. A ledger row, a card and the sheet open the task page at `/task/:id/description`; a note in view
 is part of the path (`/task/:id/notes/:noteId`). `/console` is the terminal host and nothing else: Open in terminal, the dock and a deep link to a
 terminal show the session there, and a visit with no terminal open goes on to the task page of the task
 in view, or to Work. The notes list, the steps, wrapup, description and deviation panes of the old
@@ -88,6 +88,13 @@ the company beside it, the task count, how many wait for review, and its tokens.
 Task (the title, with a copy-anchor button shown on hover), Status (a pill), Plan (the plan tube
 and done over total), Needs you, Notes, Tokens and Updated. The anchor chip is not on every row.
 Sorting is on Task, Needs you, Tokens and Updated.
+
+An epic is a row of its own, drawn with the stacked-plates mark in the epic tone and a chevron that
+folds the tasks it gathers: they are listed under it, indented on a thin rail, and nowhere else,
+and its Plan column says how many there are and how many are done. A task whose epic is not
+listed with it (another tab, or the epic is filed) keeps its place and carries the epic's name as
+a chip. The grouping is `features/work/lib/epic-entries.ts`; which epics are folded is kept in the
+Work store and not remembered.
 
 The head holds the scope select (all work, a company, or a project), a filter on title and anchor,
 the Ledger or Board layout toggle, the density (Comfortable or Compact) and New task. Under it the
@@ -126,11 +133,16 @@ for the board.
 
 ## The task page
 
-A task is a page at `/task/:id/:tab`. Its header holds the breadcrumb (Work, then company and
-project), the title, the status pill that changes the status, the copyable `/rk` anchor, tracked
-time and tokens, Open in terminal, and Resume session or Watch the session. Under it the tabs are
-Plan, Wrapup, Notes, Description, Time and Deviations, with counts where a count means something
-(steps, notes, deviations) and an amber one on Plan while a step waits for review.
+A task is a page at `/task/:id/:tab`, opened on its Description when no tab is named. The whole
+page is one column centred in the window, as wide as the page-width choice (Narrow, Standard,
+Wide or Full, from the key at the right of the tab strip) allows; the choice is kept in the
+browser and holds for every tab and every task. The header is two lines: the breadcrumb (Work,
+then company and project) with the task's actions at its right (Log commit, Open in terminal and
+Run here, each offered once), and the title alone beneath. The tab strip is Description, Plan,
+Wrapup, Notes, Time and Deviations, with counts where a count means something (steps, notes,
+deviations) and an amber one on Plan while a step waits for review; at its right are the status
+pill that changes the status, the copyable `/rk` anchor and the width key. The Description tab
+carries a properties line under its tabs: tag, skills, dependencies and the task's tokens.
 
 **Plan** is two zones. The left is the step list: a row is the step's seal, its number, its title
 and when it last moved, and its hover keys (Accept or Done, New session, To draft, move, delete).
