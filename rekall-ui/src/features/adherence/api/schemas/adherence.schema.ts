@@ -28,7 +28,7 @@ export const PlanAdherenceSchema = z.object({
 
 export const TaskSentBackSchema = z.object({
   taskId: z.string().uuid().transform(asTaskId),
-  label: z.string(),
+  code: z.string(),
   title: z.string(),
   sentBack: z.number().int(),
   passesTotal: z.number().int()
