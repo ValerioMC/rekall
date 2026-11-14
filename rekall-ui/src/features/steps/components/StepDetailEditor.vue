@@ -12,6 +12,8 @@ import { useStepEditor } from '@/features/steps/composables/useStepEditor'
  * as it is typed. A checklist step and a draft share it, each with its own wording.
  */
 defineProps<{
+  /** Read flush inside a row, in a fixed-height writing surface; unset it reads and writes as a page that grows with its text. */
+  compact?: boolean
   stepTitle: string
   /** `step` or `draft`: the prefix of each field's test id. */
   testidPrefix: string
@@ -45,10 +47,11 @@ const projectTasks = useSelectedProjectTasks()
           :data-testid="`${testidPrefix}-title-field`"
           @update:model-value="scheduleSave"
         />
-        <div class="mt-2 min-w-0 overflow-hidden" :style="{ height: editorHeight }">
+        <div class="mt-2 min-w-0" :class="compact && 'overflow-hidden'" :style="compact ? { height: editorHeight } : undefined">
           <AppMarkdownEditor
             v-model="body"
-            height="100%"
+            :height="compact ? '100%' : editorHeight"
+            :grow="!compact"
             :path-root="pathRoot"
             :components="projectComponents"
             :connections="projectConnections"
@@ -60,8 +63,8 @@ const projectTasks = useSelectedProjectTasks()
         </div>
       </div>
 
-      <div v-else-if="body.trim()" key="read" class="step-detail min-w-0 overflow-x-auto">
-        <AppMarkdownEditor :model-value="body" :components="projectComponents" :connections="projectConnections" :tasks="projectTasks" readonly compact :data-testid="`${testidPrefix}-detail-read`" />
+      <div v-else-if="body.trim()" key="read" class="min-w-0 overflow-x-auto" :class="compact && 'step-detail'">
+        <AppMarkdownEditor :model-value="body" :components="projectComponents" :connections="projectConnections" :tasks="projectTasks" readonly :compact="compact" :data-testid="`${testidPrefix}-detail-read`" />
       </div>
 
       <p v-else key="empty" class="py-1 text-small text-text-subtle">

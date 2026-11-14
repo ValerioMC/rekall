@@ -22,7 +22,8 @@ import type { TaskStepId } from '@/model/branded'
 
 /**
  * The Plan tab: the task's steps as a list with the tube above it, and beside it the decision
- * panel of the selected step. Drafts sit under their own heading until they are promoted.
+ * panel of the selected step, which takes the room the list leaves and can take all of it. Drafts
+ * sit under their own heading until they are promoted.
  */
 const props = defineProps<{ task: Task }>()
 
@@ -54,6 +55,7 @@ const {
   newSession
 } = plan
 
+const focused = ref(false)
 const draftsEl = ref<InstanceType<typeof StepDraftShelf> | null>(null)
 const listEl = ref<HTMLElement | null>(null)
 
@@ -71,6 +73,7 @@ const selectedStep = computed(
 )
 const handedIn = computed(() => handedInWhole(props.task))
 const showsPanel = computed(() => view.value === 'list' && (selectedStep.value !== null || handedIn.value))
+const listHidden = computed(() => focused.value && showsPanel.value)
 const upNext = computed(() =>
   checklistSteps.value
     .filter((step) => step.state === 'CLAIMED' && step.id !== selectedStep.value?.id)
@@ -144,7 +147,11 @@ function canChooseSession(step: TaskStep): boolean {
 <template>
   <div class="flex min-h-0 flex-1 flex-col" data-testid="plan-tab">
     <div class="flex min-h-0 flex-1">
-      <section class="flex min-h-0 min-w-0 flex-1 flex-col" aria-label="Steps">
+      <section
+        class="flex min-h-0 min-w-0 flex-col"
+        :class="[showsPanel ? 'w-[clamp(18rem,32%,28rem)] shrink-0' : 'flex-1', listHidden && 'hidden']"
+        aria-label="Steps"
+      >
         <div v-if="view === 'flow' && checklistSteps.length" class="flex min-h-0 flex-1 flex-col">
           <div class="px-6 pt-4">
             <PlanSummary
@@ -239,7 +246,7 @@ function canChooseSession(step: TaskStep): boolean {
 
       <aside
         v-if="showsPanel"
-        class="min-h-0 w-[min(46%,30rem)] shrink-0 overflow-y-auto border-l border-border bg-surface px-5 py-4"
+        class="min-h-0 min-w-0 flex-1 overflow-y-auto border-l border-border bg-surface px-6 py-5"
         data-testid="plan-decision"
       >
         <StepDecisionPanel
@@ -249,6 +256,7 @@ function canChooseSession(step: TaskStep): boolean {
           :number="numberOf(selectedStep)"
           :total="checklistSteps.length"
           :reopen-armed="reopenArmed === selectedStep.id"
+          :focused="listHidden"
           :up-next="upNext"
           :number-of="numberOf"
           @accept="plan.markForward(selectedStep)"
@@ -256,6 +264,7 @@ function canChooseSession(step: TaskStep): boolean {
           @reopen="plan.reopen(selectedStep)"
           @mark-done="plan.markForward(selectedStep)"
           @select="select"
+          @toggle-focus="focused = !focused"
           @open-deviation="openDeviation"
         />
         <TaskHandedInPanel v-else :task="task" />

@@ -265,6 +265,20 @@ describe('TaskPlanTab', () => {
     expect(store.addStep).toHaveBeenCalledWith(taskId, 'Write the migration')
   })
 
+  it('hides the step list while a step is in focus and brings it back', async () => {
+    seed([makeStep('s1', 0, 'OPEN'), makeStep('s2', 1, 'CLAIMED')])
+    const tab = render()
+    const list = tab.get('section[aria-label="Steps"]')
+    expect(list.classes()).not.toContain('hidden')
+
+    await tab.get('[data-testid="decision-focus"]').trigger('click')
+    expect(list.classes()).toContain('hidden')
+    expect(tab.get('[data-testid="decision-focus"]').attributes('aria-pressed')).toBe('true')
+
+    await tab.get('[data-testid="decision-focus"]').trigger('click')
+    expect(list.classes()).not.toContain('hidden')
+  })
+
   it('invites the first step on a task with none', () => {
     seed([])
     const tab = render()

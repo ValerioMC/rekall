@@ -6,13 +6,16 @@ import StepDetailBody from '@/features/steps/components/StepDetailBody.vue'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
 import { useTaskDeviations } from '@/features/deviations/composables/useTaskDeviations'
 import { relativeTime } from '@/common/format/relative-time'
+import { usePreferencesStore } from '@/features/settings/store/preferences.store'
+import { columnMaxWidth } from '@/features/task/model/task-width'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { TaskStep, TaskStepState } from '@/features/steps/model/task-step'
 
 /**
  * The selected step as a decision: what state it is in, what a person can do about it, and under
  * that everything the step holds. A claim is accepted or sent back here; the other claims waiting
- * on the task are listed to move on to. Only a person marks a step done.
+ * on the task are listed to move on to. Only a person marks a step done. It fills the pane beside
+ * the list in a column of the width the task page is set to, and can take the whole tab.
  */
 const props = defineProps<{
   step: TaskStep
@@ -20,6 +23,8 @@ const props = defineProps<{
   number: number
   total: number
   reopenArmed: boolean
+  /** Whether the step list is hidden so the panel has the whole tab. Unset where there is no list to hide. */
+  focused?: boolean
   /** The other steps of the task a session has claimed, in checklist order. */
   upNext: readonly TaskStep[]
   numberOf: (step: TaskStep) => number
@@ -31,9 +36,12 @@ defineEmits<{
   reopen: []
   'mark-done': []
   select: [step: TaskStep]
+  'toggle-focus': []
   'open-deviation': [number: number]
 }>()
 
+const preferences = usePreferencesStore()
+const columnStyle = computed(() => ({ maxWidth: columnMaxWidth(preferences.taskWidth) }))
 const { deviations } = useTaskDeviations(computed(() => props.task.id))
 const hasDeviation = computed(() => deviations.value.some((deviation) => deviation.stepNumber === props.number))
 
@@ -53,7 +61,13 @@ const stateLine = computed(() => {
 </script>
 
 <template>
-  <section class="flex flex-col gap-4" aria-label="Decision" data-testid="decision-panel" :data-step-state="step.state">
+  <section
+    class="mx-auto flex w-full flex-col gap-4"
+    :style="columnStyle"
+    aria-label="Decision"
+    data-testid="decision-panel"
+    :data-step-state="step.state"
+  >
     <header>
       <p class="flex items-center gap-2 text-caption text-text-subtle">
         <span class="size-5.5" aria-hidden="true"><StepSeal :state="step.state" /></span>
@@ -67,6 +81,36 @@ const stateLine = computed(() => {
           @click="$emit('open-deviation', number)"
         >
           Deviation
+        </button>
+        <button
+          v-if="focused !== undefined"
+          type="button"
+          class="focus-ring grid size-7 cursor-pointer place-items-center rounded-key text-text-subtle transition-colors duration-(--motion-quick) hover:bg-surface-raised hover:text-text"
+          :class="!hasDeviation && 'ml-auto'"
+          :title="focused ? 'Show the steps again' : 'Hide the steps to read this one'"
+          :aria-label="focused ? 'Show the steps' : 'Focus on this step'"
+          :aria-pressed="focused"
+          data-testid="decision-focus"
+          @click="$emit('toggle-focus')"
+        >
+          <svg class="size-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path
+              v-if="focused"
+              d="M6.5 2.5v4h-4M9.5 13.5v-4h4M6.5 6.5 2.5 2.5M9.5 9.5l4 4"
+              stroke="currentColor"
+              stroke-width="1.3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              v-else
+              d="M2.5 6.5v-4h4M13.5 9.5v4h-4M2.5 2.5l4 4M13.5 13.5l-4-4"
+              stroke="currentColor"
+              stroke-width="1.3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
         </button>
       </p>
       <h2 class="mt-2 text-heading font-semibold tracking-[-0.015em] text-text" data-testid="decision-title">

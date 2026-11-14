@@ -13,8 +13,7 @@ import type { Task } from '@/features/catalog/model/catalog'
 
 /**
  * What an open step holds: its state bar, check results, commits, sealed passes, skills, checks
- * and the detail being written. The checklist row opens it under the step; the task page's
- * decision panel shows it beside the list.
+ * and the detail being written, which reads and writes as a page that grows with its text.
  */
 const props = defineProps<{ step: TaskStep; task: Task; reopenArmed: boolean }>()
 
@@ -52,7 +51,7 @@ const commits = computed(() => store.stepCommitReferences(props.step.id))
       :step-title="step.title"
       testid-prefix="step"
       :label="step.passes.length ? `Feedback for pass ${step.passes.length + 1}` : 'Detail'"
-      editor-height="300px"
+      editor-height="24rem"
       :placeholder="
         step.passes.length
           ? 'What the next pass has to change. Claude reads it after the sealed passes above.'

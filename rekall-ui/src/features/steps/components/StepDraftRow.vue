@@ -137,6 +137,7 @@ const { effective: skills } = useStepSkills(toRef(props, 'step'), toRef(props, '
           <StepSkillsField :step="step" :task="task" />
           <StepDetailEditor
             data-testid="draft-detail"
+            compact
             :step-title="step.title"
             testid-prefix="draft"
             label="Detail"
