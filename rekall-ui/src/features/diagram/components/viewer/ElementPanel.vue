@@ -113,7 +113,7 @@ function toggleSource(index: number): void {
             >
               <ElementGlyph :glyph="row.look.glyph" :style="{ color: row.look.tint }" class="shrink-0" />
               <span class="min-w-0 flex-1 truncate text-small text-text">{{ row.otherTitle }}</span>
-              <span v-if="row.label" class="max-w-[120px] shrink-0 truncate rounded-full border border-border px-1.5 text-micro text-text-muted" :title="row.label">{{ row.label }}</span>
+              <span v-if="row.label" class="max-w-[120px] shrink-0 truncate rounded-key border border-border px-1.5 text-micro text-text-muted" :title="row.label">{{ row.label }}</span>
             </button>
           </div>
         </template>

@@ -20,7 +20,7 @@ const label = computed(() => {
 <template>
   <span
     v-if="skills.length"
-    class="inline-flex h-[18px] shrink-0 items-center gap-1 rounded-full border border-anchor-line bg-anchor-soft px-1.5 text-micro font-semibold tabular-nums text-anchor"
+    class="inline-flex h-[18px] shrink-0 items-center gap-1 rounded-key border border-anchor-line bg-anchor-soft px-1.5 text-micro font-semibold tabular-nums text-anchor"
     role="img"
     :aria-label="label"
     :title="description"

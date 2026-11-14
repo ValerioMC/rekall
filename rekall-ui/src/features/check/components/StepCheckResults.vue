@@ -30,7 +30,7 @@ const failures = computed(() => failedRuns(runs.value).length)
         <details :open="!run.passed" class="rounded-control border border-border bg-canvas px-2.5 py-1.5">
           <summary class="focus-ring flex cursor-pointer list-none items-center gap-2 rounded-key text-small">
             <span
-              class="inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-px text-micro font-semibold"
+              class="inline-flex shrink-0 items-center gap-1 rounded-key px-1.5 py-px text-micro font-semibold"
               :class="run.passed ? 'bg-safe-soft text-safe' : 'bg-danger-soft text-danger'"
               data-testid="step-check-outcome"
             >

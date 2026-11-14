@@ -37,7 +37,7 @@ const active = defineModel<Id>({ required: true })
       <span
         v-if="item.count !== undefined"
         class="font-mono text-caption tabular-nums"
-        :class="item.hot && item.count > 0 ? 'rounded-full bg-accent px-1.5 font-medium leading-4 text-accent-ink' : 'text-text-subtle'"
+        :class="item.hot && item.count > 0 ? 'rounded-key bg-accent px-1.5 font-medium leading-4 text-accent-ink' : 'text-text-subtle'"
         data-testid="sub-nav-count"
       >
         {{ item.count }}

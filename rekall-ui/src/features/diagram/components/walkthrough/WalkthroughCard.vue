@@ -51,7 +51,7 @@ const values = computed(() => {
   >
     <header class="shrink-0 border-b border-border px-4 py-3">
       <p class="flex items-center gap-2 text-caption">
-        <span class="beat-badge rounded-full px-2 py-0.5 font-semibold">{{ MOTION_LABEL[beat.motion] }}</span>
+        <span class="beat-badge rounded-key px-2 py-0.5 font-semibold">{{ MOTION_LABEL[beat.motion] }}</span>
         <span class="font-mono tabular-nums text-text-subtle">Step {{ position + 1 }} of {{ count }}</span>
       </p>
       <h3 id="walkthrough-card-title" class="mt-2 break-words font-mono text-body font-semibold leading-snug text-text">{{ beat.message.text || '(no text)' }}</h3>

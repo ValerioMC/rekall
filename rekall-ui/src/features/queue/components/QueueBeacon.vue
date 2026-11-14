@@ -131,7 +131,7 @@ const label = computed(() => {
         <span class="sr-only @min-[43rem]:not-sr-only">Queue</span>
         <span
           v-if="progress.waiting > 0"
-          class="rounded-full bg-surface-hover px-1.5 font-mono text-micro tabular-nums leading-[15px] text-text-muted"
+          class="rounded-key bg-surface-hover px-1.5 font-mono text-micro tabular-nums leading-[15px] text-text-muted"
         >
           {{ progress.waiting }}
         </span>

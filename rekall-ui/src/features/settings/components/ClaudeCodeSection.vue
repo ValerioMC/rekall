@@ -247,7 +247,7 @@ onMounted(() => void load())
             type="button"
             role="radio"
             :aria-checked="sessionView === choice"
-            class="focus-ring inline-flex items-center rounded-full border px-2.5 py-1 text-caption transition-colors"
+            class="focus-ring inline-flex items-center rounded-key border px-2.5 py-1 text-caption transition-colors"
             :class="
               sessionView === choice
                 ? 'border-accent bg-accent-soft text-accent'
@@ -276,7 +276,7 @@ onMounted(() => void load())
             type="button"
             role="radio"
             :aria-checked="model === choice"
-            class="focus-ring inline-flex items-center rounded-full border px-2.5 py-1 text-caption transition-colors"
+            class="focus-ring inline-flex items-center rounded-key border px-2.5 py-1 text-caption transition-colors"
             :class="
               model === choice
                 ? 'border-accent bg-accent-soft text-accent'
@@ -308,7 +308,7 @@ onMounted(() => void load())
             type="button"
             role="radio"
             :aria-checked="effort === choice"
-            class="focus-ring inline-flex items-center rounded-full border px-2.5 py-1 text-caption transition-colors"
+            class="focus-ring inline-flex items-center rounded-key border px-2.5 py-1 text-caption transition-colors"
             :class="
               effort === choice
                 ? 'border-accent bg-accent-soft text-accent'

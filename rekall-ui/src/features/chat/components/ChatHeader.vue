@@ -93,7 +93,7 @@ function onSwitcherKeydown(event: KeyboardEvent): void {
           </button>
           <h2 v-else class="min-w-0 truncate text-title font-semibold text-text">{{ title }}</h2>
           <span
-            class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-surface-raised px-2 py-0.5 text-micro font-semibold tracking-[0.02em]"
+            class="inline-flex shrink-0 items-center gap-1.5 rounded-key bg-surface-raised px-2 py-0.5 text-micro font-semibold tracking-[0.02em]"
             :class="look.tone"
             data-testid="chat-status"
             :data-status="status"

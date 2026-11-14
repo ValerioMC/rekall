@@ -187,13 +187,13 @@ onUnmounted(() => {
                   </span>
                   <span
                     v-if="index === 0"
-                    class="shrink-0 rounded-full border border-anchor-line bg-anchor-soft px-1.5 py-px font-mono text-micro uppercase tracking-[0.06em] text-anchor"
+                    class="shrink-0 rounded-key border border-anchor-line bg-anchor-soft px-1.5 py-px font-mono text-micro uppercase tracking-[0.06em] text-anchor"
                   >
                     tip
                   </span>
                   <span
                     v-if="isLogged(commit.hash)"
-                    class="shrink-0 rounded-full bg-accent-soft px-1.5 py-px text-micro font-semibold uppercase tracking-[0.06em] text-accent"
+                    class="shrink-0 rounded-key bg-accent-soft px-1.5 py-px text-micro font-semibold uppercase tracking-[0.06em] text-accent"
                     data-testid="commit-picker-logged"
                   >
                     logged

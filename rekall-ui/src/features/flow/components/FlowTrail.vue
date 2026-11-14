@@ -56,7 +56,7 @@ watch(
       <li v-for="move in trail" :key="move.ordinal" class="flex shrink-0 items-center gap-1">
         <button
           type="button"
-          class="focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2 py-0.5 text-caption transition-colors"
+          class="focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-key border px-2 py-0.5 text-caption transition-colors"
           :class="[
             move.open
               ? 'border-accent bg-accent-soft text-accent-strong'
@@ -90,7 +90,7 @@ watch(
     <button
       v-if="trail.length"
       type="button"
-      class="key-quiet focus-ring shrink-0 cursor-pointer rounded-control px-2.5 py-1 text-caption"
+      class="key-quiet focus-ring shrink-0 cursor-pointer rounded-key px-2.5 py-1 text-caption"
       data-testid="flow-reset"
       @click="$emit('reset')"
     >

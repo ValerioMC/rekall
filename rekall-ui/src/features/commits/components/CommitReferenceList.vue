@@ -129,14 +129,14 @@ async function confirmDelete(): Promise<void> {
 
           <span
             v-if="showStepTag && reference.stepTitle"
-            class="shrink-0 truncate rounded-full border border-border-strong px-1.5 py-px text-micro text-text-subtle"
+            class="shrink-0 truncate rounded-key border border-border-strong px-1.5 py-px text-micro text-text-subtle"
             data-testid="commit-reference-step-tag"
           >
             {{ reference.stepTitle }}
           </span>
           <span
             v-else-if="showStepTag"
-            class="shrink-0 rounded-full border border-dashed border-border-strong px-1.5 py-px text-micro text-text-subtle"
+            class="shrink-0 rounded-key border border-dashed border-border-strong px-1.5 py-px text-micro text-text-subtle"
           >
             task
           </span>

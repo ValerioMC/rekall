@@ -143,7 +143,7 @@ watch(
       >
       <RouterLink
         :to="{ name: 'connections', query: hubQuery }"
-        class="focus-ring key-slate inline-flex h-7 items-center rounded-control px-3 text-caption font-medium max-sm:min-h-11"
+        class="focus-ring key-slate inline-flex h-7 items-center rounded-key px-3 text-caption font-medium max-sm:min-h-11"
         data-testid="manage-connections-link"
         >Manage connections</RouterLink
       >

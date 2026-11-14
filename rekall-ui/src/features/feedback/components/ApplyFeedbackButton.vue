@@ -49,7 +49,7 @@ const leaving = computed(() => props.phase === 'launching' || props.phase === 'w
         Run revision
         <span
           v-if="count > 0"
-          class="rounded-full bg-accent-soft px-1.5 text-micro font-semibold text-accent"
+          class="rounded-key bg-accent-soft px-1.5 text-micro font-semibold text-accent"
           data-testid="apply-feedback-count"
         >
           {{ count }}

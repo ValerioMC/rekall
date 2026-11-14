@@ -59,7 +59,7 @@ const { effective: skills } = useStepSkills(toRef(props, 'step'), toRef(props, '
             <span v-else class="text-text-subtle">no detail yet</span>
             <span
               v-if="step.startsSession"
-              class="rounded-full border border-accent/40 px-1.5 py-px text-micro font-semibold tracking-[0.02em] text-accent"
+              class="rounded-key border border-accent/40 px-1.5 py-px text-micro font-semibold tracking-[0.02em] text-accent"
               data-testid="draft-new-session"
             >
               new session

@@ -176,7 +176,7 @@ onMounted(revealCurrent)
     <button
       v-if="tidyable"
       type="button"
-      class="key-quiet focus-ring absolute right-3 top-3 z-20 cursor-pointer rounded-control px-2.5 py-1 text-caption"
+      class="key-quiet focus-ring absolute right-3 top-3 z-20 cursor-pointer rounded-key px-2.5 py-1 text-caption"
       data-testid="flow-tidy"
       @click="emit('tidy')"
     >

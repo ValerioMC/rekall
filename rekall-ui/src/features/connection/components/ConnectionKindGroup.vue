@@ -19,7 +19,7 @@ const headingId = computed(() => `connection-group-${props.kind.toLowerCase()}`)
       </span>
       <span data-testid="connection-group-name">{{ CONNECTION_KIND_LABEL[kind] }}</span>
       <span
-        class="rounded-full bg-surface-raised px-1.5 py-px font-mono text-micro font-normal tabular-nums text-text-subtle"
+        class="rounded-key bg-surface-raised px-1.5 py-px font-mono text-micro font-normal tabular-nums text-text-subtle"
         data-testid="connection-group-count"
         >({{ connections.length }})</span
       >

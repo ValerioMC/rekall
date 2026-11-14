@@ -200,7 +200,7 @@ async function sendWrapupHere(message: string): Promise<void> {
 
         <span
           v-if="wrapupIsBehind > 0"
-          class="inline-flex items-center gap-1.5 rounded-full bg-warn-soft px-2 py-0.5 text-caption text-warn"
+          class="inline-flex items-center gap-1.5 rounded-key bg-warn-soft px-2 py-0.5 text-caption text-warn"
         >
           <span class="size-[5px] shrink-0 rounded-full bg-warn" aria-hidden="true" />
           {{ wrapupIsBehind }} note{{ wrapupIsBehind === 1 ? ' is' : 's are' }} newer than this

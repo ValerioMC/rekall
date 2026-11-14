@@ -95,7 +95,7 @@ const memberSummary = computed(() => {
       <span class="min-w-0 truncate" :class="[filed && 'text-text-muted', epic && 'font-semibold']" data-testid="work-row-title">{{ task.title }}</span>
       <span
         v-if="epicTitle"
-        class="inline-flex min-w-0 max-w-[40%] shrink items-center gap-1 rounded-full bg-epic-soft px-1.5 py-px text-caption text-epic"
+        class="inline-flex min-w-0 max-w-[40%] shrink items-center gap-1 rounded-key bg-epic-soft px-1.5 py-px text-caption text-epic"
         data-testid="work-row-epic"
         :title="`In the epic ${epicTitle}`"
       >

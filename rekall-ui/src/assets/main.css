@@ -141,7 +141,7 @@
   --text-display: 26px;
   --text-hero: 34px;
 
-  /* Three corners: a keycap or chip, a control or row, a card or dialog. Pills are `full`. */
+  /* Three corners: a button, chip or pill, a control or row, a card or dialog. Only a dot, a switch or a gauge is `full`. */
   --radius-key: 3px;
   --radius-card: 8px;
   --radius-control: 5px;
@@ -891,7 +891,7 @@
   background: var(--color-anchor-soft);
   border: 1px solid var(--color-anchor-line);
   font-family: var(--font-mono);
-  border-radius: 6px;
+  border-radius: var(--radius-key);
 }
 
 @utility texture-grid {

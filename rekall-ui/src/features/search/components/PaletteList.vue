@@ -47,7 +47,7 @@ const emit = defineEmits<{ pick: [entry: PaletteEntry]; hover: [entry: PaletteEn
         </span>
         <span
           v-if="entry.mark.kind === 'text'"
-          class="shrink-0 rounded-full border border-border px-1.5 text-micro font-semibold uppercase tracking-[0.04em] text-text-subtle"
+          class="shrink-0 rounded-key border border-border px-1.5 text-micro font-semibold uppercase tracking-[0.04em] text-text-subtle"
         >
           {{ entry.mark.label }}
         </span>

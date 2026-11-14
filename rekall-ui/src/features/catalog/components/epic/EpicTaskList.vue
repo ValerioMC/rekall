@@ -27,7 +27,7 @@ function attach(id: TaskId): void {
   <AppCard :padded="false" data-testid="epic-task-list">
     <header class="flex items-center gap-2 border-b border-border px-5 py-3">
       <span class="eyebrow text-caption">Tasks</span>
-      <span class="rounded-full bg-surface px-1.5 py-px font-mono text-micro tabular-nums text-text-subtle">{{ children.length }}</span>
+      <span class="rounded-key bg-surface px-1.5 py-px font-mono text-micro tabular-nums text-text-subtle">{{ children.length }}</span>
       <span class="ml-auto flex items-center gap-1.5">
         <button
           type="button"

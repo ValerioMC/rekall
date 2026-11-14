@@ -92,7 +92,7 @@ async function logCommit(terminal: Terminal): Promise<void> {
         </button>
         <span
           v-if="terminal.kind === 'CHAT'"
-          class="shrink-0 rounded-full px-1.5 py-px text-micro font-semibold"
+          class="shrink-0 rounded-key px-1.5 py-px text-micro font-semibold"
           :class="terminal.awaitingPermission ? 'bg-warn-soft text-warn' : 'bg-surface-raised text-text-muted'"
           data-testid="terminal-dock-kind"
         >

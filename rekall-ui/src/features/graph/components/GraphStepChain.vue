@@ -10,7 +10,7 @@ defineProps<{ links: readonly ChainLink[]; loops?: boolean }>()
   <ol class="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-caption text-text-muted" data-testid="graph-chain">
     <li v-for="(link, index) in links" :key="index" class="flex items-center gap-1.5">
       <span v-if="index > 0" class="text-text-subtle" aria-hidden="true">&rarr;</span>
-      <span class="inline-flex items-center gap-1 rounded-full border border-border bg-surface-raised py-0.5 pl-1.5 pr-2">
+      <span class="inline-flex items-center gap-1 rounded-key border border-border bg-surface-raised py-0.5 pl-1.5 pr-2">
         <ConnectionKindIcon v-if="link.kind" :kind="link.kind" :size="11" />
         <span v-else class="size-[7px] rounded-full bg-border-strong" aria-hidden="true" />
         <span class="whitespace-nowrap">{{ link.title }}</span>

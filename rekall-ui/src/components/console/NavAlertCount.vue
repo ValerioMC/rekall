@@ -7,7 +7,7 @@ withDefaults(defineProps<{ count: number; label: string; tone?: NavAlertTone }>(
 
 <template>
   <span
-    class="inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-micro font-semibold leading-none tabular-nums"
+    class="inline-flex h-4 min-w-4 items-center justify-center rounded-key px-1 text-micro font-semibold leading-none tabular-nums"
     :class="tone === 'danger' ? 'bg-danger text-canvas' : 'bg-accent text-accent-ink'"
     :aria-label="label"
     :title="label"

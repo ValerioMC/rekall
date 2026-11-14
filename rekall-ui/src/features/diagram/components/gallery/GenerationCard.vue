@@ -34,8 +34,8 @@ const elapsed = computed(() => formatDuration(Math.max(0, (now.value - props.gen
     </header>
     <p class="line-clamp-3 text-small leading-snug text-text">{{ generation.request }}</p>
     <div class="flex flex-wrap items-center gap-1.5">
-      <span v-if="generation.walkthrough" class="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-canvas px-1.5 py-0.5 text-micro font-semibold text-accent">Walkthrough</span>
-      <span v-for="kind in generation.walkthrough ? [] : generation.kinds" :key="kind" class="inline-flex items-center gap-1 rounded-full border border-border bg-canvas px-1.5 py-0.5 text-micro text-text-muted">
+      <span v-if="generation.walkthrough" class="inline-flex items-center gap-1 rounded-key border border-accent/40 bg-canvas px-1.5 py-0.5 text-micro font-semibold text-accent">Walkthrough</span>
+      <span v-for="kind in generation.walkthrough ? [] : generation.kinds" :key="kind" class="inline-flex items-center gap-1 rounded-key border border-border bg-canvas px-1.5 py-0.5 text-micro text-text-muted">
         <KindGlyph :kind="kind" :size="12" />
         {{ KIND_INFO[kind].label }}
       </span>

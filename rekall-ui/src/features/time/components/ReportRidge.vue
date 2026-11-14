@@ -47,7 +47,7 @@ const columns = computed(() =>
         class="absolute inset-x-0 border-t border-dashed border-border-strong"
         :style="{ bottom: fullDayLine }"
       >
-        <span class="absolute right-0 top-0 -translate-y-1/2 rounded-full border border-border bg-surface px-1.5 font-mono text-micro leading-[15px] text-text-muted">
+        <span class="absolute right-0 top-0 -translate-y-1/2 rounded-key border border-border bg-surface px-1.5 font-mono text-micro leading-[15px] text-text-muted">
           {{ preferences.workdayGoalHours }}h
         </span>
       </div>

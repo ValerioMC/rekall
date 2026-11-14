@@ -25,7 +25,7 @@ const hidden = computed(() => Math.max(0, props.lane.rows.length - SHOWN))
       {{ lane.label }}
       <span
         class="font-mono text-caption tabular-nums"
-        :class="lane.id === 'review' && lane.rows.length > 0 ? 'rounded-full bg-accent px-1.5 leading-4 text-accent-ink' : 'text-text-subtle'"
+        :class="lane.id === 'review' && lane.rows.length > 0 ? 'rounded-key bg-accent px-1.5 leading-4 text-accent-ink' : 'text-text-subtle'"
         data-testid="board-lane-count"
       >
         {{ lane.rows.length }}

@@ -110,7 +110,7 @@ function repeated(route: DraftRoute, index: number): boolean {
     <button
       v-if="step.routes.length < ROUTES_PER_STEP_MAX"
       type="button"
-      class="key-quiet focus-ring mt-0.5 inline-flex h-8 cursor-pointer items-center gap-1.5 self-start rounded-control px-2.5 text-caption"
+      class="key-quiet focus-ring mt-0.5 inline-flex h-8 cursor-pointer items-center gap-1.5 self-start rounded-key px-2.5 text-caption"
       data-testid="graph-route-add"
       @click="emit('add')"
     >

@@ -149,7 +149,7 @@ function renameOutcome(link: StepLink, event: Event): void {
       </div>
       <button
         type="submit"
-        class="key-gold focus-ring h-8 shrink-0 cursor-pointer rounded-control px-3 text-caption font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+        class="key-gold focus-ring h-8 shrink-0 cursor-pointer rounded-key px-3 text-caption font-semibold disabled:cursor-not-allowed disabled:opacity-50"
         :disabled="busy || !canAdd"
       >
         Add

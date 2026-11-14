@@ -120,7 +120,7 @@ const pendingPath = computed(() => {
     <button
       v-if="tidyable"
       type="button"
-      class="key-quiet focus-ring absolute right-3 top-3 z-20 cursor-pointer rounded-control px-2.5 py-1 text-caption"
+      class="key-quiet focus-ring absolute right-3 top-3 z-20 cursor-pointer rounded-key px-2.5 py-1 text-caption"
       title="Hand every step back to the automatic layout"
       data-testid="graph-tidy"
       @click="emit('tidy')"

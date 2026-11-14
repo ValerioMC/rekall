@@ -145,7 +145,7 @@ watch(
               <template #flags>
               <span
                 v-if="activeTerminal"
-                class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-surface-raised px-2 py-0.5 text-micro font-semibold tracking-[0.02em]"
+                class="inline-flex shrink-0 items-center gap-1.5 rounded-key bg-surface-raised px-2 py-0.5 text-micro font-semibold tracking-[0.02em]"
                 :class="connected ? 'text-safe' : ended ? 'text-text-subtle' : 'text-accent'"
                 data-testid="terminal-status"
               >
@@ -172,7 +172,7 @@ watch(
           <div class="flex shrink-0 items-center gap-1.5">
             <div v-if="otherSessions.length > 0" class="relative" @keydown="onSwitcherKeydown">
               <button
-                class="rounded-[3px] focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px]"
+                class="rounded-key focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px]"
                 :class="switcherOpen ? 'key-lit' : 'key-quiet'"
                 data-testid="terminal-other-sessions"
                 aria-haspopup="true"
@@ -225,7 +225,7 @@ watch(
             </div>
             <button
               v-if="activeTerminal"
-              class="key-quiet rounded-[3px] focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px]"
+              class="key-quiet rounded-key focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px]"
               data-testid="terminal-restart"
               :disabled="isRunning"
               @click="restart"
@@ -234,7 +234,7 @@ watch(
             </button>
             <button
               v-if="activeTerminal"
-              class="key-danger rounded-[3px] focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px]"
+              class="key-danger rounded-key focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px]"
               data-testid="terminal-close"
               :disabled="isRunning"
               @click="closeActive"
@@ -243,7 +243,7 @@ watch(
             </button>
             <button
               v-else
-              class="key-gold rounded-[3px] focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px] font-medium disabled:cursor-not-allowed disabled:opacity-60"
+              class="key-gold rounded-key focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px] font-medium disabled:cursor-not-allowed disabled:opacity-60"
               data-testid="terminal-open"
               :disabled="isRunning || !folder"
               @click="openHere"
@@ -258,7 +258,7 @@ watch(
           </span>
           <span
             v-if="activeTerminal"
-            class="rounded-full px-1.5 py-px text-[10px] font-semibold tracking-[0.02em]"
+            class="rounded-key px-1.5 py-px text-[10px] font-semibold tracking-[0.02em]"
             :class="activeTerminal.skipPermissions ? 'bg-warn-soft text-warn' : 'bg-safe-soft text-safe'"
           >
             {{ activeTerminal.skipPermissions ? 'permissions skipped' : 'permissions on' }}

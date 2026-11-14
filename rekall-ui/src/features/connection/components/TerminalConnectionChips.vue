@@ -74,7 +74,7 @@ onMounted(access.listen)
     <button
       v-if="usedChips.length"
       type="button"
-      class="focus-ring inline-flex items-center gap-1 rounded-full bg-safe-soft px-2 py-0.5 font-mono text-micro text-safe ring-1 ring-inset ring-safe/25 hover:brightness-95"
+      class="focus-ring inline-flex items-center gap-1 rounded-key bg-safe-soft px-2 py-0.5 font-mono text-micro text-safe ring-1 ring-inset ring-safe/25 hover:brightness-95"
       :aria-expanded="usedOpen"
       :title="usedChips.map((chip) => chip.connection.label).join(', ')"
       data-testid="terminal-connections-used"
@@ -92,7 +92,7 @@ onMounted(access.listen)
     <component
       :is="companyId ? RouterLink : 'span'"
       :to="companyId ? `/companies/${companyId}/connections` : undefined"
-      class="focus-ring inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-micro ring-1 ring-inset"
+      class="focus-ring inline-flex items-center gap-1 rounded-key px-2 py-0.5 font-mono text-micro ring-1 ring-inset"
       :class="{
         'bg-warn-soft text-warn ring-warn/25': chip.tone === 'warn',
         'connection-pulse bg-safe-soft text-safe ring-safe/25': chip.tone === 'used',
@@ -113,7 +113,7 @@ onMounted(access.listen)
     <button
       v-if="unusedChips.length"
       type="button"
-      class="focus-ring inline-flex items-center gap-1 rounded-full bg-surface-raised px-2 py-0.5 font-mono text-micro text-text-subtle ring-1 ring-inset ring-border hover:text-text-muted"
+      class="focus-ring inline-flex items-center gap-1 rounded-key bg-surface-raised px-2 py-0.5 font-mono text-micro text-text-subtle ring-1 ring-inset ring-border hover:text-text-muted"
       :aria-expanded="unusedOpen"
       :title="unusedChips.map((chip) => chip.connection.label).join(', ')"
       data-testid="terminal-connections-unused"

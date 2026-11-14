@@ -28,7 +28,7 @@ function lineOf(item: ReviewItem): string {
   <nav class="flex min-h-0 flex-col overflow-y-auto border-r border-border bg-surface px-2 pb-6" aria-label="Waiting for review" data-testid="review-list">
     <div class="flex items-center gap-2.5 px-2.5 pb-2 pt-4">
       <h1 class="text-title font-semibold text-text">Review</h1>
-      <span class="rounded-full bg-accent px-1.5 font-mono text-caption font-medium leading-4 text-accent-ink" data-testid="review-count">{{ items.length }}</span>
+      <span class="rounded-key bg-accent px-1.5 font-mono text-caption font-medium leading-4 text-accent-ink" data-testid="review-count">{{ items.length }}</span>
       <span class="flex-1" />
       <span class="text-caption text-text-subtle">longest waiting first</span>
     </div>

@@ -208,7 +208,7 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
         <button
           v-for="chip in chips"
           :key="chip.id"
-          class="focus-ring flex h-7 items-center gap-2 rounded-full border px-3 text-small transition-colors"
+          class="focus-ring flex h-7 items-center gap-2 rounded-key border px-3 text-small transition-colors"
           :class="
             chip.on
               ? 'border-border-strong bg-surface-raised text-text'
