@@ -190,14 +190,14 @@ async fn claiming_every_step_of_a_checklist_moves_the_queue_to_the_next_task_wit
     harness.queue.add(first.id).await.unwrap();
     harness.queue.add(second.id).await.unwrap();
     harness.runner.start(&harness.queue, None).await.unwrap();
-    eventually("the first task running", || async { harness.terminals.has_live_terminal_for(first.id) }).await;
+    eventually("the first item running", || async { item_states(&harness.queue).await[0].0 == RunQueueItemState::Running }).await;
 
     claim(&world, "first", "One").await;
     claim(&world, "first", "Two").await;
     assert_eq!(item_states(&harness.queue).await[0].0, RunQueueItemState::Running, "open work keeps it running");
     claim(&world, "first", "Three").await;
 
-    eventually("the second task running", || async { harness.terminals.has_live_terminal_for(second.id) }).await;
+    eventually("the second item running", || async { item_states(&harness.queue).await[1].0 == RunQueueItemState::Running }).await;
     let states = item_states(&harness.queue).await;
     assert_eq!(states[0], (RunQueueItemState::Finished, Some("All of it claimed and waiting for review.".into())));
     assert_eq!(states[1].0, RunQueueItemState::Running);

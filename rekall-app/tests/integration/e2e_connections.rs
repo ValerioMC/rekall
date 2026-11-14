@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use rekall_app::server::StartOptions;
 use rekall_core::connection::{InMemorySecretStore, JiraCredential, JiraFailure, JiraIssue, JiraIssues, JiraSite, ScriptedTaskTracker, SecretStore};
 use serde_json::json;
-use support::{app, app_with, app_with_secrets, await_until, id, run_git};
+use support::{app, app_with, app_with_secrets, await_until, id, run_git, App};
 
 const KUBECONFIG: &str = "
 clusters:
@@ -396,6 +396,7 @@ async fn a_task_created_in_a_project_with_a_task_manager_gets_its_issue_and_its_
     assert_eq!(app.put(&format!("/api/connections/{gitlab}/credential"), json!({ "token": "glpat-secret" })).await.status, 200);
     let binding = id(&app.post(&format!("/api/projects/{vega}/connections"), json!({ "connectionId": gitlab, "target": "acme/vega" })).await);
     let earlier = app.a_task(&vega, "before").await;
+    await_the_runner_has_seen(&app, &acme, &gitlab).await;
 
     let chosen = app.put(&format!("/api/projects/{vega}/connections/{binding}"), json!({ "target": "acme/vega", "taskManager": true })).await;
     assert_eq!((chosen.status, chosen.get("taskManager").as_bool()), (200, Some(true)), "{}", chosen.text);
@@ -403,8 +404,8 @@ async fn a_task_created_in_a_project_with_a_task_manager_gets_its_issue_and_its_
 
     await_until(5, || async { !app.get_task(&task).await["trackerIssueKey"].is_null() }).await;
     let created = app.get_task(&task).await;
-    assert_eq!(created["trackerIssueKey"], "acme/vega-1");
-    assert_eq!(tracker.created().len(), 1, "a task that existed before the choice is not written until it is synced");
+    assert_eq!(created["trackerIssueKey"], "acme/vega-2");
+    assert_eq!(tracker.created().len(), 2, "a task that existed before the choice is not written until it is synced");
     assert!(app.get_task(&earlier).await["trackerIssueKey"].is_null());
     assert_eq!(created["trackerContentSynced"], true);
 
@@ -415,8 +416,16 @@ async fn a_task_created_in_a_project_with_a_task_manager_gets_its_issue_and_its_
 
     let synced = app.post_empty(&format!("/api/tasks/{task}/tracker-sync")).await;
     assert_eq!((synced.status, synced.get("trackerContentSynced").as_bool()), (200, Some(true)), "{}", synced.text);
-    assert_eq!(tracker.updated()[0].0, "acme/vega-1");
+    assert_eq!(tracker.updated()[0].0, "acme/vega-2");
     assert_eq!(tracker.updated()[0].1.title, "Pay the invoice");
     assert_eq!(tracker.updated()[0].1.description, "Before Friday.");
-    assert_eq!(tracker.created().len(), 1, "a sync rewrites the issue instead of creating another");
+    assert_eq!(tracker.created().len(), 2, "a sync rewrites the issue instead of creating another");
+}
+
+async fn await_the_runner_has_seen(app: &App, company: &str, connection: &str) {
+    let probe = app.a_project(company, "probe", "ACTIVE").await;
+    let binding = id(&app.post(&format!("/api/projects/{probe}/connections"), json!({ "connectionId": connection, "target": "acme/probe" })).await);
+    app.put(&format!("/api/projects/{probe}/connections/{binding}"), json!({ "target": "acme/probe", "taskManager": true })).await;
+    let drain = app.a_task(&probe, "drain").await;
+    await_until(5, || async { !app.get_task(&drain).await["trackerIssueKey"].is_null() }).await;
 }
