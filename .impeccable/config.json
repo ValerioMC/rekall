@@ -72,6 +72,12 @@
         ],
         "createdAt": "2026-11-13T18:32:47.245Z",
         "reason": "The kbd keycap has a thicker bottom edge by design; it is a key, not an accent border on a card."
+      },
+      {
+        "rule": "design-system-font",
+        "value": "fira code",
+        "createdAt": "2026-11-14T07:35:44.472Z",
+        "reason": "DESIGN.md declares Fira Code Variable as the anchor face; the mock loads it as Fira Code"
       }
     ]
   }

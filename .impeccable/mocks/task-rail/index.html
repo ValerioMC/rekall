@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Task page with a properties rail</title>
+<link rel="stylesheet" href="../redesign/shared.css">
+<style>
+  :root { --rail: 272px; --rail-collapsed: 52px; }
+  body { overflow: hidden; }
+  .app { display: flex; flex-direction: column; height: 100vh; }
+
+  .topbar { height: 48px; flex: none; display: grid; grid-template-columns: 1fr minmax(240px, 620px) 1fr; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--border); background: var(--canvas); }
+  .brand { font-weight: 600; font-size: var(--t-title); letter-spacing: -0.01em; }
+  .search { height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); color: var(--subtle); font-size: var(--t-small); }
+  .search kbd { margin-left: auto; font: 400 var(--t-micro) var(--font-mono); border: 1px solid var(--border-strong); border-radius: var(--r-key); padding: 0 5px; }
+  .capsule { justify-self: end; height: 32px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); color: var(--muted); font-size: var(--t-small); }
+
+  .page { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .head { flex: none; padding: 10px 24px 0; }
+  .crumbs { display: flex; align-items: center; gap: 12px; min-height: 32px; }
+  .crumbs nav { flex: 1; display: flex; gap: 8px; color: var(--muted); font-size: var(--t-small); }
+  .crumbs nav span { color: var(--subtle); }
+  .actions { display: flex; gap: 6px; }
+  .btn { height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: var(--r-control); font-size: var(--t-small); font-weight: 500; white-space: nowrap; }
+  .btn svg { width: 14px; height: 14px; }
+  .btn.secondary { background: var(--raised); border: 1px solid var(--border-strong); box-shadow: inset 0 1px 0 rgb(255 255 255 / .07), 0 1px 1px rgb(0 0 0 / .35); }
+  .btn.secondary:hover { background: var(--hover); }
+  .btn.primary { background: linear-gradient(180deg, var(--accent-strong), var(--accent) 45%, #a8651a); color: var(--accent-ink); font-weight: 600; box-shadow: inset 0 1px 0 rgb(255 255 255 / .35), 0 1px 1px rgb(0 0 0 / .35); }
+  .btn.ghost:hover { background: var(--raised); }
+  h1 { margin-top: 2px; font-size: var(--t-heading); font-weight: 600; letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .body { flex: 1; min-height: 0; display: flex; margin-top: 10px; border-top: 1px solid var(--border); }
+
+  /* rail */
+  .rail { flex: none; width: var(--rail); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; transition: width 220ms var(--ease); overflow: hidden; }
+  .rail-top { flex: none; height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 12px 0 16px; border-bottom: 1px solid var(--border); }
+  .rail-top .title { flex: 1; font-size: var(--t-small); font-weight: 600; color: var(--text); white-space: nowrap; }
+  .iconbtn { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--r-control); color: var(--muted); flex: none; }
+  .iconbtn:hover { background: var(--raised); color: var(--text); }
+  .iconbtn svg { width: 16px; height: 16px; }
+  .rail-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+
+  .group { padding: 14px 16px 16px; border-bottom: 1px solid var(--border); }
+  .group:last-child { border-bottom: 0; }
+  .group-h { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: var(--muted); font-size: var(--t-small); font-weight: 500; }
+  .group-h svg { width: 15px; height: 15px; color: var(--subtle); flex: none; }
+  .group-h .aside { margin-left: auto; font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .field + .field { margin-top: 12px; }
+  .identity { display: flex; align-items: center; gap: 8px; padding: 12px 16px; }
+  .identity .iconbtn { width: 24px; height: 24px; margin-left: -2px; }
+  .identity .iconbtn svg { width: 14px; height: 14px; }
+  .commits { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .field-l { display: block; margin-bottom: 5px; font-size: var(--t-caption); font-weight: 500; color: var(--subtle); }
+
+  .pill { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 9999px; font-size: var(--t-caption); font-weight: 500; background: var(--raised); color: var(--muted); border: 1px solid var(--border-strong); }
+  .anchor { display: inline-flex; align-items: center; gap: 4px; font: 400 var(--t-caption) var(--font-mono); color: var(--anchor); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-key); padding: 1px 6px; }
+  .anchor-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+  .anchor-row .iconbtn { width: 24px; height: 24px; }
+  .anchor-row .iconbtn svg { width: 14px; height: 14px; }
+
+  .select { width: 100%; height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--border-field); border-radius: var(--r-control); background: var(--canvas); box-shadow: inset 0 2px 4px rgb(0 0 0 / .5), 0 1px 0 rgb(255 255 255 / .035); font-size: var(--t-small); }
+  .select .swatch { width: 8px; height: 8px; border-radius: 9999px; background: var(--epic); }
+  .select svg { margin-left: auto; width: 14px; height: 14px; color: var(--subtle); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip { height: 24px; display: inline-flex; align-items: center; gap: 5px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: var(--r-key); background: var(--raised); font-size: var(--t-caption); }
+  .chip.inherited { border-style: dashed; background: transparent; color: var(--muted); }
+  .chip svg { width: 12px; height: 12px; color: var(--subtle); }
+  .chip.add { border-style: dashed; background: transparent; color: var(--subtle); }
+  .chip.add:hover { color: var(--text); border-color: var(--border-field); }
+
+  .dep { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .dep .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-small); color: var(--muted); }
+  .dot { width: 7px; height: 7px; border-radius: 9999px; background: var(--safe); flex: none; }
+
+  .well { height: 6px; display: flex; gap: 2px; padding: 0; border-radius: 9999px; overflow: hidden; background: #0a0d13; box-shadow: inset 0 1px 2px rgb(0 0 0 / .6), 0 1px 0 rgb(255 255 255 / .035); }
+  .well i { display: block; height: 100%; }
+  .parts { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 5px; }
+  .parts li { display: flex; align-items: center; gap: 8px; font-size: var(--t-caption); color: var(--muted); }
+  .parts .k { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+  .parts .n { margin-left: auto; font-family: var(--font-mono); color: var(--muted); }
+  .total { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+  .total b { font: 500 var(--t-body) var(--font-mono); }
+  .total span { font-size: var(--t-caption); color: var(--subtle); }
+  .kv { display: flex; align-items: baseline; justify-content: space-between; margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--border); font-size: var(--t-caption); color: var(--muted); }
+  .kv b { font: 400 var(--t-caption) var(--font-mono); color: var(--muted); }
+
+  .commit { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: baseline; font-size: var(--t-small); }
+  .commit + .commit { margin-top: 7px; }
+  .commit .h { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .commit .s { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+  .branch { display: flex; align-items: center; gap: 8px; font: 400 var(--t-caption) var(--font-mono); color: var(--text); }
+  .branch-meta { margin-top: 4px; font-size: var(--t-caption); color: var(--subtle); }
+
+  /* collapsed */
+  .rail-icons { display: none; }
+  .app.collapsed .rail { width: var(--rail-collapsed); }
+  .app.collapsed .rail-scroll .group { display: none; }
+  .app.collapsed .rail-top { padding: 0; justify-content: center; }
+  .app.collapsed .rail-top .title { display: none; }
+  .app.collapsed .rail-icons { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; }
+  .app.collapsed .rail-top .iconbtn svg { transform: scaleX(-1); }
+  .rail-icons .iconbtn { position: relative; width: 36px; height: 36px; }
+  .rail-icons .badge { position: absolute; right: 2px; bottom: 2px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 9999px; background: var(--raised); border: 1px solid var(--border-strong); font: 500 var(--t-micro)/13px var(--font-mono); color: var(--muted); text-align: center; }
+
+  /* main */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .tabs { flex: none; height: 40px; display: flex; align-items: flex-end; gap: 22px; padding: 0 24px; border-bottom: 1px solid var(--border); }
+  .tab { position: relative; height: 100%; display: flex; align-items: center; gap: 6px; font-size: var(--t-small); font-weight: 500; color: var(--muted); }
+  .tab:hover { color: var(--text); }
+  .tab .c { font: 400 var(--t-micro) var(--font-mono); color: var(--subtle); }
+  .tab[aria-current="page"] { color: var(--text); }
+  .tab[aria-current="page"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); border-radius: 2px; }
+  .tabs .spacer { flex: 1; }
+  .tabs .iconbtn { margin-bottom: 6px; }
+
+  .strip { flex: none; height: 44px; display: flex; align-items: center; gap: 14px; padding: 0 24px; }
+  .views { display: flex; gap: 2px; padding: 2px; border-radius: var(--r-control); background: var(--canvas); border: 1px solid var(--border); }
+  .views button { height: 24px; padding: 0 10px; border-radius: var(--r-key); font-size: var(--t-small); font-weight: 500; color: var(--muted); }
+  .views button[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06); }
+  .strip .spacer { flex: 1; }
+  .split { display: inline-flex; }
+  .split .btn { border-radius: var(--r-control) 0 0 var(--r-control); }
+  .split .caret { width: 26px; justify-content: center; padding: 0; border-left: 0; border-radius: 0 var(--r-control) var(--r-control) 0; }
+
+  .doc { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 24px 48px; }
+  .doc-col { max-width: 760px; margin: 0 auto; }
+  .doc p { max-width: 70ch; font-size: var(--t-body); line-height: 1.6; color: var(--text); }
+  .doc p + p { margin-top: 14px; }
+  .doc p.muted { color: var(--muted); }
+  .doc code { font: 400 var(--t-small) var(--font-mono); color: var(--anchor); }
+
+  .note { position: fixed; right: 16px; bottom: 16px; width: 300px; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--surface); box-shadow: 0 10px 22px -8px rgb(0 0 0 / .65); font-size: var(--t-caption); color: var(--muted); line-height: 1.5; }
+  .note b { color: var(--text); font-weight: 500; }
+  @media (prefers-reduced-motion: reduce) { .rail { transition: none; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-tag" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8.6 2H13a1 1 0 0 1 1 1v4.4a1 1 0 0 1-.3.7l-5.6 5.6a1 1 0 0 1-1.4 0L2.3 9.3a1 1 0 0 1 0-1.4L7.9 2.3a1 1 0 0 1 .7-.3Z"/><circle cx="11" cy="5" r=".8" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-skill" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8 9.6 6.4 14.2 8l-4.6 1.6L8 14.2 6.4 9.6 1.8 8l4.6-1.6Z"/></symbol>
+    <symbol id="i-link" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 9.4a2.5 2.5 0 0 0 3.5 0l2.4-2.4a2.5 2.5 0 0 0-3.5-3.5l-.7.7"/><path d="M9.4 6.6a2.5 2.5 0 0 0-3.5 0L3.5 9a2.5 2.5 0 0 0 3.5 3.5l.7-.7"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 11.5a6 6 0 1 1 12 0"/><path d="m8 11 2.4-3.4"/></symbol>
+    <symbol id="i-commit" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2.6"/><path d="M1.5 8h3.9M10.6 8h3.9"/></symbol>
+    <symbol id="i-branch" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="4.5" cy="3.5" r="1.6"/><circle cx="4.5" cy="12.5" r="1.6"/><circle cx="11.5" cy="5.5" r="1.6"/><path d="M4.5 5.1v5.8M11.5 7.1c0 2.4-2.4 2.9-7 3.4"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V4A1.5 1.5 0 0 0 9 2.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M6 2.5v11"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 6.5 3.5 3.5 3.5-3.5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></symbol>
+    <symbol id="i-width" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3v10M14 3v10M5 8h6M5 8l1.6-1.6M5 8l1.6 1.6M11 8 9.4 6.4M11 8l-1.6 1.6"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="m5 6.5 2 1.5-2 1.5M8.5 10h2.5"/></symbol>
+    <symbol id="i-play" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.2v9.6a.6.6 0 0 0 .9.5l7.4-4.8a.6.6 0 0 0 0-1L5.9 2.7a.6.6 0 0 0-.9.5Z"/></symbol>
+  </defs>
+</svg>
+
+<div class="app" id="app">
+  <header class="topbar">
+    <span class="brand">Rekall</span>
+    <div class="search"><span>Search or type an anchor</span><kbd>⌘K</kbd></div>
+    <div class="capsule"><span>1 session</span><span>42% usage</span></div>
+  </header>
+
+  <div class="page">
+    <header class="head">
+      <div class="crumbs">
+        <nav aria-label="Where this task is"><a>Work</a><span>/</span><a>VFORGE · Rekall vR</a></nav>
+        <div class="actions">
+          <button class="btn secondary"><svg><use href="#i-commit"/></svg>Log commit</button>
+          <button class="btn primary"><svg><use href="#i-play"/></svg>Run in console</button>
+          <button class="btn secondary"><svg><use href="#i-terminal"/></svg>Open terminal</button>
+        </div>
+      </div>
+      <h1>The current task section is a little bit a mess. can you create a mockup with this new section</h1>
+    </header>
+
+    <div class="body">
+      <aside class="rail" aria-label="Task properties">
+        <div class="rail-top">
+          <span class="title">Properties</span>
+          <button class="iconbtn" id="toggle" aria-label="Collapse the properties bar" aria-expanded="true" title="Collapse"><svg><use href="#i-panel"/></svg></button>
+        </div>
+        <div class="rail-icons" aria-hidden="false">
+          <button class="iconbtn" data-open title="Status, tag, skills, dependencies"><svg><use href="#i-tag"/></svg></button>
+          <button class="iconbtn" data-open title="Context ≈ 1.2k tokens"><svg><use href="#i-gauge"/></svg></button>
+          <button class="iconbtn" data-open title="Branch rekall/rv-164, 2 commits"><svg><use href="#i-branch"/></svg><span class="badge">2</span></button>
+        </div>
+
+        <div class="rail-scroll">
+          <section class="group identity" aria-label="Task">
+            <button class="pill" title="Change status">To do</button>
+            <span class="anchor">/rk task:RV-164</span>
+            <button class="iconbtn" aria-label="Copy the anchor"><svg><use href="#i-copy"/></svg></button>
+          </section>
+
+          <section class="group" aria-label="Labels">
+            <div class="group-h"><svg><use href="#i-tag"/></svg>Labels</div>
+            <div class="field">
+              <span class="field-l">Tag</span>
+              <button class="select"><span class="swatch"></span>design<svg><use href="#i-chevron"/></svg></button>
+            </div>
+            <div class="field">
+              <span class="field-l">Skills</span>
+              <div class="chips">
+                <span class="chip"><svg><use href="#i-skill"/></svg>impeccable</span>
+                <span class="chip inherited" title="From the tag design"><svg><use href="#i-tag"/></svg>ui-ux-pro-max</span>
+                <button class="chip add"><svg><use href="#i-plus"/></svg>Add</button>
+              </div>
+            </div>
+            <div class="field">
+              <span class="field-l">Depends on</span>
+              <div class="dep"><span class="anchor">RV-158</span><span class="t">Open task sessions in the floating terminal</span><span class="dot" title="Done"></span></div>
+            </div>
+          </section>
+
+          <section class="group" aria-label="Context">
+            <div class="group-h"><svg><use href="#i-gauge"/></svg>Context</div>
+            <div class="total"><b>≈ 1.2k tokens</b><span>what /rk hands over</span></div>
+            <div class="well" role="img" aria-label="Description 38%, notes 27%, project 20%, steps 15%">
+              <i style="width:38%;background:var(--muted)"></i><i style="width:27%;background:var(--subtle)"></i><i style="width:20%;background:var(--border-field)"></i><i style="width:15%;background:var(--border-strong)"></i>
+            </div>
+            <ul class="parts">
+              <li><span class="k" style="background:var(--muted)"></span>Description<span class="n">≈ 0.5k</span></li>
+              <li><span class="k" style="background:var(--subtle)"></span>Notes<span class="n">≈ 0.3k</span></li>
+              <li><span class="k" style="background:var(--border-field)"></span>Project<span class="n">≈ 0.2k</span></li>
+              <li><span class="k" style="background:var(--border-strong)"></span>Steps<span class="n">≈ 0.2k</span></li>
+            </ul>
+            <div class="kv"><span>Generated so far</span><b>48.2k</b></div>
+          </section>
+
+          <section class="group" aria-label="Git">
+            <div class="group-h"><svg><use href="#i-branch"/></svg>Git</div>
+            <div class="branch">rekall/rv-164</div>
+            <div class="branch-meta">3 ahead of main · worktree clean</div>
+            <div class="commits">
+              <div class="commit"><span class="h">72afd62</span><span class="s">open task sessions in the floating terminal by default</span></div>
+              <div class="commit"><span class="h">79131c2</span><span class="s">icon top bar on the left</span></div>
+            </div>
+          </section>
+        </div>
+      </aside>
+
+      <main class="main">
+        <nav class="tabs" aria-label="Task">
+          <a class="tab">Plan <span class="c">0</span></a>
+          <a class="tab">Wrapup</a>
+          <a class="tab">Notes <span class="c">0</span></a>
+          <a class="tab" aria-current="page">Description</a>
+          <a class="tab">Time</a>
+          <a class="tab">Deviations <span class="c">0</span></a>
+          <span class="spacer"></span>
+          <button class="iconbtn" title="Page width"><svg><use href="#i-width"/></svg></button>
+        </nav>
+
+        <div class="strip">
+          <div class="views" role="group" aria-label="View">
+            <button aria-pressed="true">Description</button>
+            <button aria-pressed="false">Revisions</button>
+          </div>
+          <span class="spacer"></span>
+          <div class="split">
+            <button class="btn secondary" title="A session corrects the grammar, spelling and wording and keeps everything else">Fix wording</button>
+            <button class="btn secondary caret" aria-label="Other ways to rewrite"><svg><use href="#i-chevron"/></svg></button>
+          </div>
+          <div class="views" role="group" aria-label="Mode">
+            <button aria-pressed="false">Write</button>
+            <button aria-pressed="true">Read</button>
+          </div>
+        </div>
+
+        <div class="doc">
+          <div class="doc-col">
+            <p>The current task section is a little bit a mess. Can you create a mockup with this new section?</p>
+            <p class="muted">The main problem is that vertically we have a lot of information: total tokens, fix wording, tag, skills, dependencies. It is too much information.</p>
+            <p class="muted">Can we have a bar on the left that groups the different information? Create a mockup and show me a solution with <code>/impeccable</code> redesign of this part.</p>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<aside class="note">
+  <b>Mockup.</b> The properties of the task live in the left rail, so the Description tab carries one slim strip above the text. The rail collapses to an icon bar; try the panel key.
+</aside>
+
+<script>
+  const app = document.getElementById('app');
+  const toggle = document.getElementById('toggle');
+  function setCollapsed(collapsed) {
+    app.classList.toggle('collapsed', collapsed);
+    toggle.setAttribute('aria-expanded', String(!collapsed));
+    toggle.setAttribute('aria-label', collapsed ? 'Expand the properties bar' : 'Collapse the properties bar');
+  }
+  toggle.addEventListener('click', () => setCollapsed(!app.classList.contains('collapsed')));
+  document.querySelectorAll('[data-open]').forEach((button) => button.addEventListener('click', () => setCollapsed(false)));
+  if (location.hash === '#collapsed') setCollapsed(true);
+</script>
+</body>
+</html>
