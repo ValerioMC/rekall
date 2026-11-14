@@ -38,6 +38,14 @@ describe('the stored UI preferences', () => {
     expect(loadUiPreferences().taskWidth).toBe('wide')
   })
 
+  it('keep whether the properties bar of the task page is folded', () => {
+    window.localStorage.setItem(KEY, JSON.stringify({ taskRailCollapsed: true }))
+    expect(loadUiPreferences().taskRailCollapsed).toBe(true)
+
+    window.localStorage.setItem(KEY, JSON.stringify({ taskRailCollapsed: 'yes' }))
+    expect(loadUiPreferences().taskRailCollapsed).toBe(false)
+  })
+
   it('survive unreadable storage', () => {
     window.localStorage.setItem(KEY, '{broken')
 

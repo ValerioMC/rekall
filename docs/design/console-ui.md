@@ -142,9 +142,12 @@ in the page; the choice is kept in the browser and holds for every task. The hea
 then company and project) with the task's actions at its right (Log commit, Open in terminal and
 Run here, each offered once), and the title alone beneath. The tab strip is Description, Plan,
 Wrapup, Notes, Time and Deviations, with counts where a count means something (steps, notes,
-deviations) and an amber one on Plan while a step waits for review; at its right are the status
-pill that changes the status, the copyable `/rk` anchor and the width key. The Description tab
-carries a properties line under its tabs: tag, skills, dependencies and the task's tokens.
+deviations) and an amber one on Plan while a step waits for review; at its right is the width key.
+Beside every tab sits the properties bar (`TaskRail`), 272px wide, folding to an icon bar that the
+browser remembers: the status pill that changes the status and the copyable `/rk` anchor on top,
+then Labels (tag, skills, dependencies), Context (what `/rk` hands a session, as a total and a bar of
+its heaviest parts, with the tokens the task generated) and Git (the branch and the commits, shown
+only while there is one). The Description tab keeps one strip: its views, Fix wording and Write/Read.
 
 **Plan** is two zones. The left is the step list: a row is the step's seal, its number, its title
 and when it last moved, and its hover keys (Accept or Done, New session, To draft, move, delete).

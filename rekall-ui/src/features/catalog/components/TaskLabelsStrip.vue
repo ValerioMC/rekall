@@ -10,10 +10,11 @@ import { skillsOfTag } from '@/features/skills/model/skill-assignment'
 import type { Task } from '@/features/catalog/model/catalog'
 
 /**
- * The task's tag and skills, in the description's properties line. The tag and the task's own skills are
- * changed in place; the tag's skills arrive dashed, since they are the tag's.
+ * The task's tag, skills and dependencies. The tag and the task's own skills are changed in place;
+ * the tag's skills arrive dashed, since they are the tag's. `stacked` lays them out as labelled
+ * fields one under the other, for the properties bar; otherwise they run along one line.
  */
-const props = defineProps<{ task: Task }>()
+const props = defineProps<{ task: Task; stacked?: boolean }>()
 
 const store = useConsoleStore()
 const { taskSkills: owned, tagSkills: tagged } = storeToRefs(store)
@@ -32,7 +33,18 @@ function save(names: readonly string[]): void {
 </script>
 
 <template>
-  <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5" data-testid="task-labels">
+  <div v-if="stacked" class="grid min-w-0 gap-3" data-testid="task-labels">
+    <div class="grid gap-1">
+      <span class="text-caption font-medium text-text-subtle">Tag</span>
+      <TaskTagControl :task="task" />
+    </div>
+    <div class="grid gap-1">
+      <span class="text-caption font-medium text-text-subtle">Skills</span>
+      <SkillField :model-value="own" :inherited="fromTag" owner="task" @update:model-value="save" />
+    </div>
+    <TaskDependenciesField :task="task" stacked />
+  </div>
+  <div v-else class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5" data-testid="task-labels">
     <TaskTagControl :task="task" />
     <span class="h-4 w-px bg-border" aria-hidden="true" />
     <SkillField :model-value="own" :inherited="fromTag" owner="task" @update:model-value="save" />

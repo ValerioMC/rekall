@@ -5,7 +5,7 @@ import type { Task } from '@/features/catalog/model/catalog'
 
 /**
  * The two lines above the tabs: where the task sits with what to do to it on the same line, and
- * its title alone beneath. Status, anchor and width live on the tab strip.
+ * its title alone beneath. Status and anchor live in the properties bar, width on the tab strip.
  */
 defineProps<{ task: Task }>()
 </script>

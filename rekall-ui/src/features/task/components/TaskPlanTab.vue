@@ -12,7 +12,6 @@ import StepDecisionPanel from '@/features/steps/components/StepDecisionPanel.vue
 import StepDraftShelf from '@/features/steps/components/StepDraftShelf.vue'
 import StepsEmptyState from '@/features/steps/components/StepsEmptyState.vue'
 import TaskHandedInPanel from '@/features/task/components/TaskHandedInPanel.vue'
-import TaskBranchPanel from '@/features/worktree/components/TaskBranchPanel.vue'
 import { useTaskPlan } from '@/features/steps/composables/useTaskPlan'
 import { stepNumberOf } from '@/features/deviations/model/deviation'
 import { handedInWhole } from '@/features/work/lib/work-rows'
@@ -224,7 +223,6 @@ function canChooseSession(step: TaskStep): boolean {
 
             <template v-if="checklistSteps.length">
               <PlanAdherencePanel class="mt-6" :task-id="task.id" :steps="allSteps" />
-              <TaskBranchPanel class="mt-4" :task-id="task.id" :signature="`${task.stepsDone}:${task.updatedAt}`" />
               <GraphAttachPanel v-if="canLayGraph" class="mt-4" :task="task" has-steps @attached="showAttachedGraph" />
             </template>
           </template>

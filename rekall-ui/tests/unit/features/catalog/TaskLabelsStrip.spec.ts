@@ -51,6 +51,13 @@ describe('TaskLabelsStrip', () => {
     expect(wrapper.get('[data-testid="skill-add"]').text()).toBe('Add a skill')
   })
 
+  it('lays the tag, the skills and the dependencies out as labelled fields when stacked', () => {
+    const wrapper = mount(TaskLabelsStrip, { props: { task: taskWith(), stacked: true } })
+
+    const labels = wrapper.findAll('span.text-caption').map((label) => label.text())
+    expect(labels).toEqual(expect.arrayContaining(['Tag', 'Skills', 'Depends on']))
+  })
+
   it('leaves the context size chip to the title row', () => {
     const wrapper = mount(TaskLabelsStrip, { props: { task: taskWith() } })
 

@@ -20,6 +20,7 @@ export interface UiPreferences {
   readonly motion: Motion
   readonly scale: Scale
   readonly taskWidth: TaskWidth
+  readonly taskRailCollapsed: boolean
   readonly reviewAutoAdvance: boolean
   readonly reviewConfirmSendBack: boolean
   readonly workdayGoalHours: number
@@ -33,6 +34,7 @@ export const DEFAULT_UI_PREFERENCES: UiPreferences = {
   motion: 'full',
   scale: 100,
   taskWidth: 'wide',
+  taskRailCollapsed: false,
   reviewAutoAdvance: true,
   reviewConfirmSendBack: false,
   workdayGoalHours: 8,
@@ -62,6 +64,7 @@ export function loadUiPreferences(): UiPreferences {
       motion: oneOf(MOTIONS, stored.motion, defaults.motion),
       scale: oneOf(SCALES, stored.scale, defaults.scale),
       taskWidth: oneOf(TASK_WIDTHS, stored.taskWidth, defaults.taskWidth),
+      taskRailCollapsed: flag(stored.taskRailCollapsed, defaults.taskRailCollapsed),
       reviewAutoAdvance: flag(stored.reviewAutoAdvance, defaults.reviewAutoAdvance),
       reviewConfirmSendBack: flag(stored.reviewConfirmSendBack, defaults.reviewConfirmSendBack),
       workdayGoalHours: withinRange(stored.workdayGoalHours, WORKDAY_GOAL_RANGE, defaults.workdayGoalHours),

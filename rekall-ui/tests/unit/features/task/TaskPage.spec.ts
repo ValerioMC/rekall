@@ -4,6 +4,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import TaskPage from '@/features/task/components/TaskPage.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import { useClaudeResourcesStore } from '@/features/claude-resources/store/claudeResources.store'
 import { useToastStore } from '@/stores/toast.store'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { TaskStep } from '@/features/steps/model/task-step'
@@ -19,6 +20,10 @@ vi.mock('@/features/adherence/api/adherence.api', () => ({
     firstTimeShare: null, deviations: 0, mostSentBack: []
   }))
 }))
+
+vi.mock('@/features/context/api/context.api', () => ({ fetchContextSize: vi.fn(() => new Promise(() => undefined)) }))
+vi.mock('@/features/worktree/api/taskBranch.api', () => ({ fetchTaskBranch: vi.fn(async () => null) }))
+vi.mock('@/features/dependency/api/dependencies.api')
 
 const stub = { template: '<div />' }
 
@@ -106,6 +111,7 @@ describe('TaskPage', () => {
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
+    useClaudeResourcesStore().loaded = true
     router = createRouter({
       history: createMemoryHistory(),
       routes: [

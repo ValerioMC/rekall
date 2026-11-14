@@ -28,7 +28,7 @@ import type { TaskId } from '@/model/branded'
  * An epic in the console: how far its tasks are, the tasks themselves, and the description every
  * one of them inherits, written here. Shown in place of the description pane when an epic is selected.
  */
-/** On the task page the title is already above the tabs, so the pane keeps its labels and its tasks. */
+/** On the task page the title is above the tabs and the labels are in the properties bar, so the pane keeps its tasks and description. */
 defineProps<{ embedded?: boolean }>()
 
 const store = useConsoleStore()
@@ -88,7 +88,7 @@ defineExpose({ toggleMode })
 
 <template>
   <section v-if="selectedTask" class="flex min-h-0 min-w-0 flex-1 flex-col bg-canvas" aria-label="Epic" data-testid="epic-pane">
-    <div class="relative shrink-0 overflow-hidden border-b border-border">
+    <div v-if="!embedded" class="relative shrink-0 overflow-hidden border-b border-border">
       <div
         class="texture-grid pointer-events-none absolute inset-0 opacity-60"
         :style="{ '--texture-tint': hue.base }"
@@ -98,12 +98,11 @@ defineExpose({ toggleMode })
 
       <header class="relative flex items-start gap-3.5 px-5 py-3.5">
         <div class="min-w-0 flex-1">
-          <p v-if="!embedded" class="eyebrow flex items-center gap-1.5">
+          <p class="eyebrow flex items-center gap-1.5">
             <EpicGlyph :size="11" />
             Epic
           </p>
-          <ContextSizeChip v-if="embedded" :task-id="selectedTask.id" class="mb-1" />
-          <TaskTitleRow v-else :task="selectedTask" copy-testid="copy-epic-anchor">
+          <TaskTitleRow :task="selectedTask" copy-testid="copy-epic-anchor">
             <template #trailing>
               <ContextSizeChip :task-id="selectedTask.id" />
             </template>

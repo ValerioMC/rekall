@@ -7,7 +7,7 @@ import type { TaskId } from '@/model/branded'
 
 /**
  * The branch a task's work lives on when the run queue gave it a worktree: what it holds and
- * whether it merges. Accepting the task merges the branch and removes the worktree, so the panel
+ * whether it merges. It has no frame of its own: it sits in the Git group of the properties bar. Accepting the task merges the branch and removes the worktree, so the panel
  * offers no action. Drawn only while the branch exists. `signature` changes whenever the task's
  * work moves, so the figures are read again.
  */
@@ -26,12 +26,9 @@ watch(
 </script>
 
 <template>
-  <section v-if="branch" class="rounded-card border border-border bg-surface px-4 py-3" aria-label="Branch" data-testid="task-branch">
-    <div class="flex flex-wrap items-baseline gap-x-3">
-      <span class="eyebrow">Branch</span>
-      <span class="font-mono text-small text-anchor" data-testid="branch-name">{{ branch.branch }}</span>
-      <span class="text-caption text-text-subtle" data-testid="branch-ahead">{{ aheadText(branch) }}</span>
-    </div>
+  <div v-if="branch" aria-label="Branch" data-testid="task-branch">
+    <p class="truncate font-mono text-small text-anchor" :title="branch.branch" data-testid="branch-name">{{ branch.branch }}</p>
+    <p class="mt-0.5 text-caption text-text-subtle" data-testid="branch-ahead">{{ aheadText(branch) }}</p>
 
     <p
       class="mt-2 text-small"
@@ -50,5 +47,5 @@ watch(
     </details>
 
     <p class="mt-2 text-caption text-text-subtle" data-testid="branch-worktree">{{ worktreeText(branch) }}</p>
-  </section>
+  </div>
 </template>

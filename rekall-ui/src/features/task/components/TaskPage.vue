@@ -9,13 +9,15 @@ import TaskDeviationsTab from '@/features/task/components/TaskDeviationsTab.vue'
 import TaskDescriptionTab from '@/features/task/components/TaskDescriptionTab.vue'
 import TaskNotesTab from '@/features/task/components/TaskNotesTab.vue'
 import TaskPlanTab from '@/features/task/components/TaskPlanTab.vue'
-import TaskTabMeta from '@/features/task/components/TaskTabMeta.vue'
+import TaskRail from '@/features/task/components/TaskRail.vue'
 import TaskTimeTab from '@/features/task/components/TaskTimeTab.vue'
+import TaskWidthMenu from '@/features/task/components/TaskWidthMenu.vue'
 import WrapupPane from '@/features/wrapup/components/WrapupPane.vue'
 import { taskTabItems } from '@/features/task/lib/task-tab-items'
 import { tabOfPane, taskTabOf } from '@/features/task/model/task-tab'
 import { isEpic } from '@/features/catalog/model/catalog'
 import { workRows } from '@/features/work/lib/work-rows'
+import { usePreferencesStore } from '@/features/settings/store/preferences.store'
 import { useDeviationsStore } from '@/features/deviations/store/deviations.store'
 import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 import { useConsoleStore } from '@/stores/console.store'
@@ -24,13 +26,14 @@ import { asTaskId } from '@/model/branded'
 /**
  * A task as a page at `/task/:id/:tab`. The route names the task: it is selected in the console
  * store, which the step, note and wrapup components read, and a task that does not exist says so.
- * Everything sits in one column as wide as the window.
+ * The properties of the task sit in a bar on the left, and the tabs fill the rest.
  */
 const store = useConsoleStore()
 const route = useRoute()
 const router = useRouter()
 const deviations = useDeviationsStore()
 const tokenUsage = useTokenUsageStore()
+const preferences = usePreferencesStore()
 const { isLoading, selectedTask, selectedTaskSteps } = storeToRefs(store)
 
 const taskId = computed(() => asTaskId(String(route.params.id)))
@@ -106,15 +109,20 @@ watch(
 
     <div v-else-if="row" class="@container/task flex min-h-0 w-full min-w-0 flex-1 flex-col" data-testid="task-column">
       <TaskPageHeader :task="row.task" />
-      <SubNav :model-value="tab" :items="tabs" label="Task" class="px-6">
-        <template #trailing><TaskTabMeta :row="row" /></template>
-      </SubNav>
-      <TaskPlanTab v-if="tab === 'plan'" :task="row.task" />
-      <WrapupPane v-else-if="tab === 'wrapup'" embedded />
-      <TaskNotesTab v-else-if="tab === 'notes'" :task="row.task" />
-      <TaskDescriptionTab v-else-if="tab === 'description'" :task="row.task" />
-      <TaskTimeTab v-else-if="tab === 'time'" :task="row.task" />
-      <TaskDeviationsTab v-else :task="row.task" />
+      <div class="flex min-h-0 flex-1 border-t border-border">
+        <TaskRail :row="row" />
+        <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+          <SubNav :model-value="tab" :items="tabs" label="Task" class="px-6">
+            <template #trailing><TaskWidthMenu v-model="preferences.taskWidth" /></template>
+          </SubNav>
+          <TaskPlanTab v-if="tab === 'plan'" :task="row.task" />
+          <WrapupPane v-else-if="tab === 'wrapup'" embedded />
+          <TaskNotesTab v-else-if="tab === 'notes'" :task="row.task" />
+          <TaskDescriptionTab v-else-if="tab === 'description'" :task="row.task" />
+          <TaskTimeTab v-else-if="tab === 'time'" :task="row.task" />
+          <TaskDeviationsTab v-else :task="row.task" />
+        </div>
+      </div>
     </div>
   </div>
 </template>

@@ -4,7 +4,6 @@ import { storeToRefs } from 'pinia'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import DescriptionReviewBar from '@/features/catalog/components/DescriptionReviewBar.vue'
-import TaskBranchPanel from '@/features/worktree/components/TaskBranchPanel.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { usePreferencesStore } from '@/features/settings/store/preferences.store'
 import { columnMaxWidth } from '@/features/task/model/task-width'
@@ -12,10 +11,6 @@ import { useSelectedProjectComponents } from '@/features/project/composables/use
 import { useSelectedProjectConnections } from '@/features/connection/composables/useSelectedProjectConnections'
 import { useSelectedProjectTasks } from '@/features/catalog/composables/useSelectedProjectTasks'
 import { useDescriptionDraft } from '@/features/catalog/composables/useDescriptionDraft'
-import CommitReferenceRail from '@/features/commits/components/CommitReferenceRail.vue'
-import ContextSizeChip from '@/features/context/components/ContextSizeChip.vue'
-import TaskTokenChip from '@/features/tokens/components/TaskTokenChip.vue'
-import TaskLabelsStrip from '@/features/catalog/components/TaskLabelsStrip.vue'
 import DescriptionRewriteButton from '@/features/catalog/components/DescriptionRewriteButton.vue'
 import DescriptionViewTabs from '@/features/catalog/components/DescriptionViewTabs.vue'
 import RevisionRunBar from '@/features/feedback/components/RevisionRunBar.vue'
@@ -25,7 +20,7 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import type { Feedback } from '@/features/feedback/model/feedback'
 
 const store = useConsoleStore()
-const { selectedTask, selectedTaskId, selectedTaskCommitReferences, selectedTaskFeedback, waitingCount, runningPass } = storeToRefs(store)
+const { selectedTask, selectedTaskId, selectedTaskFeedback, waitingCount, runningPass } = storeToRefs(store)
 const { run } = useAsyncAction()
 const preferences = usePreferencesStore()
 const editorStyle = computed(() => ({ maxWidth: columnMaxWidth(preferences.taskWidth) }))
@@ -75,7 +70,6 @@ defineExpose({ toggleMode })
         <DescriptionViewTabs v-model="view" :count="selectedTaskFeedback.length" :attention="needsAttention" :running="runningPass !== null" />
         <span class="flex-1" />
         <div class="flex items-center gap-1.5 pb-1" data-testid="description-actions">
-          <ContextSizeChip :task-id="selectedTask.id" />
           <DescriptionRewriteButton
             :key="selectedTask.id"
             :task-id="selectedTask.id"
@@ -93,31 +87,10 @@ defineExpose({ toggleMode })
         </div>
       </div>
 
-      <div class="flex min-w-0 shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-5 py-2" data-testid="description-properties">
-        <TaskLabelsStrip :task="selectedTask" class="min-w-0" />
-        <span class="flex-1" />
-        <TaskTokenChip :task="selectedTask" />
-      </div>
-
-      <div
-        v-if="selectedTaskCommitReferences.length"
-        class="shrink-0 border-b border-border px-5 py-1.5"
-        data-testid="description-commits"
-      >
-        <CommitReferenceRail :key="selectedTask.id" :references="selectedTaskCommitReferences" />
-      </div>
-
       <DescriptionReviewBar
         v-if="reviewState === 'RUNNING' || reviewState === 'CLAIMED' || reviewState === 'DONE'"
         :task="selectedTask"
         :review-state="reviewState"
-      />
-
-      <TaskBranchPanel
-        v-if="selectedTask.stepCount === 0"
-        class="mx-4 my-2 shrink-0"
-        :task-id="selectedTask.id"
-        :signature="`${reviewState}:${selectedTask.updatedAt}`"
       />
 
       <RevisionRunBar

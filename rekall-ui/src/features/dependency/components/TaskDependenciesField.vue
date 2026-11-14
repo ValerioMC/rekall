@@ -13,7 +13,7 @@ import type { TaskId } from '@/model/branded'
  * The tasks of the same project this one waits for. The run queue does not start the task until
  * every one is accepted. Only the person sets this: a session has no tool for it.
  */
-const props = defineProps<{ task: Task }>()
+const props = defineProps<{ task: Task; stacked?: boolean }>()
 
 const store = useDependenciesStore()
 const { tasks } = storeToRefs(useConsoleStore())
@@ -54,7 +54,8 @@ function remove(dependsOn: TaskId): void {
 
 <template>
   <div v-if="!isEpic(task)" class="flex min-w-0 flex-wrap items-center gap-1.5" data-testid="task-dependencies">
-    <span class="eyebrow">Depends on</span>
+    <span v-if="stacked" class="w-full text-caption font-medium text-text-subtle">Depends on</span>
+    <span v-else class="eyebrow">Depends on</span>
     <span
       v-for="dependency in dependencies"
       :key="dependency.taskId"

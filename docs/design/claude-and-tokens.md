@@ -63,9 +63,10 @@ cache read are kept beside it and shown in the tooltip. `GET /api/token-usage` r
 task and step, `GET /api/token-usage/daily` one entry per task and day, and `useTokenUsageStore`
 sums a project from its tasks in the browser, so no total is stored that could disagree with its
 parts. A task's header (`TaskTitleRow`) holds the name, its status flags, `CopyAnchorButton` and the
-token chip in every pane; the description pane adds `ContextSizeChip` (what `/rk` hands a session)
-right of the token chip through the row's `trailing` slot, and its tag and skills line
-(`TaskLabelsStrip`) holds only the tag control and the skills. Both chips share the tag and skill chips' shape (24px, `rounded-key`). `TokenTrendChip` is the chip for any set of tasks (`TaskTokenChip`
+token chip in the panes that still use it; on the task page the properties bar (`TaskRail`) holds
+the status, the anchor, the tag and skills (`TaskLabelsStrip`, stacked) and `ContextSizeGroup`: what
+`/rk` hands a session, with the generated tokens as a `TaskTokenChip` beneath it. `ContextSizeChip` is
+the same measurement (`useContextSize`) as a chip with a popover. Both chips share the tag and skill chips' shape (24px, `rounded-key`). `TokenTrendChip` is the chip for any set of tasks (`TaskTokenChip`
 for one, `ProjectTokenChip` for a project in the navigator header); its sparkline and popover chart
 (`TokenTrendPanel`, `TokenTrendChart`) are drawn from the store's days by `trendOf`, a running total
 with one point per calendar day. `TaskTagControl` and `TagPicker` change a task's tag in place. The tokens follow the anchors, not the folder, and

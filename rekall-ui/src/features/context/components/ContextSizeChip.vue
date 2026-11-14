@@ -1,75 +1,23 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/common/format/app-locale'
-import { computed, onUnmounted, ref, watch } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useConsoleStore } from '@/stores/console.store'
-import { fetchContextSize } from '@/features/context/api/context.api'
+import { computed, ref, watch } from 'vue'
+import { useContextSize } from '@/features/context/composables/useContextSize'
 import { compactCount, tokensOf } from '@/features/context/model/context'
-import type { ContextSize } from '@/features/context/model/context'
 import type { TaskId } from '@/model/branded'
 
 const props = defineProps<{ taskId: TaskId }>()
 
-const store = useConsoleStore()
-const { selectedTask, selectedWrapup, taskDocuments, selectedTaskSteps } = storeToRefs(store)
-
-const MEASURE_DEBOUNCE_MS = 400
-
-const size = ref<ContextSize | null>(null)
-const failed = ref(false)
+const { size, failed } = useContextSize(() => props.taskId)
 const open = ref(false)
 const chip = ref<HTMLElement | null>(null)
 const position = ref({ top: 0, left: 0 })
 
-let timer: ReturnType<typeof setTimeout> | null = null
-let sequence = 0
-
-// Everything that changes what /rk hands over for this task. The server renders the real text;
-// this only decides when to ask it again.
-const signature = computed(() =>
-  [
-    props.taskId,
-    selectedTask.value?.updatedAt,
-    selectedWrapup.value?.updatedAt,
-    ...taskDocuments.value.map((document) => `${document.id}:${document.updatedAt}:${document.contextMode}`),
-    ...selectedTaskSteps.value.map((step) => `${step.id}:${step.updatedAt}:${step.state}`)
-  ].join('|')
-)
-
-async function measure(taskId: TaskId, at: number): Promise<void> {
-  try {
-    const measured = await fetchContextSize(taskId)
-    if (at !== sequence) return
-    size.value = measured
-    failed.value = false
-  } catch {
-    if (at !== sequence) return
-    failed.value = true
-  }
-}
-
-watch(
-  signature,
-  () => {
-    if (timer) clearTimeout(timer)
-    const at = ++sequence
-    const taskId = props.taskId
-    timer = setTimeout(() => void measure(taskId, at), MEASURE_DEBOUNCE_MS)
-  },
-  { immediate: true }
-)
-
 watch(
   () => props.taskId,
   () => {
-    size.value = null
     open.value = false
   }
 )
-
-onUnmounted(() => {
-  if (timer) clearTimeout(timer)
-})
 
 // The header the chip sits in clips its overflow, so the breakdown is drawn on the body, under
 // the chip, at the chip's position when it opened.
