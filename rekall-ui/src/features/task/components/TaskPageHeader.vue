@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
+import PullRequestMark from '@/features/catalog/components/PullRequestMark.vue'
+import TaskTrackerMark from '@/features/catalog/components/TaskTrackerMark.vue'
 import TaskActions from '@/features/task/components/TaskActions.vue'
 import type { Task } from '@/features/catalog/model/catalog'
 
 /**
  * The two lines above the tabs: where the task sits with what to do to it on the same line, and
- * its title alone beneath. Status and anchor live in the properties bar, width on the tab strip.
+ * its title beneath, with the task manager issue and the pull request beside it. Status and anchor live in the properties bar, width on the tab strip.
  */
 defineProps<{ task: Task }>()
 </script>
@@ -27,8 +29,12 @@ defineProps<{ task: Task }>()
       <TaskActions :task="task" />
     </div>
 
-    <h1 class="mt-0.5 truncate text-heading font-semibold tracking-[-0.015em] text-text" data-testid="task-title" :title="task.title">
-      {{ task.title }}
-    </h1>
+    <div class="mt-0.5 flex min-w-0 items-center gap-2">
+      <h1 class="min-w-0 truncate text-heading font-semibold tracking-[-0.015em] text-text" data-testid="task-title" :title="task.title">
+        {{ task.title }}
+      </h1>
+      <TaskTrackerMark :task="task" />
+      <PullRequestMark :task="task" />
+    </div>
   </header>
 </template>
