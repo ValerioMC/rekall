@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Task page with a Changes tab</title>
+<style>
+  @font-face { font-family: 'Fira Sans'; font-weight: 400; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 500; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 600; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Code'; font-weight: 300 700; src: url('../../../rekall-ui/node_modules/@fontsource-variable/fira-code/files/fira-code-latin-wght-normal.woff2') format('woff2'); }
+
+  :root {
+    --canvas: #0d1017; --surface: #151922; --raised: #1d2330; --hover: #262d3c;
+    --border: #2a3243; --border-strong: #3b4558; --border-field: #5e6a82;
+    --text: #f2f5f9; --muted: #a3acba; --subtle: #8c96a6;
+    --accent: #eaa43c; --accent-strong: #ffd88e; --accent-soft: #eaa43c24; --accent-ink: #2b1804;
+    --anchor: #55c9ea; --anchor-soft: #55c9ea1c; --anchor-line: #55c9ea45;
+    --session: #7c83f7; --session-strong: #b4b9ff; --session-soft: #7c83f71f; --session-line: #7c83f750;
+    --safe: #3ddc97; --safe-soft: #3ddc971a; --danger: #fb7185; --danger-soft: #fb71851a;
+    --font-sans: 'Fira Sans', ui-sans-serif, -apple-system, sans-serif;
+    --font-mono: 'Fira Code', ui-monospace, Menlo, monospace;
+    --t-micro: 11px; --t-caption: 11.5px; --t-small: 12.5px; --t-body: 13.5px; --t-title: 15px; --t-heading: 19px;
+    --r-key: 3px; --r-control: 5px; --r-card: 8px;
+    --rail-collapsed: 52px;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--canvas); color: var(--text); font: 400 var(--t-body)/1.4 var(--font-sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; text-align: left; }
+  a { color: inherit; text-decoration: none; cursor: pointer; }
+  button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; border: 2px solid var(--canvas); }
+  svg { display: block; }
+  .mono { font-family: var(--font-mono); }
+  .num { font-variant-numeric: tabular-nums; }
+  .add { color: var(--safe); }
+  .del { color: var(--danger); }
+  .trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+  .app { display: flex; flex-direction: column; height: 100vh; }
+  .topbar { height: 48px; flex: none; display: grid; grid-template-columns: 1fr minmax(240px, 620px) 1fr; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .brand { font-weight: 600; font-size: var(--t-title); letter-spacing: -0.01em; }
+  .search { height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); color: var(--subtle); font-size: var(--t-small); }
+  .search kbd { margin-left: auto; font: 400 var(--t-micro) var(--font-mono); border: 1px solid var(--border-strong); border-radius: var(--r-key); padding: 0 5px; }
+  .capsule { justify-self: end; height: 32px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); color: var(--muted); font-size: var(--t-small); }
+
+  .page { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .head { flex: none; padding: 10px 24px 0; }
+  .crumbs { display: flex; align-items: center; gap: 12px; min-height: 32px; }
+  .crumbs nav { flex: 1; display: flex; gap: 8px; color: var(--muted); font-size: var(--t-small); }
+  .crumbs nav span { color: var(--subtle); }
+  .actions { display: flex; gap: 6px; }
+  .btn { height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: var(--r-control); font-size: var(--t-small); font-weight: 500; white-space: nowrap; }
+  .btn.secondary { background: var(--raised); border: 1px solid var(--border-strong); box-shadow: inset 0 1px 0 rgb(255 255 255 / .07), 0 1px 1px rgb(0 0 0 / .35); }
+  .btn.secondary:hover { background: var(--hover); }
+  .btn.primary { background: linear-gradient(180deg, var(--accent-strong), var(--accent) 45%, #a8651a); color: var(--accent-ink); font-weight: 600; box-shadow: inset 0 1px 0 rgb(255 255 255 / .35), 0 1px 1px rgb(0 0 0 / .35); }
+  .btn svg { width: 14px; height: 14px; }
+  h1 { margin-top: 2px; font-size: var(--t-heading); font-weight: 600; letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .body { flex: 1; min-height: 0; display: flex; margin-top: 10px; border-top: 1px solid var(--border); }
+
+  .rail { flex: none; width: var(--rail-collapsed); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; }
+  .rail-top { height: 44px; display: grid; place-items: center; border-bottom: 1px solid var(--border); width: 100%; }
+  .iconbtn { position: relative; width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--r-control); color: var(--subtle); }
+  .iconbtn:hover { background: var(--raised); color: var(--text); }
+  .iconbtn svg { width: 16px; height: 16px; }
+  .rail .badge { position: absolute; right: 2px; bottom: 2px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 9999px; background: var(--raised); border: 1px solid var(--border-strong); font: 500 var(--t-micro)/13px var(--font-mono); color: var(--muted); text-align: center; }
+  .rail-icons { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .tabs { flex: none; height: 40px; display: flex; align-items: flex-end; gap: 22px; padding: 0 24px; border-bottom: 1px solid var(--border); }
+  .tab { position: relative; height: 100%; display: flex; align-items: center; gap: 6px; font-size: var(--t-small); font-weight: 500; color: var(--muted); }
+  .tab:hover { color: var(--text); }
+  .tab .c { font: 400 var(--t-micro) var(--font-mono); color: var(--subtle); }
+  .tab[aria-current="page"] { color: var(--text); }
+  .tab[aria-current="page"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); border-radius: 2px; }
+  .tabs .spacer { flex: 1; }
+  .tabs .iconbtn { width: 28px; height: 28px; margin-bottom: 6px; }
+
+  /* strip */
+  .strip { flex: none; min-height: 48px; display: flex; align-items: center; gap: 14px; padding: 0 24px; }
+  .views { display: flex; gap: 2px; padding: 2px; border-radius: var(--r-control); background: var(--canvas); border: 1px solid var(--border); }
+  .views button { height: 24px; padding: 0 10px; border-radius: var(--r-key); font-size: var(--t-small); font-weight: 500; color: var(--muted); white-space: nowrap; }
+  .views button:hover { color: var(--text); }
+  .views button[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06); }
+  .strip .spacer { flex: 1; }
+  .totals { display: flex; align-items: center; gap: 14px; font-size: var(--t-small); color: var(--muted); }
+  .totals b { font-weight: 500; color: var(--text); }
+  .net { width: 96px; height: 6px; display: flex; gap: 2px; border-radius: 9999px; overflow: hidden; background: #0a0d13; box-shadow: inset 0 1px 2px rgb(0 0 0 / .6), 0 1px 0 rgb(255 255 255 / .035); }
+  .net i { display: block; height: 100%; }
+  .live { height: 22px; display: inline-flex; align-items: center; gap: 7px; padding: 0 9px; border-radius: 11px; font-size: var(--t-caption); font-weight: 500; color: var(--session-strong); background: var(--session-soft); border: 1px solid var(--session-line); white-space: nowrap; }
+  .orb { width: 7px; height: 7px; border-radius: 9999px; background: var(--session); box-shadow: 0 0 0 0 var(--session-line); animation: pulse 2s ease-out infinite; flex: none; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 var(--session-line); } 70%, 100% { box-shadow: 0 0 0 6px transparent; } }
+
+  /* split */
+  .split { flex: 1; min-height: 0; display: grid; grid-template-columns: 400px minmax(0, 1fr); gap: 0; margin: 0 24px 20px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); overflow: hidden; box-shadow: inset 0 1px 0 rgb(255 255 255 / .05), 0 1px 2px rgb(0 0 0 / .35), 0 6px 12px -8px rgb(0 0 0 / .45); }
+  .list { min-height: 0; overflow-y: auto; border-right: 1px solid var(--border); padding-bottom: 12px; }
+  .detail { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--canvas); }
+
+  .dir { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 14px; font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 1; }
+  .dir .n { margin-left: auto; font-family: var(--font-sans); }
+  .row { position: relative; width: 100%; min-height: 36px; display: flex; align-items: center; gap: 9px; padding: 0 14px; border-bottom: 1px solid transparent; transition: background 140ms; }
+  .row:hover { background: var(--raised); }
+  .row[aria-current="true"] { background: var(--raised); }
+  .row[aria-current="true"]::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 2px; border-radius: 2px; background: var(--accent); }
+  .kind { width: 14px; font: 500 var(--t-micro) var(--font-mono); color: var(--subtle); text-align: center; flex: none; }
+  .fname { flex: 1; min-width: 0; font: 400 var(--t-small) var(--font-mono); color: var(--text); }
+  .steps { display: flex; gap: 3px; flex: none; }
+  .stp { min-width: 20px; height: 18px; padding: 0 4px; display: inline-grid; place-items: center; border: 1px solid var(--border-strong); border-radius: var(--r-key); font: 400 var(--t-micro) var(--font-mono); color: var(--muted); }
+  .stp.run { border-color: var(--session-line); color: var(--session-strong); background: var(--session-soft); }
+  .delta { flex: none; width: 74px; text-align: right; font: 400 var(--t-caption) var(--font-mono); }
+  .unc { flex: none; font-size: var(--t-micro); color: var(--session-strong); border: 1px dashed var(--session-line); border-radius: var(--r-key); padding: 0 5px; line-height: 16px; }
+
+  .stephead { display: flex; align-items: center; gap: 9px; padding: 14px 14px 6px; }
+  .stephead .t { flex: 1; min-width: 0; font-size: var(--t-small); font-weight: 600; }
+  .stephead .s { font-size: var(--t-caption); color: var(--subtle); white-space: nowrap; }
+  .seal { width: 16px; height: 16px; flex: none; }
+  .crow { position: relative; padding-left: 14px; }
+  .crow .row { padding-left: 34px; }
+  .crow::before { content: ''; position: absolute; left: 21px; top: 0; bottom: 0; width: 1.5px; background: var(--border-strong); }
+  .crow:first-of-type::before { top: 18px; }
+  .crow:last-of-type::before { bottom: calc(100% - 18px); }
+  .crow .node { position: absolute; left: 17px; top: 14px; width: 9px; height: 9px; border-radius: 9999px; border: 1.5px solid var(--border-field); background: var(--surface); z-index: 1; }
+  .crow .row[aria-current="true"] ~ .node, .crow.sel .node { border-color: var(--accent); }
+  .crow.wt .node { border-color: var(--session); background: var(--session-soft); }
+  .hash { flex: none; font: 400 var(--t-micro) var(--font-mono); color: var(--muted); background: var(--canvas); border: 1px solid var(--border-strong); border-radius: var(--r-control); padding: 1px 6px; }
+  .csub { flex: 1; min-width: 0; font-size: var(--t-small); color: var(--muted); }
+  .row[aria-current="true"] .csub, .row:hover .csub { color: var(--text); }
+  .when { flex: none; font-size: var(--t-micro); color: var(--subtle); }
+
+  /* detail */
+  .dhead { flex: none; padding: 14px 20px 12px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .dpath { font: 400 var(--t-body) var(--font-mono); color: var(--text); word-break: break-all; }
+  .dpath span { color: var(--subtle); }
+  .dmeta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 6px; font-size: var(--t-caption); color: var(--subtle); }
+  .dmeta .m { font-family: var(--font-mono); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .cchip { height: 24px; display: inline-flex; align-items: center; gap: 7px; padding: 0 9px 0 6px; border: 1px solid var(--border-strong); border-radius: var(--r-control); background: var(--raised); font-size: var(--t-caption); color: var(--muted); }
+  .cchip:hover { color: var(--text); background: var(--hover); }
+  .cchip[aria-pressed="true"] { border-color: var(--accent); color: var(--text); }
+  .cchip .hash { background: none; border: 0; padding: 0; }
+  .dtitle { font-size: var(--t-title); font-weight: 600; letter-spacing: -0.01em; }
+  .dscroll { flex: 1; min-height: 0; overflow: auto; padding: 16px 20px 28px; display: grid; gap: 16px; align-content: start; }
+
+  .attr { display: flex; align-items: center; gap: 8px; min-height: 28px; padding: 0 2px 8px; font-size: var(--t-caption); color: var(--subtle); }
+  .attr .csub { color: var(--muted); }
+  .attr.wt { color: var(--session-strong); }
+  .hunk { min-width: 0; }
+  .code { font-variant-ligatures: none; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-control); background: var(--canvas); padding: 4px 0; font: 400 var(--t-caption)/1.6 var(--font-mono); }
+  .ln { display: grid; grid-template-columns: 44px 1fr; min-width: max-content; white-space: pre; color: var(--muted); }
+  .ln i { font-style: normal; text-align: right; padding-right: 12px; color: var(--subtle); user-select: none; }
+  .ln.a { background: var(--safe-soft); color: var(--safe); }
+  .ln.d { background: var(--danger-soft); color: var(--danger); }
+  .ln.h { color: var(--accent); }
+  .ln.e { color: var(--subtle); font-family: var(--font-sans); }
+  details.file { border: 1px solid var(--border); border-radius: var(--r-control); background: var(--surface); }
+  details.file > summary { list-style: none; display: flex; align-items: center; gap: 9px; height: 34px; padding: 0 12px; cursor: pointer; }
+  details.file > summary::-webkit-details-marker { display: none; }
+  details.file[open] > summary { border-bottom: 1px solid var(--border); }
+  details.file .caret { width: 12px; height: 12px; color: var(--subtle); transition: transform 140ms; }
+  details.file[open] .caret { transform: rotate(90deg); }
+  details.file .code { border: 0; border-radius: 0 0 var(--r-control) var(--r-control); }
+  .empty { padding: 28px 20px; color: var(--subtle); font-size: var(--t-small); }
+
+  .note { cursor: pointer; position: fixed; right: 16px; bottom: 16px; width: 316px; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--surface); box-shadow: 0 10px 22px -8px rgb(0 0 0 / .65); font-size: var(--t-caption); color: var(--muted); line-height: 1.5; }
+  .note b { color: var(--text); font-weight: 500; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-tag" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8.6 2H13a1 1 0 0 1 1 1v4.4a1 1 0 0 1-.3.7l-5.6 5.6a1 1 0 0 1-1.4 0L2.3 9.3a1 1 0 0 1 0-1.4L7.9 2.3a1 1 0 0 1 .7-.3Z"/><circle cx="11" cy="5" r=".8" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 11.5a6 6 0 1 1 12 0"/><path d="m8 11 2.4-3.4"/></symbol>
+    <symbol id="i-branch" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="4.5" cy="3.5" r="1.6"/><circle cx="4.5" cy="12.5" r="1.6"/><circle cx="11.5" cy="5.5" r="1.6"/><path d="M4.5 5.1v5.8M11.5 7.1c0 2.4-2.4 2.9-7 3.4"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M6 2.5v11"/></symbol>
+    <symbol id="i-width" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3v10M14 3v10M5 8h6M5 8l1.6-1.6M5 8l1.6 1.6M11 8 9.4 6.4M11 8l-1.6 1.6"/></symbol>
+    <symbol id="i-commit" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2.6"/><path d="M1.5 8h3.9M10.6 8h3.9"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="m5 6.5 2 1.5-2 1.5M8.5 10h2.5"/></symbol>
+    <symbol id="i-play" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.2v9.6a.6.6 0 0 0 .9.5l7.4-4.8a.6.6 0 0 0 0-1L5.9 2.7a.6.6 0 0 0-.9.5Z"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 2.5 3.5 3.5-3.5 3.5"/></symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <header class="topbar">
+    <span class="brand">Rekall</span>
+    <div class="search"><span>Search or type an anchor</span><kbd>⌘K</kbd></div>
+    <div class="capsule"><span>1 session</span><span>42% usage</span></div>
+  </header>
+
+  <div class="page">
+    <header class="head">
+      <div class="crumbs">
+        <nav aria-label="Where this task is"><a>Work</a><span>/</span><a>VFORGE · Rekall vR</a></nav>
+        <div class="actions">
+          <button class="btn secondary"><svg><use href="#i-commit"/></svg>Log commit</button>
+          <button class="btn primary"><svg><use href="#i-play"/></svg>Run in console</button>
+          <button class="btn secondary"><svg><use href="#i-terminal"/></svg>Open terminal</button>
+        </div>
+      </div>
+      <h1>Open task sessions in the floating terminal by default</h1>
+    </header>
+
+    <div class="body">
+      <aside class="rail" aria-label="Task properties">
+        <div class="rail-top"><button class="iconbtn" aria-label="Show the properties bar"><svg style="transform:scaleX(-1)"><use href="#i-panel"/></svg></button></div>
+        <div class="rail-icons">
+          <button class="iconbtn" title="Labels"><svg><use href="#i-tag"/></svg></button>
+          <button class="iconbtn" title="Context"><svg><use href="#i-gauge"/></svg></button>
+          <button class="iconbtn" title="Git"><svg><use href="#i-branch"/></svg><span class="badge">5</span></button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <nav class="tabs" aria-label="Task">
+          <a class="tab">Description</a>
+          <a class="tab">Plan <span class="c">3</span></a>
+          <a class="tab" aria-current="page">Changes <span class="c" id="tab-count">7</span></a>
+          <a class="tab">Wrapup</a>
+          <a class="tab">Notes <span class="c">1</span></a>
+          <a class="tab">Time</a>
+          <a class="tab">Deviations <span class="c">0</span></a>
+          <span class="spacer"></span>
+          <button class="iconbtn" title="Page width"><svg><use href="#i-width"/></svg></button>
+        </nav>
+
+        <div class="strip">
+          <div class="views" role="group" aria-label="Group changes by" id="by">
+            <button data-by="file" aria-pressed="true">By file</button>
+            <button data-by="commit" aria-pressed="false">By commit</button>
+          </div>
+          <div class="views" role="group" aria-label="Show changes of" id="steps"></div>
+          <span class="spacer"></span>
+          <span class="live" id="live"><span class="orb"></span>Session at work · 1 file not committed</span>
+          <div class="totals" id="totals"></div>
+        </div>
+
+        <div class="split">
+          <div class="list" id="list"></div>
+          <section class="detail" id="detail" aria-live="polite"></section>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<aside class="note">
+  <b>Mockup, synthetic data.</b> A Changes tab after Plan: what the sessions changed in the application for this task, by file (the net state) or by commit (the history). Filter to one step to see only that step's work. The properties rail is shown folded, as the page remembers it. Click a row, a commit chip or a step. Click this note to dismiss it.
+</aside>
+
+<script>
+  const STEPS = [
+    { n: 1, title: 'Float the terminal above the dock', state: 'done' },
+    { n: 2, title: 'Open sessions in the float by default', state: 'done' },
+    { n: 3, title: 'Cover the dock with tests and docs', state: 'running' }
+  ];
+
+  const COMMITS = {
+    a46fe40: { hash: 'a46fe40', subject: 'feat: floating terminal panel above the dock', step: 1, when: '3 h ago' },
+    '5c0d8b2': { hash: '5c0d8b2', subject: 'refactor: sessions panel emits the session to open', step: 2, when: '2 h ago' },
+    '72afd62': { hash: '72afd62', subject: 'feat: open task sessions in the floating terminal by default', step: 2, when: '2 h ago' },
+    e19b3f4: { hash: 'e19b3f4', subject: 'test: the dock opens sessions in the float', step: 3, when: '41 min ago' },
+    '8d27c61': { hash: '8d27c61', subject: 'docs: describe the floating terminal', step: 3, when: '12 min ago' },
+    wt: { hash: 'wt', subject: 'Working tree', step: 3, when: 'now', live: true }
+  };
+
+  const FILES = [
+    { path: 'rekall-ui/src/components/shell/TerminalFloat.vue', kind: 'A', hunks: [
+      { commit: 'a46fe40', add: 92, del: 0, head: '@@ -0,0 +1,92 @@', lines: [
+        ['a', 1, '<scr' + 'ipt setup lang="ts">'],
+        ['a', 2, "import { computed } from 'vue'"],
+        ['a', 3, "import TerminalPane from '@/features/claude/components/TerminalPane.vue'"],
+        ['a', 4, ''],
+        ['a', 5, 'const props = defineProps<{ sessionId: TerminalSessionId }>()'],
+        ['a', 6, "const emit = defineEmits<{ close: [] }>()"],
+        ['a', 7, ''],
+        ['a', 8, 'const label = computed(() => `Session ${props.sessionId.slice(0, 6)}`)'],
+        ['a', 9, '<\/script>'],
+        ['e', '', '⋯ 83 more added lines']
+      ] }
+    ] },
+    { path: 'rekall-ui/src/components/shell/ShellDock.vue', kind: 'M', hunks: [
+      { commit: 'a46fe40', add: 19, del: 2, head: '@@ -41,8 +41,25 @@ const panel = ref<DockPanel | null>(null)', lines: [
+        ['c', 41, '  const sessions = useTerminalSessions()'],
+        ['d', '', "-  const open = ref(false)"],
+        ['a', 42, '  const floating = ref<TerminalSessionId | null>(null)'],
+        ['a', 43, ''],
+        ['a', 44, '  function openFloating(id: TerminalSessionId): void {'],
+        ['a', 45, '    floating.value = id'],
+        ['a', 46, '    panel.value = null'],
+        ['a', 47, '  }'],
+        ['e', '', '⋯ 12 more added lines'],
+        ['d', '', "-  function pick(id: TerminalSessionId): void { open.value = true }"],
+        ['c', 60, '']
+      ] },
+      { commit: '72afd62', add: 4, del: 2, head: '@@ -88,7 +103,9 @@ function onPick(id: TerminalSessionId): void {', lines: [
+        ['c', 103, '  if (session.kind === "task") {'],
+        ['d', '', '-    router.push({ name: "terminal", params: { id } })'],
+        ['d', '', '-    return'],
+        ['a', 104, '    openFloating(id)'],
+        ['a', 105, '    return'],
+        ['a', 106, '  }'],
+        ['a', 107, '  router.push({ name: "terminal", params: { id } })'],
+        ['c', 108, '}']
+      ] }
+    ] },
+    { path: 'rekall-ui/src/components/shell/TerminalSessionsPanel.vue', kind: 'M', hunks: [
+      { commit: '5c0d8b2', add: 3, del: 2, head: '@@ -19,7 +19,8 @@ const emit = defineEmits<{', lines: [
+        ['c', 19, '  close: []'],
+        ['d', '', "-  pick: [session: TerminalSessionSummary]"],
+        ['d', '', "-  pickTask: [taskId: TaskId]"],
+        ['a', 20, "  pick: [id: TerminalSessionId, kind: 'task' | 'free']"],
+        ['a', 21, '  rename: [id: TerminalSessionId]'],
+        ['a', 22, '}>()'],
+        ['c', 23, '']
+      ] }
+    ] },
+    { path: 'rekall-ui/tests/unit/ShellDock.spec.ts', kind: 'M', hunks: [
+      { commit: 'e19b3f4', add: 81, del: 10, head: '@@ -12,10 +12,81 @@ describe(\'ShellDock\', () => {', lines: [
+        ['c', 12, "  it('lists the sessions in the panel', async () => {"],
+        ['d', '', '-    expect(wrapper.find(\'[data-testid="terminal-pane"]\').exists()).toBe(true)'],
+        ['a', 13, "    expect(wrapper.find('[data-testid=\"terminal-float\"]').exists()).toBe(true)"],
+        ['a', 14, '  })'],
+        ['a', 15, ''],
+        ['a', 16, "  it('opens a task session in the floating terminal', async () => {"],
+        ['e', '', '⋯ 72 more lines']
+      ] }
+    ] },
+    { path: 'rekall-ui/tests/unit/TerminalFloat.spec.ts', kind: 'A', hunks: [
+      { commit: 'wt', add: 64, del: 0, head: '@@ -0,0 +1,64 @@', lines: [
+        ['a', 1, "import { mount } from '@vue/test-utils'"],
+        ['a', 2, "import TerminalFloat from '@/components/shell/TerminalFloat.vue'"],
+        ['a', 3, ''],
+        ['a', 4, "describe('TerminalFloat', () => {"],
+        ['a', 5, "  it('emits close when the header close key is pressed', async () => {"],
+        ['e', '', '⋯ 59 more added lines']
+      ] }
+    ] },
+    { path: 'docs/design/console-ui.md', kind: 'M', hunks: [
+      { commit: '8d27c61', add: 2, del: 0, head: '@@ -141,3 +141,5 @@ ## Dock', lines: [
+        ['c', 141, 'A terminal session picked from its sessions sheet opens in a floating terminal'],
+        ['a', 142, 'panel above the capsule instead of the full terminal pane; a task session does so'],
+        ['a', 143, 'by default, a free terminal still opens in the pane.']
+      ] }
+    ] },
+    { path: 'DESIGN.md', kind: 'M', hunks: [
+      { commit: '8d27c61', add: 1, del: 1, head: '@@ -163,7 +163,7 @@ ### Dock', lines: [
+        ['d', '', '-One capsule at the bottom left that opens a panel above itself; one panel at a time.'],
+        ['a', 163, '+One capsule at the bottom left that opens a panel above itself; one panel at a time. A task session opens in a floating terminal above the capsule.']
+      ] }
+    ] }
+  ];
+
+  const state = { by: 'file', step: 0, file: FILES[1].path, commit: '72afd62', hot: null };
+
+  const stepOf = (hunk) => COMMITS[hunk.commit].step;
+  const inScope = (hunk) => state.step === 0 || stepOf(hunk) === state.step;
+  const hunksOf = (file) => file.hunks.filter(inScope);
+  const sum = (hunks, key) => hunks.reduce((total, hunk) => total + hunk[key], 0);
+  const esc = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const dirOf = (path) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : 'repository root');
+  const nameOf = (path) => path.slice(path.lastIndexOf('/') + 1);
+  const delta = (add, del) => `<span class="delta num"><span class="add">+${add}</span> <span class="del">−${del}</span></span>`;
+  const stepTag = (n) => `<span class="stp ${n === 3 ? 'run' : ''}" title="Step ${n}: ${STEPS[n - 1].title}">${n}</span>`;
+
+  function seal(step) {
+    if (step.state === 'done') return '<svg class="seal" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" fill="#14804f" stroke="#a6f2cd" stroke-width="1"/><path d="m5 8.2 2.2 2.2L11 6.3" stroke="#03200f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    return '<svg class="seal" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="#7c83f7" stroke-width="1.5" stroke-dasharray="3 2.4"/><circle cx="8" cy="8" r="2.4" fill="#7c83f7"/></svg>';
+  }
+
+  function renderStepFilter() {
+    const buttons = [`<button data-step="0" aria-pressed="${state.step === 0}">All steps</button>`]
+      .concat(STEPS.map((s) => `<button data-step="${s.n}" aria-pressed="${state.step === s.n}" title="${s.title}">Step ${s.n}</button>`));
+    document.getElementById('steps').innerHTML = buttons.join('');
+  }
+
+  function renderTotals() {
+    const hunks = FILES.flatMap(hunksOf);
+    const files = FILES.filter((file) => hunksOf(file).length).length;
+    const commits = new Set(hunks.map((h) => h.commit).filter((c) => c !== 'wt')).size;
+    const add = sum(hunks, 'add'); const del = sum(hunks, 'del');
+    document.getElementById('totals').innerHTML =
+      `<span><b class="num">${files}</b> files</span><span><b class="num">${commits}</b> commits</span>` +
+      `<span class="mono num"><span class="add">+${add}</span> <span class="del">−${del}</span></span>` +
+      `<span class="net" role="img" aria-label="${add} added, ${del} removed"><i style="flex:${add};background:var(--safe)"></i><i style="flex:${Math.max(del, 1)};background:var(--danger)"></i></span>`;
+    document.getElementById('live').style.display = state.step === 0 || state.step === 3 ? '' : 'none';
+  }
+
+  function codeBlock(hunk) {
+    const rows = [`<div class="ln h"><i></i><span>${esc(hunk.head)}</span></div>`].concat(hunk.lines.map(([kind, no, text]) => {
+      if (kind === 'e') return `<div class="ln e"><i></i><span>${esc(text)}</span></div>`;
+      const mark = kind === 'a' ? '+' : kind === 'd' ? '' : ' ';
+      return `<div class="ln ${kind}"><i>${no}</i><span>${esc(kind === 'a' && !text.startsWith('+') ? mark + ' ' + text : text)}</span></div>`;
+    }));
+    return `<div class="code">${rows.join('')}</div>`;
+  }
+
+  function attribution(commit) {
+    const c = COMMITS[commit];
+    if (c.live) return `<div class="attr wt"><span class="orb"></span><span>Working tree, a session is writing it · not committed yet</span>${stepTag(c.step)}</div>`;
+    return `<div class="attr"><svg width="12" height="12"><use href="#i-commit"/></svg><span class="hash">${c.hash}</span><span class="csub trunc">${esc(c.subject)}</span>${stepTag(c.step)}<span class="when">${c.when}</span></div>`;
+  }
+
+  function renderFileList() {
+    const files = FILES.filter((file) => hunksOf(file).length);
+    const groups = new Map();
+    files.forEach((file) => groups.set(dirOf(file.path), [...(groups.get(dirOf(file.path)) || []), file]));
+    if (!files.some((f) => f.path === state.file)) state.file = files[0] ? files[0].path : null;
+    let html = '';
+    groups.forEach((rows, dir) => {
+      html += `<div class="dir"><span class="trunc">${dir}</span><span class="n">${rows.length}</span></div>`;
+      rows.forEach((file) => {
+        const hunks = hunksOf(file);
+        const steps = [...new Set(hunks.map(stepOf))].sort();
+        const live = hunks.some((h) => h.commit === 'wt');
+        html += `<button class="row" data-file="${file.path}" aria-current="${file.path === state.file}">
+          <span class="kind" title="${file.kind === 'A' ? 'Added' : 'Modified'}">${file.kind}</span>
+          <span class="fname trunc">${nameOf(file.path)}</span>
+          ${live ? '<span class="orb" title="Not committed: a session is writing this file"></span>' : ''}
+          <span class="steps">${steps.map(stepTag).join('')}</span>${delta(sum(hunks, 'add'), sum(hunks, 'del'))}</button>`;
+      });
+    });
+    document.getElementById('list').innerHTML = html || '<p class="empty">This step has not changed any file yet.</p>';
+  }
+
+  function renderFileDetail() {
+    const file = FILES.find((f) => f.path === state.file);
+    const el = document.getElementById('detail');
+    if (!file) { el.innerHTML = '<p class="empty">Nothing changed in this step yet.</p>'; return; }
+    const hunks = hunksOf(file);
+    const commits = [...new Set(hunks.map((h) => h.commit))];
+    const shown = state.hot && commits.includes(state.hot) ? hunks.filter((h) => h.commit === state.hot) : hunks;
+    const dir = dirOf(file.path);
+    const crumb = file.path.includes('/') ? `<span>${dir}/</span>` : '';
+    el.innerHTML = `<div class="dhead">
+        <div class="dpath">${crumb}${nameOf(file.path)}</div>
+        <div class="dmeta"><span>${file.kind === 'A' ? 'Added' : 'Modified'}</span><span class="mono num"><span class="add">+${sum(hunks, 'add')}</span> <span class="del">−${sum(hunks, 'del')}</span></span><span>${hunks.length} ${hunks.length === 1 ? 'change' : 'changes'} by sessions</span></div>
+        ${commits.length > 1 ? `<div class="chips" role="group" aria-label="Show changes of commit">${commits.map((c) => `<button class="cchip" data-chip="${c}" aria-pressed="${state.hot === c}"><span class="hash">${COMMITS[c].live ? 'working tree' : c}</span>${stepTag(COMMITS[c].step)}</button>`).join('')}</div>` : ''}
+      </div>
+      <div class="dscroll">${shown.map((h) => `<div class="hunk">${attribution(h.commit)}${codeBlock(h)}</div>`).join('')}</div>`;
+  }
+
+  function commitsOfStep(n) {
+    return Object.values(COMMITS).filter((c) => c.step === n && FILES.some((f) => f.hunks.some((h) => h.commit === c.hash)));
+  }
+
+  function commitStats(hash) {
+    const hunks = FILES.flatMap((f) => f.hunks.filter((h) => h.commit === hash));
+    return { files: hunks.length, add: sum(hunks, 'add'), del: sum(hunks, 'del') };
+  }
+
+  function renderCommitList() {
+    const steps = STEPS.filter((s) => state.step === 0 || s.n === state.step);
+    let html = '';
+    steps.forEach((step) => {
+      const commits = commitsOfStep(step.n).sort((a, b) => (b.live ? 1 : 0) - (a.live ? 1 : 0));
+      html += `<div class="stephead">${seal(step)}<span class="t trunc">${step.n}. ${step.title}</span><span class="s">${step.state === 'done' ? 'Done' : 'Session running'}</span></div>`;
+      commits.forEach((c) => {
+        const stats = commitStats(c.hash);
+        html += `<div class="crow ${c.live ? 'wt' : ''}"><span class="node"></span><button class="row" data-commit="${c.hash}" aria-current="${c.hash === state.commit}">
+          <span class="hash">${c.live ? 'now' : c.hash}</span><span class="csub trunc">${esc(c.subject)}</span>${delta(stats.add, stats.del)}</button></div>`;
+      });
+    });
+    if (!Object.values(COMMITS).some((c) => c.hash === state.commit && (state.step === 0 || c.step === state.step))) {
+      const first = steps.flatMap((s) => commitsOfStep(s.n))[0];
+      state.commit = first ? first.hash : null;
+    }
+    document.getElementById('list').innerHTML = html;
+  }
+
+  function renderCommitDetail() {
+    const c = COMMITS[state.commit];
+    const el = document.getElementById('detail');
+    if (!c) { el.innerHTML = '<p class="empty">No commit yet.</p>'; return; }
+    const stats = commitStats(c.hash);
+    const files = FILES.filter((f) => f.hunks.some((h) => h.commit === c.hash));
+    el.innerHTML = `<div class="dhead">
+        <div class="dtitle">${c.live ? 'Working tree' : esc(c.subject)}</div>
+        <div class="dmeta">${c.live ? '<span class="live"><span class="orb"></span>Session at work</span>' : `<span class="hash">${c.hash}</span>`}${stepTag(c.step)}<span>${STEPS[c.step - 1].title}</span><span>${c.when}</span>
+          <span class="mono num">${stats.files} ${stats.files === 1 ? 'file' : 'files'} <span class="add">+${stats.add}</span> <span class="del">−${stats.del}</span></span></div>
+      </div>
+      <div class="dscroll">${files.map((f, i) => {
+        const hunk = f.hunks.find((h) => h.commit === c.hash);
+        return `<details class="file" ${i === 0 ? 'open' : ''}><summary><svg class="caret"><use href="#i-chev"/></svg><span class="kind">${f.kind}</span><span class="fname trunc">${f.path}</span>${delta(hunk.add, hunk.del)}</summary>${codeBlock(hunk)}</details>`;
+      }).join('')}</div>`;
+  }
+
+  function render() {
+    document.querySelectorAll('#by button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.by === state.by)));
+    renderStepFilter();
+    renderTotals();
+    if (state.by === 'file') { renderFileList(); renderFileDetail(); } else { renderCommitList(); renderCommitDetail(); }
+  }
+
+  document.addEventListener('click', (event) => {
+    const hit = (selector) => event.target.closest(selector);
+    if (hit('[data-by]')) { state.by = hit('[data-by]').dataset.by; state.hot = null; }
+    else if (hit('[data-step]')) { state.step = Number(hit('[data-step]').dataset.step); state.hot = null; }
+    else if (hit('[data-file]')) { state.file = hit('[data-file]').dataset.file; state.hot = null; }
+    else if (hit('[data-commit]')) { state.commit = hit('[data-commit]').dataset.commit; }
+    else if (hit('[data-chip]')) { const chip = hit('[data-chip]').dataset.chip; state.hot = state.hot === chip ? null : chip; }
+    else return;
+    render();
+  });
+
+  const params = new URLSearchParams(location.hash.slice(1));
+  if (params.get('by') === 'commit') state.by = 'commit';
+  if (params.get('step')) state.step = Number(params.get('step'));
+  render();
+document.querySelector('.note').addEventListener('click', (e) => e.currentTarget.remove());
+</script>
+</body>
+</html>

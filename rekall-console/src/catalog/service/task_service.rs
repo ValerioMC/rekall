@@ -63,7 +63,6 @@ impl TaskService {
         apply_request(tx, &mut task, &command).await?;
         task.quick = command.quick;
         task.validate()?;
-        require_no_other_active_quick(tx, &task).await?;
         task.clone().into_active_model().insert(tx.db()).await?;
         if command.tracker_issue_key.is_none() {
             tx.publish(TaskCreatedEvent { task_id: task.id });
@@ -246,17 +245,6 @@ async fn number_again_when_moved(tx: &Tx, before: &task::Model, task: &mut task:
     let number = repo::task::next_number(tx.db(), project.id).await?;
     task.assign_code(&project.task_key, number);
     Ok(())
-}
-
-/// A quick task skips the review, so a project holds one at a time: it is for small changes, not a
-/// way round the review for large ones.
-async fn require_no_other_active_quick(tx: &Tx, task: &task::Model) -> Result<()> {
-    if !task.quick || !repo::task::active_quick_exists(tx.db(), task.project_id).await? {
-        return Ok(());
-    }
-    Err(RekallError::conflict(
-        "This project already has a quick task being worked. Wait for its wrapup, or use a regular task for this change.",
-    ))
 }
 
 #[cfg(test)]
