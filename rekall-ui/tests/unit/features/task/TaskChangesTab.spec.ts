@@ -6,7 +6,12 @@ import TaskChangesTab from '@/features/task/components/TaskChangesTab.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { fetchTaskChanges } from '@/features/commits/api/taskChanges.api'
 import type { Task } from '@/features/catalog/model/catalog'
-import type { ChangedFile, DiffLine, TaskChanges } from '@/features/commits/model/taskChanges'
+import type {
+  ChangedFile,
+  DiffLine,
+  RepositoryChanges,
+  TaskChanges
+} from '@/features/commits/model/taskChanges'
 import type { TaskStep } from '@/features/steps/model/task-step'
 import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
 
@@ -46,12 +51,62 @@ function file(path: string, additions: number, deletions: number, text: string):
   }
 }
 
+const PROJECT_COMMITS: RepositoryChanges['commits'] = [
+  {
+    referenceId: 'c1',
+    commitHash: 'aaa1111222',
+    subject: 'first change',
+    stepId,
+    loggedAt: '2026-10-01T09:00:00Z',
+    available: true,
+    truncated: false,
+    files: [file('src/dock.ts', 1, 1, 'dock'), file('src/float.ts', 1, 1, 'float')]
+  },
+  {
+    referenceId: 'c2',
+    commitHash: 'bbb2222333',
+    subject: 'second change',
+    stepId: null,
+    loggedAt: '2026-10-01T10:00:00Z',
+    available: true,
+    truncated: false,
+    files: [file('src/dock.ts', 1, 1, 'dock again')]
+  }
+]
+
 const CHANGES: TaskChanges = {
-  commits: [
-    { referenceId: 'c1', commitHash: 'aaa1111222', subject: 'first change', stepId, loggedAt: '2026-10-01T09:00:00Z', available: true, truncated: false, files: [file('src/dock.ts', 1, 1, 'dock'), file('src/float.ts', 1, 1, 'float')] },
-    { referenceId: 'c2', commitHash: 'bbb2222333', subject: 'second change', stepId: null, loggedAt: '2026-10-01T10:00:00Z', available: true, truncated: false, files: [file('src/dock.ts', 1, 1, 'dock again')] }
-  ],
-  workingTree: { truncated: false, files: [file('notes.md', 1, 0, 'notes')] }
+  repositories: [
+    {
+      componentId: null,
+      name: 'vega',
+      commits: PROJECT_COMMITS,
+      workingTree: { truncated: false, files: [file('notes.md', 1, 0, 'notes')] }
+    }
+  ]
+}
+
+const SITE_ID = '6b2f1c3a-0000-4000-8000-000000000001'
+const TWO_REPOSITORIES: TaskChanges = {
+  repositories: [
+    ...CHANGES.repositories,
+    {
+      componentId: SITE_ID,
+      name: 'site',
+      commits: [
+        {
+          referenceId: 'c3',
+          commitHash: 'ccc3333444',
+          subject: 'site change',
+          stepId: null,
+          loggedAt: '2026-10-01T11:00:00Z',
+          available: true,
+          truncated: false,
+          files: [file('src/dock.ts', 1, 1, 'site dock')]
+        }
+      ],
+      workingTree: null
+    }
+  ]
 }
 
 let pinia: Pinia
@@ -61,7 +116,16 @@ let tab: VueWrapper
 function mountTab(contextIds: readonly string[] = []): VueWrapper {
   const store = useConsoleStore()
   store.commitReferences = ['c1', 'c2'].map((id) => ({
-    id, taskId, stepId: null, stepTitle: null, commitHash: `${id}hash0000`, comment: `commit ${id}`, inContext: contextIds.includes(id), createdAt: '2026-10-01T09:00:00Z'
+    id,
+    taskId,
+    stepId: null,
+    stepTitle: null,
+    componentId: null,
+    componentName: null,
+    commitHash: `${id}hash0000`,
+    comment: `commit ${id}`,
+    inContext: contextIds.includes(id),
+    createdAt: '2026-10-01T09:00:00Z'
   }))
   store.tasks = [makeTask()]
   store.selectedTaskId = taskId
@@ -91,9 +155,14 @@ describe('TaskChangesTab', () => {
     mountTab()
     await flushPromises()
 
-    expect(tab.findAll('[data-testid="changed-file"]').map((section) => section.attributes('data-file-path'))).toEqual(['notes.md', 'src/dock.ts', 'src/float.ts'])
-    const dockHunks = tab.find('[data-file-path="src/dock.ts"]').findAll('[data-testid="hunk-origin"]')
-    expect(dockHunks.map((origin) => origin.text())).toEqual([expect.stringContaining('aaa1111'), expect.stringContaining('bbb2222')])
+    expect(
+      tab.findAll('[data-testid="changed-file"]').map((section) => section.attributes('data-file-id'))
+    ).toEqual(['project::notes.md', 'project::src/dock.ts', 'project::src/float.ts'])
+    const dockHunks = tab.find('[data-file-id="project::src/dock.ts"]').findAll('[data-testid="hunk-origin"]')
+    expect(dockHunks.map((origin) => origin.text())).toEqual([
+      expect.stringContaining('aaa1111'),
+      expect.stringContaining('bbb2222')
+    ])
     expect(tab.find('[data-testid="change-totals"]').text()).toContain('3 files')
   })
 
@@ -102,10 +171,15 @@ describe('TaskChangesTab', () => {
     mountTab()
     await flushPromises()
 
-    await tab.find('[data-file-path="src/dock.ts"]').findAll('[data-testid="hunk-origin"]')[1]!.trigger('click')
+    await tab
+      .find('[data-file-id="project::src/dock.ts"]')
+      .findAll('[data-testid="hunk-origin"]')[1]!
+      .trigger('click')
     await flushPromises()
 
-    expect(tab.findAll('[data-testid="changed-file"]').map((section) => section.attributes('data-file-path'))).toEqual(['src/dock.ts'])
+    expect(
+      tab.findAll('[data-testid="changed-file"]').map((section) => section.attributes('data-file-id'))
+    ).toEqual(['project::src/dock.ts'])
     expect(tab.find('[data-testid="change-scope-header"]').text()).toContain('second change')
     expect(tab.find('[data-testid="file-other-change"]').text()).toContain('earlier by aaa1111')
     expect(tab.find('[data-testid="hunk-origin"]').exists()).toBe(false)
@@ -176,7 +250,9 @@ describe('TaskChangesTab', () => {
     await tab.find('[data-testid="scope-working-tree"]').trigger('click')
     await flushPromises()
 
-    expect(tab.findAll('[data-testid="changed-file"]').map((section) => section.attributes('data-file-path'))).toEqual(['notes.md'])
+    expect(
+      tab.findAll('[data-testid="changed-file"]').map((section) => section.attributes('data-file-id'))
+    ).toEqual(['project::notes.md'])
     expect(tab.find('[data-testid="change-scope-header"]').text()).toContain('Working tree')
   })
 
@@ -185,10 +261,12 @@ describe('TaskChangesTab', () => {
     mountTab()
     await flushPromises()
 
-    await tab.find('[data-file-path="src/float.ts"] [data-testid="file-viewed"]').trigger('click')
+    await tab.find('[data-file-id="project::src/float.ts"] [data-testid="file-viewed"]').trigger('click')
 
-    expect(tab.find('[data-file-path="src/float.ts"] [data-testid="file-viewed-note"]').exists()).toBe(true)
-    expect(tab.find('[data-file-path="src/float.ts"] [data-testid="file-hunk"]').exists()).toBe(false)
+    expect(tab.find('[data-file-id="project::src/float.ts"] [data-testid="file-viewed-note"]').exists()).toBe(
+      true
+    )
+    expect(tab.find('[data-file-id="project::src/float.ts"] [data-testid="file-hunk"]').exists()).toBe(false)
     expect(tab.find('[data-testid="viewed-count"]').text()).toBe('1 of 3 viewed')
   })
 
@@ -204,8 +282,58 @@ describe('TaskChangesTab', () => {
     expect(tab.find('[data-testid="diff-hunk-rows"]').attributes('data-layout')).toBe('unified')
   })
 
+  it('shows no repository heading while the task changed one repository', async () => {
+    vi.mocked(fetchTaskChanges).mockResolvedValue(CHANGES)
+
+    mountTab()
+    await flushPromises()
+
+    expect(tab.find('[data-testid="change-repository-band"]').exists()).toBe(false)
+    expect(tab.find('[data-testid="scope-repository"]').exists()).toBe(false)
+    expect(tab.find('[data-testid="change-tree-repository-name"]').exists()).toBe(false)
+  })
+
+  it('groups the files by repository, keeping a path both repositories changed apart', async () => {
+    vi.mocked(fetchTaskChanges).mockResolvedValue(TWO_REPOSITORIES)
+
+    mountTab()
+    await flushPromises()
+
+    expect(tab.findAll('[data-testid="change-repository-band"]').map((band) => band.text())).toEqual([
+      expect.stringContaining('vega'),
+      expect.stringContaining('site')
+    ])
+    expect(
+      tab.findAll('[data-testid="changed-file"]').map((section) => section.attributes('data-file-id'))
+    ).toEqual([
+      'project::notes.md',
+      'project::src/dock.ts',
+      'project::src/float.ts',
+      `${SITE_ID}::src/dock.ts`
+    ])
+    expect(tab.findAll('[data-testid="change-tree-repository-name"]').map((name) => name.text())).toEqual([
+      expect.stringContaining('vega'),
+      expect.stringContaining('site')
+    ])
+    expect(tab.find('[data-testid="change-totals"]').text()).toContain('2 repositories')
+  })
+
+  it('reads one repository on its own from the track', async () => {
+    vi.mocked(fetchTaskChanges).mockResolvedValue(TWO_REPOSITORIES)
+    mountTab()
+    await flushPromises()
+
+    await tab.findAll('[data-testid="scope-repository"]')[1]!.trigger('click')
+    await flushPromises()
+
+    expect(
+      tab.findAll('[data-testid="changed-file"]').map((section) => section.attributes('data-file-id'))
+    ).toEqual([`${SITE_ID}::src/dock.ts`])
+    expect(tab.find('[data-testid="change-scope-header"]').text()).toContain('site')
+  })
+
   it('says so when nothing has changed yet', async () => {
-    vi.mocked(fetchTaskChanges).mockResolvedValue({ commits: [], workingTree: null })
+    vi.mocked(fetchTaskChanges).mockResolvedValue({ repositories: [] })
 
     mountTab()
     await flushPromises()

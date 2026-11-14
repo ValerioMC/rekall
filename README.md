@@ -113,7 +113,7 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_context` | read | Resolve anchors, return markdown |
 | `rekall_wrapup` | write | Replace one task's wrapup |
 | `rekall_step` | write | Move one step: `open` to `running` to `claimed`; on a flow, a claim's `outcome` follows that route and its `report` reaches the step it leads to |
-| `rekall_record_commit` | write | Log a commit of the project's repo folder against one task or step |
+| `rekall_record_commit` | write | Log a commit of the project's repo folder, or of one component's repository, against one task or step |
 | `rekall_propose_step` | write | Add one step, open and ready to work (`draft: true` leaves it for a person to promote); `new_session` makes it open a fresh Claude session |
 | `rekall_replan` | write | Replace a task's draft and open steps with a new checklist or flow in one transaction; running, claimed and done steps stay, and a refused plan deletes nothing |
 | `rekall_delete_step` | write | Delete one draft or open step; a running, claimed or done step is refused |

@@ -1,15 +1,20 @@
 <script setup lang="ts">
 import AppButton from '@/components/ui/AppButton.vue'
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { fetchRecentCommits } from '@/features/commits/api/commitReference.api'
+import { repositoryNameOf } from '@/features/commits/lib/repository-name'
+import { useSelectedProjectComponents } from '@/features/project/composables/useSelectedProjectComponents'
+import { useConsoleStore } from '@/stores/console.store'
 import { relativeTime } from '@/common/format/relative-time'
 import type { RecentCommit } from '@/features/commits/model/commitReference'
 import type { TaskId } from '@/model/branded'
 
 /**
- * The recent log of the task's project folder, anchored under the button that opened it, so a
- * commit can be logged by hand: pick a row, or paste a hash the log does not reach. It only
- * chooses; the button that hosts it does the logging and closes it.
+ * The recent log of the task's project folder, or of one component's repository when the project
+ * has components, anchored under the button that opened it, so a commit can be logged by hand: pick
+ * a row, or paste a hash the log does not reach. It only chooses; the button that hosts it does the
+ * logging and closes it.
  */
 const props = defineProps<{
   taskId: TaskId
@@ -21,10 +26,27 @@ const props = defineProps<{
   busy: boolean
 }>()
 
-const emit = defineEmits<{ pick: [hash: string]; close: [] }>()
+const emit = defineEmits<{ pick: [hash: string, componentId: string | null]; close: [] }>()
 
 const HASH = /^[0-9a-fA-F]{4,40}$/
 
+interface RepositoryChoice {
+  readonly componentId: string | null
+  readonly name: string
+}
+
+const { selectedTask } = storeToRefs(useConsoleStore())
+const projectComponents = useSelectedProjectComponents()
+const componentId = ref<string | null>(null)
+const choices = computed<readonly RepositoryChoice[]>(() => {
+  const components = projectComponents.value ?? []
+  if (components.length === 0) return []
+  const ownName = repositoryNameOf(selectedTask.value?.projectRepoFolder ?? null)
+  return [
+    { componentId: null, name: ownName },
+    ...components.map((component) => ({ componentId: component.id as string, name: component.name }))
+  ]
+})
 const commits = ref<RecentCommit[]>([])
 const loading = ref(true)
 const failure = ref<string | null>(null)
@@ -54,7 +76,7 @@ async function load(): Promise<void> {
   loading.value = true
   failure.value = null
   try {
-    commits.value = await fetchRecentCommits(props.taskId)
+    commits.value = await fetchRecentCommits(props.taskId, componentId.value)
   } catch (caught) {
     failure.value = caught instanceof Error ? caught.message : 'Could not read the recent commits.'
   } finally {
@@ -64,7 +86,14 @@ async function load(): Promise<void> {
 
 function pick(hash: string): void {
   if (props.busy) return
-  emit('pick', hash)
+  emit('pick', hash, componentId.value)
+}
+
+function chooseRepository(choice: RepositoryChoice): void {
+  if (choice.componentId === componentId.value) return
+  componentId.value = choice.componentId
+  commits.value = []
+  void load()
 }
 
 function submitPasted(): void {
@@ -125,6 +154,31 @@ onUnmounted(() => {
         >
           {{ commits.length }}
         </span>
+      </div>
+
+      <div
+        v-if="choices.length > 0"
+        class="flex gap-1 overflow-x-auto border-b border-border px-3 py-2"
+        role="group"
+        aria-label="Repository"
+        data-testid="commit-picker-repositories"
+      >
+        <button
+          v-for="choice in choices"
+          :key="choice.componentId ?? 'project'"
+          type="button"
+          class="focus-ring h-6.5 shrink-0 cursor-pointer rounded-control px-2.5 text-caption font-medium whitespace-nowrap transition-colors duration-(--motion-quick)"
+          :class="
+            choice.componentId === componentId
+              ? 'bg-surface-raised text-text shadow-[inset_0_-2px_0_var(--color-accent)]'
+              : 'text-text-muted hover:bg-surface-raised hover:text-text'
+          "
+          :aria-pressed="choice.componentId === componentId"
+          data-testid="commit-picker-repository"
+          @click="chooseRepository(choice)"
+        >
+          {{ choice.name }}
+        </button>
       </div>
 
       <div class="min-h-0 flex-1 overflow-y-auto py-1" data-testid="commit-picker-log">

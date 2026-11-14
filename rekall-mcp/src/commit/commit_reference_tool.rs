@@ -47,6 +47,11 @@ impl McpTool for CommitReferenceTool {
                 "The hash of the commit to log, abbreviated or full, when it is not the tip of the repo. Omitted logs \
                  the tip.",
             )
+            .optional_string(
+                "component",
+                "The name of a project component, when the commit was made in that component's repository. Omitted \
+                 reads the project's own folder.",
+            )
             .build()
     }
 
@@ -55,9 +60,10 @@ impl McpTool for CommitReferenceTool {
         let target = AnchoredTask::from(&Anchor::parse_all(Some(&args.required_string("anchors")?))?)?;
         let step = args.optional_string("step");
         let commit = args.optional_string("commit");
+        let component = args.optional_string("component");
         let logged = self
             .commit_references
-            .record_commit_by_anchor(target.project_label.as_deref(), &target.task_code, step.as_deref(), commit.as_deref())
+            .record_commit_by_anchor(target.project_label.as_deref(), &target.task_code, step.as_deref(), commit.as_deref(), component.as_deref())
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
         let where_ = match &logged.step_title {

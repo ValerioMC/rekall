@@ -38,7 +38,11 @@ const CommitChangesSchema = z.object({
   files: z.array(ChangedFileSchema)
 })
 
-export const TaskChangesSchema = z.object({
+const RepositoryChangesSchema = z.object({
+  componentId: z.string().uuid().nullable(),
+  name: z.string(),
   commits: z.array(CommitChangesSchema),
   workingTree: z.object({ truncated: z.boolean(), files: z.array(ChangedFileSchema) }).nullable()
 })
+
+export const TaskChangesSchema = z.object({ repositories: z.array(RepositoryChangesSchema) })

@@ -121,7 +121,7 @@ async fn the_body_names_the_issue_and_lists_the_commits_by_step() {
     repo::task_tracker_link::save(&world.ctx.db, link).await.unwrap();
     let step = task_step::Model::new(task.id, "Add the port".into(), 0, now);
     step.clone().into_active_model().insert(&world.ctx.db).await.unwrap();
-    let commit = commit_reference::Model { id: Id::random(), task_id: task.id, step_id: Some(step.id), commit_hash: "d044a3b1f2e9".into(), comment: "feat: Add the port".into(), diff: None, in_context: false, created_at: now };
+    let commit = commit_reference::Model { id: Id::random(), task_id: task.id, step_id: Some(step.id), component_id: None, commit_hash: "d044a3b1f2e9".into(), comment: "feat: Add the port".into(), diff: None, in_context: false, created_at: now };
     commit.into_active_model().insert(&world.ctx.db).await.unwrap();
 
     world.service.open_if_claimed(task.id).await.unwrap();

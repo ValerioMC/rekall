@@ -49,7 +49,15 @@ export interface WorkingTreeChanges {
   readonly files: readonly ChangedFile[]
 }
 
-export interface TaskChanges {
+/** What the task changed in one repository: the project's own folder (`componentId` null) or a component's. */
+export interface RepositoryChanges {
+  readonly componentId: string | null
+  readonly name: string
   readonly commits: readonly CommitChanges[]
   readonly workingTree: WorkingTreeChanges | null
+}
+
+/** The repositories the task touched, the project's own folder first. */
+export interface TaskChanges {
+  readonly repositories: readonly RepositoryChanges[]
 }

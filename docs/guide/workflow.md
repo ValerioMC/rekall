@@ -178,9 +178,9 @@ sequenceDiagram
 
 ## Commits
 
-A task, or one of its steps, keeps a ledger of the commits that built it: the hash, the commit's own subject line as the comment, and the diff it introduced, read from the project's **repo folder** (set on the project's page). The console shows the ledger under the description as a collapsible rail, and under each step's detail; a row is the hash, subject and step, with no diff: clicking it opens that commit in the **Changes** tab (`/task/:id/changes?commit=<reference id>`), and it can be deleted by hand.
+A task, or one of its steps, keeps a ledger of the commits that built it: the hash, the commit's own subject line as the comment, and the diff it introduced, read from the project's **repo folder** (set on the project's page), or from a **component**'s folder when the commit was made in that component's own repository. A commit remembers its component; none means the project's folder, and the rail groups the ledger by repository once it spans more than one. The console shows the ledger under the description as a collapsible rail, and under each step's detail; a row is the hash, subject and step, with no diff: clicking it opens that commit in the **Changes** tab (`/task/:id/changes?commit=<reference id>`), and it can be deleted by hand.
 
-**Log commit** on the description, or inside a running or claimed step, logs the tip of the repo. The chevron next to it opens a picker over the last 30 commits, newest first, with their subject and age, so an earlier commit can be logged against the task or step instead; rows already logged there are marked. A hash the log does not reach can be pasted in the same panel, abbreviated or full. A hash that names no commit is refused and nothing is written. Logging the same commit against the same task and step twice is a no-op.
+**Log commit** on the description, or inside a running or claimed step, logs the tip of the repo. The chevron next to it opens a picker over the last 30 commits, newest first, with their subject and age, so an earlier commit can be logged against the task or step instead; rows already logged there are marked. A project with components shows its repositories above the log, and the picked commit is logged against the repository whose log it came from. A hash the log does not reach can be pasted in the same panel, abbreviated or full. A hash that names no commit is refused and nothing is written. Logging the same commit against the same task and step twice is a no-op.
 
 A session does the same over MCP right after `git commit`:
 
@@ -188,11 +188,12 @@ A session does the same over MCP right after `git commit`:
 rekall_record_commit  anchors="task:VG-12"                 # the tip
 rekall_record_commit  anchors="task:VG-12" step="3"        # against step 3
 rekall_record_commit  anchors="task:VG-12" commit="a0fd5cc" # an earlier commit
+rekall_record_commit  anchors="task:VG-12" component="Site" # the tip of the Site component's repository
 ```
 
 A logged commit stays out of `rekall_context` until it is chosen for it. Each row ends in an always-visible check that chooses the commit, the rail fills the node of every chosen commit and counts them, and on the **Changes** tab a commit's header carries the labelled **Add to /rk context** button while its chip on the track shows a dot once chosen. A chosen commit travels with the task's context as a `<commit hash="…" step="…">` element inside `<commits>`: its subject, then its diff (capped at 60,000 characters), oldest logged first. Choosing is console-only; `rekall_record_commit` logs but never chooses.
 
-The REST side is `GET /api/commit-references`, `POST /api/tasks/{id}/commit-references/latest`, `POST /api/tasks/{id}/commit-references` (body `commitHash`, optional `stepId`), `GET /api/tasks/{id}/recent-commits`, `GET /api/tasks/{id}/changes` (every logged commit's files and hunks, oldest first, read from git with the stored diff as the fallback, and the uncommitted working tree), `GET /api/commit-references/{id}/diff`, `PATCH /api/commit-references/{id}` (body `inContext`) and `DELETE /api/commit-references/{id}`.
+The REST side is `GET /api/commit-references`, `POST /api/tasks/{id}/commit-references/latest`, `POST /api/tasks/{id}/commit-references` (body `commitHash`, optional `stepId` and `componentId`), `GET /api/tasks/{id}/recent-commits` (optional `componentId`), `GET /api/tasks/{id}/changes` (per repository: every logged commit's files and hunks, oldest first, read from git with the stored diff as the fallback, and the uncommitted working tree), `GET /api/commit-references/{id}/diff`, `PATCH /api/commit-references/{id}` (body `inContext`) and `DELETE /api/commit-references/{id}`.
 
 ### Commit on claim
 

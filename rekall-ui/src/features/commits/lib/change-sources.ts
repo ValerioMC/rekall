@@ -1,11 +1,19 @@
-import { WORKING_TREE_SOURCE_ID, type ChangeScope } from '@/features/commits/model/changeScope'
+import { PROJECT_REPOSITORY_ID, type ChangeScope } from '@/features/commits/model/changeScope'
 import type { ChangedFile, DiffHunk, TaskChanges } from '@/features/commits/model/taskChanges'
 import type { TaskStepState } from '@/features/steps/model/task-step'
 import type { TaskStepId } from '@/model/branded'
 
+/** A repository the task changed, by the place it has among them: the project's own folder first. */
+export interface RepositoryRef {
+  readonly id: string
+  readonly name: string
+  readonly position: number
+}
+
 /** One place changes come from: a logged commit, or the working tree a session is still writing. */
 export interface ChangeSource {
   readonly id: string
+  readonly repository: RepositoryRef
   readonly kind: 'commit' | 'working-tree'
   readonly commitHash: string | null
   readonly subject: string
@@ -24,6 +32,9 @@ export interface AttributedHunk {
 
 /** One file as the review shows it: the hunks of every source in scope that touched it, oldest first. */
 export interface ReviewFile {
+  /** The repository and the path together: two repositories can both have a `README.md`. */
+  readonly id: string
+  readonly repository: RepositoryRef
   readonly path: string
   readonly oldPath: string | null
   readonly kind: ChangedFile['kind']
@@ -34,57 +45,118 @@ export interface ReviewFile {
   readonly sources: readonly ChangeSource[]
 }
 
-/** The commits oldest first, then the working tree when it holds changes. */
+/** Every commit of every repository, oldest first, then each repository's working tree when it holds changes. */
 export function changeSources(changes: TaskChanges): readonly ChangeSource[] {
-  const commits = changes.commits.map<ChangeSource>((commit) => ({
-    id: commit.referenceId,
-    kind: 'commit',
-    commitHash: commit.commitHash,
-    subject: commit.subject,
-    stepId: commit.stepId,
-    loggedAt: commit.loggedAt,
-    available: commit.available,
-    truncated: commit.truncated,
-    files: commit.files
-  }))
-  if (changes.workingTree === null) return commits
-  const workingTree: ChangeSource = {
-    id: WORKING_TREE_SOURCE_ID,
-    kind: 'working-tree',
-    commitHash: null,
-    subject: 'Working tree',
-    stepId: null,
-    loggedAt: null,
-    available: true,
-    truncated: changes.workingTree.truncated,
-    files: changes.workingTree.files
-  }
-  return [...commits, workingTree]
+  const commits: ChangeSource[] = []
+  const workingTrees: ChangeSource[] = []
+  changes.repositories.forEach((repository, position) => {
+    const ref: RepositoryRef = {
+      id: repository.componentId ?? PROJECT_REPOSITORY_ID,
+      name: repository.name,
+      position
+    }
+    commits.push(
+      ...repository.commits.map<ChangeSource>((commit) => ({
+        id: commit.referenceId,
+        repository: ref,
+        kind: 'commit',
+        commitHash: commit.commitHash,
+        subject: commit.subject,
+        stepId: commit.stepId,
+        loggedAt: commit.loggedAt,
+        available: commit.available,
+        truncated: commit.truncated,
+        files: commit.files
+      }))
+    )
+    if (repository.workingTree !== null) {
+      workingTrees.push({
+        id: `working-tree:${ref.id}`,
+        repository: ref,
+        kind: 'working-tree',
+        commitHash: null,
+        subject: 'Working tree',
+        stepId: null,
+        loggedAt: null,
+        available: true,
+        truncated: repository.workingTree.truncated,
+        files: repository.workingTree.files
+      })
+    }
+  })
+  return [
+    ...commits.sort((a, b) => Date.parse(a.loggedAt ?? '') - Date.parse(b.loggedAt ?? '')),
+    ...workingTrees
+  ]
+}
+
+/** The repositories the sources come from, in the order the task's changes listed them. */
+export function repositoriesOf(sources: readonly ChangeSource[]): readonly RepositoryRef[] {
+  const byId = new Map<string, RepositoryRef>()
+  for (const source of sources) byId.set(source.repository.id, source.repository)
+  return [...byId.values()].sort((a, b) => a.position - b.position)
+}
+
+/** The scope that reads just this source: its commit, or its repository's working tree. */
+export function scopeOfSource(source: ChangeSource): ChangeScope {
+  return source.kind === 'working-tree'
+    ? { kind: 'working-tree', repositoryId: source.repository.id }
+    : { kind: 'commit', referenceId: source.id }
 }
 
 export function sourcesInScope(sources: readonly ChangeSource[], scope: ChangeScope): readonly ChangeSource[] {
   if (scope.kind === 'all') return sources
-  if (scope.kind === 'step') return sources.filter((source) => source.kind === 'commit' && source.stepId === scope.stepId)
-  if (scope.kind === 'working-tree') return sources.filter((source) => source.kind === 'working-tree')
+  if (scope.kind === 'step')
+    return sources.filter((source) => source.kind === 'commit' && source.stepId === scope.stepId)
+  if (scope.kind === 'repository')
+    return sources.filter((source) => source.repository.id === scope.repositoryId)
+  if (scope.kind === 'working-tree')
+    return sources.filter(
+      (source) => source.kind === 'working-tree' && source.repository.id === scope.repositoryId
+    )
   return sources.filter((source) => source.id === scope.referenceId)
 }
 
-/** The files of `sources` by path, each with its hunks in source order. */
+/** The files of `sources` by repository and path, each with its hunks in source order. */
 export function reviewFiles(sources: readonly ChangeSource[]): readonly ReviewFile[] {
-  const byPath = new Map<string, { file: ChangedFile; last: ChangedFile; sources: ChangeSource[]; hunks: AttributedHunk[]; additions: number; deletions: number }>()
+  const byId = new Map<
+    string,
+    {
+      id: string
+      repository: RepositoryRef
+      file: ChangedFile
+      last: ChangedFile
+      sources: ChangeSource[]
+      hunks: AttributedHunk[]
+      additions: number
+      deletions: number
+    }
+  >()
   for (const source of sources) {
     for (const file of source.files) {
-      const entry = byPath.get(file.path) ?? { file, last: file, sources: [], hunks: [], additions: 0, deletions: 0 }
+      const id = fileIdOf(source.repository, file.path)
+      const entry = byId.get(id) ?? {
+        id,
+        repository: source.repository,
+        file,
+        last: file,
+        sources: [],
+        hunks: [],
+        additions: 0,
+        deletions: 0
+      }
       entry.last = file
       entry.sources.push(source)
       entry.hunks.push(...file.hunks.map((hunk) => ({ hunk, source })))
       entry.additions += file.additions
       entry.deletions += file.deletions
-      byPath.set(file.path, entry)
+      byId.set(id, entry)
     }
   }
-  return [...byPath.values()]
-    .map<ReviewFile>(({ file, last, sources: touching, hunks, additions, deletions }) => ({
+  return [...byId.values()]
+    .map<ReviewFile>(({ id, repository, file, last, sources: touching, hunks, additions, deletions }) => ({
+      id,
+      repository,
       path: file.path,
       oldPath: file.oldPath,
       kind: last.kind === 'DELETED' ? 'DELETED' : file.kind,
@@ -94,7 +166,11 @@ export function reviewFiles(sources: readonly ChangeSource[]): readonly ReviewFi
       hunks,
       sources: touching
     }))
-    .sort((a, b) => a.path.localeCompare(b.path))
+    .sort((a, b) => a.repository.position - b.repository.position || a.path.localeCompare(b.path))
+}
+
+function fileIdOf(repository: RepositoryRef, path: string): string {
+  return `${repository.id}::${path}`
 }
 
 export interface ChangeTotals {
@@ -143,11 +219,23 @@ export interface OtherChange {
   readonly when: 'earlier' | 'later'
 }
 
-/** The sources outside the scope that also changed `path`, and whether each came before or after the ones in it. */
-export function otherChanges(path: string, all: readonly ChangeSource[], inScope: readonly ChangeSource[]): readonly OtherChange[] {
+/** The sources outside the scope that also changed `file` in its repository, and whether each came before or after the ones in it. */
+export function otherChanges(
+  file: ReviewFile,
+  all: readonly ChangeSource[],
+  inScope: readonly ChangeSource[]
+): readonly OtherChange[] {
   const firstInScope = all.findIndex((source) => inScope.includes(source))
   return all
     .map((source, index) => ({ source, index }))
-    .filter(({ source }) => !inScope.includes(source) && source.files.some((file) => file.path === path))
-    .map(({ source, index }) => ({ source, when: index < firstInScope ? ('earlier' as const) : ('later' as const) }))
+    .filter(
+      ({ source }) =>
+        !inScope.includes(source) &&
+        source.repository.id === file.repository.id &&
+        source.files.some((changed) => changed.path === file.path)
+    )
+    .map(({ source, index }) => ({
+      source,
+      when: index < firstInScope ? ('earlier' as const) : ('later' as const)
+    }))
 }

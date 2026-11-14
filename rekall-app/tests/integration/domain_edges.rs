@@ -30,7 +30,7 @@ const STORE: LayeredCrate = LayeredCrate {
     allowed: &[
         ("catalog", &["task"]),
         ("check", &["catalog", "step", "task"]),
-        ("commit", &["step", "task"]),
+        ("commit", &["component", "step", "task"]),
         ("component", &["catalog"]),
         ("connection", &["catalog", "task"]),
         ("dependency", &["task"]),
@@ -67,7 +67,7 @@ const CORE: LayeredCrate = LayeredCrate {
         ("chat", &["claude"]),
         ("claude", &["catalog", "connection", "flow", "task"]),
         ("check", &[]),
-        ("commit", &["catalog", "step", "task"]),
+        ("commit", &["catalog", "component", "step", "task"]),
         ("component", &["connection", "task"]),
         ("connection", &["task", "tracker"]),
         ("context", &["catalog", "commit", "component", "connection", "dependency", "deviation", "feedback", "note", "section", "step", "tag", "task", "wrapup"]),

@@ -12,6 +12,8 @@ function reference(inContext: boolean): CommitReference {
     taskId: 't1' as TaskId,
     stepId: null,
     stepTitle: null,
+    componentId: null,
+    componentName: null,
     commitHash: 'abc1234def',
     comment: 'Wire up the button',
     inContext,

@@ -1,12 +1,12 @@
 //! The console's commit controls: log a task's tip commit, pick one from its recent log, or paste
 //! a hash, the same logic `rekall_record_commit` uses.
 
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::routing::{get, patch, post};
 use axum::{Json, Router};
 use rekall_core::commit::{CommitReferenceView, RecentCommitView, TaskChangesView};
 
-use crate::commit::{CommitReferenceContextRequest, CommitReferenceDiffResponse, CommitReferenceRequest, PickedCommitReferenceRequest};
+use crate::commit::{CommitReferenceContextRequest, CommitReferenceDiffResponse, CommitReferenceRequest, PickedCommitReferenceRequest, RecentCommitsQuery};
 use crate::shared::error::ApiResult;
 use crate::shared::extract::{uuid, JsonBody, OptionalJsonBody, Validator};
 use crate::ApiState;
@@ -36,9 +36,14 @@ async fn record_latest(
     Ok(Json(state.commit_references.record_latest_commit(task_id, step_id).await?))
 }
 
-/// What the picker lists: the newest commits of the task's project folder, without their diffs.
-async fn recent_commits(State(state): State<ApiState>, Path(task_id): Path<String>) -> ApiResult<Json<Vec<RecentCommitView>>> {
-    Ok(Json(state.commit_references.recent_commits(uuid("taskId", &task_id)?).await?))
+/// What the picker lists: the newest commits of the task's project folder, or of one component's
+/// repository, without their diffs.
+async fn recent_commits(
+    State(state): State<ApiState>,
+    Path(task_id): Path<String>,
+    Query(query): Query<RecentCommitsQuery>,
+) -> ApiResult<Json<Vec<RecentCommitView>>> {
+    Ok(Json(state.commit_references.recent_commits(uuid("taskId", &task_id)?, query.component_id).await?))
 }
 
 /// A commit chosen in the picker or pasted by hand, logged by its hash.
@@ -52,7 +57,7 @@ async fn record(
     Ok(Json(
         state
             .commit_references
-            .record_commit(task_id, request.step_id, request.commit_hash.as_deref())
+            .record_commit(task_id, request.step_id, request.commit_hash.as_deref(), request.component_id)
             .await?,
     ))
 }

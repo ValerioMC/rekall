@@ -46,6 +46,8 @@ function commit(): CommitReference {
     taskId,
     stepId: null,
     stepTitle: null,
+    componentId: null,
+    componentName: null,
     commitHash: 'abc1234def',
     comment: 'Wire up the button',
     inContext: false,

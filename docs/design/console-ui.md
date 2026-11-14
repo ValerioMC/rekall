@@ -171,10 +171,16 @@ step editor, so a title or detail typed in the panel is saved as it was in the o
 
 **Changes** reads what the sessions changed in the application as a code review (`TaskChangesTab`,
 data from `GET /api/tasks/{id}/changes`). A track along the top picks what is compared: **All changes**
-(each file as the logged commits left it), a **step** (the commits logged against it), one **commit**,
-or the **working tree** a session has not committed yet (indigo, with a pulsing dot). A file tree on
-the left lists every file of the task by folder with its added and removed lines in the chosen scope;
+(each file as the logged commits left it), a **repository** (only when the task changed more than
+one), a **step** (the commits logged against it), one **commit**, or a **working tree** a session has
+not committed yet (indigo, with a pulsing dot), one per repository. A file tree on
+the left lists every file of the task as folders that open and close, with its added and removed lines in
+the chosen scope (a folder shows the sum of the files below it); a folder that holds only another
+folder reads as one element (`rekall-core/src/commit/model`), as an IDE compacts empty packages, and
+the arrow keys move through the rows and open or close a folder;
 a file the scope does not touch stays listed as "not in this" and opens All changes when pressed.
+With several repositories the tree and the column open each group with the repository's name and
+its own totals; with one, nothing is added. Files are told apart by repository and path.
 The column on the right is one continuous diff with a sticky header per file: **Split** (old file
 beside new) or **Unified**, real old and new line numbers, the words an edit changed marked inside
 a changed line, and keyword and comment weight with no new palette. In All changes and a step each hunk

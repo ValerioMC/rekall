@@ -122,7 +122,7 @@ impl AutoCommitService {
         let message = CommitMessageGenerator::generate(&subject, &changes.own, session_message);
         let hash = self.committer.commit_paths(folder, &changes.own, &message).await?;
         info!(%hash, folder = %shown, task = %task.label, step = step.map(|s| s.title.as_str()).unwrap_or("-"), "Auto-committed");
-        let logged = self.references.record_commit_in(tx, task.id, step.map(|s| s.id), Some(&hash)).await?;
+        let logged = self.references.record_commit_in(tx, task.id, step.map(|s| s.id), Some(&hash), None).await?;
         let outcome = AutoCommitOutcome::committed(logged).leaving_out(left_out);
         Ok(if missing_snapshot { outcome.without_snapshot() } else { outcome })
     }

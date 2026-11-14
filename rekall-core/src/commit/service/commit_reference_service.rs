@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 use regex::Regex;
 use rekall_kernel::{jstr, Id, RekallError, Result};
 use rekall_store::commit_reference::{self, COMMENT_MAX, DIFF_MAX};
-use rekall_store::{task, task_step};
+use rekall_store::{project_component, task, task_step};
 use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
@@ -39,11 +39,11 @@ impl CommitReferenceService {
         })
     }
 
-    /// The recent log of the task's project folder, newest first.
-    pub async fn recent_commits(&self, task_id: Id) -> Result<Vec<RecentCommitView>> {
+    /// The recent log of the task's project folder, or of a component's repository, newest first.
+    pub async fn recent_commits(&self, task_id: Id, component_id: Option<Id>) -> Result<Vec<RecentCommitView>> {
         in_read!(&self.ctx, |tx| {
             let task = repo::task::require(tx.db(), task_id).await?;
-            let folder = repo_folder_of(&tx, &task).await?;
+            let folder = repo_folder_of(&tx, &task, component_id).await?.folder;
             let recent = self.git.recent(&folder, RECENT_LIMIT).await?;
             Ok::<_, RekallError>(recent.into_iter().map(RecentCommitView::of).collect())
         })
@@ -51,13 +51,19 @@ impl CommitReferenceService {
 
     /// From the console: the tip, against the task or a step of it.
     pub async fn record_latest_commit(&self, task_id: Id, step_id: Option<Id>) -> Result<CommitReferenceView> {
-        self.record_commit(task_id, step_id, None).await
+        self.record_commit(task_id, step_id, None, None).await
     }
 
     /// From the console's picker: a commit chosen from the recent log or pasted by hand. A blank
-    /// hash means the tip.
-    pub async fn record_commit(&self, task_id: Id, step_id: Option<Id>, commit_hash: Option<&str>) -> Result<CommitReferenceView> {
-        in_write!(&self.ctx, |tx| self.record_commit_in(&mut tx, task_id, step_id, commit_hash).await)
+    /// hash means the tip; no component means the project's own folder.
+    pub async fn record_commit(
+        &self,
+        task_id: Id,
+        step_id: Option<Id>,
+        commit_hash: Option<&str>,
+        component_id: Option<Id>,
+    ) -> Result<CommitReferenceView> {
+        in_write!(&self.ctx, |tx| self.record_commit_in(&mut tx, task_id, step_id, commit_hash, component_id).await)
     }
 
     pub async fn record_commit_in(
@@ -66,20 +72,22 @@ impl CommitReferenceService {
         task_id: Id,
         step_id: Option<Id>,
         commit_hash: Option<&str>,
+        component_id: Option<Id>,
     ) -> Result<CommitReferenceView> {
         let task = repo::task::require(tx.db(), task_id).await?;
         let step = resolve_step_by_id(tx, &task, step_id).await?;
-        self.record(tx, &task, step, commit_hash).await
+        self.record(tx, &task, step, commit_hash, component_id).await
     }
 
     /// From `rekall_record_commit`: anchored the way every other tool anchors a task, with an
-    /// optional step reference and an optional hash.
+    /// optional step reference, hash and component name.
     pub async fn record_commit_by_anchor(
         &self,
         project_label: Option<&str>,
         task_label: &str,
         step_ref: Option<&str>,
         commit_hash: Option<&str>,
+        component_name: Option<&str>,
     ) -> Result<CommitReferenceView> {
         in_write!(&self.ctx, |tx| {
             let task = load::resolve_task(tx.db(), project_label, task_label).await?;
@@ -87,7 +95,11 @@ impl CommitReferenceService {
                 None => None,
                 Some(reference) => Some(resolve_step_by_ref(&tx, &task, reference).await?),
             };
-            self.record(&mut tx, &task, step, commit_hash).await
+            let component_id = match component_name.filter(|name| !jstr::is_blank(name)) {
+                None => None,
+                Some(name) => Some(resolve_component_by_name(&tx, &task, name).await?.id),
+            };
+            self.record(&mut tx, &task, step, commit_hash, component_id).await
         })
     }
 
@@ -97,8 +109,9 @@ impl CommitReferenceService {
         task: &task::Model,
         step: Option<task_step::Model>,
         commit_hash: Option<&str>,
+        component_id: Option<Id>,
     ) -> Result<CommitReferenceView> {
-        let folder = repo_folder_of(tx, task).await?;
+        let RepositoryFolder { folder, component } = repo_folder_of(tx, task, component_id).await?;
         let commit = match commit_hash.filter(|h| !jstr::is_blank(h)) {
             None => self.git.head(&folder).await?,
             Some(hash) => self.git.commit(&folder, jstr::strip(hash)).await?,
@@ -106,7 +119,7 @@ impl CommitReferenceService {
         let step_id = step.as_ref().map(|s| s.id);
 
         let existing = repo::commit_reference::find_on_task(tx.db(), task.id, &commit.hash).await?;
-        if let Some(found) = existing.into_iter().find(|reference| reference.step_id == step_id) {
+        if let Some(found) = existing.into_iter().find(|reference| reference.step_id == step_id && reference.component_id == component_id) {
             return CommitReferenceView::load(tx.db(), &found).await;
         }
 
@@ -114,6 +127,7 @@ impl CommitReferenceService {
             id: Id::random(),
             task_id: task.id,
             step_id,
+            component_id,
             commit_hash: commit.hash.clone(),
             comment: truncated(&commit.subject),
             diff: truncated_diff(commit.diff.as_deref()),
@@ -122,7 +136,7 @@ impl CommitReferenceService {
         };
         reference.validate()?;
         reference.clone().into_active_model().insert(tx.db()).await?;
-        let logged = CommitReferenceView::of(&reference, step.as_ref());
+        let logged = CommitReferenceView::of(&reference, step.as_ref(), component.as_ref());
         tx.publish(CommitReferenceStreamEvent {
             task_id: logged.task_id,
             reference: logged.clone(),
@@ -165,11 +179,40 @@ impl CommitReferenceService {
     }
 }
 
-async fn repo_folder_of(tx: &Tx, task: &task::Model) -> Result<PathBuf> {
+struct RepositoryFolder {
+    folder: PathBuf,
+    component: Option<project_component::Model>,
+}
+
+async fn repo_folder_of(tx: &Tx, task: &task::Model, component_id: Option<Id>) -> Result<RepositoryFolder> {
+    if let Some(component_id) = component_id {
+        let component = require_component_of_project(tx, task, component_id).await?;
+        return Ok(RepositoryFolder { folder: PathBuf::from(jstr::strip(&component.folder)), component: Some(component) });
+    }
     let project = load::project_of(tx.db(), task).await?;
     match task.work_folder(&project) {
         None => Err(RekallError::illegal("Set this project's folder on its page before logging a commit here.")),
-        Some(folder) => Ok(PathBuf::from(jstr::strip(folder))),
+        Some(folder) => Ok(RepositoryFolder { folder: PathBuf::from(jstr::strip(folder)), component: None }),
+    }
+}
+
+async fn require_component_of_project(tx: &Tx, task: &task::Model, component_id: Id) -> Result<project_component::Model> {
+    let component = repo::project_component::require(tx.db(), component_id).await?;
+    if component.project_id != task.project_id {
+        return Err(RekallError::illegal("That component does not belong to this task's project."));
+    }
+    Ok(component)
+}
+
+async fn resolve_component_by_name(tx: &Tx, task: &task::Model, name: &str) -> Result<project_component::Model> {
+    let components = repo::project_component::list_of_project(tx.db(), task.project_id).await?;
+    let wanted = jstr::strip(name);
+    match components.iter().find(|component| jstr::equals_ignore_case(jstr::strip(&component.name), wanted)) {
+        Some(component) => Ok(component.clone()),
+        None => {
+            let known: Vec<&str> = components.iter().map(|component| component.name.as_str()).collect();
+            Err(RekallError::illegal(format!("No component named '{name}' in this project. Its components: {}.", if known.is_empty() { "none".to_string() } else { known.join(", ") })))
+        }
     }
 }
 

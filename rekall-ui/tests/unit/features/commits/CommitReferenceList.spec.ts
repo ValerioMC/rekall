@@ -19,6 +19,8 @@ function reference(overrides: Partial<CommitReference> = {}): CommitReference {
     taskId,
     stepId: null,
     stepTitle: null,
+    componentId: null,
+    componentName: null,
     commitHash: 'abc1234def',
     comment: 'Wire up the button',
     inContext: false,
@@ -57,6 +59,39 @@ describe('CommitReferenceList', () => {
     await wrapper.get('[data-testid="commit-reference-open"]').trigger('click')
 
     expect(push).toHaveBeenCalledWith({ name: 'task', params: { id: taskId, tab: 'changes' }, query: { commit: 'c1' } })
+  })
+
+  it('shows no repository heading while every commit is from the project folder', () => {
+    const wrapper = render([reference({ id: 'c1' }), reference({ id: 'c2' })])
+
+    expect(wrapper.findAll('[data-testid="commit-reference-group"]')).toHaveLength(1)
+    expect(wrapper.find('[data-testid="commit-reference-repository"]').exists()).toBe(false)
+  })
+
+  it('groups the commits by repository, the project folder first, each group with its own rail', () => {
+    const wrapper = render([
+      reference({ id: 'c1', componentId: 'site-id', componentName: 'Site' }),
+      reference({ id: 'c2' }),
+      reference({ id: 'c3', componentId: 'site-id', componentName: 'Site' })
+    ])
+
+    const groups = wrapper.findAll('[data-testid="commit-reference-group"]')
+    expect(groups.map((group) => group.get('[data-testid="commit-reference-repository"]').text())).toEqual([
+      expect.stringContaining('Project folder'),
+      expect.stringContaining('Site')
+    ])
+    expect(groups.map((group) => group.findAll('[data-testid="commit-reference-row"]').length)).toEqual([1, 2])
+    expect(groups[1]!.findAll('[data-testid="commit-rail-below"]')).toHaveLength(1)
+  })
+
+  it('lets a long step title shrink so the context toggle never sits over the time ago', () => {
+    const wrapper = mount(CommitReferenceList, {
+      props: { references: [reference({ stepId, stepTitle: 'A step whose title is far longer than the rail can show' })], showStepTag: true }
+    })
+
+    expect(wrapper.get('[data-testid="commit-reference-open"]').classes()).toContain('flex-1')
+    expect(wrapper.get('[data-testid="commit-reference-open"]').classes()).not.toContain('w-full')
+    expect(wrapper.get('[data-testid="commit-reference-step-tag"]').classes()).toContain('shrink')
   })
 
   it('joins the commits with one rail that starts at the first and ends at the last', () => {

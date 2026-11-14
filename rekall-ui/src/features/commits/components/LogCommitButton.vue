@@ -76,8 +76,8 @@ async function log(): Promise<void> {
   await record(() => recordLatestCommit(props.taskId, props.stepId ?? null))
 }
 
-async function logPicked(hash: string): Promise<void> {
-  await record(() => recordCommit(props.taskId, props.stepId ?? null, hash))
+async function logPicked(hash: string, componentId: string | null): Promise<void> {
+  await record(() => recordCommit(props.taskId, props.stepId ?? null, hash, componentId))
 }
 
 function togglePicker(): void {

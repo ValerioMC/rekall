@@ -247,12 +247,14 @@ async fn a_tasks_changes_list_its_logged_commits_with_files_and_hunks() {
     let changes = app.get(&format!("/api/tasks/{task_id}/changes")).await;
 
     assert_eq!(changes.status, 200);
-    let commit = &changes.body["commits"][0];
+    let repository = &changes.body["repositories"][0];
+    let commit = &repository["commits"][0];
+    assert_eq!(repository["componentId"], Value::Null);
     assert_eq!(commit["subject"], "Add the README");
     assert_eq!(commit["available"], true);
     assert_eq!(commit["files"][0]["kind"], "ADDED");
     assert_eq!(commit["files"][0]["hunks"][0]["lines"][0]["kind"], "ADDED");
-    assert_eq!(changes.body["workingTree"], Value::Null);
+    assert_eq!(repository["workingTree"], Value::Null);
 }
 
 #[tokio::test]
