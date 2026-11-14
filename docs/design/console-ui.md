@@ -164,8 +164,10 @@ and when it last moved, and its hover keys (Accept or Done, New session, To draf
 Above it sit the plan tube, a line that says who has to act, List or Flow when the steps have
 routes, Hide done, Review next and Accept all once only claims are left; under it the drafts with
 Promote, the adherence and branch panels, and the line that adds a draft (a new step is a draft).
-The right is the **decision panel** of the selected step, which opens on the first claim waiting
-for a decision: the step's state, what a person can do about it (Accept and Send back on a claim,
+The right is the **decision panel** of the selected step. It fills the tab beside a narrower list,
+in a column of the width the page is set to, and its detail reads and writes as a page that grows
+with its text, so a long step with tables or diagrams has room. A button in its header hides the
+list so the step has the whole tab. It opens on the first claim waiting for a decision: the step's state, what a person can do about it (Accept and Send back on a claim,
 Mark done myself and the session key on an open or running one, Reopen on a done one), its check
 results, commits, sealed passes, skills, checks and detail, and Up next to review. A task handed in
 whole shows its own decision, Accept task or Send back, in the same place. Nothing but a person

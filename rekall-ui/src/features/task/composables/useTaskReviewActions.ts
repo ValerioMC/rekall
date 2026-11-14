@@ -2,6 +2,7 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useConsoleStore } from '@/stores/console.store'
 import { useSendBackGuardStore } from '@/features/review/store/sendBackGuard.store'
 import { useToastStore } from '@/stores/toast.store'
+import { codedTitle } from '@/features/catalog/model/task-code'
 import type { Task } from '@/features/catalog/model/catalog'
 
 export interface TaskReviewActions {
@@ -20,7 +21,7 @@ export function useTaskReviewActions(task: () => Task): TaskReviewActions {
     const target = task()
     const outcome = await run(() => store.acceptTask(target.id))
     if (outcome === null) return
-    toast.notify(`Accepted “${target.title}”`, {
+    toast.notify(`Accepted “${codedTitle(target)}”`, {
       label: 'Reopen',
       run: () => void run(() => store.sendBackTask(target.id))
     })

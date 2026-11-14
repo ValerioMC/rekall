@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { codedTitle } from '@/features/catalog/model/task-code'
 import CopyAnchorButton from '@/components/console/CopyAnchorButton.vue'
 import PullRequestMark from '@/features/catalog/components/PullRequestMark.vue'
 import QuickTaskMark from '@/features/catalog/components/QuickTaskMark.vue'
@@ -17,7 +18,7 @@ defineProps<{ task: Task; copyTestid: string }>()
 <template>
   <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
     <h2 class="min-w-[12ch] max-w-full line-clamp-2 text-heading font-semibold tracking-[-0.015em] text-text">
-      {{ task.title }}
+      {{ codedTitle(task) }}
     </h2>
     <QuickTaskMark :task="task" />
     <TaskTrackerMark :task="task" />

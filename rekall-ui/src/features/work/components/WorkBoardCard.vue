@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { codedTitle } from '@/features/catalog/model/task-code'
 import { computed } from 'vue'
 import PlanTube from '@/components/ui/PlanTube.vue'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
@@ -35,7 +36,7 @@ const needsLabel = computed(() => (props.row.claimedSteps > 0 ? `${props.row.cla
       <span class="flex-1" />
       <span>{{ ageLabel(task.updatedAt, now) }}</span>
     </span>
-    <span class="line-clamp-2 text-body font-medium leading-snug text-text" data-testid="board-card-title">{{ task.title }}</span>
+    <span class="line-clamp-2 text-body font-medium leading-snug text-text" data-testid="board-card-title">{{ codedTitle(task) }}</span>
     <PlanTube
       v-if="task.stepCount > 0"
       size="sm"

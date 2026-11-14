@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { codedTitle } from '@/features/catalog/model/task-code'
 import { RouterLink } from 'vue-router'
 import PullRequestMark from '@/features/catalog/components/PullRequestMark.vue'
 import TaskTrackerMark from '@/features/catalog/components/TaskTrackerMark.vue'
@@ -30,8 +31,8 @@ defineProps<{ task: Task }>()
     </div>
 
     <div class="mt-0.5 flex min-w-0 items-center gap-2">
-      <h1 class="min-w-0 truncate text-heading font-semibold tracking-[-0.015em] text-text" data-testid="task-title" :title="task.title">
-        {{ task.title }}
+      <h1 class="min-w-0 truncate text-heading font-semibold tracking-[-0.015em] text-text" data-testid="task-title" :title="codedTitle(task)">
+        {{ codedTitle(task) }}
       </h1>
       <TaskTrackerMark :task="task" />
       <PullRequestMark :task="task" />

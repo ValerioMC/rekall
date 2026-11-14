@@ -55,7 +55,7 @@ describe('the Depends on field of a task', () => {
 
     await wrapper.get('[data-testid="task-dependency-add"]').trigger('click')
 
-    expect(offeredTitles()).toEqual(['Archive', 'Report'])
+    expect(offeredTitles()).toEqual(['[archive] Archive', '[report] Report'])
   })
 
   it('says where each dependency stands, in words and not only in colour', async () => {

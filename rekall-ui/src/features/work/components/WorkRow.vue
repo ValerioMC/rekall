@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { codedTitle } from '@/features/catalog/model/task-code'
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import CopyAnchorButton from '@/components/console/CopyAnchorButton.vue'
@@ -67,7 +68,7 @@ const memberSummary = computed(() => {
     @click="work.togglePeek(task.id)"
     @keydown.enter.self="work.togglePeek(task.id)"
   >
-    <WorkRowOpenButton :task-id="task.id" :title="task.title" />
+    <WorkRowOpenButton :task-id="task.id" :title="codedTitle(task)" />
     <button
       v-if="epic"
       type="button"
@@ -95,7 +96,7 @@ const memberSummary = computed(() => {
 
     <span class="flex min-w-0 items-center gap-2" :class="[filed ? 'font-normal' : 'font-medium text-text', nested && 'pl-3']">
       <EpicGlyph v-if="epic" :size="15" />
-      <span class="min-w-0 truncate" :class="[filed && 'text-text-muted', epic && 'font-semibold']" data-testid="work-row-title">{{ task.title }}</span>
+      <span class="min-w-0 truncate" :class="[filed && 'text-text-muted', epic && 'font-semibold']" data-testid="work-row-title">{{ codedTitle(task) }}</span>
       <span
         v-if="epicTitle"
         class="inline-flex min-w-0 max-w-[40%] shrink items-center gap-1 rounded-key bg-epic-soft px-1.5 py-px text-caption text-epic"

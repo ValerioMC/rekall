@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { codedTitle } from '@/features/catalog/model/task-code'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { enterDialog, leaveDialog } from '@/common/a11y/dialog-stack'
 import { TASK_STATUS_COLOR, TASK_STATUS_LABEL } from '@/features/catalog/model/task-status'
@@ -145,7 +146,7 @@ onUnmounted(() => {
             @click="pick(task)"
           >
             <span class="size-2 shrink-0 rounded-full" :class="TASK_STATUS_COLOR[task.status]" aria-hidden="true" />
-            <span class="min-w-0 flex-1 truncate text-small text-text">{{ task.title }}</span>
+            <span class="min-w-0 flex-1 truncate text-small text-text">{{ codedTitle(task) }}</span>
             <span class="shrink-0 text-micro text-text-subtle">{{ TASK_STATUS_LABEL[task.status] }}</span>
           </button>
         </div>

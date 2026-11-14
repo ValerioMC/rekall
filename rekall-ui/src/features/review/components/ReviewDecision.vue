@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { codedTitle } from '@/features/catalog/model/task-code'
 import { computed, nextTick, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import PlanAdherencePanel from '@/features/adherence/components/PlanAdherencePanel.vue'
@@ -53,7 +54,7 @@ watch(
         class="focus-ring rounded-key text-accent hover:underline"
         data-testid="review-task-link"
       >
-        {{ task.title }}
+        {{ codedTitle(task) }}
       </RouterLink>
     </nav>
 
