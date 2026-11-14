@@ -3,20 +3,19 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import TerminalScreen from '@/features/claude/components/TerminalScreen.vue'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
-import { useOpenSession } from '@/features/claude/composables/useOpenSession'
+import { useOpenSessionInPane } from '@/features/claude/composables/useOpenSessionInPane'
 import { sessionTitle } from '@/common/format/session-title'
 import type { Terminal } from '@/features/claude/model/terminal'
 
 /**
- * One terminal session in a panel above the dock instead of the full terminal pane. It never closes
- * on Escape or an outside press: both belong to the TUI running inside it.
+ * One terminal session in a panel above the dock instead of the full terminal pane. It never
+ * minimizes on Escape or an outside press: both belong to the TUI running inside it. Minimizing
+ * leaves the session running in the dock's sessions list.
  */
 const props = defineProps<{ terminal: Terminal }>()
 
-const emit = defineEmits<{ close: [] }>()
-
 const terminals = useTerminalStore()
-const openSession = useOpenSession()
+const openInPane = useOpenSessionInPane()
 const router = useRouter()
 
 const connected = ref(false)
@@ -31,12 +30,11 @@ function onEnded(): void {
 
 function openTask(): void {
   if (props.terminal.taskId) void router.push(`/task/${props.terminal.taskId}`)
-  emit('close')
+  terminals.unfloat()
 }
 
-function openInPane(): void {
-  openSession(props.terminal)
-  emit('close')
+function expand(): void {
+  openInPane(props.terminal)
 }
 </script>
 
@@ -69,18 +67,19 @@ function openInPane(): void {
       <button
         class="key-quiet rounded-key focus-ring inline-flex h-7 shrink-0 items-center px-2.5 text-caption"
         data-testid="terminal-float-expand"
-        @click="openInPane"
+        @click="expand"
       >
         Open in pane
       </button>
       <button
         class="focus-ring grid size-6 shrink-0 place-items-center rounded-full text-text-subtle transition-colors hover:bg-surface-raised hover:text-text"
-        aria-label="Close"
-        data-testid="terminal-float-close"
-        @click="emit('close')"
+        aria-label="Minimize"
+        title="Minimize: the session keeps running"
+        data-testid="terminal-float-minimize"
+        @click="terminals.unfloat()"
       >
         <svg class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-          <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+          <path d="M2.5 9h7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
         </svg>
       </button>
     </header>

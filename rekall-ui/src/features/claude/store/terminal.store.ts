@@ -21,6 +21,7 @@ export const useTerminalStore = defineStore('terminal', () => {
   const terminals = ref<Terminal[]>([])
   const activeTerminalId = ref<TerminalId | null>(null)
   const lastOpened = shallowRef<Terminal | null>(null)
+  const floatingId = ref<TerminalId | null>(null)
 
   const activeTerminal = computed(
     () => terminals.value.find((terminal) => terminal.id === activeTerminalId.value) ?? null
@@ -122,6 +123,15 @@ export const useTerminalStore = defineStore('terminal', () => {
     activeTerminalId.value = id
   }
 
+  /** Shows a session in the floating panel above the dock instead of the full terminal pane. */
+  function float(id: TerminalId): void {
+    floatingId.value = id
+  }
+
+  function unfloat(): void {
+    floatingId.value = null
+  }
+
   function markEnded(id: TerminalId): void {
     terminals.value = terminals.value.map((terminal) =>
       terminal.id === id ? { ...terminal, live: false } : terminal
@@ -134,6 +144,7 @@ export const useTerminalStore = defineStore('terminal', () => {
     } finally {
       terminals.value = terminals.value.filter((terminal) => terminal.id !== id)
       if (activeTerminalId.value === id) activeTerminalId.value = null
+      if (floatingId.value === id) floatingId.value = null
     }
   }
 
@@ -149,6 +160,7 @@ export const useTerminalStore = defineStore('terminal', () => {
     activeTerminalId,
     activeTerminal,
     lastOpened,
+    floatingId,
     terminalForTask,
     upsert,
     load,
@@ -158,6 +170,8 @@ export const useTerminalStore = defineStore('terminal', () => {
     planForTask,
     followNextSession,
     select,
+    float,
+    unfloat,
     markEnded,
     close,
     sendCommand

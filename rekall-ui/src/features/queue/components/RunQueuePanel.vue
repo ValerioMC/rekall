@@ -21,6 +21,7 @@ import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { useConsoleStore } from '@/stores/console.store'
 import { useChatStore } from '@/features/chat/store/chat.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import { useOpenSession } from '@/features/claude/composables/useOpenSession'
 import { useToastStore } from '@/stores/toast.store'
 import { useNow } from '@/composables/useNow'
 import { useQueueSettingsDraft } from '@/features/queue/composables/useQueueSettingsDraft'
@@ -39,6 +40,7 @@ const store = useRunQueueStore()
 const consoleStore = useConsoleStore()
 const router = useRouter()
 const terminals = useTerminalStore()
+const openSession = useOpenSession()
 const chat = useChatStore()
 const toast = useToastStore()
 const { queue, progress } = storeToRefs(store)
@@ -111,8 +113,9 @@ async function watchSession(item: RunQueueItem): Promise<void> {
   consoleStore.selectTask(item.taskId)
   if (terminal?.kind === 'CHAT') {
     chat.reveal(terminal)
+  } else if (terminal) {
+    openSession(terminal)
   } else {
-    if (terminal) terminals.select(terminal.id)
     consoleStore.openTerminal()
     if (router.currentRoute.value.name !== 'console') void router.push({ name: 'console' })
   }

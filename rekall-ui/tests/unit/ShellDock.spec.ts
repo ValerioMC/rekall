@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { effectScope } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ShellDock from '@/components/shell/ShellDock.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
+import { useOpenSession } from '@/features/claude/composables/useOpenSession'
 import type { Terminal } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId, TaskStepId, TerminalId, TimeEntryId } from '@/model/branded'
 import type { Task } from '@/features/catalog/model/catalog'
@@ -353,10 +355,12 @@ describe('ShellDock', () => {
       return mounted
     }
 
-    it('closes from its close button and leaves the session live', async () => {
+    it('minimizes from its minimize button, which is not a close, and leaves the session live', async () => {
       const { wrapper, terminals } = await floatTerminal()
 
-      await wrapper.get('[data-testid="terminal-float-close"]').trigger('click')
+      expect(wrapper.find('[data-testid="terminal-float-close"]').exists()).toBe(false)
+      expect(wrapper.get('[data-testid="terminal-float-minimize"]').attributes('aria-label')).toBe('Minimize')
+      await wrapper.get('[data-testid="terminal-float-minimize"]').trigger('click')
 
       expect(wrapper.find('[data-testid="terminal-float"]').exists()).toBe(false)
       expect(terminals.terminals[0]?.live).toBe(true)
@@ -382,6 +386,18 @@ describe('ShellDock', () => {
       expect(terminals.activeTerminalId).toBe('term-1')
       expect(push).toHaveBeenCalledWith({ name: 'console' })
       expect(wrapper.find('[data-testid="terminal-float"]').exists()).toBe(false)
+    })
+
+    it('is where a session opens by default, wherever it is asked for', async () => {
+      const { wrapper, console, terminals } = await mountDock([terminal()])
+      const open = effectScope().run(() => useOpenSession())!
+
+      open(terminals.terminals[0]!)
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="terminal-float"]').exists()).toBe(true)
+      expect(console.paneFocus).not.toBe('terminal')
+      expect(push).not.toHaveBeenCalled()
     })
 
     it('opens the task from Open task', async () => {

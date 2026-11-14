@@ -6,7 +6,6 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useChatWindowShown } from '@/features/chat/composables/useChatWindowShown'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import type { Terminal } from '@/features/claude/model/terminal'
-import type { TerminalId } from '@/model/branded'
 import RunningTasksPanel from './RunningTasksPanel.vue'
 import TerminalFloat from './TerminalFloat.vue'
 import TerminalSessionsPanel from './TerminalSessionsPanel.vue'
@@ -17,20 +16,19 @@ import TerminalSessionsPanel from './TerminalSessionsPanel.vue'
  * switches; pressing the same one again, Escape, or a click anywhere else closes it. A segment
  * that has nothing to show leaves, and takes its sheet with it; when neither has anything, so
  * does the capsule. A terminal session picked from the sessions sheet opens in a floating panel
- * above the bar instead of the full terminal pane; it stays until closed or the session is gone.
+ * above the bar instead of the full terminal pane; it stays until minimized or the session is gone.
  */
 type DockPanel = 'running' | 'sessions'
 
 const store = useConsoleStore()
 const terminals = useTerminalStore()
 const { runningEntries, paneFocus } = storeToRefs(store)
-const { terminals: allTerminals } = storeToRefs(terminals)
+const { terminals: allTerminals, floatingId } = storeToRefs(terminals)
 const route = useRoute()
 const root = ref<HTMLElement | null>(null)
 const chatWindowShown = useChatWindowShown()
 
 const open = ref<DockPanel | null>(null)
-const floatingId = ref<TerminalId | null>(null)
 const floating = computed(() => allTerminals.value.find((terminal) => terminal.id === floatingId.value) ?? null)
 
 const liveSessions = computed(() => allTerminals.value.filter((terminal) => terminal.live))
@@ -50,20 +48,20 @@ const sessionsLabel = computed(() =>
 )
 
 function toggle(panel: DockPanel): void {
-  floatingId.value = null
+  terminals.unfloat()
   open.value = open.value === panel ? null : panel
 }
 
 function float(terminal: Terminal): void {
-  floatingId.value = terminal.id
+  terminals.float(terminal.id)
 }
 
 function close(): void {
   open.value = null
 }
 
-watch(onTerminalPane, (onPane) => {
-  if (onPane) floatingId.value = null
+watch([onTerminalPane, floatingId], ([onPane, floatedId]) => {
+  if (onPane && floatedId) terminals.unfloat()
 })
 
 watch([showsRunning, showsSessions], ([running, sessions]) => {
@@ -103,7 +101,7 @@ onUnmounted(() => {
       <TerminalSessionsPanel v-else-if="open === 'sessions'" class="w-[320px]" @close="close" @float="float" />
     </Transition>
 
-    <TerminalFloat v-if="floating" :terminal="floating" @close="floatingId = null" />
+    <TerminalFloat v-if="floating" :terminal="floating" />
 
     <div
       class="dock-bar glass flex h-10 items-stretch overflow-hidden rounded-full border border-border-strong shadow-lift"

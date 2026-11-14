@@ -2,17 +2,20 @@ import { useRouter } from 'vue-router'
 import { useConsoleStore } from '@/stores/console.store'
 import { useChatStore } from '@/features/chat/store/chat.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import { useOpenSessionInPane } from '@/features/claude/composables/useOpenSessionInPane'
 import type { Terminal } from '@/features/claude/model/terminal'
 
 /**
- * Where a session is shown: a chat in the chat window, one on a task in the console's terminal
- * pane, one on a project alone on the Diagrams screen, which is the only thing such a session does.
+ * Where a session is shown: a chat in the chat window, one on a task in the floating terminal
+ * above the dock (or in the terminal pane when that is already on screen), one on a project alone
+ * on the Diagrams screen, which is the only thing such a session does.
  */
 export function useOpenSession(): (terminal: Terminal) => void {
   const store = useConsoleStore()
   const terminals = useTerminalStore()
   const chat = useChatStore()
   const router = useRouter()
+  const openInPane = useOpenSessionInPane()
   return (terminal) => {
     if (terminal.kind === 'CHAT') {
       if (terminal.taskId) store.selectTask(terminal.taskId)
@@ -24,9 +27,8 @@ export function useOpenSession(): (terminal: Terminal) => void {
       void router.push({ name: 'diagrams', query: { session: terminal.id } })
       return
     }
-    store.selectTask(terminal.taskId)
-    store.openTerminal()
-    terminals.select(terminal.id)
-    if (router.currentRoute.value.name !== 'console') void router.push({ name: 'console' })
+    const paneOnScreen = router.currentRoute.value.name === 'console' && store.paneFocus === 'terminal'
+    if (paneOnScreen) openInPane(terminal)
+    else terminals.float(terminal.id)
   }
 }
