@@ -41,7 +41,7 @@ function stepNumberOf(stepId: TaskStepId | null): number | null {
   <section
     class="mx-6 mt-5 rounded-card border border-border bg-canvas last:mb-10"
     :aria-label="file.path"
-    :data-file-path="file.path"
+    :data-file-id="file.id"
     :data-current="current"
     data-testid="changed-file"
   >

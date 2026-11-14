@@ -1,12 +1,11 @@
 use serde::Serialize;
 
-use super::{CommitChangesView, WorkingTreeChangesView};
+use super::RepositoryChangesView;
 
-/// Everything a task changed in its project's folder: its logged commits, oldest first, and the
-/// working tree when it holds changes.
+/// Everything a task changed, repository by repository: the project's own folder first, then its
+/// components. A repository the task did not touch is left out.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskChangesView {
-    pub commits: Vec<CommitChangesView>,
-    pub working_tree: Option<WorkingTreeChangesView>,
+    pub repositories: Vec<RepositoryChangesView>,
 }

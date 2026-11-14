@@ -17,6 +17,8 @@ pub struct Model {
     pub id: Id,
     pub task_id: Id,
     pub step_id: Option<Id>,
+    /// The component whose repository holds the commit; none is the project's own folder.
+    pub component_id: Option<Id>,
     pub commit_hash: String,
     pub comment: String,
     /// Null for a commit logged before the column existed, or when git could not produce one.
@@ -44,6 +46,13 @@ pub enum Relation {
         on_delete = "SetNull"
     )]
     TaskStep,
+    #[sea_orm(
+        belongs_to = "crate::project_component::Entity",
+        from = "Column::ComponentId",
+        to = "crate::project_component::Column::Id",
+        on_delete = "SetNull"
+    )]
+    Component,
 }
 
 impl Related<crate::task::Entity> for Entity {

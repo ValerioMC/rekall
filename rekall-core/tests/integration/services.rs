@@ -528,12 +528,12 @@ async fn the_refusals_of_the_commit_log_name_their_reason() {
 
     let no_folder = references.record_latest_commit(task.id, None).await.unwrap_err();
     assert!(no_folder.is_illegal_argument() && no_folder.message().contains("folder"));
-    assert!(references.recent_commits(task.id).await.unwrap_err().message().contains("folder"));
+    assert!(references.recent_commits(task.id, None).await.unwrap_err().message().contains("folder"));
     let unknown = references.record_latest_commit(Id::random(), None).await.unwrap_err();
     assert!(matches!(unknown, rekall_kernel::RekallError::NotFound(_)));
     let wrong_step = references.record_latest_commit(task.id, Some(foreign.id)).await.unwrap_err();
     assert!(wrong_step.message().contains("does not belong"));
-    let missing_label = references.record_commit_by_anchor(Some("vega"), "missing", None, None).await.unwrap_err();
+    let missing_label = references.record_commit_by_anchor(Some("vega"), "missing", None, None, None).await.unwrap_err();
     assert!(matches!(missing_label, rekall_kernel::RekallError::UnknownAnchor(_)));
     assert!(matches!(references.diff_for(Id::random()).await.unwrap_err(), rekall_kernel::RekallError::NotFound(_)));
     assert!(matches!(references.delete(Id::random()).await.unwrap_err(), rekall_kernel::RekallError::NotFound(_)));
@@ -547,7 +547,7 @@ async fn a_logged_commit_is_chosen_for_the_context_and_a_missing_flag_reads_as_o
     let project = world.project("vega", Some(&repo.path().to_string_lossy()), false).await;
     let task = world.task(&project, "report-builder").await;
     let references = &world.services.commit_references;
-    let logged = references.record_commit_by_anchor(Some("vega"), "report-builder", None, None).await.unwrap();
+    let logged = references.record_commit_by_anchor(Some("vega"), "report-builder", None, None, None).await.unwrap();
 
     assert!(references.set_in_context(logged.id, Some(true)).await.unwrap().in_context);
     assert!(!references.set_in_context(logged.id, None).await.unwrap().in_context);
@@ -804,15 +804,15 @@ async fn a_commit_named_by_its_hash_is_read_by_that_hash_and_a_blank_hash_means_
     let task = world.task(&project, "report-builder").await;
     let references = &world.services.commit_references;
 
-    let named = references.record_commit(task.id, None, Some(&format!(" {} ", &earlier[..7]))).await.unwrap();
+    let named = references.record_commit(task.id, None, Some(&format!(" {} ", &earlier[..7])), None).await.unwrap();
     assert_eq!(named.commit_hash, earlier);
     assert_eq!(named.comment, "seed");
 
-    let blank = references.record_commit(task.id, None, Some("   ")).await.unwrap();
+    let blank = references.record_commit(task.id, None, Some("   "), None).await.unwrap();
     assert_eq!(blank.commit_hash, tip, "a blank hash is the plain button: the tip");
     assert_eq!(blank.comment, "The later one");
 
-    let by_anchor = references.record_commit_by_anchor(Some("vega"), "report-builder", None, Some(&earlier)).await.unwrap();
+    let by_anchor = references.record_commit_by_anchor(Some("vega"), "report-builder", None, Some(&earlier), None).await.unwrap();
     assert_eq!(by_anchor.id, named.id, "the MCP path passes the hash through, to the same row");
 }
 
@@ -826,7 +826,7 @@ async fn the_recent_log_is_read_from_the_tasks_project_folder_newest_first() {
     let project = world.project("vega", Some(&repo.path().to_string_lossy()), false).await;
     let task = world.task(&project, "report-builder").await;
 
-    let recent = world.services.commit_references.recent_commits(task.id).await.unwrap();
+    let recent = world.services.commit_references.recent_commits(task.id, None).await.unwrap();
 
     let subjects: Vec<&str> = recent.iter().map(|entry| entry.subject.as_str()).collect();
     assert_eq!(subjects, ["The later one", "seed"]);
@@ -843,21 +843,23 @@ async fn a_tasks_changes_are_its_logged_commits_patches_oldest_first_and_the_wor
     let first = git(repo.path(), &["rev-parse", "HEAD"]);
     let project = world.project("vega", Some(&repo.path().to_string_lossy()), false).await;
     let task = world.task(&project, "report-builder").await;
-    world.services.commit_references.record_commit(task.id, None, Some(&first)).await.unwrap();
+    world.services.commit_references.record_commit(task.id, None, Some(&first), None).await.unwrap();
 
     let clean = world.services.task_changes.of_task(task.id).await.unwrap();
 
-    assert_eq!(clean.commits.len(), 1);
-    let logged = &clean.commits[0];
+    assert_eq!(clean.repositories.len(), 1);
+    assert_eq!(clean.repositories[0].component_id, None);
+    assert_eq!(clean.repositories[0].commits.len(), 1);
+    let logged = &clean.repositories[0].commits[0];
     assert_eq!((logged.commit_hash.as_str(), logged.subject.as_str(), logged.available), (first.as_str(), "Extend the seed", true));
     assert_eq!(logged.files.len(), 1);
     assert_eq!((logged.files[0].path.as_str(), logged.files[0].additions, logged.files[0].deletions), ("seed.txt", 2, 1));
-    assert!(clean.working_tree.is_none(), "a clean tree has no working-tree change");
+    assert!(clean.repositories[0].working_tree.is_none(), "a clean tree has no working-tree change");
 
     fs::write(repo.path().join("fresh.txt"), "new\n").unwrap();
     let dirty = world.services.task_changes.of_task(task.id).await.unwrap();
 
-    let paths: Vec<&str> = dirty.working_tree.as_ref().unwrap().files.iter().map(|file| file.path.as_str()).collect();
+    let paths: Vec<&str> = dirty.repositories[0].working_tree.as_ref().unwrap().files.iter().map(|file| file.path.as_str()).collect();
     assert_eq!(paths, ["fresh.txt"]);
 }
 
@@ -872,6 +874,7 @@ async fn a_commit_git_no_longer_knows_is_read_from_the_diff_stored_when_it_was_l
         id: Id::random(),
         task_id: task.id,
         step_id: None,
+        component_id: None,
         commit_hash: "deadbeefdeadbeef".to_string(),
         comment: "Rebased away".to_string(),
         diff: Some(stored.to_string()),
@@ -885,8 +888,61 @@ async fn a_commit_git_no_longer_knows_is_read_from_the_diff_stored_when_it_was_l
 
     let changes = world.services.task_changes.of_task(task.id).await.unwrap();
 
-    assert!(changes.commits[0].available);
-    assert_eq!(changes.commits[0].files[0].path, "gone.txt");
+    assert!(changes.repositories[0].commits[0].available);
+    assert_eq!(changes.repositories[0].commits[0].files[0].path, "gone.txt");
+}
+
+async fn add_component(world: &crate::support::World, project: &rekall_store::project::Model, name: &str, folder: &std::path::Path) -> rekall_store::project_component::Model {
+    use sea_orm::{ActiveModelTrait, IntoActiveModel};
+    let now = Instant::now();
+    let component = rekall_store::project_component::Model {
+        id: Id::random(), project_id: project.id, name: name.into(), folder: folder.to_string_lossy().into_owned(),
+        description: String::new(), position: 0, created_at: now, updated_at: now,
+    };
+    component.clone().into_active_model().insert(world.db()).await.unwrap();
+    component
+}
+
+#[tokio::test]
+async fn changes_are_grouped_by_the_repository_each_commit_was_read_from() {
+    let world = world().await;
+    let own = ready_repo().await;
+    let other = ready_repo().await;
+    fs::write(other.path().join("site.txt"), "page\n").unwrap();
+    git(other.path(), &["add", "-A"]);
+    commit(other.path(), "Add the page");
+    let project = world.project("vega", Some(&own.path().to_string_lossy()), false).await;
+    let component = add_component(&world, &project, "Site", other.path()).await;
+    let task = world.task(&project, "report-builder").await;
+    let references = &world.services.commit_references;
+
+    let logged = references.record_commit_by_anchor(Some("vega"), "report-builder", None, None, Some(" site ")).await.unwrap();
+    references.record_commit(task.id, None, None, None).await.unwrap();
+    let changes = world.services.task_changes.of_task(task.id).await.unwrap();
+
+    assert_eq!((logged.component_id, logged.component_name.as_deref()), (Some(component.id), Some("Site")));
+    let groups: Vec<_> = changes.repositories.iter().map(|group| (group.component_id, group.commits.len())).collect();
+    assert_eq!(groups, [(None, 1), (Some(component.id), 1)]);
+    assert_eq!(changes.repositories[1].name, "Site");
+    assert_eq!(changes.repositories[1].commits[0].subject, "Add the page");
+    assert_eq!(changes.repositories[1].commits[0].files[0].path, "site.txt");
+}
+
+#[tokio::test]
+async fn a_commit_is_refused_for_a_component_that_is_not_of_the_project() {
+    let world = world().await;
+    let own = ready_repo().await;
+    let elsewhere = ready_repo().await;
+    let project = world.project("vega", Some(&own.path().to_string_lossy()), false).await;
+    let other_project = world.project("orion", Some(&elsewhere.path().to_string_lossy()), false).await;
+    let foreign = add_component(&world, &other_project, "Foreign", elsewhere.path()).await;
+    let task = world.task(&project, "report-builder").await;
+
+    let refused = world.services.commit_references.record_commit(task.id, None, None, Some(foreign.id)).await.unwrap_err();
+    let unknown = world.services.commit_references.record_commit_by_anchor(Some("vega"), "report-builder", None, None, Some("Nope")).await.unwrap_err();
+
+    assert!(refused.message().contains("does not belong"));
+    assert!(unknown.message().contains("No component named 'Nope'"));
 }
 
 #[tokio::test]
@@ -897,8 +953,7 @@ async fn a_task_with_no_commit_and_no_folder_has_no_changes() {
 
     let changes = world.services.task_changes.of_task(task.id).await.unwrap();
 
-    assert!(changes.commits.is_empty());
-    assert!(changes.working_tree.is_none());
+    assert!(changes.repositories.is_empty());
 }
 
 #[tokio::test]
@@ -1080,7 +1135,7 @@ async fn a_commit_logged_against_the_task_itself_does_not_count() {
     use rekall_core::wrapup::Freshness;
     let (world, repo, task) = stale_world("It lives in `a/b.rs`.").await;
     let own = commit_file(repo.path(), "a/b.rs", "one");
-    world.services.commit_references.record_commit(task.id, None, Some(&own)).await.unwrap();
+    world.services.commit_references.record_commit(task.id, None, Some(&own), None).await.unwrap();
 
     assert_eq!(world.services.wrapup_freshness.check(task.id).await.unwrap(), Freshness::Fresh);
 }

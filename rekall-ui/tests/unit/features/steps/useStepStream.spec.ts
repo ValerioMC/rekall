@@ -164,6 +164,8 @@ describe('useStepStream', () => {
           taskId: '22222222-2222-2222-2222-222222222222',
           stepId: '11111111-1111-1111-1111-111111111111',
           stepTitle: 'Aggregate the rows',
+          componentId: null,
+          componentName: null,
           commitHash: 'a'.repeat(40),
           comment: 'feat: Aggregate the rows',
           inContext: false,

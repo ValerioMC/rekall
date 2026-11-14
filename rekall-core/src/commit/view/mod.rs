@@ -6,6 +6,7 @@ pub(super) mod diff_hunk_view;
 pub(super) mod diff_line_kind;
 pub(super) mod diff_line_view;
 pub(super) mod recent_commit_view;
+pub(super) mod repository_changes_view;
 pub(super) mod task_changes_view;
 pub(super) mod working_tree_changes_view;
 
@@ -15,5 +16,6 @@ pub use commit_changes_view::CommitChangesView;
 pub use diff_hunk_view::DiffHunkView;
 pub use diff_line_kind::DiffLineKind;
 pub use diff_line_view::DiffLineView;
+pub use repository_changes_view::RepositoryChangesView;
 pub use task_changes_view::TaskChangesView;
 pub use working_tree_changes_view::WorkingTreeChangesView;

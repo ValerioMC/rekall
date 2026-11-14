@@ -1,20 +1,21 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use rekall_kernel::{jstr, Id, RekallError, Result};
+use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::commit_reference;
 use rekall_store::repository as repo;
 use tracing::warn;
 
 use crate::commit::model::unified_diff::UnifiedDiff;
-use crate::commit::view::{CommitChangesView, TaskChangesView, WorkingTreeChangesView};
+use crate::commit::model::repository_target::RepositoryTarget;
+use crate::commit::view::{CommitChangesView, RepositoryChangesView, TaskChangesView, WorkingTreeChangesView};
 use crate::commit::{GitLogReader, GitWorkingTreeReader};
 use crate::{in_read, load, Ctx};
 
 /// A patch longer than this is cut, so one huge commit cannot fill the console's memory.
 const PATCH_MAX: usize = 2_000_000;
 
-/// Reads what a task changed in its project's folder: each logged commit's patch, oldest first,
-/// and the working tree. A commit git no longer knows falls back to the diff stored when it was
+/// Reads what a task changed in each repository of its project: each logged commit's patch,
+/// oldest first, and the working tree. A commit git no longer knows falls back to the diff stored when it was
 /// logged. Never writes.
 #[derive(Clone)]
 pub struct TaskChangesService {
@@ -32,19 +33,30 @@ impl TaskChangesService {
         in_read!(&self.ctx, |tx| {
             let task = repo::task::require(tx.db(), task_id).await?;
             let project = load::project_of(tx.db(), &task).await?;
-            let folder = task.work_folder(&project).map(|folder| PathBuf::from(jstr::strip(folder)));
+            let components = repo::project_component::list_of_project(tx.db(), project.id).await?;
             let mut references = repo::commit_reference::list_of_task(tx.db(), task.id).await?;
             references.sort_by_key(|reference| reference.created_at);
-            let mut commits = Vec::with_capacity(references.len());
-            for reference in &references {
-                commits.push(self.commit_changes(folder.as_deref(), reference).await);
+            let mut repositories = Vec::new();
+            for target in RepositoryTarget::all_of(&task, &project, &components) {
+                let changes = self.repository_changes(&target, &references).await;
+                if !changes.is_empty() {
+                    repositories.push(changes);
+                }
             }
-            let working_tree = match folder.as_deref() {
-                Some(folder) => self.working_tree_changes(folder).await,
-                None => None,
-            };
-            Ok::<_, RekallError>(TaskChangesView { commits, working_tree })
+            Ok::<_, RekallError>(TaskChangesView { repositories })
         })
+    }
+
+    async fn repository_changes(&self, target: &RepositoryTarget, references: &[commit_reference::Model]) -> RepositoryChangesView {
+        let mut commits = Vec::new();
+        for reference in references.iter().filter(|reference| reference.component_id == target.component_id) {
+            commits.push(self.commit_changes(target.folder.as_deref(), reference).await);
+        }
+        let working_tree = match target.folder.as_deref().filter(|_| target.reads_own_working_tree) {
+            Some(folder) => self.working_tree_changes(folder).await,
+            None => None,
+        };
+        RepositoryChangesView { component_id: target.component_id, name: target.name.clone(), commits, working_tree }
     }
 
     async fn commit_changes(&self, folder: Option<&Path>, reference: &commit_reference::Model) -> CommitChangesView {

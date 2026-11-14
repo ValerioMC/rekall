@@ -29,7 +29,8 @@ title, and the target state:
 already accepted: reopening one is a console decision.
 
 `rekall_record_commit` logs the tip of the project's repo folder, or an earlier hash, against a
-task or one of its steps. On a project set to auto-commit, `rekall_step` with `claimed` (and
+task or one of its steps; `component` names a project component to read that component's
+repository instead. On a project set to auto-commit, `rekall_step` with `claimed` (and
 `rekall_wrapup` on a task with no checklist) commits the folder itself; both take an optional
 `commit_message` the session writes, a Conventional Commits subject and a few sentences of body,
 and without one `CommitMessageGenerator` draws the message from the step's detail or the wrapup.

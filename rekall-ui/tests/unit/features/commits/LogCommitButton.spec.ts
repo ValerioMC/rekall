@@ -14,6 +14,12 @@ vi.mock('@/features/commits/api/commitReference.api', () => ({
   recordLatestCommit: vi.fn()
 }))
 
+const projectComponents = vi.hoisted(() => ({ current: null as readonly { id: string; name: string }[] | null }))
+vi.mock('@/features/project/composables/useSelectedProjectComponents', async () => {
+  const { computed } = await import('vue')
+  return { useSelectedProjectComponents: () => computed(() => projectComponents.current) }
+})
+
 const taskId = 't1' as TaskId
 const stepId = 's1' as TaskStepId
 
@@ -35,6 +41,8 @@ function logged(hash: string, comment: string, step: TaskStepId | null = null): 
     taskId,
     stepId: step,
     stepTitle: step ? 'The step' : null,
+    componentId: null,
+    componentName: null,
     commitHash: hash,
     comment,
     inContext: false,
@@ -66,6 +74,7 @@ describe('LogCommitButton', () => {
     vi.mocked(fetchRecentCommits).mockReset().mockResolvedValue(recent())
     vi.mocked(recordCommit).mockReset()
     vi.mocked(recordLatestCommit).mockReset()
+    projectComponents.current = null
   })
 
   afterEach(() => {
@@ -93,7 +102,7 @@ describe('LogCommitButton', () => {
     await wrapper.get('[data-testid="pick-commit"]').trigger('click')
     await flushPromises()
 
-    expect(fetchRecentCommits).toHaveBeenCalledWith(taskId)
+    expect(fetchRecentCommits).toHaveBeenCalledWith(taskId, null)
     expect(picker()).not.toBeNull()
     expect(rows().map((row) => row.dataset.hash)).toEqual([tip, earlier, oldest])
     expect(
@@ -103,6 +112,33 @@ describe('LogCommitButton', () => {
     ).toEqual(['Polish the picker', 'Add the picker', 'Add the readme'])
     expect(document.querySelector('[data-testid="commit-picker-hash"]')?.textContent?.trim()).toBe('aaaaaaa')
     expect(picker()?.textContent).toContain('tip')
+  })
+
+  it('offers no repository choice while the project has no component', async () => {
+    wrapper = render()
+
+    await wrapper.get('[data-testid="pick-commit"]').trigger('click')
+    await flushPromises()
+
+    expect(document.querySelector('[data-testid="commit-picker-repositories"]')).toBeNull()
+  })
+
+  it('reads the log of the component chosen and logs the picked commit against that component', async () => {
+    projectComponents.current = [{ id: 'site-id', name: 'Site' }]
+    vi.mocked(recordCommit).mockResolvedValue(logged(earlier, 'Add the picker'))
+    wrapper = render()
+
+    await wrapper.get('[data-testid="pick-commit"]').trigger('click')
+    await flushPromises()
+    const choices = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-testid="commit-picker-repository"]'))
+    expect(choices.map((choice) => choice.textContent?.trim())).toEqual(['Project folder', 'Site'])
+    choices[1]!.click()
+    await flushPromises()
+    rows()[1]!.click()
+    await flushPromises()
+
+    expect(fetchRecentCommits).toHaveBeenLastCalledWith(taskId, 'site-id')
+    expect(recordCommit).toHaveBeenCalledWith(taskId, null, earlier, 'site-id')
   })
 
   it('joins the rows with one unbroken rail that starts at the first commit and ends at the last', async () => {
@@ -126,7 +162,7 @@ describe('LogCommitButton', () => {
     rows()[1]!.click()
     await flushPromises()
 
-    expect(recordCommit).toHaveBeenCalledWith(taskId, stepId, earlier)
+    expect(recordCommit).toHaveBeenCalledWith(taskId, stepId, earlier, null)
     expect(useConsoleStore().commitReferences[0]?.commitHash).toBe(earlier)
     expect(picker()).toBeNull()
     expect(wrapper.get('[data-testid="log-commit"]').text()).toContain('bbbbbbb')
@@ -153,7 +189,7 @@ describe('LogCommitButton', () => {
     submit.form!.dispatchEvent(new Event('submit', { cancelable: true }))
     await flushPromises()
 
-    expect(recordCommit).toHaveBeenCalledWith(taskId, null, 'deadbeef')
+    expect(recordCommit).toHaveBeenCalledWith(taskId, null, 'deadbeef', null)
     expect(picker()).toBeNull()
   })
 

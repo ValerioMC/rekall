@@ -9,4 +9,5 @@ pub use request::commit_reference_context_request::CommitReferenceContextRequest
 pub use response::commit_reference_diff_response::CommitReferenceDiffResponse;
 pub use request::commit_reference_request::CommitReferenceRequest;
 pub use request::picked_commit_reference_request::PickedCommitReferenceRequest;
+pub use request::recent_commits_query::RecentCommitsQuery;
 pub(crate) use routes::routes;

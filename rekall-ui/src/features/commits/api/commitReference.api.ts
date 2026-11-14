@@ -22,10 +22,14 @@ export async function recordLatestCommit(
   )
 }
 
-/** The newest commits of the task's project folder, for picking one by hand. */
-export async function fetchRecentCommits(taskId: TaskId): Promise<RecentCommit[]> {
+/** The newest commits of the task's project folder, or of a component's repository, for picking one by hand. */
+export async function fetchRecentCommits(
+  taskId: TaskId,
+  componentId: string | null
+): Promise<RecentCommit[]> {
+  const query = componentId === null ? '' : `?componentId=${componentId}`
   return request(async () =>
-    z.array(RecentCommitSchema).parse(await apiClient(`/api/tasks/${taskId}/recent-commits`))
+    z.array(RecentCommitSchema).parse(await apiClient(`/api/tasks/${taskId}/recent-commits${query}`))
   )
 }
 
@@ -33,13 +37,14 @@ export async function fetchRecentCommits(taskId: TaskId): Promise<RecentCommit[]
 export async function recordCommit(
   taskId: TaskId,
   stepId: TaskStepId | null,
-  commitHash: string
+  commitHash: string,
+  componentId: string | null
 ): Promise<CommitReference> {
   return request(async () =>
     CommitReferenceSchema.parse(
       await apiClient(`/api/tasks/${taskId}/commit-references`, {
         method: 'POST',
-        body: { stepId: stepId ?? null, commitHash }
+        body: { stepId: stepId ?? null, commitHash, componentId }
       })
     )
   )
