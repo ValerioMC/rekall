@@ -36,8 +36,7 @@ vi.mock('@/features/skills/api/skill-assignments.api', () => ({
 }))
 
 vi.mock('@/features/commits/api/commitReference.api', () => ({
-  fetchCommitReferences: vi.fn(async () => []),
-  fetchCommitReferenceDiff: vi.fn()
+  fetchCommitReferences: vi.fn(async () => [])
 }))
 
 vi.mock('@/App.vue', () => ({

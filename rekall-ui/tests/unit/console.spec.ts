@@ -314,8 +314,7 @@ vi.mock('@/features/skills/api/skill-assignments.api', () => ({
 
 vi.mock('@/features/commits/api/commitReference.api', () => ({
   fetchCommitReferences: vi.fn(async () => []),
-  recordLatestCommit: vi.fn(),
-  fetchCommitReferenceDiff: vi.fn()
+  recordLatestCommit: vi.fn()
 }))
 
 describe('console store', () => {

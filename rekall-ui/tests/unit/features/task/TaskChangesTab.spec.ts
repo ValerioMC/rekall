@@ -56,8 +56,11 @@ const CHANGES: TaskChanges = {
 let pinia: Pinia
 let tab: VueWrapper
 
-function mountTab(): VueWrapper {
+function mountTab(contextIds: readonly string[] = []): VueWrapper {
   const store = useConsoleStore()
+  store.commitReferences = ['c1', 'c2'].map((id) => ({
+    id, taskId, stepId: null, stepTitle: null, commitHash: `${id}hash0000`, comment: `commit ${id}`, inContext: contextIds.includes(id), createdAt: '2026-10-01T09:00:00Z'
+  }))
   store.tasks = [makeTask()]
   store.selectedTaskId = taskId
   store.steps = [makeStep()]
@@ -116,6 +119,24 @@ describe('TaskChangesTab', () => {
     const rows = tab.findAll('[data-testid="change-file-row"]')
     expect(rows).toHaveLength(3)
     expect(rows.filter((row) => row.attributes('data-in-scope') === 'false').map((row) => row.text())).toEqual([expect.stringContaining('notes.md')])
+  })
+
+  it('adds the commit being read to the /rk context from its header, and marks it on the track', async () => {
+    vi.mocked(fetchTaskChanges).mockResolvedValue(CHANGES)
+    mountTab(['c2'])
+    await flushPromises()
+    expect(tab.find('[data-testid="change-context-control"]').exists()).toBe(false)
+    expect(tab.findAll('[data-testid="scope-commit-in-context"]')).toHaveLength(1)
+
+    const store = useConsoleStore()
+    store.setCommitReferenceInContext = vi.fn().mockResolvedValue(undefined)
+    await tab.findAll('[data-testid="scope-commit"]')[0]!.trigger('click')
+    await flushPromises()
+    const control = tab.get('[data-testid="change-context-control"] button')
+    expect(control.text()).toBe('Add to /rk context')
+    await control.trigger('click')
+
+    expect(store.setCommitReferenceInContext).toHaveBeenCalledWith('c1', true)
   })
 
   it('reads the working tree as its own change', async () => {

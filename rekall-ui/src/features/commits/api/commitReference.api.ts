@@ -1,10 +1,6 @@
 import { z } from 'zod'
 import { apiClient, request } from '../../../api/client'
-import {
-  CommitReferenceDiffSchema,
-  CommitReferenceSchema,
-  RecentCommitSchema
-} from './schemas/commitReference.schema'
+import { CommitReferenceSchema, RecentCommitSchema } from './schemas/commitReference.schema'
 import type { CommitReference, RecentCommit } from '@/features/commits/model/commitReference'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
@@ -46,13 +42,6 @@ export async function recordCommit(
         body: { stepId: stepId ?? null, commitHash }
       })
     )
-  )
-}
-
-/** Fetched on demand, not with the list: most rows are never opened. */
-export async function fetchCommitReferenceDiff(id: string): Promise<string | null> {
-  return request(
-    async () => CommitReferenceDiffSchema.parse(await apiClient(`/api/commit-references/${id}/diff`)).diff
   )
 }
 

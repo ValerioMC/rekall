@@ -320,8 +320,7 @@ vi.mock('@/features/skills/api/skill-assignments.api', () => ({
 
 vi.mock('@/features/commits/api/commitReference.api', () => ({
   fetchCommitReferences: vi.fn(async () => []),
-  recordLatestCommit: vi.fn(),
-  fetchCommitReferenceDiff: vi.fn()
+  recordLatestCommit: vi.fn()
 }))
 
 // Each console follows the shared router; one left mounted would answer the next test's moves.

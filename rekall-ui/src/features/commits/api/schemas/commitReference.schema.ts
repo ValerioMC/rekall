@@ -17,10 +17,6 @@ export const CommitReferenceStreamEventSchema = z.object({
   reference: CommitReferenceSchema
 })
 
-export const CommitReferenceDiffSchema = z.object({
-  diff: z.string().nullable()
-})
-
 export const RecentCommitSchema = z.object({
   hash: z.string(),
   subject: z.string(),

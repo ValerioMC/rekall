@@ -4,7 +4,13 @@ import { sameScope, type ChangeScope } from '@/features/commits/model/changeScop
 import type { ChangeSource, ScopeGroup } from '@/features/commits/lib/change-sources'
 
 /** What to compare, as one track: all changes, then each step with the commits logged against it, then the working tree. */
-const props = defineProps<{ scope: ChangeScope; groups: readonly ScopeGroup[]; workingTree: ChangeSource | null }>()
+const props = defineProps<{
+  scope: ChangeScope
+  groups: readonly ScopeGroup[]
+  workingTree: ChangeSource | null
+  /** Reference ids chosen for the `/rk` context: their chip carries a mark. */
+  inContext: ReadonlySet<string>
+}>()
 
 const emit = defineEmits<{ select: [scope: ChangeScope] }>()
 
@@ -49,6 +55,7 @@ function classOf(target: ChangeScope): string {
         @click="emit('select', { kind: 'commit', referenceId: source.id })"
       >
         <span class="font-mono text-caption">{{ source.commitHash?.slice(0, 7) }}</span>
+        <span v-if="inContext.has(source.id)" class="size-1.5 rounded-full bg-anchor" title="In the /rk context" data-testid="scope-commit-in-context" />
       </button>
     </template>
     <template v-if="workingTree">

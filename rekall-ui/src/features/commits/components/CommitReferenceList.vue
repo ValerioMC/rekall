@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { relativeTime } from '@/common/format/relative-time'
-import { fetchCommitReferenceDiff } from '@/features/commits/api/commitReference.api'
-import CommitDiffView from '@/features/commits/components/CommitDiffView.vue'
+import CommitContextToggle from '@/features/commits/components/CommitContextToggle.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -22,45 +21,7 @@ withDefaults(
 const store = useConsoleStore()
 const { run } = useAsyncAction()
 
-const expandedId = ref<string | null>(null)
-const diffs = ref<Record<string, string | null>>({})
-const loadingId = ref<string | null>(null)
-const failedId = ref<string | null>(null)
 const deletingReference = ref<CommitReference | null>(null)
-const togglingContextId = ref<string | null>(null)
-
-async function toggle(reference: CommitReference): Promise<void> {
-  if (expandedId.value === reference.id) {
-    expandedId.value = null
-    return
-  }
-  expandedId.value = reference.id
-  if (reference.id in diffs.value) return
-
-  failedId.value = null
-  loadingId.value = reference.id
-  try {
-    diffs.value = { ...diffs.value, [reference.id]: await fetchCommitReferenceDiff(reference.id) }
-  } catch {
-    failedId.value = reference.id
-  } finally {
-    loadingId.value = null
-  }
-}
-
-/**
- * Chooses the commit for `/rk`, or unchooses it. No toast: the pill changing colour is the
- * confirmation, and a toast per click would drown a person choosing three commits in a row.
- */
-async function toggleContext(reference: CommitReference): Promise<void> {
-  if (togglingContextId.value) return
-  togglingContextId.value = reference.id
-  try {
-    await run(() => store.setCommitReferenceInContext(reference.id, !reference.inContext))
-  } finally {
-    togglingContextId.value = null
-  }
-}
 
 function beginDelete(reference: CommitReference): void {
   deletingReference.value = reference
@@ -100,15 +61,10 @@ async function confirmDelete(): Promise<void> {
         data-testid="commit-rail-below"
       />
       <div class="flex h-[26px] min-w-0 items-center gap-1">
-        <button
-          type="button"
-          class="focus-ring flex h-full w-full min-w-0 items-center gap-2 rounded-key text-left"
-          :aria-expanded="expandedId === reference.id"
-          data-testid="commit-reference-toggle"
-          @click="toggle(reference)"
-        >
+        <div class="flex h-full w-full min-w-0 items-center gap-2 text-left" data-testid="commit-reference-summary">
           <svg
-            class="size-3 shrink-0 text-text-subtle transition-colors group-hover/commit:text-accent"
+            class="size-3 shrink-0 transition-colors"
+            :class="reference.inContext ? 'text-anchor' : 'text-text-subtle group-hover/commit:text-accent'"
             viewBox="0 0 12 12"
             fill="none"
             aria-hidden="true"
@@ -142,38 +98,9 @@ async function confirmDelete(): Promise<void> {
           </span>
 
           <span class="shrink-0 text-micro text-text-subtle">{{ relativeTime(reference.createdAt) }}</span>
-        </button>
+        </div>
 
-        <button
-          type="button"
-          class="focus-ring hit-target relative flex h-5 shrink-0 items-center gap-1 rounded-control border px-1.5 text-micro leading-none transition-all duration-(--motion-quick)"
-          :class="
-            reference.inContext
-              ? 'border-anchor-line bg-anchor-soft text-anchor'
-              : 'border-transparent text-text-subtle opacity-0 hover:border-anchor-line hover:text-anchor group-hover/commit:opacity-100 focus-visible:opacity-100'
-          "
-          :aria-pressed="reference.inContext"
-          :disabled="togglingContextId === reference.id"
-          :title="
-            reference.inContext
-              ? 'Stop handing this commit to /rk'
-              : 'Hand this commit, with its diff, to /rk for this task'
-          "
-          data-testid="commit-reference-context-toggle"
-          :data-in-context="reference.inContext ? 'true' : 'false'"
-          @click.stop="toggleContext(reference)"
-        >
-          <svg class="size-2.5 shrink-0" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-            <path
-              d="M4.2 2.4 1.6 6l2.6 3.6M7.8 2.4 10.4 6 7.8 9.6"
-              stroke="currentColor"
-              stroke-width="1.3"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-          {{ reference.inContext ? 'in context' : 'add to context' }}
-        </button>
+        <CommitContextToggle :reference="reference" />
 
         <button
           type="button"
@@ -186,15 +113,6 @@ async function confirmDelete(): Promise<void> {
         </button>
       </div>
 
-      <div v-if="expandedId === reference.id" class="mt-1.5 min-w-0" data-testid="commit-reference-diff">
-        <p v-if="loadingId === reference.id" class="px-1 py-1 text-caption text-text-subtle">
-          Loading the diff…
-        </p>
-        <p v-else-if="failedId === reference.id" class="px-1 py-1 text-caption text-danger">
-          Could not load the diff.
-        </p>
-        <CommitDiffView v-else :diff="diffs[reference.id] ?? null" />
-      </div>
     </li>
   </ul>
 

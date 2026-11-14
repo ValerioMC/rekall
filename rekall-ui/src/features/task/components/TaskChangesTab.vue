@@ -67,6 +67,14 @@ const scopedSources = computed(() => sourcesInScope(sources.value, scope.value))
 const scopedFiles = computed(() => reviewFiles(scopedSources.value))
 const scopedByPath = computed(() => new Map<string, ReviewFile>(scopedFiles.value.map((file) => [file.path, file])))
 const totals = computed(() => totalsOf(scopedFiles.value))
+const inContextIds = computed(
+  () => new Set(selectedTaskCommitReferences.value.filter((reference) => reference.inContext).map((reference) => reference.id))
+)
+const scopedReference = computed(() => {
+  if (scope.value.kind !== 'commit') return null
+  const referenceId = scope.value.referenceId
+  return selectedTaskCommitReferences.value.find((reference) => reference.id === referenceId) ?? null
+})
 
 watch(
   () => props.task.id,
@@ -170,7 +178,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
     <template v-else>
       <div class="flex h-13 shrink-0 items-center gap-3 border-b border-border px-6">
-        <ChangeScopeTrack :scope="scope" :groups="groups" :working-tree="workingTree" class="min-w-0" @select="selectScope" />
+        <ChangeScopeTrack :scope="scope" :groups="groups" :working-tree="workingTree" :in-context="inContextIds" class="min-w-0" @select="selectScope" />
         <span class="flex-1" />
         <p class="hidden items-center gap-3 text-caption text-text-subtle @5xl/task:flex">
           <span><kbd>j</kbd> <kbd>k</kbd> files</span>
@@ -184,7 +192,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
       <div class="grid min-h-0 flex-1 grid-cols-[20.5rem_minmax(0,1fr)]">
         <ChangeFileTree :files="allFiles" :in-scope="scopedByPath" :viewed="review.viewed.value" :current="current" @select="showFile" />
         <div ref="column" class="relative min-h-0 overflow-auto bg-canvas" data-testid="changes-column" @scroll.passive="followScroll">
-          <ChangeScopeHeader :scope="scope" :sources="scopedSources" :totals="totals" :step-titles="stepTitles" :step-numbers="stepNumbers" />
+          <ChangeScopeHeader :scope="scope" :sources="scopedSources" :totals="totals" :step-titles="stepTitles" :step-numbers="stepNumbers" :reference="scopedReference" />
           <p v-if="scopedFiles.length === 0" class="px-6 py-8 text-small text-text-subtle" data-testid="changes-scope-empty">This change has no file to show.</p>
           <ChangedFileSection
             v-for="file in scopedFiles"
