@@ -54,9 +54,9 @@ describe('the board', () => {
   it('deals each task into the lane of its state', async () => {
     const { wrapper } = await mountBoard()
 
-    expect(cardTitles(wrapper, 'todo')).toEqual(['Write the docs'])
-    expect(cardTitles(wrapper, 'progress')).toEqual(['Fix the login'])
-    expect(cardTitles(wrapper, 'review')).toEqual(['Plan the launch'])
+    expect(cardTitles(wrapper, 'todo')).toEqual(['[PR-1] Write the docs'])
+    expect(cardTitles(wrapper, 'progress')).toEqual(['[PR-3] Fix the login'])
+    expect(cardTitles(wrapper, 'review')).toEqual(['[PR-2] Plan the launch'])
   })
 
   it('counts the same tasks the ledger counts on Open, and files the rest on a shelf', async () => {
@@ -77,7 +77,7 @@ describe('the board', () => {
 
     await wrapper.get('[data-testid="work-filter"]').setValue('login')
 
-    expect(cardTitles(wrapper, 'progress')).toEqual(['Fix the login'])
+    expect(cardTitles(wrapper, 'progress')).toEqual(['[PR-3] Fix the login'])
     expect(cardTitles(wrapper, 'todo')).toEqual([])
   })
 

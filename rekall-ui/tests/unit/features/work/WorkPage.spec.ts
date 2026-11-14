@@ -46,7 +46,7 @@ describe('WorkPage', () => {
 
     const wrapper = await mountWork()
 
-    expect(titles(wrapper).sort()).toEqual(['Fix the login', 'Plan the launch'])
+    expect(titles(wrapper).sort()).toEqual(['[PR-1] Plan the launch', '[PR-5] Fix the login'])
   })
 
   it('counts on the Needs me tab what the review queue counts', async () => {
@@ -76,7 +76,7 @@ describe('WorkPage', () => {
 
     await wrapper.get('[data-testid="work-filed-fold"]').trigger('click')
 
-    expect(titles(wrapper)).toContain('Ship the build')
+    expect(titles(wrapper)).toContain('[PR-3] Ship the build')
   })
 
   it('lists the finished tasks of every project on Filed, with no fold', async () => {
@@ -85,7 +85,7 @@ describe('WorkPage', () => {
 
     const wrapper = await mountWork()
 
-    expect(titles(wrapper).sort()).toEqual(['Orion kickoff', 'Ship the build'])
+    expect(titles(wrapper).sort()).toEqual(['[PR-3] Ship the build', '[PR-4] Orion kickoff'])
     expect(wrapper.find('[data-testid="work-filed-fold"]').exists()).toBe(false)
   })
 
@@ -95,7 +95,7 @@ describe('WorkPage', () => {
 
     const wrapper = await mountWork()
 
-    expect(titles(wrapper)).toEqual(['Plan the launch'])
+    expect(titles(wrapper)).toEqual(['[PR-1] Plan the launch'])
   })
 
   it('lists the tasks of an epic under it, and folds them from the epic row', async () => {
@@ -109,12 +109,12 @@ describe('WorkPage', () => {
     work.view = 'open'
     const wrapper = await mountWork()
 
-    expect(titles(wrapper)).toEqual(['Unrelated', 'Checkout rework', 'Pay by wire', 'Pay by card'])
+    expect(titles(wrapper)).toEqual(['[PR-9] Unrelated', '[PR-6] Checkout rework', '[PR-8] Pay by wire', '[PR-7] Pay by card'])
     expect(wrapper.get('[data-testid="work-epic-summary"]').text()).toBe('2 tasks')
 
     await wrapper.get('[data-testid="work-epic-toggle"]').trigger('click')
 
-    expect(titles(wrapper)).toEqual(['Unrelated', 'Checkout rework'])
+    expect(titles(wrapper)).toEqual(['[PR-9] Unrelated', '[PR-6] Checkout rework'])
   })
 
   it('names the epic of a task listed without it', async () => {
@@ -143,7 +143,7 @@ describe('WorkPage', () => {
 
     await wrapper.get('[data-testid="work-filter"]').setValue('docs')
 
-    expect(titles(wrapper)).toEqual(['Write the docs'])
+    expect(titles(wrapper)).toEqual(['[PR-2] Write the docs'])
   })
 
   it('says no task matches when the filter finds none', async () => {
@@ -164,7 +164,7 @@ describe('WorkPage', () => {
     await wrapper.findAll('[role="row"] button').find((key) => key.text() === 'Needs you')!.trigger('click')
 
     expect(work.sort).toBe('needs')
-    expect(titles(wrapper)[0]).toBe('Plan the launch')
+    expect(titles(wrapper)[0]).toBe('[PR-1] Plan the launch')
   })
 
   it('draws the rows tighter in the compact density', async () => {

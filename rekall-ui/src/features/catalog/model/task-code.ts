@@ -31,3 +31,8 @@ export function namesTask(task: Pick<Task, 'code' | 'label'>, reference: string)
   const wanted = reference.trim().toLowerCase()
   return task.code.toLowerCase() === wanted || task.label.toLowerCase() === wanted
 }
+
+/** The task's title led by its code in brackets, as an issue tracker writes it: `[RK-12] Fix the login`. */
+export function codedTitle(task: Pick<Task, 'code' | 'title'>): string {
+  return `[${task.code}] ${task.title}`
+}

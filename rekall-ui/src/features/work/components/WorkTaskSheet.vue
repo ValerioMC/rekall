@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { codedTitle } from '@/features/catalog/model/task-code'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
@@ -39,7 +40,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     ref="sheet"
     class="fixed bottom-0 right-0 top-(--spacing-header) z-(--z-overlay) flex w-[600px] max-w-full flex-col gap-3 overflow-y-auto border-l border-border-strong bg-canvas p-5 shadow-modal outline-none"
     role="dialog"
-    :aria-label="row.task.title"
+    :aria-label="codedTitle(row.task)"
     tabindex="-1"
     data-testid="task-sheet"
   >
@@ -57,7 +58,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         <CloseGlyph />
       </AppButton>
     </div>
-    <h2 class="text-heading font-medium text-text">{{ row.task.title }}</h2>
+    <h2 class="text-heading font-medium text-text">{{ codedTitle(row.task) }}</h2>
     <WorkPeek :row="row" />
   </aside>
 </template>

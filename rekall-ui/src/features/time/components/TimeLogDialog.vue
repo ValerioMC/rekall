@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { codedTitle } from '@/features/catalog/model/task-code'
 import { formatDate, formatTimeOfDay } from '@/common/format/app-locale'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
@@ -114,7 +115,7 @@ onMounted(async () => {
 
 <template>
   <AppDialog
-    :label="`Time on ${task.title}`"
+    :label="`Time on ${codedTitle(task)}`"
     panel-class="flex flex-col max-h-[80vh] max-w-[520px]"
     panel-testid="time-log-dialog"
     @dismiss="emit('close')"
@@ -122,7 +123,7 @@ onMounted(async () => {
     <header class="flex items-center gap-3 border-b border-border px-6 py-4">
       <span class="min-w-0 flex-1">
         <span class="block text-title font-semibold tracking-[-0.01em] text-text">
-          Time on {{ task.title }}
+          Time on {{ codedTitle(task) }}
         </span>
         <span class="block truncate font-mono text-caption text-anchor/80">{{ task.anchor }}</span>
       </span>

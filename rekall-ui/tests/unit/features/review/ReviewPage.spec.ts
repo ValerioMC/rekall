@@ -117,7 +117,7 @@ describe('ReviewPage', () => {
 
     expect(router.currentRoute.value.params.key).toBe('s1')
     expect(page.get('[data-testid="decision-title"]').text()).toBe('Step s1')
-    expect(page.get('[data-testid="review-task-link"]').text()).toBe('Task rk-1')
+    expect(page.get('[data-testid="review-task-link"]').text()).toBe('[RK-1] Task rk-1')
   })
 
   it('opens the item a link names', async () => {

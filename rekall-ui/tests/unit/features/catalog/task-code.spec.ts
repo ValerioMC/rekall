@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { codeNumber, namesTask, newestFirst, taskCodeOf } from '@/features/catalog/model/task-code'
+import { codeNumber, codedTitle, namesTask, newestFirst, taskCodeOf } from '@/features/catalog/model/task-code'
 import { taskDraft } from '@/features/catalog/model/record-draft'
 import type { Project, Task } from '@/features/catalog/model/catalog'
 import type { ProjectId, TaskId } from '@/model/branded'
@@ -44,5 +44,9 @@ describe('task codes', () => {
     expect(namesTask(found, ' vg-4 ')).toBe(true)
     expect(namesTask(found, 'Report-Builder')).toBe(true)
     expect(namesTask(found, 'VG-5')).toBe(false)
+  })
+
+  it('leads the title with the code in brackets, as an issue tracker does', () => {
+    expect(codedTitle({ code: 'VG-4', title: 'Report builder' })).toBe('[VG-4] Report builder')
   })
 })

@@ -133,7 +133,7 @@ describe('TaskPage', () => {
     const page = await mountAt('/task/rk-1/plan')
 
     expect(store.selectedTaskId).toBe('rk-1')
-    expect(page.get('[data-testid="task-title"]').text()).toBe('Task rk-1')
+    expect(page.get('[data-testid="task-title"]').text()).toBe('[RK-1] Task rk-1')
     expect(page.get('[data-testid="crumb-project"]').text()).toBe('Acme · Vega')
     expect(page.get('[data-testid="task-anchor"]').text()).toBe('/rk task:RK-1')
     expect(page.get('[data-testid="task-status"]').text()).toContain('Awaiting review')
@@ -203,7 +203,7 @@ describe('TaskPage', () => {
     await flushPromises()
 
     expect(store.selectedTaskId).toBe('rk-2')
-    expect(page.get('[data-testid="task-title"]').text()).toBe('Task rk-2')
+    expect(page.get('[data-testid="task-title"]').text()).toBe('[RK-2] Task rk-2')
   })
 
   it('follows a task selected elsewhere, as search does, by moving to its page', async () => {
