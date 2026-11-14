@@ -67,6 +67,7 @@ const memberSummary = computed(() => {
     @click="work.togglePeek(task.id)"
     @keydown.enter.self="work.togglePeek(task.id)"
   >
+    <WorkRowOpenButton :task-id="task.id" :title="task.title" />
     <button
       v-if="epic"
       type="button"
@@ -142,11 +143,10 @@ const memberSummary = computed(() => {
       {{ ageLabel(task.updatedAt, now) }}
     </span>
 
-    <WorkRowOpenButton :task-id="task.id" :title="task.title" />
   </div>
   <div
     v-if="peeked"
-    class="mb-1.5 rounded-b-control bg-surface-raised px-3 pb-3.5 pl-12 pt-1.5 shadow-[inset_0_0_0_1px_var(--color-border-strong)]"
+    class="mb-1.5 rounded-b-control bg-surface-raised px-3 pb-3.5 pl-[90px] pt-1.5 shadow-[inset_0_0_0_1px_var(--color-border-strong)]"
   >
     <WorkPeek :row="row" />
   </div>

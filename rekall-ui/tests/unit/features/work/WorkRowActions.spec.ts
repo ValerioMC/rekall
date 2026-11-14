@@ -74,6 +74,14 @@ describe('the actions on a ledger row', () => {
     expect(wrapper.find('[data-testid="work-peek"]').exists()).toBe(false)
   })
 
+  it('puts the open arrow at the start of the row, before the status mark', async () => {
+    seed()
+    const wrapper = await mountWork()
+    const row = rowOf(wrapper, 'Write the docs')
+
+    expect(row.element.firstElementChild).toBe(row.get('[data-testid="work-row-open"]').element)
+  })
+
   it('badges a quick task and no other', async () => {
     seed()
     const wrapper = await mountWork()

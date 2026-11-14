@@ -2,7 +2,7 @@
 import { useOpenTask } from '@/features/work/composables/useOpenTask'
 import type { TaskId } from '@/model/branded'
 
-/** The arrow at the end of a ledger row: opens the task without opening the row first. */
+/** The arrow at the start of a ledger row: opens the task without opening the row first. */
 const props = defineProps<{ taskId: TaskId; title: string }>()
 
 const openTask = useOpenTask()
