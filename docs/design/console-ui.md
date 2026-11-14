@@ -71,6 +71,8 @@ console are gone; their tabs are on the task page.
 
 ### The grouped menu
 
+The Rekall mark to the left of the menu key opens Work with the scope reset to All work.
+
 The menu key in the header is three lines and nothing else; it opens every screen under its section:
 Work (Work, Review), Projects (Projects, Companies, Connections), Time (Report, Calendar), Library
 (Diagrams, Claude files), Security and Settings. The review count rides on the Review entry, and the key's
