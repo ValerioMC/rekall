@@ -232,6 +232,30 @@ describe('TaskPage', () => {
     expect(page.get('[data-testid="task-header"]').find('[data-testid="task-actions"]').exists()).toBe(true)
   })
 
+  it('shows the task manager issue and the pull request in the header when the task has them', async () => {
+    const store = seed()
+    store.tasks = [
+      makeTask('rk-1', {
+        trackerIssueKey: 'VEGA-9', trackerIssueUrl: 'https://tracker.example/VEGA-9', trackerContentSynced: false,
+        pullRequestNumber: 5, pullRequestUrl: 'https://github.com/acme/app/pull/5'
+      })
+    ]
+    const page = await mountAt('/task/rk-1')
+    const header = page.get('[data-testid="task-header"]')
+
+    expect(header.get('[data-testid="tracker-sync"]').attributes('data-state')).toBe('pending')
+    expect(header.get('[data-testid="tracker-issue-link"]').attributes('href')).toBe('https://tracker.example/VEGA-9')
+    expect(header.get('[data-testid="pull-request-link"]').attributes('href')).toBe('https://github.com/acme/app/pull/5')
+  })
+
+  it('shows neither mark for a task with no issue and no pull request', async () => {
+    seed()
+    const page = await mountAt('/task/rk-1')
+
+    expect(page.find('[data-testid="tracker-sync"]').exists()).toBe(false)
+    expect(page.find('[data-testid="pull-request-link"]').exists()).toBe(false)
+  })
+
   it('changes the status from the pill and confirms it', async () => {
     const store = seed()
     const page = await mountAt('/task/rk-1/plan')
