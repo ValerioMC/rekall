@@ -94,6 +94,7 @@ async function mountAt(path: string) {
         OpenTerminalButton: true,
         LaunchClaudeCodeButton: true,
         TaskPlanTab: { template: '<div data-testid="plan-tab-stub" />' },
+        TaskChangesTab: { template: '<div data-testid="changes-tab-stub" />' },
         TaskNotesTab: { template: '<div data-testid="notes-tab-stub" />' },
         TaskDescriptionTab: { template: '<div data-testid="description-tab-stub" />' },
         TaskTimeTab: { template: '<div data-testid="time-tab-stub" />' },
@@ -138,21 +139,22 @@ describe('TaskPage', () => {
     expect(page.get('[data-testid="task-status"]').text()).toContain('Awaiting review')
   })
 
-  it('lists the six tabs as links, with Plan counting its steps and turning amber while one waits', async () => {
+  it('lists the seven tabs as links, with Plan counting its steps and turning amber while one waits', async () => {
     seed()
     const page = await mountAt('/task/rk-1/plan')
 
     const tabs = page.findAll('[role="tab"]')
-    expect(tabs.map((tab) => tab.text().replace(/\s*\d+$/, ''))).toEqual(['Description', 'Plan', 'Wrapup', 'Notes', 'Time', 'Deviations'])
+    expect(tabs.map((tab) => tab.text().replace(/\s*\d+$/, ''))).toEqual(['Description', 'Plan', 'Changes', 'Wrapup', 'Notes', 'Time', 'Deviations'])
     expect(tabs[1]!.get('[data-testid="sub-nav-count"]').text()).toBe('1')
-    expect(tabs[3]!.attributes('href')).toBe('/task/rk-1/notes')
-    expect(tabs[3]!.get('[data-testid="sub-nav-count"]').text()).toBe('2')
+    expect(tabs[4]!.attributes('href')).toBe('/task/rk-1/notes')
+    expect(tabs[4]!.get('[data-testid="sub-nav-count"]').text()).toBe('2')
   })
 
   it('shows the pane each tab names', async () => {
     seed()
     const shown: Record<string, string> = {
       plan: 'plan-tab-stub',
+      changes: 'changes-tab-stub',
       wrapup: 'wrapup-pane-stub',
       notes: 'notes-tab-stub',
       description: 'description-tab-stub',

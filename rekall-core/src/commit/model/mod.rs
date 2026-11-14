@@ -7,3 +7,4 @@ pub(super) mod markdown_plain_text;
 pub(super) mod subject;
 pub(super) mod work_tree_snapshot;
 pub(super) mod session_changes;
+pub(super) mod unified_diff;

@@ -2,18 +2,20 @@
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import CopyAnchorButton from '@/components/console/CopyAnchorButton.vue'
+import AppBadge from '@/components/ui/AppBadge.vue'
 import PlanTube from '@/components/ui/PlanTube.vue'
-import StatusPill from '@/components/ui/StatusPill.vue'
 import TaskMark from '@/features/catalog/components/TaskMark.vue'
 import EpicGlyph from '@/features/catalog/components/epic/EpicGlyph.vue'
 import { formatTokens } from '@/common/format/token-count'
 import { taskMark } from '@/features/catalog/model/task-mark'
 import { isEpic } from '@/features/catalog/model/catalog'
 import { ageLabel } from '@/features/work/lib/age-label'
-import { WORK_KIND_LABEL, WORK_KIND_TONE, type WorkDensity, type WorkRow } from '@/features/work/model/work-view'
+import type { WorkDensity, WorkRow } from '@/features/work/model/work-view'
 import { useConsoleStore } from '@/stores/console.store'
 import { useWorkStore } from '@/features/work/store/work.store'
+import TaskStatusMenu from '@/features/work/components/TaskStatusMenu.vue'
 import WorkPeek from '@/features/work/components/WorkPeek.vue'
+import WorkRowOpenButton from '@/features/work/components/WorkRowOpenButton.vue'
 
 const props = defineProps<{
   row: WorkRow
@@ -102,6 +104,7 @@ const memberSummary = computed(() => {
         <EpicGlyph :size="11" />
         <span class="truncate">{{ epicTitle }}</span>
       </span>
+      <AppBadge v-if="task.quick" class="shrink-0" tone="neutral" data-testid="work-row-quick">Quick</AppBadge>
       <CopyAnchorButton
         :anchor="task.anchor"
         class="opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100"
@@ -111,7 +114,7 @@ const memberSummary = computed(() => {
     </span>
 
     <span>
-      <StatusPill :tone="WORK_KIND_TONE[row.kind]" :live="row.running">{{ WORK_KIND_LABEL[row.kind] }}</StatusPill>
+      <TaskStatusMenu :row="row" @changed="work.linger(task.id)" />
     </span>
 
     <span class="flex items-center gap-2.5 font-mono text-caption" data-testid="work-row-plan">
@@ -138,6 +141,8 @@ const memberSummary = computed(() => {
     <span class="text-right font-mono text-caption tabular-nums text-text-subtle">
       {{ ageLabel(task.updatedAt, now) }}
     </span>
+
+    <WorkRowOpenButton :task-id="task.id" :title="task.title" />
   </div>
   <div
     v-if="peeked"

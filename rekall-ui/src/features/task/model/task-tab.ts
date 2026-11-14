@@ -1,12 +1,13 @@
 import type { PaneFocus } from '@/model/console-location'
 
-export const TASK_TABS = ['description', 'plan', 'wrapup', 'notes', 'time', 'deviations'] as const
+export const TASK_TABS = ['description', 'plan', 'changes', 'wrapup', 'notes', 'time', 'deviations'] as const
 
 export type TaskTab = (typeof TASK_TABS)[number]
 
 export const TASK_TAB_LABEL: Readonly<Record<TaskTab, string>> = {
   description: 'Description',
   plan: 'Plan',
+  changes: 'Changes',
   wrapup: 'Wrapup',
   notes: 'Notes',
   time: 'Time',

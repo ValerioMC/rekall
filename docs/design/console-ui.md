@@ -112,6 +112,12 @@ number is the same one as the menu badge, the header review segment and the Revi
 tests hold the two to each other. A scope narrows the tab counts to its tasks, so a count never
 promises rows the table does not list.
 
+A row carries three actions that do not open it. The status pill is a menu (`TaskStatusMenu`, the
+same one the task page's properties bar uses): the pill says what the work is doing now, the menu
+marks the stored status, and a change keeps the row listed for a moment like an accept. The arrow
+at the end of the row opens the task page in one press. A quick task wears a `Quick` badge beside
+its title.
+
 A row expands in place, one at a time, to its **peek**: the task's `/rk` anchor with copy, up to
 three claimed steps each with Send back and Accept, a task handed in whole with Accept task and
 Send back, Open task, and the session key (`OpenTerminalButton`, which reads Run here, or Working while
@@ -141,8 +147,9 @@ the right of the tab strip; Wide at first) sets only how wide the description ed
 in the page; the choice is kept in the browser and holds for every task. The header is two lines: the breadcrumb (Work,
 then company and project) with the task's actions at its right (Log commit, Open in terminal and
 Run here, each offered once), and the title alone beneath. The tab strip is Description, Plan,
-Wrapup, Notes, Time and Deviations, with counts where a count means something (steps, notes,
-deviations) and an amber one on Plan while a step waits for review; at its right is the width key.
+Changes, Wrapup, Notes, Time and Deviations, with counts where a count means something (steps,
+logged commits, notes, deviations) and an amber one on Plan while a step waits for review; at its
+right is the width key.
 Beside every tab sits the properties bar (`TaskRail`), 272px wide, folding to an icon bar that the
 browser remembers: the status pill that changes the status and the copyable `/rk` anchor on top,
 then Labels (tag, skills, dependencies), Context (what `/rk` hands a session, as a total and a bar of
@@ -161,6 +168,22 @@ results, commits, sealed passes, skills, checks and detail, and Up next to revie
 whole shows its own decision, Accept task or Send back, in the same place. Nothing but a person
 marks a step done, and Claude moves a step only up to claimed. The panel and the list share the
 step editor, so a title or detail typed in the panel is saved as it was in the old checklist.
+
+**Changes** reads what the sessions changed in the application as a code review (`TaskChangesTab`,
+data from `GET /api/tasks/{id}/changes`). A track along the top picks what is compared: **All changes**
+(each file as the logged commits left it), a **step** (the commits logged against it), one **commit**,
+or the **working tree** a session has not committed yet (indigo, with a pulsing dot). A file tree on
+the left lists every file of the task by folder with its added and removed lines in the chosen scope;
+a file the scope does not touch stays listed as "not in this" and opens All changes when pressed.
+The column on the right is one continuous diff with a sticky header per file: **Split** (old file
+beside new) or **Unified**, real old and new line numbers, the words an edit changed marked inside
+a changed line, and keyword and comment weight with no new palette. In All changes and a step each hunk
+carries a chip with the commit, step and subject that made it, and pressing it reads that single
+commit; in a single commit a file also touched by other commits says whether they came earlier or
+later and links back to the net result. **Viewed** is the reader's own mark: it folds the file and
+counts in "N of M viewed", kept in the page only, and accepts nothing. Keys: `j` and `k` between
+files, `v` viewed, `u` split or unified, `a` all changes. Unchanged lines between hunks are not
+expandable, and an epic has no Changes tab.
 
 The other tabs hold the panes the console had, with the title row left to the page header. Wrapup
 keeps its author and age, the freshness tag, Versions, Wrapup here and the editor. Notes is a list

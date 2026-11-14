@@ -834,6 +834,74 @@ async fn the_recent_log_is_read_from_the_tasks_project_folder_newest_first() {
 }
 
 #[tokio::test]
+async fn a_tasks_changes_are_its_logged_commits_patches_oldest_first_and_the_working_tree() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    fs::write(repo.path().join("seed.txt"), "seed\nsecond\n").unwrap();
+    git(repo.path(), &["add", "-A"]);
+    commit(repo.path(), "Extend the seed");
+    let first = git(repo.path(), &["rev-parse", "HEAD"]);
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), false).await;
+    let task = world.task(&project, "report-builder").await;
+    world.services.commit_references.record_commit(task.id, None, Some(&first)).await.unwrap();
+
+    let clean = world.services.task_changes.of_task(task.id).await.unwrap();
+
+    assert_eq!(clean.commits.len(), 1);
+    let logged = &clean.commits[0];
+    assert_eq!((logged.commit_hash.as_str(), logged.subject.as_str(), logged.available), (first.as_str(), "Extend the seed", true));
+    assert_eq!(logged.files.len(), 1);
+    assert_eq!((logged.files[0].path.as_str(), logged.files[0].additions, logged.files[0].deletions), ("seed.txt", 2, 1));
+    assert!(clean.working_tree.is_none(), "a clean tree has no working-tree change");
+
+    fs::write(repo.path().join("fresh.txt"), "new\n").unwrap();
+    let dirty = world.services.task_changes.of_task(task.id).await.unwrap();
+
+    let paths: Vec<&str> = dirty.working_tree.as_ref().unwrap().files.iter().map(|file| file.path.as_str()).collect();
+    assert_eq!(paths, ["fresh.txt"]);
+}
+
+#[tokio::test]
+async fn a_commit_git_no_longer_knows_is_read_from_the_diff_stored_when_it_was_logged() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), false).await;
+    let task = world.task(&project, "report-builder").await;
+    let stored = "diff --git a/gone.txt b/gone.txt\n--- a/gone.txt\n+++ b/gone.txt\n@@ -1 +1 @@\n-a\n+b\n";
+    rekall_store::commit_reference::Model {
+        id: Id::random(),
+        task_id: task.id,
+        step_id: None,
+        commit_hash: "deadbeefdeadbeef".to_string(),
+        comment: "Rebased away".to_string(),
+        diff: Some(stored.to_string()),
+        in_context: false,
+        created_at: Instant::now(),
+    }
+    .into_active_model()
+    .insert(world.db())
+    .await
+    .unwrap();
+
+    let changes = world.services.task_changes.of_task(task.id).await.unwrap();
+
+    assert!(changes.commits[0].available);
+    assert_eq!(changes.commits[0].files[0].path, "gone.txt");
+}
+
+#[tokio::test]
+async fn a_task_with_no_commit_and_no_folder_has_no_changes() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "report-builder").await;
+
+    let changes = world.services.task_changes.of_task(task.id).await.unwrap();
+
+    assert!(changes.commits.is_empty());
+    assert!(changes.working_tree.is_none());
+}
+
+#[tokio::test]
 async fn under_three_characters_there_is_no_search() {
     let world = world().await;
     let project = world.project("vega", None, false).await;

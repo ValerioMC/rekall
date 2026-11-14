@@ -1,6 +1,5 @@
 use rekall_kernel::{Id, RekallError};
 use crate::project;
-use crate::enums::TaskStepState;
 use crate::task::{Column, Entity, Model};
 use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, IntoActiveModel, QueryFilter, QueryOrder, Set};
 

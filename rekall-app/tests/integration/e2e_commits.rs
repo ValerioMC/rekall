@@ -236,6 +236,26 @@ async fn the_diff_introduced_by_a_logged_commit_can_be_fetched_by_the_rows_own_i
 }
 
 #[tokio::test]
+async fn a_tasks_changes_list_its_logged_commits_with_files_and_hunks() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let repo = a_git_repo_with_one_commit("Add the README");
+    let project_id = app.a_project_in(&acme, "vega", repo.path()).await;
+    let task_id = app.a_task(&project_id, "report-builder").await;
+    app.post_empty(&format!("/api/tasks/{task_id}/commit-references/latest")).await;
+
+    let changes = app.get(&format!("/api/tasks/{task_id}/changes")).await;
+
+    assert_eq!(changes.status, 200);
+    let commit = &changes.body["commits"][0];
+    assert_eq!(commit["subject"], "Add the README");
+    assert_eq!(commit["available"], true);
+    assert_eq!(commit["files"][0]["kind"], "ADDED");
+    assert_eq!(commit["files"][0]["hunks"][0]["lines"][0]["kind"], "ADDED");
+    assert_eq!(changes.body["workingTree"], Value::Null);
+}
+
+#[tokio::test]
 async fn the_diff_of_a_commit_reference_that_does_not_exist_is_a_404_not_an_empty_body() {
     let app = app().await;
     let response = app.get(&format!("/api/commit-references/{}/diff", rekall_kernel::Id::random())).await;

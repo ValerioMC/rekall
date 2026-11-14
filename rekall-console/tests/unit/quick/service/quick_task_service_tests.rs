@@ -154,23 +154,15 @@ async fn a_blank_text_is_refused_and_nothing_is_created() {
 }
 
 #[tokio::test]
-async fn a_second_quick_task_is_refused_while_the_first_is_still_being_worked() {
+async fn quick_tasks_can_run_side_by_side_on_one_project() {
     let world = world(None).await;
     let first = world.service.create(command(world.project_id, "First change")).await.unwrap();
     world.review.session_running(first.task.id, true).await.unwrap();
-    let refusal = world.service.create(command(world.project_id, "Second change")).await.unwrap_err();
-    assert!(matches!(refusal, RekallError::Conflict(_)), "{refusal}");
-    assert_eq!(world.tasks.list(Some(world.project_id)).await.unwrap().len(), 1);
-}
-
-#[tokio::test]
-async fn a_quick_task_whose_session_ended_without_a_wrapup_does_not_block_the_next() {
-    let world = world(None).await;
-    let abandoned = world.service.create(command(world.project_id, "First change")).await.unwrap();
-    world.review.session_running(abandoned.task.id, true).await.unwrap();
-    world.review.session_running(abandoned.task.id, false).await.unwrap();
-    let next = world.service.create(command(world.project_id, "Second change")).await.unwrap();
-    assert!(next.task.quick);
+    let second = world.service.create(command(world.project_id, "Second change")).await.unwrap();
+    world.review.session_running(second.task.id, true).await.unwrap();
+    let third = world.service.create(command(world.project_id, "Third change")).await.unwrap();
+    assert!(third.task.quick);
+    assert_eq!(world.tasks.list(Some(world.project_id)).await.unwrap().len(), 3);
 }
 
 #[tokio::test]

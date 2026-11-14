@@ -50,6 +50,22 @@ impl GitLogReader {
         Ok(LoggedCommit { hash, subject, diff })
     }
 
+    /// The full patch one commit introduced, rename-aware. Unlike the diff stored when a commit is
+    /// logged, it is read from git as it stands, so a long commit arrives whole.
+    pub async fn patch(&self, folder: &Path, hash: &str) -> Result<String> {
+        require_repository(folder)?;
+        require_hash(hash)?;
+        let result = run(folder, &["show", "--format=", "--no-color", "--no-ext-diff", "-M", hash, "--"], None, READ_TIMEOUT).await?;
+        if !result.ok() {
+            return Err(RekallError::illegal(format!(
+                "Could not read commit {hash} in {}: {}",
+                display_path(folder),
+                jstr::strip(&result.stderr)
+            )));
+        }
+        Ok(result.stdout)
+    }
+
     /// The commits after `since` up to `HEAD` that changed one of `paths` (literal names, files or
     /// folders), each with the files it changed there. Refused when git does not know `since`
     /// or takes longer than a second.

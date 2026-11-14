@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import AppButton from '@/components/ui/AppButton.vue'
 import SubNav from '@/components/ui/SubNav.vue'
+import TaskChangesTab from '@/features/task/components/TaskChangesTab.vue'
 import TaskPageHeader from '@/features/task/components/TaskPageHeader.vue'
 import TaskDeviationsTab from '@/features/task/components/TaskDeviationsTab.vue'
 import TaskDescriptionTab from '@/features/task/components/TaskDescriptionTab.vue'
@@ -34,7 +35,7 @@ const router = useRouter()
 const deviations = useDeviationsStore()
 const tokenUsage = useTokenUsageStore()
 const preferences = usePreferencesStore()
-const { isLoading, selectedTask, selectedTaskSteps } = storeToRefs(store)
+const { isLoading, selectedTask, selectedTaskSteps, selectedTaskCommitReferences } = storeToRefs(store)
 
 const taskId = computed(() => asTaskId(String(route.params.id)))
 const tab = computed(() => taskTabOf(typeof route.params.tab === 'string' ? route.params.tab : undefined))
@@ -53,7 +54,8 @@ const tabs = computed(() => {
       steps: selectedTaskSteps.value.filter((step) => step.state !== 'DRAFT').length,
       claimedSteps: selectedTaskSteps.value.filter((step) => step.state === 'CLAIMED').length,
       notes: task.documentCount,
-      deviations: deviations.of(task.id).length
+      deviations: deviations.of(task.id).length,
+      commits: selectedTaskCommitReferences.value.length
     },
     isEpic(task)
   )
@@ -68,11 +70,11 @@ watch(
   { immediate: true }
 )
 
-// An epic has no plan, so its page opens on the description.
+// An epic has no plan and changes no code itself, so its page opens on the description.
 watch(
   [row, tab],
   ([shown, current]) => {
-    if (shown && current === 'plan' && isEpic(shown.task)) {
+    if (shown && (current === 'plan' || current === 'changes') && isEpic(shown.task)) {
       void router.replace({ name: 'task', params: { id: shown.task.id, tab: 'description' } })
     }
   },
@@ -116,6 +118,7 @@ watch(
             <template #trailing><TaskWidthMenu v-model="preferences.taskWidth" /></template>
           </SubNav>
           <TaskPlanTab v-if="tab === 'plan'" :task="row.task" />
+          <TaskChangesTab v-else-if="tab === 'changes'" :task="row.task" />
           <WrapupPane v-else-if="tab === 'wrapup'" embedded />
           <TaskNotesTab v-else-if="tab === 'notes'" :task="row.task" />
           <TaskDescriptionTab v-else-if="tab === 'description'" :task="row.task" />

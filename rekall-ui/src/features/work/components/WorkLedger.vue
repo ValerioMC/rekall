@@ -34,6 +34,7 @@ const noProject = computed(() => projects.value.length === 0)
       <span class="text-right max-[1180px]:hidden">Notes</span>
       <WorkSortKey class="max-[1180px]:hidden" label="Tokens" align-end :active="sort === 'tokens'" @sort="sort = 'tokens'" />
       <WorkSortKey label="Updated" align-end :active="sort === 'updated'" @sort="sort = 'updated'" />
+      <span />
     </div>
 
     <WorkProjectGroup

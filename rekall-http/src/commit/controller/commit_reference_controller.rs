@@ -4,7 +4,7 @@
 use axum::extract::{Path, State};
 use axum::routing::{get, patch, post};
 use axum::{Json, Router};
-use rekall_core::commit::{CommitReferenceView, RecentCommitView};
+use rekall_core::commit::{CommitReferenceView, RecentCommitView, TaskChangesView};
 
 use crate::commit::{CommitReferenceContextRequest, CommitReferenceDiffResponse, CommitReferenceRequest, PickedCommitReferenceRequest};
 use crate::shared::error::ApiResult;
@@ -17,6 +17,7 @@ pub fn routes() -> Router<ApiState> {
         .route("/api/tasks/{task_id}/commit-references/latest", post(record_latest))
         .route("/api/tasks/{task_id}/recent-commits", get(recent_commits))
         .route("/api/tasks/{task_id}/commit-references", post(record))
+        .route("/api/tasks/{task_id}/changes", get(changes))
         .route("/api/commit-references/{id}/diff", get(diff))
         .route("/api/commit-references/{id}", patch(set_in_context).delete(delete))
 }
@@ -54,6 +55,11 @@ async fn record(
             .record_commit(task_id, request.step_id, request.commit_hash.as_deref())
             .await?,
     ))
+}
+
+/// What the task changed: each logged commit's files and hunks, and the uncommitted working tree.
+async fn changes(State(state): State<ApiState>, Path(task_id): Path<String>) -> ApiResult<Json<TaskChangesView>> {
+    Ok(Json(state.task_changes.of_task(uuid("taskId", &task_id)?).await?))
 }
 
 async fn diff(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<CommitReferenceDiffResponse>> {

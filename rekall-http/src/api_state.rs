@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use rekall_core::commit::CommitReferenceService;
+use rekall_core::commit::{CommitReferenceService, TaskChangesService};
 use rekall_core::connection::ConnectionCheckService;
 use rekall_core::context::ContextSizeService;
 use rekall_core::diagram::DiagramService;
@@ -37,6 +37,7 @@ pub struct ApiState {
     pub time_entries: TimeEntryService,
     pub token_usage: TokenUsageService,
     pub commit_references: CommitReferenceService,
+    pub task_changes: TaskChangesService,
     pub context_size: ContextSizeService,
     pub search: SearchService,
     pub diagrams: DiagramService,
@@ -205,6 +206,7 @@ impl ApiState {
             time_entries: services.time_entries,
             token_usage: services.token_usage,
             commit_references: services.commit_references,
+            task_changes: services.task_changes,
             context_size: services.context_size,
             search: services.search,
             diagrams: services.diagrams,
