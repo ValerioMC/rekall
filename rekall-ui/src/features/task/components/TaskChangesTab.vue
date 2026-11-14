@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useRoute, useRouter } from 'vue-router'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppSkeleton from '@/components/ui/AppSkeleton.vue'
@@ -39,6 +40,8 @@ const LAYOUTS: readonly SegmentOption<DiffLayout>[] = [
 ]
 const SCROLL_MARGIN = 12
 
+const route = useRoute()
+const router = useRouter()
 const store = useConsoleStore()
 const { selectedTaskSteps, selectedTaskCommitReferences } = storeToRefs(store)
 const { changes, status, failure, reload } = useTaskChanges(
@@ -47,7 +50,8 @@ const { changes, status, failure, reload } = useTaskChanges(
 )
 const review = useChangeReview()
 
-const scope = ref<ChangeScope>(ALL_CHANGES)
+const routedCommit = computed(() => (typeof route.query.commit === 'string' ? route.query.commit : null))
+const scope = ref<ChangeScope>(routedCommit.value === null ? ALL_CHANGES : { kind: 'commit', referenceId: routedCommit.value })
 const layout = ref<DiffLayout>('split')
 const current = ref<string | null>(null)
 const column = ref<HTMLElement | null>(null)
@@ -103,6 +107,17 @@ function selectScope(next: ChangeScope): void {
     scrollToTop()
   })
 }
+
+function syncCommitQuery(): void {
+  const commit = scope.value.kind === 'commit' ? scope.value.referenceId : undefined
+  if (commit === routedCommit.value || (commit === undefined && routedCommit.value === null)) return
+  void router.replace({ query: { ...route.query, commit } })
+}
+
+watch(routedCommit, (commit) => {
+  if (commit !== null) selectScope({ kind: 'commit', referenceId: commit })
+})
+watch(scope, syncCommitQuery)
 
 function openSource(sourceId: string): void {
   selectScope(sourceId === WORKING_TREE_SOURCE_ID ? { kind: 'working-tree' } : { kind: 'commit', referenceId: sourceId })

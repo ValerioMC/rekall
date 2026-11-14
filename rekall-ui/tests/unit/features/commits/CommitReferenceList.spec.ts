@@ -7,6 +7,9 @@ import { useConsoleStore } from '@/stores/console.store'
 import type { CommitReference } from '@/features/commits/model/commitReference'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
+const push = vi.fn()
+vi.mock('vue-router', () => ({ useRouter: () => ({ push }) }))
+
 const taskId = 't1' as TaskId
 const stepId = 's1' as TaskStepId
 
@@ -35,16 +38,25 @@ describe('CommitReferenceList', () => {
   let pinia: Pinia
 
   beforeEach(() => {
+    push.mockReset()
     pinia = createPinia()
     setActivePinia(pinia)
   })
 
-  it('shows the short hash and the comment, with no diff to open', () => {
+  it('shows the short hash and the comment, with no diff in the row', () => {
     const wrapper = mount(CommitReferenceList, { props: { references: [reference()] } })
 
     expect(wrapper.get('[data-testid="commit-reference-hash"]').text()).toBe('abc1234')
     expect(wrapper.text()).toContain('Wire up the button')
-    expect(wrapper.find('[data-testid="commit-reference-toggle"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="commit-reference-diff"]').exists()).toBe(false)
+  })
+
+  it('opens the commit in the Changes tab when its row is clicked', async () => {
+    const wrapper = render([reference({ id: 'c1' })])
+
+    await wrapper.get('[data-testid="commit-reference-open"]').trigger('click')
+
+    expect(push).toHaveBeenCalledWith({ name: 'task', params: { id: taskId, tab: 'changes' }, query: { commit: 'c1' } })
   })
 
   it('joins the commits with one rail that starts at the first and ends at the last', () => {

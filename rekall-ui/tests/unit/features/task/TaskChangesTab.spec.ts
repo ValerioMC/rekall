@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import TaskChangesTab from '@/features/task/components/TaskChangesTab.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { fetchTaskChanges } from '@/features/commits/api/taskChanges.api'
@@ -54,6 +55,7 @@ const CHANGES: TaskChanges = {
 }
 
 let pinia: Pinia
+let router: Router
 let tab: VueWrapper
 
 function mountTab(contextIds: readonly string[] = []): VueWrapper {
@@ -65,15 +67,17 @@ function mountTab(contextIds: readonly string[] = []): VueWrapper {
   store.selectedTaskId = taskId
   store.steps = [makeStep()]
   store.isLoading = false
-  tab = mount(TaskChangesTab, { props: { task: makeTask() }, attachTo: document.body, global: { plugins: [pinia] } })
+  tab = mount(TaskChangesTab, { props: { task: makeTask() }, attachTo: document.body, global: { plugins: [pinia, router] } })
   return tab
 }
 
 describe('TaskChangesTab', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     pinia = createPinia()
     setActivePinia(pinia)
+    router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/task/:id/:tab?', name: 'task', component: { template: '<div />' } }] })
     vi.mocked(fetchTaskChanges).mockReset()
+    await router.push({ name: 'task', params: { id: taskId, tab: 'changes' } })
   })
 
   afterEach(() => {
@@ -137,6 +141,31 @@ describe('TaskChangesTab', () => {
     await control.trigger('click')
 
     expect(store.setCommitReferenceInContext).toHaveBeenCalledWith('c1', true)
+  })
+
+  it('opens on the commit named by the route and keeps the route in step with the scope', async () => {
+    vi.mocked(fetchTaskChanges).mockResolvedValue(CHANGES)
+    await router.push({ name: 'task', params: { id: taskId, tab: 'changes' }, query: { commit: 'c2' } })
+    mountTab()
+    await flushPromises()
+
+    expect(tab.find('[data-testid="change-scope-header"]').text()).toContain('second change')
+
+    await tab.find('[data-testid="scope-all"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query.commit).toBeUndefined()
+  })
+
+  it('moves to another commit when the route names one while the tab is open', async () => {
+    vi.mocked(fetchTaskChanges).mockResolvedValue(CHANGES)
+    mountTab()
+    await flushPromises()
+
+    await router.push({ name: 'task', params: { id: taskId, tab: 'changes' }, query: { commit: 'c1' } })
+    await flushPromises()
+
+    expect(tab.find('[data-testid="change-scope-header"]').text()).toContain('first change')
   })
 
   it('reads the working tree as its own change', async () => {

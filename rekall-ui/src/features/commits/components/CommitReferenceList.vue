@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { relativeTime } from '@/common/format/relative-time'
 import CommitContextToggle from '@/features/commits/components/CommitContextToggle.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
@@ -18,10 +19,15 @@ withDefaults(
   { showStepTag: false, dense: false }
 )
 
+const router = useRouter()
 const store = useConsoleStore()
 const { run } = useAsyncAction()
 
 const deletingReference = ref<CommitReference | null>(null)
+
+function openInChanges(reference: CommitReference): void {
+  void router.push({ name: 'task', params: { id: reference.taskId, tab: 'changes' }, query: { commit: reference.id } })
+}
 
 function beginDelete(reference: CommitReference): void {
   deletingReference.value = reference
@@ -61,7 +67,13 @@ async function confirmDelete(): Promise<void> {
         data-testid="commit-rail-below"
       />
       <div class="flex h-[26px] min-w-0 items-center gap-1">
-        <div class="flex h-full w-full min-w-0 items-center gap-2 text-left" data-testid="commit-reference-summary">
+        <button
+          type="button"
+          class="focus-ring flex h-full w-full min-w-0 items-center gap-2 rounded-key text-left"
+          title="Read this commit in the Changes tab"
+          data-testid="commit-reference-open"
+          @click="openInChanges(reference)"
+        >
           <svg
             class="size-3 shrink-0 transition-colors"
             :class="reference.inContext ? 'text-anchor' : 'text-text-subtle group-hover/commit:text-accent'"
@@ -98,7 +110,7 @@ async function confirmDelete(): Promise<void> {
           </span>
 
           <span class="shrink-0 text-micro text-text-subtle">{{ relativeTime(reference.createdAt) }}</span>
-        </div>
+        </button>
 
         <CommitContextToggle :reference="reference" />
 
