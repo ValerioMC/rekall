@@ -5,7 +5,10 @@ import { useRoute } from 'vue-router'
 import { useConsoleStore } from '@/stores/console.store'
 import { useChatWindowShown } from '@/features/chat/composables/useChatWindowShown'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import type { Terminal } from '@/features/claude/model/terminal'
+import type { TerminalId } from '@/model/branded'
 import RunningTasksPanel from './RunningTasksPanel.vue'
+import TerminalFloat from './TerminalFloat.vue'
 import TerminalSessionsPanel from './TerminalSessionsPanel.vue'
 
 /**
@@ -13,7 +16,8 @@ import TerminalSessionsPanel from './TerminalSessionsPanel.vue'
  * at a time. The sheet belongs to whichever segment was pressed last: pressing the other
  * switches; pressing the same one again, Escape, or a click anywhere else closes it. A segment
  * that has nothing to show leaves, and takes its sheet with it; when neither has anything, so
- * does the capsule.
+ * does the capsule. A terminal session picked from the sessions sheet opens in a floating panel
+ * above the bar instead of the full terminal pane; it stays until closed or the session is gone.
  */
 type DockPanel = 'running' | 'sessions'
 
@@ -26,6 +30,8 @@ const root = ref<HTMLElement | null>(null)
 const chatWindowShown = useChatWindowShown()
 
 const open = ref<DockPanel | null>(null)
+const floatingId = ref<TerminalId | null>(null)
+const floating = computed(() => allTerminals.value.find((terminal) => terminal.id === floatingId.value) ?? null)
 
 const liveSessions = computed(() => allTerminals.value.filter((terminal) => terminal.live))
 
@@ -34,7 +40,7 @@ const onTerminalPane = computed(() => route.name === 'console' && paneFocus.valu
 
 const showsRunning = computed(() => runningEntries.value.length > 0)
 const showsSessions = computed(() => liveSessions.value.length > 0 && !onTerminalPane.value && !chatWindowShown.value)
-const visible = computed(() => showsRunning.value || showsSessions.value)
+const visible = computed(() => showsRunning.value || showsSessions.value || floating.value !== null)
 
 const awaitingApproval = computed(() => liveSessions.value.some((terminal) => terminal.awaitingPermission))
 const sessionsLabel = computed(() =>
@@ -44,12 +50,21 @@ const sessionsLabel = computed(() =>
 )
 
 function toggle(panel: DockPanel): void {
+  floatingId.value = null
   open.value = open.value === panel ? null : panel
+}
+
+function float(terminal: Terminal): void {
+  floatingId.value = terminal.id
 }
 
 function close(): void {
   open.value = null
 }
+
+watch(onTerminalPane, (onPane) => {
+  if (onPane) floatingId.value = null
+})
 
 watch([showsRunning, showsSessions], ([running, sessions]) => {
   if (open.value === 'running' && !running) close()
@@ -85,8 +100,10 @@ onUnmounted(() => {
   >
     <Transition name="popover" mode="out-in">
       <RunningTasksPanel v-if="open === 'running'" class="w-[320px]" @close="close" />
-      <TerminalSessionsPanel v-else-if="open === 'sessions'" class="w-[320px]" @close="close" />
+      <TerminalSessionsPanel v-else-if="open === 'sessions'" class="w-[320px]" @close="close" @float="float" />
     </Transition>
+
+    <TerminalFloat v-if="floating" :terminal="floating" @close="floatingId = null" />
 
     <div
       class="dock-bar glass flex h-10 items-stretch overflow-hidden rounded-full border border-border-strong shadow-lift"

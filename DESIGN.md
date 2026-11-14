@@ -210,7 +210,7 @@ A 36px surface capsule with a hairline, holding usage, the run queue and the rev
 The plan tube is a glossy gold fill in a sunk trough, green when complete, with a sheen while a session works. The step seal is a ring that stays open on a claimed step and closes on hover, ripples and pops once on acceptance, and shows a comet and ticks while running. Only a person marks a step done.
 
 ### Dock
-One capsule at the bottom left (`1 in progress | 1 session`) that opens a panel above itself; one panel at a time.
+One capsule at the bottom left (`1 in progress | 1 session`) that opens a panel above itself; one panel at a time. A terminal session picked from its sessions sheet opens in a floating terminal panel above the capsule instead of the full terminal pane; Escape and outside presses go to the terminal, not to the panel.
 
 ## Do's and Don'ts
 

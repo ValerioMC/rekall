@@ -13,7 +13,7 @@ import TerminalConnectionChips from '@/features/connection/components/TerminalCo
 import type { Terminal } from '@/features/claude/model/terminal'
 import type { TerminalId } from '@/model/branded'
 
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; float: [terminal: Terminal] }>()
 
 const terminals = useTerminalStore()
 const toast = useToastStore()
@@ -33,7 +33,8 @@ const groups = computed(() =>
 )
 
 function jumpTo(terminal: Terminal): void {
-  openSession(terminal)
+  if (terminal.kind === 'TERMINAL' && terminal.taskId) emit('float', terminal)
+  else openSession(terminal)
   emit('close')
 }
 
