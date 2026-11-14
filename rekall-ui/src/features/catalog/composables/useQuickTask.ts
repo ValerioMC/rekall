@@ -4,12 +4,10 @@ import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useOpenSession } from '@/features/claude/composables/useOpenSession'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { preferredEffort, preferredLaunchKind, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
-import { activeQuickTask } from '@/features/catalog/lib/quick-task'
 import type { ProjectId } from '@/model/branded'
 
 export interface QuickTaskLauncher {
   readonly busy: ComputedRef<boolean>
-  readonly working: ComputedRef<boolean>
   start: (text: string) => Promise<boolean>
 }
 
@@ -19,8 +17,6 @@ export function useQuickTask(projectId: ComputedRef<ProjectId>): QuickTaskLaunch
   const terminals = useTerminalStore()
   const openSession = useOpenSession()
   const { run, isRunning } = useAsyncAction()
-
-  const working = computed(() => activeQuickTask(store.tasks, projectId.value) !== null)
 
   async function start(text: string): Promise<boolean> {
     const started = await run(() =>
@@ -38,5 +34,5 @@ export function useQuickTask(projectId: ComputedRef<ProjectId>): QuickTaskLaunch
     return true
   }
 
-  return { busy: computed(() => isRunning.value), working, start }
+  return { busy: computed(() => isRunning.value), start }
 }

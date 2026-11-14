@@ -79,93 +79,131 @@
   .tabs .spacer { flex: 1; }
   .tabs .iconbtn { width: 28px; height: 28px; margin-bottom: 6px; }
 
-  /* strip */
-  .strip { flex: none; min-height: 48px; display: flex; align-items: center; gap: 14px; padding: 0 24px; }
+  /* scope track */
+  .strip { flex: none; height: 52px; display: flex; align-items: center; gap: 12px; padding: 0 24px; border-bottom: 1px solid var(--border); }
+  .track { display: flex; align-items: center; gap: 4px; min-width: 0; padding: 3px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--canvas); }
+  .tk-btn { height: 28px; display: inline-flex; align-items: center; gap: 7px; padding: 0 10px; border-radius: var(--r-control); font-size: var(--t-small); font-weight: 500; color: var(--muted); white-space: nowrap; transition: background 140ms, color 140ms; }
+  .tk-btn:hover { background: var(--raised); color: var(--text); }
+  .tk-btn[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), inset 0 -2px 0 var(--accent); }
+  .tk-btn .hash { background: none; border: 0; padding: 0; color: inherit; font-size: var(--t-caption); }
+  .tk-btn .n { font: 400 var(--t-micro) var(--font-mono); color: var(--subtle); }
+  .tk-sep { width: 1px; height: 18px; background: var(--border-strong); margin: 0 4px; flex: none; }
+  .tk-step { font-size: var(--t-caption); color: var(--subtle); }
+  .strip .spacer { flex: 1; }
   .views { display: flex; gap: 2px; padding: 2px; border-radius: var(--r-control); background: var(--canvas); border: 1px solid var(--border); }
-  .views button { height: 24px; padding: 0 10px; border-radius: var(--r-key); font-size: var(--t-small); font-weight: 500; color: var(--muted); white-space: nowrap; }
+  .views button { height: 24px; padding: 0 10px; border-radius: var(--r-key); font-size: var(--t-small); font-weight: 500; color: var(--muted); }
   .views button:hover { color: var(--text); }
   .views button[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06); }
-  .strip .spacer { flex: 1; }
-  .totals { display: flex; align-items: center; gap: 14px; font-size: var(--t-small); color: var(--muted); }
-  .totals b { font-weight: 500; color: var(--text); }
-  .net { width: 96px; height: 6px; display: flex; gap: 2px; border-radius: 9999px; overflow: hidden; background: #0a0d13; box-shadow: inset 0 1px 2px rgb(0 0 0 / .6), 0 1px 0 rgb(255 255 255 / .035); }
-  .net i { display: block; height: 100%; }
+  kbd { font: 400 var(--t-micro)/16px var(--font-mono); color: var(--subtle); border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: var(--r-key); padding: 0 5px; background: var(--surface); }
+  .hint { display: flex; gap: 10px; align-items: center; font-size: var(--t-caption); color: var(--subtle); white-space: nowrap; }
   .live { height: 22px; display: inline-flex; align-items: center; gap: 7px; padding: 0 9px; border-radius: 11px; font-size: var(--t-caption); font-weight: 500; color: var(--session-strong); background: var(--session-soft); border: 1px solid var(--session-line); white-space: nowrap; }
-  .orb { width: 7px; height: 7px; border-radius: 9999px; background: var(--session); box-shadow: 0 0 0 0 var(--session-line); animation: pulse 2s ease-out infinite; flex: none; }
+  .orb { width: 7px; height: 7px; border-radius: 9999px; background: var(--session); box-shadow: 0 0 0 0 var(--session-line); animation: pulse 2s ease-out infinite; flex: none; display: inline-block; }
   @keyframes pulse { 0% { box-shadow: 0 0 0 0 var(--session-line); } 70%, 100% { box-shadow: 0 0 0 6px transparent; } }
-
-  /* split */
-  .split { flex: 1; min-height: 0; display: grid; grid-template-columns: 400px minmax(0, 1fr); gap: 0; margin: 0 24px 20px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); overflow: hidden; box-shadow: inset 0 1px 0 rgb(255 255 255 / .05), 0 1px 2px rgb(0 0 0 / .35), 0 6px 12px -8px rgb(0 0 0 / .45); }
-  .list { min-height: 0; overflow-y: auto; border-right: 1px solid var(--border); padding-bottom: 12px; }
-  .detail { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--canvas); }
-
-  .dir { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 14px; font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 1; }
-  .dir .n { margin-left: auto; font-family: var(--font-sans); }
-  .row { position: relative; width: 100%; min-height: 36px; display: flex; align-items: center; gap: 9px; padding: 0 14px; border-bottom: 1px solid transparent; transition: background 140ms; }
-  .row:hover { background: var(--raised); }
-  .row[aria-current="true"] { background: var(--raised); }
-  .row[aria-current="true"]::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 2px; border-radius: 2px; background: var(--accent); }
-  .kind { width: 14px; font: 500 var(--t-micro) var(--font-mono); color: var(--subtle); text-align: center; flex: none; }
-  .fname { flex: 1; min-width: 0; font: 400 var(--t-small) var(--font-mono); color: var(--text); }
-  .steps { display: flex; gap: 3px; flex: none; }
-  .stp { min-width: 20px; height: 18px; padding: 0 4px; display: inline-grid; place-items: center; border: 1px solid var(--border-strong); border-radius: var(--r-key); font: 400 var(--t-micro) var(--font-mono); color: var(--muted); }
-  .stp.run { border-color: var(--session-line); color: var(--session-strong); background: var(--session-soft); }
-  .delta { flex: none; width: 74px; text-align: right; font: 400 var(--t-caption) var(--font-mono); }
-  .unc { flex: none; font-size: var(--t-micro); color: var(--session-strong); border: 1px dashed var(--session-line); border-radius: var(--r-key); padding: 0 5px; line-height: 16px; }
-
-  .stephead { display: flex; align-items: center; gap: 9px; padding: 14px 14px 6px; }
-  .stephead .t { flex: 1; min-width: 0; font-size: var(--t-small); font-weight: 600; }
-  .stephead .s { font-size: var(--t-caption); color: var(--subtle); white-space: nowrap; }
-  .seal { width: 16px; height: 16px; flex: none; }
-  .crow { position: relative; padding-left: 14px; }
-  .crow .row { padding-left: 34px; }
-  .crow::before { content: ''; position: absolute; left: 21px; top: 0; bottom: 0; width: 1.5px; background: var(--border-strong); }
-  .crow:first-of-type::before { top: 18px; }
-  .crow:last-of-type::before { bottom: calc(100% - 18px); }
-  .crow .node { position: absolute; left: 17px; top: 14px; width: 9px; height: 9px; border-radius: 9999px; border: 1.5px solid var(--border-field); background: var(--surface); z-index: 1; }
-  .crow .row[aria-current="true"] ~ .node, .crow.sel .node { border-color: var(--accent); }
-  .crow.wt .node { border-color: var(--session); background: var(--session-soft); }
   .hash { flex: none; font: 400 var(--t-micro) var(--font-mono); color: var(--muted); background: var(--canvas); border: 1px solid var(--border-strong); border-radius: var(--r-control); padding: 1px 6px; }
-  .csub { flex: 1; min-width: 0; font-size: var(--t-small); color: var(--muted); }
-  .row[aria-current="true"] .csub, .row:hover .csub { color: var(--text); }
-  .when { flex: none; font-size: var(--t-micro); color: var(--subtle); }
+  .stp { min-width: 20px; height: 18px; padding: 0 5px; display: inline-grid; place-items: center; border: 1px solid var(--border-strong); border-radius: var(--r-key); font: 400 var(--t-micro) var(--font-mono); color: var(--muted); }
+  .stp.run { border-color: var(--session-line); color: var(--session-strong); background: var(--session-soft); }
 
-  /* detail */
-  .dhead { flex: none; padding: 14px 20px 12px; border-bottom: 1px solid var(--border); background: var(--surface); }
-  .dpath { font: 400 var(--t-body) var(--font-mono); color: var(--text); word-break: break-all; }
-  .dpath span { color: var(--subtle); }
-  .dmeta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 6px; font-size: var(--t-caption); color: var(--subtle); }
-  .dmeta .m { font-family: var(--font-mono); }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-  .cchip { height: 24px; display: inline-flex; align-items: center; gap: 7px; padding: 0 9px 0 6px; border: 1px solid var(--border-strong); border-radius: var(--r-control); background: var(--raised); font-size: var(--t-caption); color: var(--muted); }
-  .cchip:hover { color: var(--text); background: var(--hover); }
-  .cchip[aria-pressed="true"] { border-color: var(--accent); color: var(--text); }
-  .cchip .hash { background: none; border: 0; padding: 0; }
-  .dtitle { font-size: var(--t-title); font-weight: 600; letter-spacing: -0.01em; }
-  .dscroll { flex: 1; min-height: 0; overflow: auto; padding: 16px 20px 28px; display: grid; gap: 16px; align-content: start; }
+  /* workspace */
+  .work { flex: 1; min-height: 0; display: grid; grid-template-columns: 328px minmax(0, 1fr); }
+  .tree { min-height: 0; overflow-y: auto; background: var(--surface); border-right: 1px solid var(--border); }
+  .tree-h { position: sticky; top: 0; z-index: 2; background: var(--surface); padding: 12px 16px 12px; border-bottom: 1px solid var(--border); }
+  .tree-h .t { display: flex; align-items: baseline; justify-content: space-between; font-size: var(--t-small); font-weight: 600; }
+  .tree-h .t span { font: 400 var(--t-caption) var(--font-sans); color: var(--subtle); }
+  .well { height: 6px; margin-top: 9px; border-radius: 9999px; overflow: hidden; background: #0a0d13; box-shadow: inset 0 1px 2px rgb(0 0 0 / .6), 0 1px 0 rgb(255 255 255 / .035); }
+  .well i { display: block; height: 100%; background: var(--muted); border-radius: 9999px; transition: width 220ms; }
+  .dir { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 16px; font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .frow { position: relative; width: 100%; min-height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 16px 0 20px; transition: background 140ms; }
+  .frow:hover { background: var(--raised); }
+  .frow[aria-current="true"] { background: var(--raised); }
+  .frow[aria-current="true"]::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 2px; border-radius: 2px; background: var(--accent); }
+  .frow .nm { flex: 1; min-width: 0; font: 400 var(--t-small) var(--font-mono); color: var(--text); }
+  .frow.out .nm { color: var(--subtle); }
+  .frow.seen .nm { color: var(--muted); }
+  .frow .tick { width: 13px; height: 13px; flex: none; border: 1px solid var(--border-field); border-radius: 3px; display: grid; place-items: center; color: transparent; }
+  .frow.seen .tick { background: var(--raised); border-color: var(--muted); color: var(--text); }
+  .frow .tick svg { width: 9px; height: 9px; }
+  .blocks { display: inline-flex; gap: 1px; flex: none; }
+  .blocks i { width: 5px; height: 9px; border-radius: 1px; background: var(--border-strong); }
+  .blocks i.a { background: var(--safe); }
+  .blocks i.d { background: var(--danger); }
+  .dl { flex: none; font: 400 var(--t-caption) var(--font-mono); text-align: right; min-width: 58px; white-space: nowrap; }
+  .add { color: var(--safe); }
+  .del { color: var(--danger); }
+  .num { font-variant-numeric: tabular-nums; }
 
-  .attr { display: flex; align-items: center; gap: 8px; min-height: 28px; padding: 0 2px 8px; font-size: var(--t-caption); color: var(--subtle); }
-  .attr .csub { color: var(--muted); }
-  .attr.wt { color: var(--session-strong); }
-  .hunk { min-width: 0; }
-  .code { font-variant-ligatures: none; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-control); background: var(--canvas); padding: 4px 0; font: 400 var(--t-caption)/1.6 var(--font-mono); }
-  .ln { display: grid; grid-template-columns: 44px 1fr; min-width: max-content; white-space: pre; color: var(--muted); }
-  .ln i { font-style: normal; text-align: right; padding-right: 12px; color: var(--subtle); user-select: none; }
-  .ln.a { background: var(--safe-soft); color: var(--safe); }
-  .ln.d { background: var(--danger-soft); color: var(--danger); }
-  .ln.h { color: var(--accent); }
-  .ln.e { color: var(--subtle); font-family: var(--font-sans); }
-  details.file { border: 1px solid var(--border); border-radius: var(--r-control); background: var(--surface); }
-  details.file > summary { list-style: none; display: flex; align-items: center; gap: 9px; height: 34px; padding: 0 12px; cursor: pointer; }
-  details.file > summary::-webkit-details-marker { display: none; }
-  details.file[open] > summary { border-bottom: 1px solid var(--border); }
-  details.file .caret { width: 12px; height: 12px; color: var(--subtle); transition: transform 140ms; }
-  details.file[open] .caret { transform: rotate(90deg); }
-  details.file .code { border: 0; border-radius: 0 0 var(--r-control) var(--r-control); }
-  .empty { padding: 28px 20px; color: var(--subtle); font-size: var(--t-small); }
+  .diffcol { min-width: 0; min-height: 0; overflow: auto; background: var(--canvas); scroll-behavior: smooth; }
+  .scope { padding: 18px 24px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .scope .eyebrow { display: flex; align-items: center; gap: 8px; font-size: var(--t-caption); color: var(--subtle); }
+  .scope h2 { margin-top: 6px; font-size: var(--t-title); font-weight: 600; letter-spacing: -0.01em; }
+  .scope p { margin-top: 6px; max-width: 78ch; font-size: var(--t-small); color: var(--muted); line-height: 1.55; }
+  .scope .tot { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-top: 12px; font-size: var(--t-small); color: var(--muted); }
+  .scope .tot b { font-weight: 500; color: var(--text); }
+  .scope .tot .m { font-family: var(--font-mono); }
 
-  .note { cursor: pointer; position: fixed; right: 16px; bottom: 16px; width: 316px; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--surface); box-shadow: 0 10px 22px -8px rgb(0 0 0 / .65); font-size: var(--t-caption); color: var(--muted); line-height: 1.5; }
+  .file { margin: 20px 24px 0; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--canvas); }
+  .file:last-child { margin-bottom: 40px; }
+  .fh { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px 0 8px; background: var(--surface); border-bottom: 1px solid var(--border); border-radius: var(--r-card) var(--r-card) 0 0; }
+  .file.shut .fh { border-bottom: 0; border-radius: var(--r-card); }
+  .caret { width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--r-key); color: var(--subtle); flex: none; }
+  .caret:hover { background: var(--raised); color: var(--text); }
+  .caret svg { width: 12px; height: 12px; transition: transform 140ms; }
+  .file:not(.shut) .caret svg { transform: rotate(90deg); }
+  .kind { width: 14px; font: 500 var(--t-micro) var(--font-mono); color: var(--subtle); text-align: center; flex: none; }
+  .fp { flex: 1; min-width: 0; font: 400 var(--t-small) var(--font-mono); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fp span { color: var(--subtle); }
+  .vchk { height: 26px; display: inline-flex; align-items: center; gap: 7px; padding: 0 9px; border: 1px solid var(--border-strong); border-radius: var(--r-control); background: var(--raised); font-size: var(--t-caption); font-weight: 500; color: var(--muted); }
+  .vchk:hover { background: var(--hover); color: var(--text); }
+  .vchk .tick { width: 13px; height: 13px; border: 1px solid var(--border-field); border-radius: 3px; display: grid; place-items: center; color: transparent; }
+  .vchk[aria-pressed="true"] { color: var(--text); }
+  .vchk[aria-pressed="true"] .tick { background: var(--hover); border-color: var(--muted); color: var(--text); }
+  .vchk .tick svg { width: 9px; height: 9px; }
+  .also { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--session-soft); font-size: var(--t-caption); color: var(--muted); }
+  .also button { color: var(--session-strong); font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+  .shutnote { padding: 10px 16px; font-size: var(--t-caption); color: var(--subtle); }
+
+  .hh { display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 0 12px 0 14px; background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .fb > .hh:first-child { border-top: 0; }
+  .hh .hc { flex: 1; min-width: 0; font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .origin { max-width: 52%; display: inline-flex; align-items: center; gap: 7px; height: 22px; padding: 0 8px 0 5px; border: 1px solid var(--border-strong); border-radius: var(--r-control); background: var(--raised); font-size: var(--t-caption); color: var(--muted); transition: background 140ms, color 140ms; }
+  .origin:hover { background: var(--hover); color: var(--text); }
+  .origin .hash { background: none; border: 0; padding: 0; }
+  .origin .sub { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .origin.wt { color: var(--session-strong); border-color: var(--session-line); background: var(--session-soft); }
+
+  .code { font: 400 var(--t-caption)/1.65 var(--font-mono); font-variant-ligatures: none; color: var(--muted); }
+  .r, .r2 { display: grid; }
+  .r { grid-template-columns: 46px 46px 18px minmax(0, 1fr); }
+  .r2 { grid-template-columns: 46px minmax(0, 1fr) 46px minmax(0, 1fr); }
+  .r > i, .r2 > i { font-style: normal; text-align: right; padding-right: 10px; color: var(--subtle); user-select: none; }
+  .cd { white-space: pre-wrap; overflow-wrap: anywhere; padding: 0 12px 0 4px; min-width: 0; }
+  .sg { font-weight: 400; text-align: center; color: var(--subtle); }
+  .r2 > .cd:nth-of-type(1) { border-right: 1px solid var(--border); }
+  .a { background: var(--safe-soft); color: var(--text); }
+  .a.nb { background: rgb(61 220 151 / .1); }
+  .d { background: var(--danger-soft); color: var(--text); }
+  .e { background: transparent; }
+  i.a { background: rgb(61 220 151 / .16); color: var(--safe); }
+  i.d { background: rgb(251 113 133 / .16); color: var(--danger); }
+  .sg.a { color: var(--safe); background: rgb(61 220 151 / .16); }
+  .sg.d { color: var(--danger); background: rgb(251 113 133 / .16); }
+  mark.w { color: inherit; border-radius: 2px; padding: 0 1px; }
+  .a mark.w { background: rgb(61 220 151 / .34); }
+  .d mark.w { background: rgb(251 113 133 / .36); }
+  .tk { font-weight: 600; color: var(--text); }
+  .ts { color: var(--muted); }
+  .a .ts, .d .ts { color: var(--muted); }
+  .tc { font-style: italic; color: var(--subtle); }
+  .fold { display: flex; align-items: center; gap: 8px; width: 100%; height: 28px; padding: 0 14px 0 14px; background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); font-size: var(--t-caption); color: var(--subtle); transition: background 140ms, color 140ms; }
+  .fold:hover { background: var(--raised); color: var(--text); }
+  .fold svg { width: 12px; height: 12px; }
+  .fb > .fold:last-child { border-bottom: 0; border-radius: 0 0 var(--r-card) var(--r-card); }
+  .fb > .code:last-child { padding-bottom: 6px; }
+
+.note { cursor: pointer; position: fixed; right: 16px; bottom: 12px; width: 316px; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--surface); box-shadow: 0 10px 22px -8px rgb(0 0 0 / .65); font-size: var(--t-caption); color: var(--muted); line-height: 1.5; }
   .note b { color: var(--text); font-weight: 500; }
+  .note .more { display: none; }
+  .note.open .more { display: inline; }
+  .note:not(.open) { width: auto; padding: 5px 10px; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
@@ -181,6 +219,8 @@
     <symbol id="i-terminal" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="m5 6.5 2 1.5-2 1.5M8.5 10h2.5"/></symbol>
     <symbol id="i-play" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.2v9.6a.6.6 0 0 0 .9.5l7.4-4.8a.6.6 0 0 0 0-1L5.9 2.7a.6.6 0 0 0-.9.5Z"/></symbol>
     <symbol id="i-chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 2.5 3.5 3.5-3.5 3.5"/></symbol>
+      <symbol id="i-check" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m2 5.2 2 2L8 3"/></symbol>
+    <symbol id="i-unfold" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5 6 1.5l3 3M3 7.5l3 3 3-3"/></symbol>
   </defs>
 </svg>
 
@@ -218,7 +258,7 @@
         <nav class="tabs" aria-label="Task">
           <a class="tab">Description</a>
           <a class="tab">Plan <span class="c">3</span></a>
-          <a class="tab" aria-current="page">Changes <span class="c" id="tab-count">7</span></a>
+          <a class="tab" aria-current="page">Changes <span class="c">7</span></a>
           <a class="tab">Wrapup</a>
           <a class="tab">Notes <span class="c">1</span></a>
           <a class="tab">Time</a>
@@ -228,27 +268,26 @@
         </nav>
 
         <div class="strip">
-          <div class="views" role="group" aria-label="Group changes by" id="by">
-            <button data-by="file" aria-pressed="true">By file</button>
-            <button data-by="commit" aria-pressed="false">By commit</button>
-          </div>
-          <div class="views" role="group" aria-label="Show changes of" id="steps"></div>
+          <div class="track" id="track" role="group" aria-label="What to compare"></div>
           <span class="spacer"></span>
-          <span class="live" id="live"><span class="orb"></span>Session at work · 1 file not committed</span>
-          <div class="totals" id="totals"></div>
+          <span class="hint"><span><kbd>j</kbd> <kbd>k</kbd> files</span><span><kbd>v</kbd> viewed</span><span><kbd>u</kbd> split or unified</span></span>
+          <div class="views" role="group" aria-label="Diff layout" id="layout">
+            <button data-layout="split" aria-pressed="true">Split</button>
+            <button data-layout="unified" aria-pressed="false">Unified</button>
+          </div>
         </div>
 
-        <div class="split">
-          <div class="list" id="list"></div>
-          <section class="detail" id="detail" aria-live="polite"></section>
+        <div class="work">
+          <nav class="tree" id="tree" aria-label="Files changed"></nav>
+          <section class="diffcol" id="diffcol" tabindex="0" aria-label="Changes"></section>
         </div>
       </main>
     </div>
   </div>
 </div>
 
-<aside class="note">
-  <b>Mockup, synthetic data.</b> A Changes tab after Plan: what the sessions changed in the application for this task, by file (the net state) or by commit (the history). Filter to one step to see only that step's work. The properties rail is shown folded, as the page remembers it. Click a row, a commit chip or a step. Click this note to dismiss it.
+<aside class="note" title="Click to open or close">
+  <b>Mockup, synthetic data.</b> <span class="more">The task's code changes as a review. Pick what to compare in the track: all changes (the net result), one step, one commit, or the working tree a session is still writing. In the net view every hunk names the commit and step that made it; click it to read that single change. Files can be marked viewed, which is only your reading marker: it accepts nothing.</span>
 </aside>
 
 <script>
@@ -259,258 +298,370 @@
   ];
 
   const COMMITS = {
-    a46fe40: { hash: 'a46fe40', subject: 'feat: floating terminal panel above the dock', step: 1, when: '3 h ago' },
-    '5c0d8b2': { hash: '5c0d8b2', subject: 'refactor: sessions panel emits the session to open', step: 2, when: '2 h ago' },
-    '72afd62': { hash: '72afd62', subject: 'feat: open task sessions in the floating terminal by default', step: 2, when: '2 h ago' },
-    e19b3f4: { hash: 'e19b3f4', subject: 'test: the dock opens sessions in the float', step: 3, when: '41 min ago' },
-    '8d27c61': { hash: '8d27c61', subject: 'docs: describe the floating terminal', step: 3, when: '12 min ago' },
-    wt: { hash: 'wt', subject: 'Working tree', step: 3, when: 'now', live: true }
+    a46fe40: { hash: 'a46fe40', subject: 'feat: floating terminal panel above the dock', step: 1, when: '3 h ago', body: 'Adds TerminalFloat, a panel pinned above the dock capsule, and the dock state that holds the session it shows. Nothing opens it yet.' },
+    '5c0d8b2': { hash: '5c0d8b2', subject: 'refactor: sessions panel emits the session kind with the pick', step: 2, when: '2 h ago', body: 'The sessions sheet now says whether a pick is a task session or a free terminal, so the dock can route each one.' },
+    '72afd62': { hash: '72afd62', subject: 'feat: open task sessions in the floating terminal by default', step: 2, when: '2 h ago', body: 'A task session picked from the sessions sheet opens in the float. A free terminal still navigates to the full pane.' },
+    e19b3f4: { hash: 'e19b3f4', subject: 'test: the dock opens sessions in the float', step: 3, when: '41 min ago', body: 'Covers the float for a task session and the full pane for a free terminal.' },
+    '8d27c61': { hash: '8d27c61', subject: 'docs: describe the floating terminal', step: 3, when: '12 min ago', body: 'Console UI notes and the Dock section of DESIGN.md.' },
+    wt: { hash: 'wt', subject: 'Working tree', step: 3, when: 'now', live: true, body: 'A session is writing these files. They are not committed and can still change.' }
   };
 
   const FILES = [
-    { path: 'rekall-ui/src/components/shell/TerminalFloat.vue', kind: 'A', hunks: [
-      { commit: 'a46fe40', add: 92, del: 0, head: '@@ -0,0 +1,92 @@', lines: [
-        ['a', 1, '<scr' + 'ipt setup lang="ts">'],
-        ['a', 2, "import { computed } from 'vue'"],
-        ['a', 3, "import TerminalPane from '@/features/claude/components/TerminalPane.vue'"],
-        ['a', 4, ''],
-        ['a', 5, 'const props = defineProps<{ sessionId: TerminalSessionId }>()'],
-        ['a', 6, "const emit = defineEmits<{ close: [] }>()"],
-        ['a', 7, ''],
-        ['a', 8, 'const label = computed(() => `Session ${props.sessionId.slice(0, 6)}`)'],
-        ['a', 9, '<\/script>'],
-        ['e', '', '⋯ 83 more added lines']
+    { path: 'rekall-ui/src/components/shell/TerminalFloat.vue', kind: 'A', code: true, hunks: [
+      { commit: 'a46fe40', os: 0, ns: 1, ctx: '', lines: [
+        '+<scr' + 'ipt setup lang="ts">',
+        "+import { computed } from 'vue'",
+        "+import TerminalPane from '@/features/claude/components/TerminalPane.vue'",
+        "+import type { TerminalSessionId } from '@/features/claude/model/terminal'",
+        '+',
+        '+const props = defineProps<{ sessionId: TerminalSessionId }>()',
+        "+const emit = defineEmits<{ close: [] }>()",
+        '+',
+        '+const heading = computed(() => `Session ${props.sessionId.slice(0, 6)}`)',
+        '+',
+        '+function closeOnEscape(event: KeyboardEvent): void {',
+        "+  if (event.key === 'Escape') emit('close')",
+        '+}',
+        '+<\/scr' + 'ipt>',
+        '~78:more added lines'
       ] }
     ] },
-    { path: 'rekall-ui/src/components/shell/ShellDock.vue', kind: 'M', hunks: [
-      { commit: 'a46fe40', add: 19, del: 2, head: '@@ -41,8 +41,25 @@ const panel = ref<DockPanel | null>(null)', lines: [
-        ['c', 41, '  const sessions = useTerminalSessions()'],
-        ['d', '', "-  const open = ref(false)"],
-        ['a', 42, '  const floating = ref<TerminalSessionId | null>(null)'],
-        ['a', 43, ''],
-        ['a', 44, '  function openFloating(id: TerminalSessionId): void {'],
-        ['a', 45, '    floating.value = id'],
-        ['a', 46, '    panel.value = null'],
-        ['a', 47, '  }'],
-        ['e', '', '⋯ 12 more added lines'],
-        ['d', '', "-  function pick(id: TerminalSessionId): void { open.value = true }"],
-        ['c', 60, '']
+    { path: 'rekall-ui/src/components/shell/ShellDock.vue', kind: 'M', code: true, hunks: [
+      { commit: 'a46fe40', os: 38, ns: 38, ctx: 'const sessions = useTerminalSessions()', lines: [
+        ' const sessions = useTerminalSessions()',
+        ' const panel = ref<DockPanel | null>(null)',
+        '-const open = ref(false)',
+        '+const floating = ref<TerminalSessionId | null>(null)',
+        '+',
+        '+function openFloating(id: TerminalSessionId): void {',
+        '+  floating.value = id',
+        '+  panel.value = null',
+        '+}',
+        ' ',
+        ' function togglePanel(next: DockPanel): void {',
+        '   panel.value = panel.value === next ? null : next',
+        ' }'
       ] },
-      { commit: '72afd62', add: 4, del: 2, head: '@@ -88,7 +103,9 @@ function onPick(id: TerminalSessionId): void {', lines: [
-        ['c', 103, '  if (session.kind === "task") {'],
-        ['d', '', '-    router.push({ name: "terminal", params: { id } })'],
-        ['d', '', '-    return'],
-        ['a', 104, '    openFloating(id)'],
-        ['a', 105, '    return'],
-        ['a', 106, '  }'],
-        ['a', 107, '  router.push({ name: "terminal", params: { id } })'],
-        ['c', 108, '}']
+      { commit: '72afd62', os: 96, ns: 101, ctx: 'function onPick', lines: [
+        ' ',
+        '-function onPick(session: TerminalSessionSummary): void {',
+        "+function onPick(session: TerminalSessionSummary, kind: 'task' | 'free'): void {",
+        "+  if (kind === 'task') {",
+        '+    openFloating(session.id)',
+        '+    return',
+        '+  }',
+        "   router.push({ name: 'terminal', params: { id: session.id } })",
+        '   panel.value = null',
+        ' }'
       ] }
     ] },
-    { path: 'rekall-ui/src/components/shell/TerminalSessionsPanel.vue', kind: 'M', hunks: [
-      { commit: '5c0d8b2', add: 3, del: 2, head: '@@ -19,7 +19,8 @@ const emit = defineEmits<{', lines: [
-        ['c', 19, '  close: []'],
-        ['d', '', "-  pick: [session: TerminalSessionSummary]"],
-        ['d', '', "-  pickTask: [taskId: TaskId]"],
-        ['a', 20, "  pick: [id: TerminalSessionId, kind: 'task' | 'free']"],
-        ['a', 21, '  rename: [id: TerminalSessionId]'],
-        ['a', 22, '}>()'],
-        ['c', 23, '']
+    { path: 'rekall-ui/src/components/shell/TerminalSessionsPanel.vue', kind: 'M', code: true, hunks: [
+      { commit: '5c0d8b2', os: 17, ns: 17, ctx: 'const emit = defineEmits', lines: [
+        ' const emit = defineEmits<{',
+        '   close: []',
+        '-  pick: [session: TerminalSessionSummary]',
+        "+  pick: [session: TerminalSessionSummary, kind: 'task' | 'free']",
+        ' }>()',
+        ' ',
+        ' function pick(session: TerminalSessionSummary): void {',
+        "-  emit('pick', session)",
+        "+  emit('pick', session, session.taskId ? 'task' : 'free')",
+        ' }'
       ] }
     ] },
-    { path: 'rekall-ui/tests/unit/ShellDock.spec.ts', kind: 'M', hunks: [
-      { commit: 'e19b3f4', add: 81, del: 10, head: '@@ -12,10 +12,81 @@ describe(\'ShellDock\', () => {', lines: [
-        ['c', 12, "  it('lists the sessions in the panel', async () => {"],
-        ['d', '', '-    expect(wrapper.find(\'[data-testid="terminal-pane"]\').exists()).toBe(true)'],
-        ['a', 13, "    expect(wrapper.find('[data-testid=\"terminal-float\"]').exists()).toBe(true)"],
-        ['a', 14, '  })'],
-        ['a', 15, ''],
-        ['a', 16, "  it('opens a task session in the floating terminal', async () => {"],
-        ['e', '', '⋯ 72 more lines']
+    { path: 'rekall-ui/tests/unit/ShellDock.spec.ts', kind: 'M', code: true, hunks: [
+      { commit: 'e19b3f4', os: 12, ns: 12, ctx: "describe('ShellDock'", lines: [
+        " describe('ShellDock', () => {",
+        "   it('lists the sessions in the panel', async () => {",
+        '-    expect(wrapper.find(\'[data-testid="terminal-pane"]\').exists()).toBe(true)',
+        '+    expect(wrapper.find(\'[data-testid="terminal-float"]\').exists()).toBe(true)',
+        '   })',
+        '+',
+        "+  it('opens a task session in the floating terminal', async () => {",
+        '+    const wrapper = mountDock({ sessions: [taskSession] })',
+        "+    await wrapper.find('[data-testid=\"session-row\"]').trigger('click')",
+        '+    expect(wrapper.find(\'[data-testid="terminal-float"]\').exists()).toBe(true)',
+        "+    expect(router.currentRoute.value.name).not.toBe('terminal')",
+        '+  })',
+        '~58:more added lines'
       ] }
     ] },
-    { path: 'rekall-ui/tests/unit/TerminalFloat.spec.ts', kind: 'A', hunks: [
-      { commit: 'wt', add: 64, del: 0, head: '@@ -0,0 +1,64 @@', lines: [
-        ['a', 1, "import { mount } from '@vue/test-utils'"],
-        ['a', 2, "import TerminalFloat from '@/components/shell/TerminalFloat.vue'"],
-        ['a', 3, ''],
-        ['a', 4, "describe('TerminalFloat', () => {"],
-        ['a', 5, "  it('emits close when the header close key is pressed', async () => {"],
-        ['e', '', '⋯ 59 more added lines']
+    { path: 'rekall-ui/tests/unit/TerminalFloat.spec.ts', kind: 'A', code: true, hunks: [
+      { commit: 'wt', os: 0, ns: 1, ctx: '', lines: [
+        "+import { mount } from '@vue/test-utils'",
+        "+import TerminalFloat from '@/components/shell/TerminalFloat.vue'",
+        '+',
+        "+describe('TerminalFloat', () => {",
+        "+  it('emits close when Escape is pressed', async () => {",
+        "+    const wrapper = mount(TerminalFloat, { props: { sessionId: 'abc123def' } })",
+        "+    await wrapper.trigger('keydown', { key: 'Escape' })",
+        "+    expect(wrapper.emitted('close')).toHaveLength(1)",
+        '+  })',
+        '~19:more added lines',
+        '+})'
       ] }
     ] },
-    { path: 'docs/design/console-ui.md', kind: 'M', hunks: [
-      { commit: '8d27c61', add: 2, del: 0, head: '@@ -141,3 +141,5 @@ ## Dock', lines: [
-        ['c', 141, 'A terminal session picked from its sessions sheet opens in a floating terminal'],
-        ['a', 142, 'panel above the capsule instead of the full terminal pane; a task session does so'],
-        ['a', 143, 'by default, a free terminal still opens in the pane.']
+    { path: 'docs/design/console-ui.md', kind: 'M', code: false, hunks: [
+      { commit: '8d27c61', os: 141, ns: 141, ctx: '### Dock', lines: [
+        ' ### Dock',
+        ' ',
+        ' One capsule at the bottom left that opens a panel above itself; one panel at a time.',
+        '+A task session picked from the sessions sheet opens in a floating terminal above the',
+        '+capsule; a free terminal still opens in the full pane.',
+        ' ',
+        ' ### Header'
       ] }
     ] },
-    { path: 'DESIGN.md', kind: 'M', hunks: [
-      { commit: '8d27c61', add: 1, del: 1, head: '@@ -163,7 +163,7 @@ ### Dock', lines: [
-        ['d', '', '-One capsule at the bottom left that opens a panel above itself; one panel at a time.'],
-        ['a', 163, '+One capsule at the bottom left that opens a panel above itself; one panel at a time. A task session opens in a floating terminal above the capsule.']
+    { path: 'DESIGN.md', kind: 'M', code: false, hunks: [
+      { commit: '8d27c61', os: 163, ns: 163, ctx: '### Dock', lines: [
+        ' ',
+        '-One capsule at the bottom left (`1 in progress | 1 session`) that opens a panel above itself; one panel at a time. A terminal session picked from its sessions sheet opens in a floating terminal panel above the capsule instead of the full terminal pane.',
+        '+One capsule at the bottom left (`1 in progress | 1 session`) that opens a panel above itself; one panel at a time. A task session picked from its sessions sheet opens in a floating terminal above the capsule; a free terminal opens in the full pane.',
+        ' '
       ] }
     ] }
   ];
 
-  const state = { by: 'file', step: 0, file: FILES[1].path, commit: '72afd62', hot: null };
-
-  const stepOf = (hunk) => COMMITS[hunk.commit].step;
-  const inScope = (hunk) => state.step === 0 || stepOf(hunk) === state.step;
-  const hunksOf = (file) => file.hunks.filter(inScope);
-  const sum = (hunks, key) => hunks.reduce((total, hunk) => total + hunk[key], 0);
-  const esc = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const dirOf = (path) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : 'repository root');
-  const nameOf = (path) => path.slice(path.lastIndexOf('/') + 1);
-  const delta = (add, del) => `<span class="delta num"><span class="add">+${add}</span> <span class="del">−${del}</span></span>`;
-  const stepTag = (n) => `<span class="stp ${n === 3 ? 'run' : ''}" title="Step ${n}: ${STEPS[n - 1].title}">${n}</span>`;
-
-  function seal(step) {
-    if (step.state === 'done') return '<svg class="seal" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" fill="#14804f" stroke="#a6f2cd" stroke-width="1"/><path d="m5 8.2 2.2 2.2L11 6.3" stroke="#03200f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    return '<svg class="seal" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="#7c83f7" stroke-width="1.5" stroke-dasharray="3 2.4"/><circle cx="8" cy="8" r="2.4" fill="#7c83f7"/></svg>';
-  }
-
-  function renderStepFilter() {
-    const buttons = [`<button data-step="0" aria-pressed="${state.step === 0}">All steps</button>`]
-      .concat(STEPS.map((s) => `<button data-step="${s.n}" aria-pressed="${state.step === s.n}" title="${s.title}">Step ${s.n}</button>`));
-    document.getElementById('steps').innerHTML = buttons.join('');
-  }
-
-  function renderTotals() {
-    const hunks = FILES.flatMap(hunksOf);
-    const files = FILES.filter((file) => hunksOf(file).length).length;
-    const commits = new Set(hunks.map((h) => h.commit).filter((c) => c !== 'wt')).size;
-    const add = sum(hunks, 'add'); const del = sum(hunks, 'del');
-    document.getElementById('totals').innerHTML =
-      `<span><b class="num">${files}</b> files</span><span><b class="num">${commits}</b> commits</span>` +
-      `<span class="mono num"><span class="add">+${add}</span> <span class="del">−${del}</span></span>` +
-      `<span class="net" role="img" aria-label="${add} added, ${del} removed"><i style="flex:${add};background:var(--safe)"></i><i style="flex:${Math.max(del, 1)};background:var(--danger)"></i></span>`;
-    document.getElementById('live').style.display = state.step === 0 || state.step === 3 ? '' : 'none';
-  }
-
-  function codeBlock(hunk) {
-    const rows = [`<div class="ln h"><i></i><span>${esc(hunk.head)}</span></div>`].concat(hunk.lines.map(([kind, no, text]) => {
-      if (kind === 'e') return `<div class="ln e"><i></i><span>${esc(text)}</span></div>`;
-      const mark = kind === 'a' ? '+' : kind === 'd' ? '' : ' ';
-      return `<div class="ln ${kind}"><i>${no}</i><span>${esc(kind === 'a' && !text.startsWith('+') ? mark + ' ' + text : text)}</span></div>`;
-    }));
-    return `<div class="code">${rows.join('')}</div>`;
-  }
-
-  function attribution(commit) {
-    const c = COMMITS[commit];
-    if (c.live) return `<div class="attr wt"><span class="orb"></span><span>Working tree, a session is writing it · not committed yet</span>${stepTag(c.step)}</div>`;
-    return `<div class="attr"><svg width="12" height="12"><use href="#i-commit"/></svg><span class="hash">${c.hash}</span><span class="csub trunc">${esc(c.subject)}</span>${stepTag(c.step)}<span class="when">${c.when}</span></div>`;
-  }
-
-  function renderFileList() {
-    const files = FILES.filter((file) => hunksOf(file).length);
-    const groups = new Map();
-    files.forEach((file) => groups.set(dirOf(file.path), [...(groups.get(dirOf(file.path)) || []), file]));
-    if (!files.some((f) => f.path === state.file)) state.file = files[0] ? files[0].path : null;
-    let html = '';
-    groups.forEach((rows, dir) => {
-      html += `<div class="dir"><span class="trunc">${dir}</span><span class="n">${rows.length}</span></div>`;
-      rows.forEach((file) => {
-        const hunks = hunksOf(file);
-        const steps = [...new Set(hunks.map(stepOf))].sort();
-        const live = hunks.some((h) => h.commit === 'wt');
-        html += `<button class="row" data-file="${file.path}" aria-current="${file.path === state.file}">
-          <span class="kind" title="${file.kind === 'A' ? 'Added' : 'Modified'}">${file.kind}</span>
-          <span class="fname trunc">${nameOf(file.path)}</span>
-          ${live ? '<span class="orb" title="Not committed: a session is writing this file"></span>' : ''}
-          <span class="steps">${steps.map(stepTag).join('')}</span>${delta(sum(hunks, 'add'), sum(hunks, 'del'))}</button>`;
-      });
-    });
-    document.getElementById('list').innerHTML = html || '<p class="empty">This step has not changed any file yet.</p>';
-  }
-
-  function renderFileDetail() {
-    const file = FILES.find((f) => f.path === state.file);
-    const el = document.getElementById('detail');
-    if (!file) { el.innerHTML = '<p class="empty">Nothing changed in this step yet.</p>'; return; }
-    const hunks = hunksOf(file);
-    const commits = [...new Set(hunks.map((h) => h.commit))];
-    const shown = state.hot && commits.includes(state.hot) ? hunks.filter((h) => h.commit === state.hot) : hunks;
-    const dir = dirOf(file.path);
-    const crumb = file.path.includes('/') ? `<span>${dir}/</span>` : '';
-    el.innerHTML = `<div class="dhead">
-        <div class="dpath">${crumb}${nameOf(file.path)}</div>
-        <div class="dmeta"><span>${file.kind === 'A' ? 'Added' : 'Modified'}</span><span class="mono num"><span class="add">+${sum(hunks, 'add')}</span> <span class="del">−${sum(hunks, 'del')}</span></span><span>${hunks.length} ${hunks.length === 1 ? 'change' : 'changes'} by sessions</span></div>
-        ${commits.length > 1 ? `<div class="chips" role="group" aria-label="Show changes of commit">${commits.map((c) => `<button class="cchip" data-chip="${c}" aria-pressed="${state.hot === c}"><span class="hash">${COMMITS[c].live ? 'working tree' : c}</span>${stepTag(COMMITS[c].step)}</button>`).join('')}</div>` : ''}
-      </div>
-      <div class="dscroll">${shown.map((h) => `<div class="hunk">${attribution(h.commit)}${codeBlock(h)}</div>`).join('')}</div>`;
-  }
-
-  function commitsOfStep(n) {
-    return Object.values(COMMITS).filter((c) => c.step === n && FILES.some((f) => f.hunks.some((h) => h.commit === c.hash)));
-  }
-
-  function commitStats(hash) {
-    const hunks = FILES.flatMap((f) => f.hunks.filter((h) => h.commit === hash));
-    return { files: hunks.length, add: sum(hunks, 'add'), del: sum(hunks, 'del') };
-  }
-
-  function renderCommitList() {
-    const steps = STEPS.filter((s) => state.step === 0 || s.n === state.step);
-    let html = '';
-    steps.forEach((step) => {
-      const commits = commitsOfStep(step.n).sort((a, b) => (b.live ? 1 : 0) - (a.live ? 1 : 0));
-      html += `<div class="stephead">${seal(step)}<span class="t trunc">${step.n}. ${step.title}</span><span class="s">${step.state === 'done' ? 'Done' : 'Session running'}</span></div>`;
-      commits.forEach((c) => {
-        const stats = commitStats(c.hash);
-        html += `<div class="crow ${c.live ? 'wt' : ''}"><span class="node"></span><button class="row" data-commit="${c.hash}" aria-current="${c.hash === state.commit}">
-          <span class="hash">${c.live ? 'now' : c.hash}</span><span class="csub trunc">${esc(c.subject)}</span>${delta(stats.add, stats.del)}</button></div>`;
-      });
-    });
-    if (!Object.values(COMMITS).some((c) => c.hash === state.commit && (state.step === 0 || c.step === state.step))) {
-      const first = steps.flatMap((s) => commitsOfStep(s.n))[0];
-      state.commit = first ? first.hash : null;
+  const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const TOKEN = /(\/\/.*$)|('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`)|\b(const|let|function|return|import|from|type|if|else|async|await|describe|it|expect|void|defineProps|defineEmits|export|null)\b/g;
+  function hl(text, code) {
+    if (!code) return esc(text);
+    let out = ''; let last = 0;
+    for (const m of text.matchAll(TOKEN)) {
+      out += esc(text.slice(last, m.index));
+      out += `<span class="${m[1] ? 'tc' : m[2] ? 'ts' : 'tk'}">${esc(m[0])}</span>`;
+      last = m.index + m[0].length;
     }
-    document.getElementById('list').innerHTML = html;
+    return out + esc(text.slice(last));
+  }
+  function wordDiff(a, b) {
+    let p = 0; while (p < a.length && p < b.length && a[p] === b[p]) p++;
+    let s = 0; while (s < a.length - p && s < b.length - p && a[a.length - 1 - s] === b[b.length - 1 - s]) s++;
+    if (p + s < 0.4 * Math.min(a.length, b.length)) return null;
+    const cut = (t) => [t.slice(0, p), t.slice(p, t.length - s), t.slice(t.length - s)];
+    return { a: cut(a), b: cut(b) };
+  }
+  function buildHunk(h) {
+    let o = h.os; let n = h.ns; let add = 0; let del = 0; let oc = 0; let nc = 0; let run = null;
+    const items = [];
+    const flush = () => { if (run) { items.push(run); run = null; } };
+    for (const raw of h.lines) {
+      if (raw[0] === '~') { flush(); const [c, label] = raw.slice(1).split(':'); const count = Number(c); items.push({ kind: 'fold', count, label }); add += count; n += count; nc += count; continue; }
+      const sign = raw[0]; const text = raw.slice(1);
+      if (sign === ' ') { flush(); items.push({ kind: 'ctx', o: o++, n: n++, text }); oc++; nc++; continue; }
+      run = run || { kind: 'run', dels: [], adds: [] };
+      if (sign === '-') { run.dels.push({ no: o++, text }); del++; oc++; } else { run.adds.push({ no: n++, text }); add++; nc++; }
+    }
+    flush();
+    items.filter((i) => i.kind === 'run').forEach((r) => r.dels.forEach((d, i) => {
+      const a = r.adds[i]; if (!a) return;
+      const w = wordDiff(d.text, a.text); if (w) { d.parts = w.a; a.parts = w.b; }
+    }));
+    return { items, add, del, newCount: nc, header: `@@ -${h.os},${oc} +${h.ns},${nc} @@${h.ctx ? ' ' + h.ctx : ''}` };
+  }
+  FILES.forEach((f) => f.hunks.forEach((h) => Object.assign(h, buildHunk(h))));
+
+  const state = { scope: { type: 'all' }, layout: 'split', viewed: new Set(['rekall-ui/src/components/shell/TerminalFloat.vue']), shut: new Set(), current: 0 };
+
+  const dirOf = (p) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : 'repository root');
+  const nameOf = (p) => p.slice(p.lastIndexOf('/') + 1);
+  const stepOf = (h) => COMMITS[h.commit].step;
+  const inScope = (h) => state.scope.type === 'all' || (state.scope.type === 'step' && stepOf(h) === state.scope.id) || (state.scope.type === 'commit' && h.commit === state.scope.id);
+  const hunksOf = (f) => f.hunks.filter(inScope);
+  const sum = (hs, k) => hs.reduce((t, h) => t + h[k], 0);
+  const stepTag = (n) => `<span class="stp ${n === 3 ? 'run' : ''}" title="Step ${n}: ${STEPS[n - 1].title}">${n}</span>`;
+  const delta = (a, d) => `<span class="dl num"><span class="add">+${a}</span> <span class="del">−${d}</span></span>`;
+  function blocks(a, d) {
+    const total = a + d; const na = total ? Math.round((a / total) * 5) : 0;
+    return `<span class="blocks" aria-hidden="true">${[0, 1, 2, 3, 4].map((i) => `<i class="${i < na ? 'a' : i < 5 && total ? 'd' : ''}"></i>`).join('')}</span>`;
+  }
+  const check = '<svg><use href="#i-check"/></svg>';
+
+  function sealMini(step) {
+    return step.state === 'done'
+      ? '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" fill="#14804f" stroke="#a6f2cd"/><path d="m5 8.2 2.2 2.2L11 6.3" stroke="#03200f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      : '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="#7c83f7" stroke-width="1.5" stroke-dasharray="3 2.4"/><circle cx="8" cy="8" r="2.4" fill="#7c83f7"/></svg>';
   }
 
-  function renderCommitDetail() {
-    const c = COMMITS[state.commit];
-    const el = document.getElementById('detail');
-    if (!c) { el.innerHTML = '<p class="empty">No commit yet.</p>'; return; }
-    const stats = commitStats(c.hash);
-    const files = FILES.filter((f) => f.hunks.some((h) => h.commit === c.hash));
-    el.innerHTML = `<div class="dhead">
-        <div class="dtitle">${c.live ? 'Working tree' : esc(c.subject)}</div>
-        <div class="dmeta">${c.live ? '<span class="live"><span class="orb"></span>Session at work</span>' : `<span class="hash">${c.hash}</span>`}${stepTag(c.step)}<span>${STEPS[c.step - 1].title}</span><span>${c.when}</span>
-          <span class="mono num">${stats.files} ${stats.files === 1 ? 'file' : 'files'} <span class="add">+${stats.add}</span> <span class="del">−${stats.del}</span></span></div>
-      </div>
-      <div class="dscroll">${files.map((f, i) => {
-        const hunk = f.hunks.find((h) => h.commit === c.hash);
-        return `<details class="file" ${i === 0 ? 'open' : ''}><summary><svg class="caret"><use href="#i-chev"/></svg><span class="kind">${f.kind}</span><span class="fname trunc">${f.path}</span>${delta(hunk.add, hunk.del)}</summary>${codeBlock(hunk)}</details>`;
-      }).join('')}</div>`;
+  function renderTrack() {
+    const is = (type, id) => state.scope.type === type && state.scope.id === id;
+    let html = `<button class="tk-btn" data-scope="all" aria-pressed="${state.scope.type === 'all'}" title="Everything the sessions changed for this task, compared with main">All changes</button>`;
+    STEPS.forEach((step) => {
+      html += '<span class="tk-sep"></span>';
+      html += `<button class="tk-btn" data-scope="step:${step.n}" aria-pressed="${is('step', step.n)}" title="${step.title}">${sealMini(step)}Step ${step.n}</button>`;
+      Object.values(COMMITS).filter((c) => c.step === step.n).forEach((c) => {
+        html += `<button class="tk-btn" data-scope="commit:${c.hash}" aria-pressed="${is('commit', c.hash)}" title="${esc(c.subject)}">${c.live ? '<span class="orb"></span>Working tree' : `<span class="hash">${c.hash}</span>`}</button>`;
+      });
+    });
+    document.getElementById('track').innerHTML = html;
+  }
+
+  function renderTree() {
+    const files = FILES.map((f, i) => ({ f, i, hs: hunksOf(f) }));
+    const total = FILES.length; const seen = FILES.filter((f) => state.viewed.has(f.path)).length;
+    let html = `<div class="tree-h"><div class="t">Files <span>${seen} of ${total} viewed</span></div><div class="well" role="img" aria-label="${seen} of ${total} files viewed"><i style="width:${(seen / total) * 100}%"></i></div></div>`;
+    let lastDir = null;
+    files.forEach(({ f, i, hs }) => {
+      const dir = dirOf(f.path);
+      if (dir !== lastDir) { html += `<div class="dir"><span>${dir}</span></div>`; lastDir = dir; }
+      const a = sum(hs, 'add'); const d = sum(hs, 'del'); const out = hs.length === 0; const seenIt = state.viewed.has(f.path);
+      html += `<button class="frow ${out ? 'out' : ''} ${seenIt ? 'seen' : ''}" data-jump="${i}" aria-current="${i === state.current && !out}" title="${out ? 'Not part of this change; opens it in all changes' : f.path}">
+        <span class="tick">${check}</span><span class="nm trunc">${nameOf(f.path)}</span>${out ? '<span class="dl" style="color:var(--subtle)">not in this</span>' : `${blocks(a, d)}${delta(a, d)}`}</button>`;
+    });
+    document.getElementById('tree').innerHTML = html;
+  }
+
+  function codeHtml(text, parts, code) {
+    if (!parts) return hl(text, code);
+    return hl(parts[0], code) + (parts[1] ? `<mark class="w">${hl(parts[1], code)}</mark>` : '') + hl(parts[2], code);
+  }
+  const foldBtn = (label) => `<button class="fold"><svg><use href="#i-unfold"/></svg>${label}</button>`;
+
+  function unifiedRows(items, code) {
+    return items.map((it) => {
+      if (it.kind === 'fold') return foldBtn(`${it.count} ${it.label}`);
+      if (it.kind === 'ctx') return `<div class="r"><i>${it.o}</i><i>${it.n}</i><span class="sg"> </span><span class="cd">${hl(it.text, code) || ' '}</span></div>`;
+      const dels = it.dels.map((d) => `<div class="r"><i class="d">${d.no}</i><i class="d"></i><span class="sg d">−</span><span class="cd d">${codeHtml(d.text, d.parts, code) || ' '}</span></div>`);
+      const adds = it.adds.map((a) => `<div class="r"><i class="a"></i><i class="a">${a.no}</i><span class="sg a">+</span><span class="cd a">${codeHtml(a.text, a.parts, code) || ' '}</span></div>`);
+      return dels.concat(adds).join('');
+    }).join('');
+  }
+  function splitRows(items, code) {
+    return items.map((it) => {
+      if (it.kind === 'fold') return foldBtn(`${it.count} ${it.label}`);
+      if (it.kind === 'ctx') return `<div class="r2"><i>${it.o}</i><span class="cd">${hl(it.text, code) || ' '}</span><i>${it.n}</i><span class="cd">${hl(it.text, code) || ' '}</span></div>`;
+      const rows = []; const len = Math.max(it.dels.length, it.adds.length);
+      for (let k = 0; k < len; k++) {
+        const d = it.dels[k]; const a = it.adds[k];
+        rows.push(`<div class="r2"><i class="${d ? 'd' : 'e'}">${d ? d.no : ''}</i><span class="cd ${d ? 'd' : 'e'}">${d ? codeHtml(d.text, d.parts, code) || ' ' : ' '}</span><i class="${a ? 'a' : 'e'}">${a ? a.no : ''}</i><span class="cd ${a ? 'a' : 'e'}">${a ? codeHtml(a.text, a.parts, code) || ' ' : ' '}</span></div>`);
+      }
+      return rows.join('');
+    }).join('');
+  }
+
+  function originChip(commit) {
+    const c = COMMITS[commit];
+    if (c.live) return `<button class="origin wt" data-scope="commit:wt" title="Read only this change"><span class="orb"></span>Working tree${stepTag(c.step)}</button>`;
+    return `<button class="origin" data-scope="commit:${commit}" title="Read only this change: ${esc(c.subject)}"><span class="hash">${c.hash}</span>${stepTag(c.step)}<span class="sub">${esc(c.subject)}</span></button>`;
+  }
+
+  function fileHtml(f, index) {
+    const hs = hunksOf(f); if (!hs.length) return '';
+    const shut = state.shut.has(f.path) || state.viewed.has(f.path);
+    const viewed = state.viewed.has(f.path);
+    const a = sum(hs, 'add'); const d = sum(hs, 'del');
+    const dir = dirOf(f.path);
+    const order = Object.keys(COMMITS);
+    const others = state.scope.type === 'commit' ? f.hunks.filter((h) => h.commit !== state.scope.id) : [];
+    const later = others;
+    const when = (h) => (order.indexOf(h.commit) < order.indexOf(state.scope.id) ? 'earlier' : 'later');
+    const alsoHtml = later.length && !shut
+      ? `<div class="also"><span class="orb" style="animation:none;background:var(--subtle)"></span>This file is also changed ${later.map((h) => `${when(h)} by <span class="hash">${h.commit === 'wt' ? 'working tree' : h.commit}</span>`).join(', ')}.<button data-scope="all">Read the net result</button></div>`
+      : '';
+    let body = '';
+    if (!shut) {
+      const parts = []; let prev = null;
+      hs.forEach((h) => {
+        const gapFrom = prev ? prev.ns + prev.newCount : 1;
+        const gap = h.ns - gapFrom;
+        if (gap > 0 && state.scope.type !== 'commit') parts.push(foldBtn(`${gap} unchanged lines`));
+        const showOrigin = state.scope.type !== 'commit';
+        parts.push(`<div class="hh"><span class="hc">${esc(h.header)}</span>${showOrigin ? originChip(h.commit) : ''}</div>`);
+        parts.push(`<div class="code">${state.layout === 'split' ? splitRows(h.items, f.code) : unifiedRows(h.items, f.code)}</div>`);
+        prev = h;
+      });
+      body = `<div class="fb">${parts.join('')}</div>`;
+    } else if (viewed) {
+      body = `<div class="shutnote">Viewed. ${a + d} changed lines hidden; open the file to read them again.</div>`;
+    }
+    return `<section class="file ${shut ? 'shut' : ''}" id="f-${index}" data-file="${index}">
+      <header class="fh">
+        <button class="caret" data-toggle="${index}" aria-label="${shut ? 'Open' : 'Fold'} the file" aria-expanded="${!shut}"><svg><use href="#i-chev"/></svg></button>
+        <span class="kind" title="${f.kind === 'A' ? 'Added' : 'Modified'}">${f.kind}</span>
+        <span class="fp">${f.path.includes('/') ? `<span>${dir}/</span>` : ''}${nameOf(f.path)}</span>
+        ${delta(a, d)}
+        <button class="vchk" data-viewed="${index}" aria-pressed="${viewed}" title="Your reading marker. It does not accept the work."><span class="tick">${check}</span>Viewed</button>
+      </header>${alsoHtml}${body}</section>`;
+  }
+
+  function scopeHeader() {
+    const all = FILES.flatMap(hunksOf);
+    const a = sum(all, 'add'); const d = sum(all, 'del');
+    const files = FILES.filter((f) => hunksOf(f).length).length;
+    const commits = new Set(all.map((h) => h.commit).filter((c) => c !== 'wt')).size;
+    const totals = `<div class="tot"><span><b class="num">${files}</b> ${files === 1 ? 'file' : 'files'}</span><span class="m num"><span class="add">+${a}</span> <span class="del">−${d}</span></span>${commits ? `<span><b class="num">${commits}</b> ${commits === 1 ? 'commit' : 'commits'}</span>` : ''}</div>`;
+    const s = state.scope;
+    if (s.type === 'all') return `<div class="scope"><div class="eyebrow">Net result · compared with <span class="mono">main</span></div><h2>Everything the sessions changed for this task</h2><p>Read the end state of every file. Each hunk names the commit and step that made it; open one to read that single change on its own.</p>${totals}${FILES.some((f) => f.hunks.some((h) => h.commit === 'wt')) ? '<div class="tot"><span class="live"><span class="orb"></span>Session at work · 1 file not committed</span></div>' : ''}</div>`;
+    if (s.type === 'step') { const st = STEPS[s.id - 1]; return `<div class="scope"><div class="eyebrow">${stepTag(st.n)} Step ${st.n} · ${st.state === 'done' ? 'done' : 'session running'}</div><h2>${st.title}</h2><p>The net change of the commits logged against this step${st.state === 'running' ? ', plus the working tree' : ''}.</p>${totals}</div>`; }
+    const c = COMMITS[s.id];
+    return `<div class="scope"><div class="eyebrow">${c.live ? '<span class="live"><span class="orb"></span>Session at work</span>' : `<span class="hash">${c.hash}</span>`}${stepTag(c.step)}<span>Step ${c.step} · ${STEPS[c.step - 1].title}</span><span>${c.when}</span></div><h2>${esc(c.subject)}</h2><p>${esc(c.body)}</p>${totals}</div>`;
+  }
+
+  function renderDiff() {
+    const col = document.getElementById('diffcol');
+    const top = col.scrollTop;
+    col.innerHTML = scopeHeader() + FILES.map(fileHtml).join('');
+    col.scrollTop = top;
   }
 
   function render() {
-    document.querySelectorAll('#by button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.by === state.by)));
-    renderStepFilter();
-    renderTotals();
-    if (state.by === 'file') { renderFileList(); renderFileDetail(); } else { renderCommitList(); renderCommitDetail(); }
+    renderTrack();
+    document.querySelectorAll('#layout button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.layout === state.layout)));
+    renderTree();
+    renderDiff();
+  }
+
+  function jump(index) {
+    const target = document.getElementById('f-' + index);
+    if (target) { state.current = index; document.getElementById('diffcol').scrollTo({ top: target.offsetTop - 12 }); renderTree(); }
+  }
+  const visibleIndexes = () => FILES.map((f, i) => (hunksOf(f).length ? i : -1)).filter((i) => i >= 0);
+  function step(delta) {
+    const list = visibleIndexes(); const at = list.indexOf(state.current);
+    const next = list[Math.min(Math.max(at + delta, 0), list.length - 1)];
+    if (next !== undefined) jump(next);
+  }
+  function setScope(value) {
+    const [type, id] = value.split(':');
+    state.scope = type === 'all' ? { type } : { type, id: type === 'step' ? Number(id) : id };
+    const list = visibleIndexes(); if (!list.includes(state.current)) state.current = list[0] ?? 0;
+    render(); document.getElementById('diffcol').scrollTop = 0;
   }
 
   document.addEventListener('click', (event) => {
-    const hit = (selector) => event.target.closest(selector);
-    if (hit('[data-by]')) { state.by = hit('[data-by]').dataset.by; state.hot = null; }
-    else if (hit('[data-step]')) { state.step = Number(hit('[data-step]').dataset.step); state.hot = null; }
-    else if (hit('[data-file]')) { state.file = hit('[data-file]').dataset.file; state.hot = null; }
-    else if (hit('[data-commit]')) { state.commit = hit('[data-commit]').dataset.commit; }
-    else if (hit('[data-chip]')) { const chip = hit('[data-chip]').dataset.chip; state.hot = state.hot === chip ? null : chip; }
-    else return;
-    render();
+    const hit = (s) => event.target.closest(s);
+    if (hit('[data-scope]')) return setScope(hit('[data-scope]').dataset.scope);
+    if (hit('[data-layout]')) { state.layout = hit('[data-layout]').dataset.layout; return render(); }
+    if (hit('[data-viewed]')) { const p = FILES[hit('[data-viewed]').dataset.viewed].path; state.viewed.has(p) ? state.viewed.delete(p) : state.viewed.add(p); return render(); }
+    if (hit('[data-toggle]')) { const p = FILES[hit('[data-toggle]').dataset.toggle].path; const open = state.shut.has(p) || state.viewed.has(p); if (open) { state.shut.delete(p); state.viewed.delete(p); } else state.shut.add(p); return render(); }
+    if (hit('[data-jump]')) {
+      const i = Number(hit('[data-jump]').dataset.jump);
+      if (!hunksOf(FILES[i]).length) { state.scope = { type: 'all' }; state.current = i; render(); return jump(i); }
+      return jump(i);
+    }
   });
+  document.addEventListener('keydown', (event) => {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    if (event.key === 'j') step(1);
+    else if (event.key === 'k') step(-1);
+    else if (event.key === 'u') { state.layout = state.layout === 'split' ? 'unified' : 'split'; render(); }
+    else if (event.key === 'v') { const p = FILES[state.current].path; state.viewed.has(p) ? state.viewed.delete(p) : state.viewed.add(p); render(); }
+    else if (event.key === 'a') setScope('all');
+  });
+  document.getElementById('diffcol').addEventListener('scroll', () => {
+    const col = document.getElementById('diffcol'); let current = state.current;
+    visibleIndexes().forEach((i) => { const el = document.getElementById('f-' + i); if (el && el.offsetTop - 80 <= col.scrollTop) current = i; });
+    if (current !== state.current) { state.current = current; renderTree(); }
+  }, { passive: true });
+  document.querySelector('.note').addEventListener('click', (e) => e.currentTarget.classList.toggle('open'));
 
   const params = new URLSearchParams(location.hash.slice(1));
-  if (params.get('by') === 'commit') state.by = 'commit';
-  if (params.get('step')) state.step = Number(params.get('step'));
+  if (params.get('scope')) { const [t, id] = params.get('scope').split(':'); state.scope = t === 'all' ? { type: 'all' } : { type: t, id: t === 'step' ? Number(id) : id }; }
+  if (params.get('layout')) state.layout = params.get('layout');
+  if (params.get('open')) state.viewed.clear();
+  state.current = visibleIndexes()[0] ?? 0;
   render();
-document.querySelector('.note').addEventListener('click', (e) => e.currentTarget.remove());
+  if (params.get('file')) jump(Number(params.get('file')));
 </script>
 </body>
 </html>

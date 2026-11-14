@@ -78,6 +78,15 @@
         "value": "fira code",
         "createdAt": "2026-11-14T07:35:44.472Z",
         "reason": "DESIGN.md declares Fira Code Variable as the anchor face; the mock loads it as Fira Code"
+      },
+      {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/task-changes/index.html"
+        ],
+        "createdAt": "2026-11-14T08:02:53.117Z",
+        "reason": "DESIGN.md sanctions the session orb pulse as state made visible; it only marks a running session in this mockup. Decided by the model from DESIGN.md, not user confirmed."
       }
     ]
   }

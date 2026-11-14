@@ -5,7 +5,7 @@ import QuickTaskBar from '@/features/catalog/components/QuickTaskBar.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
-import { QUICK_TASK_BUSY_REASON, QUICK_TASK_HELP } from '@/features/catalog/lib/quick-task'
+import { QUICK_TASK_HELP } from '@/features/catalog/lib/quick-task'
 import { taskFixture } from '../../support/taskFixture'
 import type { QuickTaskStarted } from '@/features/catalog/api/quick-task.api'
 import type { Project, Task } from '@/features/catalog/model/catalog'
@@ -76,25 +76,9 @@ describe('QuickTaskBar', () => {
     expect(create).not.toHaveBeenCalled()
   })
 
-  it('is held back with the reason while a quick task is still being worked on the project', async () => {
+  it('stays free while another quick task is being worked on the project', () => {
     const store = useConsoleStore()
     store.tasks = [{ ...STARTED.task, reviewState: 'RUNNING' } as Task]
-    const wrapper = mountBar()
-
-    expect(wrapper.get('[data-testid="quick-task-help"]').text()).toBe(QUICK_TASK_BUSY_REASON)
-    expect(wrapper.get('[data-testid="quick-task-input"]').attributes('disabled')).toBeDefined()
-  })
-
-  it('is free again once the wrapup claimed the earlier quick task', () => {
-    const store = useConsoleStore()
-    store.tasks = [{ ...STARTED.task, reviewState: 'CLAIMED' } as Task]
-
-    expect(mountBar().get('[data-testid="quick-task-input"]').attributes('disabled')).toBeUndefined()
-  })
-
-  it('is free again when the earlier quick task lost its session and is back to open', () => {
-    const store = useConsoleStore()
-    store.tasks = [{ ...STARTED.task, reviewState: 'OPEN' } as Task]
 
     expect(mountBar().get('[data-testid="quick-task-input"]').attributes('disabled')).toBeUndefined()
   })
@@ -108,7 +92,7 @@ describe('QuickTaskBar', () => {
 
   it('keeps the text and tells the reader when the server refuses', async () => {
     const store = useConsoleStore()
-    vi.spyOn(store, 'createQuickTask').mockRejectedValue(new Error('This project already has a quick task being worked.'))
+    vi.spyOn(store, 'createQuickTask').mockRejectedValue(new Error('The session could not open.'))
     const notify = vi.spyOn(useToastStore(), 'notifyError')
     const wrapper = mountBar()
 

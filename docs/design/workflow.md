@@ -92,10 +92,8 @@ terminal on the task through `TerminalService`; when that terminal cannot open, 
 again, so a refused start leaves nothing behind. The request carries the terminal's `skipPermissions`,
 `model` and `effort`; the response is the task and the terminal.
 
-- The task is `quick` (migration `063-quick-task`) and a project holds one with a session on it
-  (`RUNNING`) at a time: a second is refused with 409. A quick task whose session ended without a
-  wrapup is back to `OPEN` and no longer blocks the project. It is for small changes, not a way round the
-  review for large ones.
+- The task is `quick` (migration `063-quick-task`). A project can have any number of them with a
+  session on them at once; nothing refuses a second.
 - A quick task keeps the wrapup and the auto-commit of any task with no steps. Only the last move
   differs: `rekall_wrapup` runs the checks, writes the wrapup (the task becomes `CLAIMED`), runs the
   auto-commit, then calls `WrapupService::accept_quick_task_after_commit`. Unless that commit failed,

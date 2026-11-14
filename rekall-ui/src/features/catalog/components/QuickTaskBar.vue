@@ -2,13 +2,12 @@
 import { computed, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import { useQuickTask } from '@/features/catalog/composables/useQuickTask'
-import { QUICK_TASK_BUSY_REASON, QUICK_TASK_HELP } from '@/features/catalog/lib/quick-task'
+import { QUICK_TASK_HELP } from '@/features/catalog/lib/quick-task'
 import type { Project } from '@/features/catalog/model/catalog'
 
 /**
  * One field to start a small change: the text becomes a task, a session opens on it, and the task
- * is accepted by itself once the wrapup is written. Held back while a quick task is still being
- * worked on the project, which the server also refuses.
+ * is accepted by itself once the wrapup is written.
  */
 const props = defineProps<{ project: Project }>()
 
@@ -19,7 +18,6 @@ const text = ref('')
 const hasText = computed(() => text.value.trim() !== '')
 const hasFolder = computed(() => Boolean(props.project.repoFolder))
 const reason = computed(() => {
-  if (quick.working.value) return QUICK_TASK_BUSY_REASON
   if (!hasFolder.value) return "Set this project's folder on its page to open a session from it."
   return null
 })

@@ -207,8 +207,7 @@ The message says what the work does, never which files it touched. The session t
 A small change does not need a task with a description, a run and a review. On a project's page, the
 quick task field takes one text: press Enter, or **Start quick task**, and Rekall makes a task from
 it (its first line is the title, the whole text the description), opens a session on it and starts
-the timer. Shift+Enter goes to a new line. The field needs the project's folder, and waits while
-another quick task on the project is still being worked.
+the timer. Shift+Enter goes to a new line. The field needs the project's folder. Any number of quick tasks can be worked on a project at once.
 
 When the session writes its wrapup and the commit on claim did not fail, Rekall accepts the task
 itself. The task then shows **Quick** and **Auto-accepted** beside its title, and the wrapup, the
