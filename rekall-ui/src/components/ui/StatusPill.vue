@@ -20,7 +20,7 @@ const TONES: Readonly<Record<StatusPillTone, string>> = {
 
 <template>
   <span
-    class="inline-flex h-[22px] items-center gap-1.5 whitespace-nowrap rounded-full border px-2 text-caption font-medium"
+    class="inline-flex h-[22px] items-center gap-1.5 whitespace-nowrap rounded-key border px-2 text-caption font-medium"
     :class="TONES[tone]"
     :data-tone="tone"
     data-testid="status-pill"

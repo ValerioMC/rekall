@@ -46,7 +46,7 @@ async function setStatus(id: string): Promise<void> {
     <template #trigger="{ toggle }">
       <button
         type="button"
-        class="focus-ring cursor-pointer rounded-full"
+        class="focus-ring cursor-pointer rounded-key"
         title="Change status"
         data-popover-trigger
         data-testid="task-status"
