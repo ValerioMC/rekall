@@ -22,7 +22,7 @@ const shownPath = computed(() => (folderName(props.path) === props.component.nam
     type="button"
     class="focus-ring group flex h-(--spacing-row) w-full cursor-pointer items-center gap-2.5 rounded-control pl-2 pr-2.5 text-left transition-colors"
     :class="open ? 'selected-row' : 'hover:bg-surface-raised'"
-    :style="{ '--select-tint': hue.base, '--select-tint-soft': hue.soft }"
+    :style="{ '--select-tint': hue.base }"
     :aria-current="open || undefined"
     :aria-label="`Edit ${component.name}`"
     :title="component.description || undefined"

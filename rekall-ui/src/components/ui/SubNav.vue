@@ -27,7 +27,7 @@ const active = defineModel<Id>({ required: true })
       :key="item.id"
       v-bind="item.to ? { to: item.to } : { type: 'button' }"
       role="tab"
-      class="focus-ring relative flex cursor-pointer items-center gap-2 px-3 pb-2.5 pt-2 text-small transition-colors duration-(--motion-quick) after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-accent after:transition-transform after:duration-(--motion-move)"
+      class="focus-ring relative flex cursor-pointer items-center gap-2 px-3 pb-2.5 pt-2 text-body transition-colors duration-(--motion-quick) after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-accent after:transition-transform after:duration-(--motion-move)"
       :class="active === item.id ? 'text-text after:scale-x-100' : 'text-text-muted after:scale-x-0 hover:text-text'"
       :aria-selected="active === item.id"
       :data-testid="`sub-nav-${item.id}`"
@@ -36,8 +36,8 @@ const active = defineModel<Id>({ required: true })
       {{ item.label }}
       <span
         v-if="item.count !== undefined"
-        class="font-mono text-caption tabular-nums"
-        :class="item.hot && item.count > 0 ? 'rounded-key bg-accent px-1.5 font-medium leading-4 text-accent-ink' : 'text-text-subtle'"
+        class="text-caption tabular-nums"
+        :class="item.hot && item.count > 0 ? 'rounded-full bg-accent px-1.5 font-medium leading-4 text-accent-ink' : 'text-text-subtle'"
         data-testid="sub-nav-count"
       >
         {{ item.count }}

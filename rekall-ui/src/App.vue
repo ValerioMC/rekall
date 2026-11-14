@@ -2,12 +2,11 @@
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
-import AnchorBar from '@/components/console/AnchorBar.vue'
+import ConsoleHeader from '@/components/console/ConsoleHeader.vue'
 import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import ReviewPage from '@/features/review/components/ReviewPage.vue'
 import TaskPage from '@/features/task/components/TaskPage.vue'
 import WorkPage from '@/features/work/components/WorkPage.vue'
-import TagsPanel from '@/features/tags/components/TagsPanel.vue'
 import RunQueuePanel from '@/features/queue/components/RunQueuePanel.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
 import ChatReopenTag from '@/features/chat/components/ChatReopenTag.vue'
@@ -77,11 +76,6 @@ watch(
   { immediate: true }
 )
 
-function openSettings(): void {
-  void router.push('/settings')
-}
-const tagsOpen = ref(false)
-
 function onKeydown(event: KeyboardEvent): void {
   if (isModalOpen.value > 0) return
 
@@ -131,11 +125,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       Skip to the editor
     </a>
 
-    <AnchorBar
-      @open-settings="openSettings"
-      @open-tags="tagsOpen = true"
-    />
-
+    <ConsoleHeader />
     <div class="flex min-h-0 flex-1">
       <WorkPage v-if="onWork" @new-task="taskEditor.beginCreate()" />
       <TaskPage v-else-if="onTask" />
@@ -157,9 +147,6 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       <RecordDialog v-if="taskEditor.editing.value" :draft="taskEditor.editing.value" @close="taskEditor.close()" />
     </Transition>
     <Transition name="dialog">
-    </Transition>
-    <Transition name="dialog">
-      <TagsPanel v-if="tagsOpen" @close="tagsOpen = false" />
     </Transition>
     <Transition name="dialog">
       <RunQueuePanel v-if="runQueueOpen" @close="runQueue.closePanel()" />

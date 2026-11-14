@@ -90,7 +90,7 @@ async function confirmDelete(): Promise<void> {
       <li
         v-for="(reference, index) in group.references"
         :key="reference.id"
-        class="group/commit relative min-w-0 rounded-control border border-transparent px-1.5 py-1 transition-colors hover:border-border hover:bg-surface-raised"
+        class="group/commit @container relative min-w-0 rounded-control border border-transparent px-1.5 py-1 transition-colors hover:border-border hover:bg-surface-raised"
         data-testid="commit-reference-row"
       >
         <span
@@ -108,7 +108,7 @@ async function confirmDelete(): Promise<void> {
         <div class="flex h-[26px] min-w-0 items-center gap-1">
           <button
             type="button"
-            class="focus-ring flex h-full min-w-0 flex-1 items-center gap-2 rounded-key text-left"
+            class="focus-ring flex h-full min-w-0 flex-1 items-center gap-2 overflow-hidden rounded-key text-left"
             title="Read this commit in the Changes tab"
             data-testid="commit-reference-open"
             @click="openInChanges(reference)"
@@ -144,7 +144,7 @@ async function confirmDelete(): Promise<void> {
             </span>
             <span
               v-else-if="showStepTag"
-              class="shrink-0 rounded-key border border-dashed border-border-strong px-1.5 py-px text-micro text-text-subtle"
+              class="shrink-0 rounded-key border border-dashed border-border-strong px-1.5 py-px text-micro text-text-subtle @max-[17rem]:hidden"
             >
               task
             </span>

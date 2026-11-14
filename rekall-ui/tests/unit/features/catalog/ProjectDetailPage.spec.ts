@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
-import { createMemoryHistory, createRouter } from 'vue-router'
+import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import ProjectDetailPage from '@/features/catalog/components/ProjectDetailPage.vue'
 import * as sectionsApi from '@/features/project/api/project-sections.api'
 import * as componentsApi from '@/features/project/api/project-components.api'
@@ -27,6 +27,8 @@ const PROJECT = 'p-1' as ProjectId
 const project = {
   id: PROJECT,
   companyId: 'c-1' as CompanyId,
+  companyName: 'Acme',
+  taskCount: 1,
   title: 'Vega',
   label: 'vega',
   anchor: 'project:vega',
@@ -38,6 +40,10 @@ const project = {
   repoFolder: null,
   autoCommit: false
 } as unknown as Project
+
+const OTHER = 'p-2' as ProjectId
+
+const other = { ...project, id: OTHER, title: 'Atlas', label: 'atlas', anchor: 'project:atlas' } as unknown as Project
 
 const task = workTask('t-1', { projectId: PROJECT, title: 'Build the report' })
 
@@ -55,17 +61,18 @@ const MarkdownStub = { props: ['modelValue'], template: '<div data-testid="markd
 
 let pinia: Pinia
 let wrapper: VueWrapper | null = null
+let routerUnderTest: Router | null = null
 
 async function render(tab?: string): Promise<VueWrapper> {
-  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/connections/:id?', name: 'connections', component: { template: '<div />' } }, { path: '/:p(.*)*', component: { template: '<div />' } }] })
+  const router = (routerUnderTest = createRouter({ history: createMemoryHistory(), routes: [{ path: '/connections/:id?', name: 'connections', component: { template: '<div />' } }, { path: '/:p(.*)*', component: { template: '<div />' } }] }))
   const store = useConsoleStore()
   store.isLoading = false
-  store.projects = [project]
+  store.projects = [project, other]
   store.companies = [{ id: project.companyId, name: 'Acme' } as unknown as Company]
   store.tasks = [task]
   wrapper = mountWithHeaderChrome(ProjectDetailPage, {
     props: { id: PROJECT, tab } as never,
-    global: { plugins: [pinia, router], stubs: { AppMarkdownEditor: MarkdownStub } }
+    global: { plugins: [pinia, router], stubs: { AppMarkdownEditor: MarkdownStub, HeaderStatus: true } }
   }) as unknown as VueWrapper
   await flushPromises()
   return wrapper
@@ -103,6 +110,25 @@ describe('the project page', () => {
 
     expect(page.find('[data-testid="copy-project-anchor"]').exists()).toBe(true)
     expect(page.find('[data-testid="launch-claude-code"]').exists()).toBe(false)
+  })
+
+  it('names the project in its first row and shows the same search and status as every working screen', async () => {
+    const page = await render()
+
+    expect(page.get('[data-testid="scope-trigger-title"]').text()).toBe('Vega')
+    expect(page.get('[data-testid="anchor-location"]').text()).toContain('project:vega')
+    expect(page.find('[data-testid="save-state"]').exists()).toBe(true)
+  })
+
+  it('moves to another project from the switcher and stays on the tab that is open', async () => {
+    const page = await render('components')
+    const push = vi.spyOn(routerUnderTest!, 'push')
+
+    await page.get('[data-testid="scope-trigger"]').trigger('click')
+    const atlas = page.findAll('[data-testid="scope-project"]').find((row) => row.text().includes('Atlas'))!
+    await atlas.trigger('click')
+
+    expect(push).toHaveBeenCalledWith(`/projects/${OTHER}/components`)
   })
 
   it('opens the page the route names in place of the tasks', async () => {

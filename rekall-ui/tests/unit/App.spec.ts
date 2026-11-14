@@ -381,21 +381,20 @@ describe('the console', () => {
     expect(wrapper.find('[data-testid="scope-company"]').text()).toContain('acme')
     const projectRows = wrapper.findAll('[data-testid="scope-project"]')
     expect(projectRows.map((row) => row.text())).toEqual([
-      expect.stringContaining('Beacon'),
-      expect.stringContaining('Vega Platform')
+      expect.stringContaining('Vega Platform'),
+      expect.stringContaining('Beacon')
     ])
-    expect(projectRows[1]?.text()).toContain('project:vega')
   })
 
   it('narrows to a project and says so in the breadcrumb', async () => {
     const wrapper = await mountWork()
 
     await wrapper.find('[data-testid="scope-trigger"]').trigger('click')
-    await wrapper.findAll('[data-testid="scope-project"]')[1]?.trigger('click')
+    await wrapper.findAll('[data-testid="scope-project"]')[0]?.trigger('click')
     await flushPromises()
 
     expect(wrapper.find('[data-testid="scope-trigger"]').text()).toContain('Vega Platform')
-    expect(wrapper.find('[data-testid="scope-trigger"]').text()).toContain('project:vega')
+    expect(wrapper.find('[data-testid="project-anchor"]').text()).toContain('project:vega')
     useWorkStore().view = 'open'
     await flushPromises()
     expect(wrapper.findAll('[data-testid="work-row"]')).toHaveLength(2)
@@ -407,7 +406,7 @@ describe('the console', () => {
     await wrapper.find('[data-testid="scope-trigger"]').trigger('click')
 
     expect(wrapper.find('[data-testid="new-company"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="new-project"]').text()).toContain('acme')
+    expect(wrapper.find('[data-testid="new-project"]').exists()).toBe(true)
 
     await wrapper.find('[data-testid="new-company"]').trigger('click')
     expect(wrapper.find('[data-testid="record-dialog"]').exists()).toBe(true)
@@ -546,20 +545,17 @@ describe('the console', () => {
       )
     })
 
-    /**
-     * A project's own page now has the room `RecordDialog` never did, so its pencil in the
-     * scope picker goes there instead of opening the quick-edit dialog.
-     */
-    it('sends the project pencil to the project page rather than opening the dialog', async () => {
+    /** A project's own page has the room `RecordDialog` never did, so the switcher's "Open page" goes there. */
+    it('opens the project page from the switcher rather than the dialog', async () => {
       const wrapper = await mountWork()
 
       const pushSpy = vi.spyOn(router, 'push')
 
       await wrapper.find('[data-testid="scope-trigger"]').trigger('click')
-      await wrapper.findAll('[data-testid="edit-project"]')[1]?.trigger('click')
+      await wrapper.findAll('[data-testid="scope-open-page"]')[0]?.trigger('click')
 
       expect(wrapper.find('[data-testid="record-dialog"]').exists()).toBe(false)
-      expect(pushSpy).toHaveBeenCalledWith(`/projects/${vega}`)
+      expect(pushSpy).toHaveBeenCalledWith(`/projects/${vega}/tasks`)
     })
 
     /** The same field that decides where a task lands is what moves it afterwards. */

@@ -39,10 +39,10 @@ describe('the screen menu', () => {
     setActivePinia(createPinia())
   })
 
-  it('shows only the menu glyph, names the screen on display to readers and opens every screen under its section', async () => {
+  it('names the screen on display on its key and opens every screen under its section', async () => {
     const { wrapper } = await mountMenu('/calendar')
     const trigger = wrapper.get('[data-testid="nav-menu-trigger"]')
-    expect(trigger.text()).toBe('')
+    expect(trigger.get('[data-testid="nav-menu-label"]').text()).toBe('Calendar')
     expect(trigger.attributes('aria-label')).toBe('Screens: Calendar')
 
     await wrapper.get('[data-testid="nav-menu-trigger"]').trigger('click')

@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
-import CopyAnchorButton from '@/components/console/CopyAnchorButton.vue'
+import ConsoleHeader from '@/components/console/ConsoleHeader.vue'
+import ProjectScopeMeta from '@/features/catalog/components/ProjectScopeMeta.vue'
+import ScopeBar from '@/features/catalog/components/ScopeBar.vue'
+import ScopeSwitcher from '@/features/catalog/components/ScopeSwitcher.vue'
 import SubNav from '@/components/ui/SubNav.vue'
 import type { SubNavItem } from '@/components/ui/SubNav.vue'
 import ProjectDiagramsTab from '@/features/project/components/ProjectDiagramsTab.vue'
 import ProjectTasksTab from '@/features/project/components/ProjectTasksTab.vue'
-import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import ProjectBlueprintPane from '@/features/project/components/ProjectBlueprintPane.vue'
@@ -17,8 +18,6 @@ import ProjectSettingsPage from '@/features/project/components/ProjectSettingsPa
 import ProjectConnectionsPage from '@/features/connection/components/ProjectConnectionsPage.vue'
 import ProjectGraphsPage from '@/features/graph/components/ProjectGraphsPage.vue'
 import { useDeploymentGraphsStore } from '@/features/graph/store/deploymentGraphs.store'
-import ProjectMark from '@/components/ui/ProjectMark.vue'
-import TokenCount from '@/components/ui/TokenCount.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useProjectSectionsStore } from '@/features/project/store/projectSections.store'
 import { useProjectComponentsStore } from '@/features/project/store/projectComponents.store'
@@ -26,8 +25,8 @@ import { useConnectionsStore } from '@/features/connection/store/connections.sto
 import { useConnectionStream } from '@/features/connection/composables/useConnectionStream'
 import { useProjectSectionStream } from '@/features/project/composables/useProjectSectionStream'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
-import { PROJECT_STATUS_LABEL } from '@/features/catalog/model/project-status'
+import { useRecentProjectsStore } from '@/features/catalog/store/recentProjects.store'
+import type { ScopeTarget } from '@/features/catalog/model/scope-target'
 import { asProjectId } from '@/model/branded'
 import { PROJECT_TABS, PROJECT_TAB_LABEL, projectTabOf, type ProjectTab } from '@/features/project/model/project-page'
 import type { DeploymentGraphId, ProjectSectionId, TaskId } from '@/model/branded'
@@ -40,9 +39,6 @@ const tab = computed(() => projectTabOf(props.tab))
 
 const projectId = computed(() => asProjectId(props.id))
 const project = computed(() => store.projects.find((candidate) => candidate.id === projectId.value) ?? null)
-const company = computed(
-  () => store.companies.find((candidate) => candidate.id === project.value?.companyId) ?? null
-)
 const projectTasks = computed(() =>
   store.tasks.filter((task) => task.projectId === projectId.value)
 )
@@ -51,6 +47,7 @@ const sectionsStore = useProjectSectionsStore()
 const graphsStore = useDeploymentGraphsStore()
 const componentsStore = useProjectComponentsStore()
 const connectionsStore = useConnectionsStore()
+const recentProjects = useRecentProjectsStore()
 const { run } = useAsyncAction()
 
 const sections = computed(() => sectionsStore.sectionsOf(projectId.value))
@@ -98,9 +95,6 @@ function openGraph(id: DeploymentGraphId | null): void {
   settingUpGraph.value = false
 }
 
-const tokenUsage = useTokenUsageStore()
-const tokens = computed(() => tokenUsage.ofProject(projectId.value, store.tasks))
-
 function leaveDeletedProject(): void {
   void router.push('/projects')
 }
@@ -109,19 +103,9 @@ function openTask(taskId: TaskId): void {
   void router.push(`/task/${taskId}`)
 }
 
-const justSaved = ref(false)
-watch(
-  () => store.saveState,
-  (value, previous) => {
-    if (value === 'saved' && previous !== 'saved') {
-      justSaved.value = false
-      requestAnimationFrame(() => {
-        justSaved.value = true
-        setTimeout(() => (justSaved.value = false), 340)
-      })
-    }
-  }
-)
+function openProject(target: ScopeTarget): void {
+  if (target.kind === 'project') void router.push(`/projects/${target.projectId}/${tab.value}`)
+}
 
 watch(
   () => project.value?.id ?? null,
@@ -131,6 +115,7 @@ watch(
     settingUpGraph.value = false
     if (!project.value) return
     const id = project.value.id
+    recentProjects.remember(id)
     void run(() => sectionsStore.load(id))
     void run(() => graphsStore.load(id))
     void run(() => componentsStore.load(id))
@@ -157,7 +142,7 @@ watch([graphs, tab], () => {
 <template>
   <div class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-canvas">
     <template v-if="!store.isLoading && !project">
-      <AppCatalogHeader title="Project" />
+      <ConsoleHeader />
       <div class="page-column py-6">
         <AppEmptyState title="No project here" description="It may have been deleted, or the link is stale.">
           <RouterLink to="/projects"><AppButton variant="secondary" size="sm">Back to projects</AppButton></RouterLink>
@@ -166,13 +151,7 @@ watch([graphs, tab], () => {
     </template>
 
     <template v-else-if="!project">
-      <Teleport to="#app-header-extra">
-        <div class="flex min-w-0 items-center gap-3" aria-hidden="true">
-          <span class="h-5 w-px shrink-0 bg-border-strong" />
-          <div class="skeleton h-4 w-64" />
-        </div>
-        <div />
-      </Teleport>
+      <ConsoleHeader />
       <div class="page-column flex flex-col gap-4 py-6" aria-hidden="true">
         <div class="skeleton h-32 rounded-card" />
         <div class="skeleton h-64 rounded-card" />
@@ -180,39 +159,16 @@ watch([graphs, tab], () => {
     </template>
 
     <template v-else>
-      <AppCatalogHeader :title="project.title" :parent="company?.name">
-        <template #leading>
-          <ProjectMark :project-id="project.id" :icon="project.icon" :image-version="project.iconImageVersion" :size="24" />
-        </template>
-        <template #title-suffix>
-          <CopyAnchorButton :anchor="project.anchor" data-testid="copy-project-anchor" />
-          <TokenCount :totals="tokens" :hue-of="project.id" />
-          <AppBadge
-            :tone="project.status === 'ACTIVE' ? 'accent' : project.status === 'DONE' ? 'safe' : 'neutral'"
-            dot
-          >
-            {{ PROJECT_STATUS_LABEL[project.status] }}
-          </AppBadge>
-        </template>
-        <template #actions>
-          <span class="mr-1 flex items-center gap-2 text-small" :class="store.saveState === 'unsaved' ? 'text-warn' : 'text-text-subtle'">
-            <span
-              class="size-1.5 rounded-full"
-              :class="{
-                'bg-safe': store.saveState === 'saved',
-                'bg-warn': store.saveState === 'unsaved',
-                'animate-pulse bg-accent': store.saveState === 'saving',
-                settle: justSaved
-              }"
-              aria-hidden="true"
-            />
-            {{ store.saveState === 'saved' ? 'Saved' : store.saveState === 'saving' ? 'Saving' : 'Unsaved' }}
-          </span>
-        </template>
-      </AppCatalogHeader>
+      <ConsoleHeader :anchor="project.anchor" />
 
       <div class="page-column flex min-h-[540px] flex-1 basis-0 flex-col" data-testid="project-workspace">
-        <SubNav class="mt-4 shrink-0" :model-value="tab" :items="tabItems" label="Project pages" />
+        <ScopeBar>
+          <template #switcher>
+            <ScopeSwitcher mode="project" :company-id="project.companyId" :project-id="project.id" @select="openProject" />
+          </template>
+          <template #meta><ProjectScopeMeta :project="project" /></template>
+        </ScopeBar>
+        <SubNav class="mt-3 shrink-0" :model-value="tab" :items="tabItems" label="Project pages" />
         <div class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] py-4">
           <Transition name="fade-quick" mode="out-in">
             <ProjectTasksTab v-if="tab === 'tasks'" key="tasks" :project="project" @open-task="openTask" />

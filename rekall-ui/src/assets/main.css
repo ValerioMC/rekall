@@ -141,27 +141,20 @@
   --text-display: 26px;
   --text-hero: 34px;
 
-  /* Three corners: a button, chip or pill, a control or row, a card or dialog. Only a dot, a switch or a gauge is `full`. */
+  /* Three corners: a button, chip or row, a control, a card or dialog. A status pill, a dot, a switch or a gauge is `full`: a state never has a pressable key's shape. */
   --radius-key: 3px;
   --radius-card: 8px;
   --radius-control: 5px;
 
-  --shadow-lift:
-    inset 0 1px 0 rgb(255 255 255 / 0.12), 0 1px 2px rgb(0 0 0 / 0.55),
-    0 10px 22px -8px rgb(0 0 0 / 0.65);
-  --shadow-modal:
-    inset 0 1px 0 rgb(255 255 255 / 0.06), 0 2px 6px rgb(0 0 0 / 0.6),
-    0 40px 80px -24px rgb(0 0 0 / 0.9);
+  /* Surfaces are flat: a step of tone and a hairline separate them. Only what floats over the
+     page (a popover, a dialog) casts a shadow, and a key or a card keeps a one-pixel lip. */
+  --shadow-lift: 0 1px 2px rgb(0 0 0 / 0.55), 0 10px 22px -8px rgb(0 0 0 / 0.65);
+  --shadow-modal: 0 2px 6px rgb(0 0 0 / 0.6), 0 40px 80px -24px rgb(0 0 0 / 0.9);
   --shadow-glow: 0 0 28px -6px var(--color-accent-soft);
-  /* One light source, top-left, everywhere: a lit upper lip, a dark lower lip, a contact shadow
-     and a soft cast one. Raised things carry --shadow-raised, sunk ones --shadow-well. */
-  --shadow-raised:
-    inset 0 1px 0 rgb(255 255 255 / 0.05), 0 1px 2px rgb(0 0 0 / 0.35),
-    0 6px 12px -8px rgb(0 0 0 / 0.45);
-  /* A key's relief: a faint lit lip and a contact shadow, nothing cast. Enough to read as
-     pressable beside the flat status capsule without standing out of the bar. */
-  --shadow-key: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 1px 1px rgb(0 0 0 / 0.35);
+  --shadow-raised: 0 1px 0 rgb(255 255 255 / 0.05), 0 6px 18px -6px rgb(0 0 0 / 0.6);
+  --shadow-key: 0 1px 0 rgb(255 255 255 / 0.05), 0 1px 2px rgb(0 0 0 / 0.5);
   --shadow-key-pressed: inset 0 1px 2px rgb(0 0 0 / 0.35);
+  /* A trough a tube or a plan gauge sits in. A field is no longer sunk. */
   --shadow-well:
     inset 0 2px 4px rgb(0 0 0 / 0.5), inset 0 -1px 0 rgb(255 255 255 / 0.04),
     0 1px 0 rgb(255 255 255 / 0.035);
@@ -171,7 +164,7 @@
    * sidebar read as one grid rather than three.
    */
   --spacing-row: 36px;
-  --spacing-control: 36px;
+  --spacing-control: 32px;
   --spacing-header: 48px;
 
   /* The one column every page sits in, so a screen keeps its left edge when you switch to its
@@ -294,21 +287,16 @@
   }
 
   /*
-   * Two very wide, very dim pools of light, one warm at the top left and one cool at the
-   * bottom right. Flat near-black reads as an unlit surface; this reads as a room. Fixed
-   * rather than scrolled, so panes move over it instead of dragging it along.
+   * A flat canvas: every surface sits on it by a step of tone and a hairline, so nothing behind
+   * a pane tints the pane. Leading is 1.4, which fits controls and rows; prose (the markdown
+   * panes) sets its own.
    */
   body {
     background-color: var(--color-canvas);
-    background-image:
-      radial-gradient(70rem 42rem at 6% -12%, #eaa43c16, transparent 60%),
-      radial-gradient(58rem 38rem at 104% 110%, #55c9ea14, transparent 62%),
-      radial-gradient(120rem 80rem at 50% -6%, #5a6a9020, transparent 70%);
-    background-attachment: fixed;
     color: var(--color-text-muted);
     font-family: var(--font-sans);
     font-size: var(--text-body);
-    line-height: 1.55;
+    line-height: 1.4;
     -webkit-font-smoothing: antialiased;
   }
 
@@ -375,10 +363,9 @@
 /*
  * A text field, a select, a textarea: one treatment, so a form reads as one instrument.
  *
- * Recessed rather than raised: a hairline and an inner shade that sits the value slightly below
- * the surface, the way a slot does. Focus does not stack a ring on a border (two amber outlines
- * two pixels apart read as a glitch, not as emphasis); the hairline itself warms and a soft halo
- * opens around it. `--field-tint` retints both, so the label field focuses in the anchor colour
+ * Flat: a hairline edge around a canvas-dark fill, which sits the value below a card without a
+ * shadow. Focus swaps the hairline for the tint and adds a one-pixel ring of it, so the edge is
+ * two pixels and never a glow. `--field-tint` retints both, so the label field focuses in the anchor colour
  * it is typing (read with a fallback rather than declared here, because custom utilities have no
  * guaranteed order and a default set in this block could win over `field-anchor`), and
  * `aria-invalid` turns them red instead of a border class fighting this one
@@ -387,12 +374,11 @@
  */
 @utility field {
   border: 1px solid var(--color-border-field);
-  background: linear-gradient(180deg, #0a0d13, var(--color-canvas));
-  box-shadow: var(--shadow-well);
+  background: var(--color-canvas);
   outline: none;
   transition:
     border-color var(--motion-quick) ease,
-    box-shadow var(--motion-move) ease,
+    box-shadow var(--motion-quick) ease,
     background-color var(--motion-quick) ease;
 
   &::placeholder {
@@ -406,11 +392,8 @@
   &:focus,
   &:focus-visible,
   &:focus-within {
-    border-color: color-mix(in srgb, var(--field-tint, var(--color-accent)) 62%, transparent);
-    box-shadow:
-      inset 0 2px 4px rgb(0 0 0 / 0.5),
-      0 0 0 3px color-mix(in srgb, var(--field-tint, var(--color-accent)) 16%, transparent),
-      0 0 14px -2px color-mix(in srgb, var(--field-tint, var(--color-accent)) 38%, transparent);
+    border-color: var(--field-tint, var(--color-accent));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--field-tint, var(--color-accent)) 45%, transparent);
   }
 
   &[aria-invalid='true'] {
@@ -491,19 +474,15 @@
  */
 
 /*
- * Keycaps: the icon's two materials as a nearly flat face with a hairline edge. --shadow-key
- * gives the only relief, a faint lip and a contact shadow, so keys sit in the same plane as
- * the header's capsules and fields. Pressing sinks the face.
+ * Keycaps: a flat face with a one-pixel edge. --shadow-key gives the only relief, a faint lip
+ * and a contact shadow, so keys sit in the same plane as the header's capsules and fields.
+ * Pressing moves the face down a pixel.
  */
 @utility key-gold {
   color: var(--color-accent-ink);
   border: 0;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-accent-strong) 55%, var(--color-accent)) 0%,
-    var(--color-accent) 100%
-  );
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 1px 1px rgb(0 0 0 / 0.35);
+  background: var(--color-accent);
+  box-shadow: inset 0 0 0 1px var(--color-accent-shade), 0 1px 2px rgb(0 0 0 / 0.5);
   transition:
     filter var(--motion-quick) ease,
     box-shadow var(--motion-quick) ease,
@@ -516,14 +495,14 @@
   &:active:not(:disabled) {
     transform: translateY(1px);
     filter: brightness(0.96);
-    box-shadow: var(--shadow-key-pressed);
+    box-shadow: inset 0 0 0 1px var(--color-accent-shade);
   }
 }
 
 @utility key-slate {
   color: var(--color-text);
   border: 0;
-  background: linear-gradient(180deg, #2a3243 0%, #252c3b 100%);
+  background: var(--color-surface-raised);
   box-shadow: inset 0 0 0 1px var(--color-border-strong), var(--shadow-key);
   transition:
     background var(--motion-quick) ease,
@@ -531,7 +510,7 @@
     transform var(--motion-press) ease;
 
   &:hover:not(:disabled) {
-    background: linear-gradient(180deg, #313a4e 0%, #2a3243 100%);
+    background: var(--color-surface-hover);
   }
 
   &:active:not(:disabled) {
@@ -577,17 +556,14 @@
 }
 
 /*
- * A key held down and lit: a work in progress. The face sinks into a darker well with an inner
- * shade and the label takes the accent colour. The light lives in the label, never in a glow.
+ * A key held down and lit: a work in progress. The face drops to the surface tone with a
+ * hairline and the label takes the accent colour. The light lives in the label, never in a glow.
  */
 @utility key-lit {
   color: var(--color-accent);
   border: 0;
-  background: linear-gradient(180deg, #1a202b 0%, #202735 100%);
-  box-shadow:
-    inset 0 1px 2px rgb(0 0 0 / 0.55),
-    inset 0 -1px 0 rgb(255 255 255 / 0.06),
-    0 1px 0 rgb(255 255 255 / 0.05);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border-strong);
 }
 
 @utility trough {
@@ -640,13 +616,13 @@
 
 @utility panel-gold-quiet {
   border-color: color-mix(in srgb, var(--color-accent) 24%, transparent);
-  background: linear-gradient(180deg, #232733, #1c212c);
+  background: var(--color-surface);
   box-shadow: var(--shadow-raised);
 }
 
 @utility panel-slate {
   border-color: var(--color-border-strong);
-  background: linear-gradient(180deg, #252c3b, #1d2330);
+  background: var(--color-surface-raised);
   box-shadow: var(--shadow-raised);
 }
 
@@ -714,28 +690,10 @@
  */
 @utility selected-row {
   /* Defaults to the accent; the task navigator retints per project the same way a field is
-     retinted via --field-tint, deriving the line's ends with color-mix instead of needing a
-     matching strong/deep pair per identity hue. */
+     retinted via --field-tint, mixing the tint into the hairline with color-mix. */
   --select-tint: var(--color-accent);
-  --select-tint-soft: var(--color-accent-soft);
-  position: relative;
-  background:
-    radial-gradient(150px 48px at 10px 50%, var(--select-tint-soft), transparent 72%),
-    var(--color-surface-raised);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--select-tint) 24%, transparent),
-    var(--shadow-key);
-
-  &::before {
-    content: '';
-    position: absolute;
-    left: 3px;
-    top: 7px;
-    bottom: 7px;
-    width: 3px;
-    border-radius: 1px;
-    background: var(--select-tint);
-  }
+  background: var(--color-surface-raised);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--select-tint) 32%, var(--color-border-strong));
 }
 
 /*

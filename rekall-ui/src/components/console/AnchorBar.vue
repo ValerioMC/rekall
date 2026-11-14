@@ -6,15 +6,16 @@ import SettingsTrigger from '@/components/console/SettingsTrigger.vue'
 import { usePaletteStore } from '@/features/search/store/palette.store'
 import { useConsoleStore } from '@/stores/console.store'
 
+const props = defineProps<{ anchor?: string }>()
 const emit = defineEmits<{ openSettings: []; openTags: [] }>()
 
 const store = useConsoleStore()
 const palette = usePaletteStore()
 const { saveState, selectedTask, scopeAnchor } = storeToRefs(store)
 
-/** Where the reader is, as the anchors a session would be handed: the task, or the scope. */
+/** Where the reader is, as the anchors a session would be handed: the page's own, the task, or the scope. */
 const location = computed<string[]>(() => {
-  const anchors = selectedTask.value?.anchor ?? scopeAnchor.value
+  const anchors = props.anchor ?? selectedTask.value?.anchor ?? scopeAnchor.value
   return anchors.split(' ').filter((part) => part.length > 0)
 })
 

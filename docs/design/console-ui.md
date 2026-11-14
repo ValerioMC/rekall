@@ -73,7 +73,8 @@ console are gone; their tabs are on the task page.
 
 The Rekall mark to the left of the menu key opens Work with the scope reset to All work.
 
-The menu key in the header is three lines and nothing else; it opens every screen under its section:
+The menu key in the header is three lines, the name of the screen on display, the alert total and a chevron
+(`AppNavMenu`, `nav-menu-label`); it opens every screen under its section:
 Work (Work, Review), Projects (Projects, Companies, Connections), Time (Report, Calendar), Library
 (Diagrams, Claude files), Security and Settings. The review count rides on the Review entry, and the key's
 accessible label names the screen on display and sums every alert. ⌘K opens the switcher:
@@ -98,9 +99,11 @@ listed with it (another tab, or the epic is filed) keeps its place and carries t
 a chip. The grouping is `features/work/lib/epic-entries.ts`; which epics are folded is kept in the
 Work store and not remembered.
 
-The head holds the scope select (all work, a company, or a project), a filter on title and anchor,
-the Ledger or Board layout toggle, the density (Comfortable or Compact) and New task. Under it the
-views are sub-navigation tabs with counts: **Needs me** (the default), Running, Open and Filed. A
+The head is the scope bar shared with the project page (below): the project switcher as the title,
+what to know about the scope, and New task. Under it the views are sub-navigation tabs with counts,
+and at their right end the filter on title and anchor, the Ledger or Board layout toggle and a **View**
+menu (`WorkViewMenu`) with the density (Comfortable or Compact) and whether quick tasks show; the
+toggle and the filter stay on the board, whose tabs are lanes: **Needs me** (the default), Running, Open and Filed. A
 finished task never fills the table: each project folds its `DONE` tasks into one `N filed` line
 that opens in place. The rules for which tasks a tab shows, the counts, the sort and the fold are
 pure functions in `features/work/lib/work-view-rules.ts`, over the rows `work-rows.ts` builds. Scope,
@@ -218,7 +221,13 @@ approved.
 **Projects.** Projects, Companies and Connections share one sub-navigation with counts
 (`ProjectsSubNav`). The list is a card per project under its company, with the identity mark, anchor,
 status pill, a composition bar (filed, to review, in progress, to do: `lib/project-composition.ts`)
-and counts. The project page is a route per tab (`/projects/:id/:tab`): Tasks (the Work ledger
+and counts. The project page opens with the same scope bar as Work and a header that is the same on every working
+screen, the `/rk` search and the status capsule (`ConsoleHeader`). The title is the project switcher
+(`ScopeSwitcher`): a search field, the projects opened last (`recentProjects.store`, five kept in
+`localStorage`, three shown), then every company with its projects, archived ones left out unless open.
+On Work a choice narrows the list (All work, a company or a project) and a project row carries **Open page**;
+on a project page a choice goes to that project on the tab already open. What each page does with a choice
+is the page's; the switcher only hands back a `ScopeTarget`. The project page is a route per tab (`/projects/:id/:tab`): Tasks (the Work ledger
 narrowed to the project through `work.focusProject`), Blueprint, Pages, Components, Diagrams,
 Deployment, Connections and Settings; Blueprint and Deployment keep what the old page held beyond
 the mockup's six. Companies is a list with a detail pane (`/companies/:id`); Connections are grouped
@@ -269,12 +278,12 @@ half a pixel apart.
 
 | Token | Steps | Rule |
 |---|---|---|
-| Type, `text-micro` … `text-hero` | 11, 11.5, 12.5, 13.5, 15, 19, 26, 34 px | Micro is the floor and never prose. No line heights: text inherits its leading |
-| Corners, `rounded-key` / `-control` / `-card` | 3, 5, 8 px | A button, chip, status pill or kbd; a field, row or icon square; a card, dialog or header capsule. Only a dot, a switch or a gauge is `full` |
-| Relief, `--shadow-key` / `--shadow-raised` | lip + contact; + a short cast | A key gets a faint lit lip and a contact shadow, nothing cast; a raised card adds a short soft one. Depth is a hint, never an extrusion |
+| Type, `text-micro` … `text-hero` | 11, 11.5, 12.5, 13.5, 15, 19, 26, 34 px | Micro is the floor and never prose. Body leading is 1.4; text inherits it, and the markdown panes set their own |
+| Corners, `rounded-key` / `-control` / `-card` | 3, 5, 8 px | A button, chip or kbd; a field, row or icon square; a card, dialog or header capsule. A status pill, a dot, a switch or a gauge is `full`: a state never has a key's shape |
+| Relief, `--shadow-key` / `--shadow-raised` | lip + contact; + a short cast | A key is a flat face with a one-pixel edge, a lip and a contact shadow; a raised card adds a short soft cast. Surfaces carry no gradient, inner shade or halo |
 | Tempo, `--motion-press` … `--motion-slow` | 90, 140, 220, 320 ms | Press, hover, a pane moving, a seal. Choreographed keyframes keep their own |
 | `--color-text-subtle` | `#8c96a6` | 4.5:1 up to `surface-hover`, so small hints stay readable. Never faded further with an opacity modifier |
-| `--color-border-field` | `#5e6a82` | The edge of something you type into, 3:1 against the field's well; hairline separators keep `border` |
+| `--color-border-field` | `#5e6a82` | The edge of something you type into, 3:1 against the field's canvas fill; hairline separators keep `border` |
 
 `tests/unit/design-tokens.spec.ts` fails on a bracketed font size or radius, a faded subtle grey,
 a pixel `font-size` in a style block or a numeric `duration-*`. `TerminalPane.vue` is exempt: it

@@ -3,11 +3,11 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import NavAlertCount from '@/components/console/NavAlertCount.vue'
 import { useNavAlerts } from '@/composables/useNavAlerts'
-import { NAV_GROUPS, activeScreenIn, alertLabel, alertTone, isScreenActive, screensOf } from '@/model/nav-tab'
+import { NAV_GROUPS, activeScreenIn, alertLabel, alertTone, isScreenActive, screensOf, type NavAlertTone } from '@/model/nav-tab'
 
 /**
- * The header's one navigation: a key of three lines that opens every screen under its section.
- * The key's label names the screen on display and sums the alerts, since the glyph carries neither.
+ * The header's one navigation: a key that names the screen on display, sums the alerts and opens
+ * every screen under its section.
  */
 const route = useRoute()
 const alerts = useNavAlerts()
@@ -19,6 +19,9 @@ const open = ref(false)
 const routeName = computed(() => (typeof route.name === 'string' ? route.name : null))
 const current = computed(() => activeScreenIn(NAV_GROUPS, routeName.value))
 const pending = computed(() => screensOf(NAV_GROUPS).reduce((total, screen) => total + alerts(screen.alert), 0))
+const pendingTone = computed<NavAlertTone>(() =>
+  screensOf(NAV_GROUPS).some((screen) => alerts(screen.alert) > 0 && alertTone(screen.alert) === 'danger') ? 'danger' : 'accent'
+)
 const keyLabel = computed(() => {
   const screen = current.value ? `Screens: ${current.value.label}` : 'Screens'
   return pending.value > 0 ? `${screen}, ${pending.value} need attention` : screen
@@ -88,8 +91,8 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onPointerDown, t
     <button
       ref="trigger"
       type="button"
-      class="focus-ring grid size-8 shrink-0 cursor-pointer place-items-center rounded-control transition-colors"
-      :class="open ? 'bg-surface-raised text-text' : 'text-text-muted hover:bg-surface-hover hover:text-text'"
+      class="focus-ring flex h-8 shrink-0 cursor-pointer items-center gap-2 rounded-control border border-border px-2.5 transition-colors"
+      :class="open ? 'bg-surface-raised text-text' : 'bg-surface text-text hover:bg-surface-raised'"
       aria-haspopup="menu"
       :aria-expanded="open"
       :aria-label="keyLabel"
@@ -97,8 +100,15 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onPointerDown, t
       @click="toggle"
       @keydown="onTriggerKeydown"
     >
-      <svg class="size-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <svg class="size-4 text-text-muted" viewBox="0 0 16 16" fill="none" aria-hidden="true">
         <path d="M2.5 4h11M2.5 8h11M2.5 12h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+      </svg>
+      <span class="text-body font-medium" data-testid="nav-menu-label">{{ current?.label ?? 'Screens' }}</span>
+      <span v-if="pending > 0" aria-hidden="true">
+        <NavAlertCount :count="pending" :label="keyLabel" :tone="pendingTone" />
+      </span>
+      <svg class="size-3.5 text-text-subtle" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="m4 6.5 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
     </button>
 

@@ -1,6 +1,5 @@
 <script setup lang="ts">
-/** `parent` is what the title sits inside (a project's company): shown before it, stepped back. */
-withDefaults(defineProps<{ title: string; parent?: string | null; compact?: boolean }>(), { parent: null, compact: false })
+withDefaults(defineProps<{ title: string; compact?: boolean }>(), { compact: false })
 </script>
 
 <template>
@@ -14,12 +13,7 @@ withDefaults(defineProps<{ title: string; parent?: string | null; compact?: bool
     <div class="flex min-w-0 items-center gap-3" :class="compact ? 'max-sm:hidden' : ''">
       <span class="h-5 w-px shrink-0 bg-border-strong" aria-hidden="true" />
       <h1 class="flex min-w-0 items-center gap-2 text-title font-semibold tracking-[-0.01em] text-text">
-        <slot name="leading">
-          <span class="h-3 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
-        </slot>
-        <span v-if="parent" class="shrink-0 font-medium text-text-subtle">
-          {{ parent }}<span class="px-1.5 text-border-strong" aria-hidden="true">/</span>
-        </span>
+        <span class="h-3 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
         <span class="truncate">{{ title }}</span>
       </h1>
       <slot name="title-suffix" />

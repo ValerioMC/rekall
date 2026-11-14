@@ -61,20 +61,20 @@ rounded:
   full: "9999px"
 spacing:
   row: "36px"
-  control: "36px"
+  control: "32px"
   header: "48px"
 components:
   button-primary:
     backgroundColor: "{colors.accent}"
     textColor: "{colors.accent-ink}"
     rounded: "{rounded.control}"
-    height: "36px"
+    height: "32px"
     padding: "0 14px"
   button-secondary:
     backgroundColor: "{colors.surface-raised}"
     textColor: "{colors.text}"
     rounded: "{rounded.control}"
-    height: "36px"
+    height: "32px"
     padding: "0 14px"
   status-pill-review:
     backgroundColor: "{colors.accent}"
@@ -90,7 +90,7 @@ components:
     backgroundColor: "{colors.canvas}"
     textColor: "{colors.text}"
     rounded: "{rounded.control}"
-    height: "36px"
+    height: "32px"
   header-capsule:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.text-muted}"
@@ -106,10 +106,10 @@ components:
 
 Rekall is a ledger kept at night beside a terminal. Everything is a row in a table that answers one question, what waits for me, and the screen is dark so it does not compete with the session next to it. Colour is rationed: brushed gold marks where you are and what you do next, a single cool cyan marks the strings you copy, and green, yellow and red mean the state of a record and nothing else. A screen is calm until something needs a person, and then exactly one thing is amber.
 
-The density is that of a working tool: 13.5px body text, 36px rows and controls on a 4px rhythm, a header of 48px. Surfaces climb out of a deep blue-slate well in small steps and are lit from one source, top left, with a bright upper lip and a contact shadow. The product has a small amount of physical character (the gold tube that fills while a session works, the step seal that closes on acceptance, the pulse of the session orb) and all of it is state made visible, never decoration.
+The density is that of a working tool: 13.5px body text on a 1.4 leading, 36px rows and 32px controls on a 4px rhythm, a header of 48px. Surfaces are flat: they climb out of a deep blue-slate canvas in small steps of tone and are separated by hairlines, with no gradient, inner shade or halo behind them. The product has a small amount of physical character (the gold tube that fills while a session works, the step seal that closes on acceptance, the pulse of the session orb) and all of it is state made visible, never decoration.
 
 **Key Characteristics:**
-- Dark only; the world is a blue-slate well with brushed-gold and cyan light.
+- Dark only; flat blue-slate surfaces, with brushed gold and cyan as the only colour that is not a state.
 - Three roles carry all colour: amber (here, next), cyan (anchors), status (record state).
 - Tables and tabs over cards and panels; the status pill, the plan tube and the copy-anchor chip are the vocabulary every screen shares.
 - Motion shows a state change or a session at work, and Reduced motion keeps every change.
@@ -153,7 +153,7 @@ A blue-slate ground, warm gold for action, one cool cyan for anchors, and status
 - **Heading** (19px, 500): the title of a screen or a section of Settings.
 - **Title** (15px, 600): a card, a dialog, a panel.
 - **Body** (13.5px, 400): rows, descriptions and prose; lines held near 65 to 75 characters in reading panes.
-- **Small and Caption** (12.5px and 11.5px): meta, table headers, tab labels and counts. **Micro** (11px) is the floor, for kbd hints and counts, never prose.
+- **Small and Caption** (12.5px and 11.5px): meta, table headers and counts. Tab labels are Body. **Micro** (11px) is the floor, for kbd hints and counts, never prose.
 - **Anchor** (Fira Code, 11.5px to 12.5px): every anchor and code.
 
 ### Named Rules
@@ -162,33 +162,33 @@ A blue-slate ground, warm gold for action, one cool cyan for anchors, and status
 
 ## Layout
 
-Screens are a title and a sub-navigation over a table, a list with a detail pane, or a queue beside a decision. Every page sits in one centred column of 1320px with 32px side padding (`page-column`), so a screen keeps its left edge when you move to its sub-navigation neighbour; a list with a detail pane is a bordered card inside that column, not a full-bleed workspace. Work's board and Review use the width they have. The header is one 48px row on a three-cell grid: the menu key and history arrows, the `/rk` search at the exact centre (240px to 620px), and the status capsule with tags and settings. Rows and controls share a 36px height on a 4px rhythm; the Work ledger offers Comfortable and Compact. Under 1280px the header sheds its words before it moves anything, and under 1100px the ⌘K hint goes. There is no mobile layout.
+Screens are a title and a sub-navigation over a table, a list with a detail pane, or a queue beside a decision. Every page sits in one centred column of 1320px with 32px side padding (`page-column`), so a screen keeps its left edge when you move to its sub-navigation neighbour; a list with a detail pane is a bordered card inside that column, not a full-bleed workspace. Work's board and Review use the width they have. The first row of Work and of a project page is the same scope bar: the project switcher as the page's title, what to know about it, and the page's one action. The header is one 48px row on a three-cell grid: the menu key, which names the screen on display, and the history arrows, the `/rk` search at the exact centre (240px to 620px), and the status capsule with tags and settings. Rows are 36px and controls 32px on a 4px rhythm; the Work ledger offers Comfortable and Compact. Under 1280px the header sheds its words before it moves anything, and under 1100px the ⌘K hint goes. There is no mobile layout.
 
 ## Elevation & Depth
 
-Hybrid: tonal layering for structure, light for state. Surfaces step up through slate and are separated by hairlines, not shadows. Light comes from the top left everywhere, so raised things carry a bright upper lip and a contact shadow, and sunk things (fields, tubes) an inner shade.
+Flat: tonal layering for structure, light only for state. Surfaces step up through slate and are separated by hairlines. A key or a card keeps a one-pixel lip and a contact shadow; only what floats over a page (a popover, a dialog) casts one.
 
 ### Shadow Vocabulary
-- **Raised** (`inset 0 1px 0 rgb(255 255 255 / 0.05), 0 1px 2px rgb(0 0 0 / 0.35), 0 6px 12px -8px rgb(0 0 0 / 0.45)`): a card or a panel standing on the canvas.
-- **Key** (`inset 0 1px 0 rgb(255 255 255 / 0.07), 0 1px 1px rgb(0 0 0 / 0.35)`): a pressable key; pressed is `inset 0 1px 2px rgb(0 0 0 / 0.35)`.
-- **Well** (`inset 0 2px 4px rgb(0 0 0 / 0.5), 0 1px 0 rgb(255 255 255 / 0.035)`): a field, a tube trough.
-- **Lift** (`0 10px 22px -8px rgb(0 0 0 / 0.65)` with the lit lip): a popover or dock.
+- **Raised** (`0 1px 0 rgb(255 255 255 / 0.05), 0 6px 18px -6px rgb(0 0 0 / 0.6)`): a card or a panel standing on the canvas.
+- **Key** (`0 1px 0 rgb(255 255 255 / 0.05), 0 1px 2px rgb(0 0 0 / 0.5)`): a pressable key over its one-pixel edge; pressed moves down a pixel.
+- **Well** (`inset 0 2px 4px rgb(0 0 0 / 0.5), 0 1px 0 rgb(255 255 255 / 0.035)`): the trough a plan tube sits in. A field is no longer sunk.
+- **Lift** (`0 1px 2px rgb(0 0 0 / 0.55), 0 10px 22px -8px rgb(0 0 0 / 0.65)`): a popover or dock.
 - **Modal** (`0 40px 80px -24px rgb(0 0 0 / 0.9)`): dialogs and sheets.
 - **Glow** (`0 0 28px -6px` in soft gold): the one halo, for a session at work.
 
 ### Named Rules
-**The One Light Rule.** One light source, top left, on every surface. A shadow that falls the other way is wrong.
+**The Flat Rule.** A surface is a tone and a hairline: never a gradient, an inner shade or a halo. The plan tube, the running-step plate and the session orb are the only objects that carry light, because each shows a state.
 
 ## Shapes
 
-Three corners and a pill: 3px for a keycap or chip, 5px for a control or a row, 8px for a card or a dialog, and a full radius for status pills, the plan tube and the dock. Borders are one pixel hairlines; a thick coloured edge on a rounded card is not used (the keycap's thicker bottom edge is a key, not an accent border).
+Three corners and a pill: 3px for a keycap or chip, 5px for a control or a row, 8px for a card or a dialog, and a full radius for status pills, the plan tube and the dock. A state never has a pressable key's shape, which is why a status pill is round and a key is not. Borders are one pixel hairlines; a thick coloured edge on a rounded card is not used (the keycap's thicker bottom edge is a key, not an accent border).
 
 ## Components
 
 ### Buttons
-- **Shape:** 5px corners, 36px high (28px small), Fira Sans 13.5px.
-- **Primary:** the gold key (accent metal, ink text, semibold); one per screen.
-- **Secondary:** slate key on Raised Slate; **Quiet** and **Ghost** have no fill until hover; **Danger** turns rose and **Danger-quiet** stays ghost until hovered, for a delete repeated down a list.
+- **Shape:** 5px corners, 32px high (28px small), Fira Sans 13.5px.
+- **Primary:** the gold key (flat accent fill with a one-pixel darker edge, ink text, semibold); one per screen.
+- **Secondary:** flat Raised Slate key with a hairline edge; **Quiet** and **Ghost** have no fill until hover; **Danger** turns rose and **Danger-quiet** stays ghost until hovered, for a delete repeated down a list.
 - **Hover / Focus:** colour changes at 140ms; a 2px amber outline with a 2px offset on keyboard focus (`focus-ring`).
 
 ### Status Pill
@@ -198,10 +198,10 @@ A 22px full-radius pill with one word, the state of a record: neutral, progress 
 Fira Code in cyan on the surface well with a hairline, 3px corners. A copy button beside it copies `/rk` followed by the anchor; the current anchor is the bright one.
 
 ### Sub-navigation
-Tabs under a title with a count each, a gold rule that scales in under the current one, and an amber pill for a count that waits on the reader. It is the same component for Work, the task page, Projects, Time, Library and the project page, as links.
+Tabs under a title at body size (13.5px), with a count each in Fira Sans tabular figures, a gold rule that scales in under the current one, and an amber round pill for a count that waits on the reader. It is the same component for Work, the task page, Projects, Time, Library and the project page, as links.
 
 ### Fields
-Recessed: a 1px Field Edge border over a dark well with an inner shade. Focus warms the hairline and opens a soft halo; it never stacks a second ring. Invalid turns the edge rose.
+Flat: a 1px Field Edge border over the canvas tone. Focus swaps the edge for amber and adds a one-pixel ring of it, two pixels in all and no halo. Invalid turns the edge rose.
 
 ### Header Capsule
 A 36px surface capsule with a hairline, holding usage, the run queue and the review count as segments; review is the only amber one.

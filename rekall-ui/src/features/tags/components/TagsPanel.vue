@@ -189,7 +189,7 @@ onMounted(async () => {
             ref="nameField"
             v-model="name"
             data-testid="tag-name"
-            class="field text-text h-9 w-full rounded-control px-3 text-body"
+            class="field text-text h-8 w-full rounded-control px-3 text-body"
             placeholder="Bug, Idea, Blocked…"
             @keydown.enter="save"
           />
