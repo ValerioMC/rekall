@@ -112,7 +112,7 @@ watch(
     <div v-else-if="row" class="@container/task flex min-h-0 w-full min-w-0 flex-1 flex-col" data-testid="task-column">
       <TaskPageHeader :task="row.task" />
       <div class="flex min-h-0 flex-1 border-t border-border">
-        <TaskRail :row="row" />
+        <TaskRail :row="row" :on-plan="tab === 'plan'" />
         <div class="flex min-h-0 min-w-0 flex-1 flex-col">
           <SubNav :model-value="tab" :items="tabs" label="Task" class="px-6">
             <template #trailing><TaskWidthMenu v-model="preferences.taskWidth" /></template>

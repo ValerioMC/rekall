@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { toRef } from 'vue'
 import { relativeTime } from '@/common/format/relative-time'
-import { failedRuns, latestRunsOfStep, runDuration, runOutcome } from '@/features/check/lib/check-results'
-import { useChecksStore } from '@/features/check/store/checks.store'
+import { runDuration, runOutcome } from '@/features/check/lib/check-results'
+import { useStepCheckRuns } from '@/features/check/composables/useStepCheckRuns'
 import type { TaskStep } from '@/features/steps/model/task-step'
 
 /**
@@ -11,10 +11,7 @@ import type { TaskStep } from '@/features/steps/model/task-step'
  */
 const props = defineProps<{ step: TaskStep }>()
 
-const store = useChecksStore()
-
-const runs = computed(() => latestRunsOfStep(store.resultsOf(props.step.taskId), props.step.id))
-const failures = computed(() => failedRuns(runs.value).length)
+const { runs, failures } = useStepCheckRuns(toRef(props, 'step'))
 </script>
 
 <template>

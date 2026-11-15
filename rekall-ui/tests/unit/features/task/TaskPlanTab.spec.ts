@@ -159,7 +159,7 @@ describe('TaskPlanTab', () => {
     const tab = render()
 
     const panel = tab.get('[data-testid="decision-panel"]')
-    expect(panel.get('[data-testid="decision-kicker"]').text()).toContain('Step 2 of 3 · claimed')
+    expect(panel.get('[data-testid="decision-state"]').text()).toContain('Step 2 of 3 · claimed')
 
     await panel.get('[data-testid="step-accept"]').trigger('click')
     await flushPromises()
@@ -277,6 +277,35 @@ describe('TaskPlanTab', () => {
 
     await tab.get('[data-testid="decision-focus"]').trigger('click')
     expect(list.classes()).not.toContain('hidden')
+  })
+
+  it('steps through the list with J and K and the arrows in the panel header', async () => {
+    seed([makeStep('s1', 0, 'OPEN'), makeStep('s2', 1, 'OPEN'), makeStep('s3', 2, 'OPEN')])
+    const tab = render()
+    await tab.findAll('[data-testid="plan-step-title"]')[1]!.trigger('click')
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'j' }))
+    await flushPromises()
+    expect(tab.get('[data-testid="decision-title"]').text()).toBe('Step s3')
+    expect(tab.get('[data-testid="decision-next"]').attributes('disabled')).toBeDefined()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k' }))
+    await flushPromises()
+    expect(tab.get('[data-testid="decision-title"]').text()).toBe('Step s2')
+
+    await tab.get('[data-testid="decision-previous"]').trigger('click')
+    expect(tab.get('[data-testid="decision-title"]').text()).toBe('Step s1')
+  })
+
+  it('leaves J and K to a field being typed in', async () => {
+    seed([makeStep('s1', 0, 'OPEN'), makeStep('s2', 1, 'OPEN')])
+    const tab = render()
+    await tab.findAll('[data-testid="plan-step-title"]')[0]!.trigger('click')
+
+    tab.get('[data-testid="new-step"]').element.dispatchEvent(new KeyboardEvent('keydown', { key: 'j', bubbles: true }))
+    await flushPromises()
+
+    expect(tab.get('[data-testid="decision-title"]').text()).toBe('Step s1')
   })
 
   it('invites the first step on a task with none', () => {

@@ -29,7 +29,7 @@ watch(
 </script>
 
 <template>
-  <section class="rounded-card border border-border bg-surface px-4 py-3" aria-label="Plan adherence" data-testid="plan-adherence">
+  <section class="@container rounded-card border border-border bg-surface px-4 py-3" aria-label="Plan adherence" data-testid="plan-adherence">
     <div class="flex flex-wrap items-baseline gap-x-3">
       <span class="eyebrow">Plan adherence</span>
       <span class="text-caption text-text-subtle" data-testid="adherence-help">{{ ADHERENCE_HELP }}</span>
@@ -40,7 +40,7 @@ watch(
     </p>
 
     <template v-else-if="adherence">
-      <div class="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div class="mt-2 grid grid-cols-1 gap-4 @md:grid-cols-3">
         <AdherenceFigure
           label="Accepted first time"
           :value="`${adherence.acceptedFirstTime} of ${adherence.stepsDone}`"

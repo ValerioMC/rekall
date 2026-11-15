@@ -16,9 +16,10 @@ import type { WorkRow } from '@/features/work/model/work-view'
 /**
  * The task's properties beside every tab, grouped so the tabs keep their height: status and
  * anchor, labels, the context a session gets, and the git work. It folds to an icon bar, and the
- * choice is remembered per browser.
+ * choice is remembered per browser. The Plan tab remembers its own choice and starts folded, so the
+ * steps and the step being read have the width.
  */
-const props = defineProps<{ row: WorkRow }>()
+const props = defineProps<{ row: WorkRow; onPlan?: boolean }>()
 
 const FOLDED_GROUPS: readonly { readonly glyph: TaskRailGlyphName; readonly label: string }[] = [
   { glyph: 'labels', label: 'Labels' },
@@ -31,13 +32,14 @@ const branches = useTaskBranchStore()
 const { selectedTaskCommitReferences } = storeToRefs(useConsoleStore())
 
 const task = computed(() => props.row.task)
-const collapsed = computed(() => preferences.taskRailCollapsed)
+const collapsed = computed(() => (props.onPlan ? preferences.planRailCollapsed : preferences.taskRailCollapsed))
 const signature = computed(() => `${task.value.stepsDone}:${task.value.reviewState}:${task.value.updatedAt}`)
 const commitCount = computed(() => selectedTaskCommitReferences.value.length)
 const showsGit = computed(() => commitCount.value > 0 || branches.of(task.value.id) !== null)
 
 function toggle(): void {
-  preferences.taskRailCollapsed = !preferences.taskRailCollapsed
+  if (props.onPlan) preferences.planRailCollapsed = !preferences.planRailCollapsed
+  else preferences.taskRailCollapsed = !preferences.taskRailCollapsed
 }
 </script>
 

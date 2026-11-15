@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import PlanAdherencePanel from '@/features/adherence/components/PlanAdherencePanel.vue'
@@ -13,6 +13,7 @@ import StepDraftShelf from '@/features/steps/components/StepDraftShelf.vue'
 import StepsEmptyState from '@/features/steps/components/StepsEmptyState.vue'
 import TaskHandedInPanel from '@/features/task/components/TaskHandedInPanel.vue'
 import { useTaskPlan } from '@/features/steps/composables/useTaskPlan'
+import { isTypingTarget, neighboursOf } from '@/features/steps/lib/step-navigation'
 import { stepNumberOf } from '@/features/deviations/model/deviation'
 import { handedInWhole } from '@/features/work/lib/work-rows'
 import { useConsoleStore } from '@/stores/console.store'
@@ -21,9 +22,9 @@ import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TaskStepId } from '@/model/branded'
 
 /**
- * The Plan tab: the task's steps as a list with the tube above it, and beside it the decision
- * panel of the selected step, which takes the room the list leaves and can take all of it. Drafts
- * sit under their own heading until they are promoted.
+ * The Plan tab: the task's steps as a list of fixed width with the tube above it, and beside it the
+ * decision panel of the selected step, which takes the rest and can take all of it. J and K step
+ * through the list. Drafts sit under their own heading until they are promoted.
  */
 const props = defineProps<{ task: Task }>()
 
@@ -74,6 +75,7 @@ const selectedStep = computed(
 const handedIn = computed(() => handedInWhole(props.task))
 const showsPanel = computed(() => view.value === 'list' && (selectedStep.value !== null || handedIn.value))
 const listHidden = computed(() => focused.value && showsPanel.value)
+const neighbours = computed(() => neighboursOf(visibleSteps.value, selectedStep.value?.id ?? null))
 const upNext = computed(() =>
   checklistSteps.value
     .filter((step) => step.state === 'CLAIMED' && step.id !== selectedStep.value?.id)
@@ -90,11 +92,29 @@ function select(step: TaskStep): void {
   editor.open(step)
 }
 
-function revealRow(id: TaskStepId, behavior: ScrollBehavior): void {
+function revealRow(id: TaskStepId, behavior: ScrollBehavior, block: ScrollLogicalPosition = 'center'): void {
   listEl.value
     ?.querySelector<HTMLElement>(`[data-step-id="${id}"]`)
-    ?.scrollIntoView({ block: 'center', behavior })
+    ?.scrollIntoView({ block, behavior })
 }
+
+async function stepTo(step: TaskStep): Promise<void> {
+  select(step)
+  await nextTick()
+  revealRow(step.id, 'auto', 'nearest')
+}
+
+function stepThroughWithKeys(event: KeyboardEvent): void {
+  if (event.metaKey || event.ctrlKey || event.altKey || isTypingTarget(event.target)) return
+  if (!showsPanel.value || deleting.value) return
+  const target = event.key === 'j' ? neighbours.value.next : event.key === 'k' ? neighbours.value.previous : null
+  if (!target) return
+  event.preventDefault()
+  void stepTo(target)
+}
+
+onMounted(() => window.addEventListener('keydown', stepThroughWithKeys))
+onBeforeUnmount(() => window.removeEventListener('keydown', stepThroughWithKeys))
 
 async function reviewNext(): Promise<void> {
   const step = firstClaimed.value
@@ -149,7 +169,7 @@ function canChooseSession(step: TaskStep): boolean {
     <div class="flex min-h-0 flex-1">
       <section
         class="flex min-h-0 min-w-0 flex-col"
-        :class="[showsPanel ? 'w-[clamp(18rem,32%,28rem)] shrink-0' : 'flex-1', listHidden && 'hidden']"
+        :class="[showsPanel ? 'w-90 shrink-0 border-r border-border' : 'flex-1', listHidden && 'hidden']"
         aria-label="Steps"
       >
         <div v-if="view === 'flow' && checklistSteps.length" class="flex min-h-0 flex-1 flex-col">
@@ -169,7 +189,7 @@ function canChooseSession(step: TaskStep): boolean {
           <StepFlowView :task="task" :steps="checklistSteps" @open-detail="openFromFlow" />
         </div>
 
-        <div v-else ref="listEl" class="min-h-0 min-w-0 flex-1 overflow-y-auto px-6 pb-16 pt-4">
+        <div v-else ref="listEl" class="min-h-0 min-w-0 flex-1 overflow-y-auto pb-16 pt-4" :class="showsPanel ? 'px-4' : 'px-6'">
           <template v-if="hasNoSteps">
             <GraphAttachPanel :task="task" :has-steps="false" @attached="showAttachedGraph" />
             <p v-if="handedIn" class="py-6 text-small text-text-muted" data-testid="plan-handed-in">
@@ -246,7 +266,7 @@ function canChooseSession(step: TaskStep): boolean {
 
       <aside
         v-if="showsPanel"
-        class="min-h-0 min-w-0 flex-1 overflow-y-auto border-l border-border bg-surface px-6 py-5"
+        class="flex min-h-0 min-w-0 flex-1 flex-col bg-surface"
         data-testid="plan-decision"
       >
         <StepDecisionPanel
@@ -256,18 +276,22 @@ function canChooseSession(step: TaskStep): boolean {
           :number="numberOf(selectedStep)"
           :total="checklistSteps.length"
           :reopen-armed="reopenArmed === selectedStep.id"
+          pinned
           :focused="listHidden"
+          :neighbours="neighbours"
           :up-next="upNext"
           :number-of="numberOf"
           @accept="plan.markForward(selectedStep)"
           @send-back="plan.sendBack(selectedStep)"
           @reopen="plan.reopen(selectedStep)"
           @mark-done="plan.markForward(selectedStep)"
-          @select="select"
+          @select="stepTo"
           @toggle-focus="focused = !focused"
           @open-deviation="openDeviation"
         />
-        <TaskHandedInPanel v-else :task="task" />
+        <div v-else class="min-h-0 flex-1 overflow-y-auto px-8 py-6">
+          <TaskHandedInPanel :task="task" />
+        </div>
       </aside>
     </div>
 

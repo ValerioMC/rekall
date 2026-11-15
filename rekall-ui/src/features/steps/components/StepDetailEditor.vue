@@ -63,7 +63,7 @@ const projectTasks = useSelectedProjectTasks()
         </div>
       </div>
 
-      <div v-else-if="body.trim()" key="read" class="min-w-0 overflow-x-auto" :class="compact && 'step-detail'">
+      <div v-else-if="body.trim()" key="read" class="min-w-0 overflow-x-auto" :class="compact ? 'step-detail' : 'step-reading'">
         <AppMarkdownEditor :model-value="body" :components="projectComponents" :connections="projectConnections" :tasks="projectTasks" readonly :compact="compact" :data-testid="`${testidPrefix}-detail-read`" />
       </div>
 
@@ -78,6 +78,17 @@ const projectTasks = useSelectedProjectTasks()
 </template>
 
 <style scoped>
+/* The page holds a reading measure for its prose; a table or a code block takes the width of the pane. */
+.step-reading :deep(.md-editor-preview) {
+  max-width: none;
+  margin-inline: 0 !important;
+  padding: 0 0 8px !important;
+}
+
+.step-reading :deep(.md-editor-preview) > :where(p, ul, ol, blockquote, h1, h2, h3, h4) {
+  max-width: 76ch;
+}
+
 .step-detail :deep(.md-editor-preview) h1,
 .step-detail :deep(.md-editor-preview) h2 {
   font-size: var(--text-body);

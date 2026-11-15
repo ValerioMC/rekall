@@ -154,25 +154,32 @@ Changes, Wrapup, Notes, Time and Deviations, with counts where a count means som
 logged commits, notes, deviations) and an amber one on Plan while a step waits for review; at its
 right is the width key.
 Beside every tab sits the properties bar (`TaskRail`), 272px wide, folding to an icon bar that the
-browser remembers: the status pill that changes the status and the copyable `/rk` anchor on top,
+browser remembers. Plan keeps its own choice and starts folded, so the steps and the step being read
+have the width; the other tabs start open. Open, it holds: the status pill that changes the status and the copyable `/rk` anchor on top,
 then Labels (tag, skills, dependencies), Context (what `/rk` hands a session, as a total and a bar of
 its heaviest parts, with the tokens the task generated) and Git (the branch and the commits, shown
 only while there is one). The Description tab keeps one strip: its views, Fix wording and Write/Read.
 
-**Plan** is two zones. The left is the step list: a row is the step's seal, its number, its title
-and when it last moved, and its hover keys (Accept or Done, New session, To draft, move, delete).
+**Plan** is two zones. The left is the step list, a column of 360px: a row is the step's seal, its
+number, its title (two lines before it is cut) and when it last moved, and its hover keys (Accept or
+Done, New session, To draft, move, delete) lie over the end of the row instead of taking a column.
 Above it sit the plan tube, a line that says who has to act, List or Flow when the steps have
 routes, Hide done, Review next and Accept all once only claims are left; under it the drafts with
 Promote, the adherence and branch panels, and the line that adds a draft (a new step is a draft).
-The right is the **decision panel** of the selected step. It fills the tab beside a narrower list,
-in a column of the width the page is set to, and its detail reads and writes as a page that grows
-with its text, so a long step with tables or diagrams has room. A button in its header hides the
-list so the step has the whole tab. It opens on the first claim waiting for a decision: the step's state, what a person can do about it (Accept and Send back on a claim,
-Mark done myself and the session key on an open or running one, Reopen on a done one), its check
-results, commits, sealed passes, skills, checks and detail, and Up next to review. A task handed in
-whole shows its own decision, Accept task or Send back, in the same place. Nothing but a person
-marks a step done, and Claude moves a step only up to claimed. The panel and the list share the
-step editor, so a title or detail typed in the panel is saved as it was in the old checklist.
+The right is the **decision panel** of the selected step, which opens on the first claim waiting
+for a decision and takes the rest of the tab. Its header stays while the body scrolls: the step's
+seal and title, the keys a person decides with (Accept and Send back on a claim, the session key
+and Mark done myself on an open or running one, Reopen on a done one), arrows to the previous and
+next step (the J and K keys do the same, except while typing), and a button that hides the list so
+the step has the whole tab. Under the title one line says where the step is and what was found on
+it: its place and state, the pass, the checks passed or failed, the commits and a deviation. The body
+reads in the order a decision is made: the state, the sealed passes, the detail, then the check
+results and commits, then Skills and checks folded (open on an open step), and Up next to review.
+The detail reads as a page that grows with its text: prose holds a measure of 76 characters, and a
+table or a code block takes the width of the pane. A task handed in whole shows its own decision,
+Accept task or Send back, in the same place. Nothing but a person marks a step done, and Claude
+moves a step only up to claimed. The panel and the list share the step editor, so a title or detail
+typed in the panel is saved as it was in the old checklist.
 
 **Changes** reads what the sessions changed in the application as a code review (`TaskChangesTab`,
 data from `GET /api/tasks/{id}/changes`). A track along the top picks what is compared: **All changes**

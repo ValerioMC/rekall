@@ -52,7 +52,7 @@ const rowKey = computed(() => {
 
 <template>
   <li
-    class="group/step grid min-h-11 cursor-pointer grid-cols-[22px_22px_minmax(0,1fr)_auto] items-center gap-x-2.5 rounded-control px-2 py-1.5 transition-colors duration-(--motion-quick) focus-visible:outline-none"
+    class="group/step relative grid min-h-11 cursor-pointer grid-cols-[22px_22px_minmax(0,1fr)_auto] items-center gap-x-2.5 rounded-control px-2 py-1.5 transition-colors duration-(--motion-quick) focus-visible:outline-none"
     :class="[
       selected ? 'selected-row' : 'hover:bg-surface-hover',
       step.state === 'RUNNING' && !selected && 'bg-session/10'
@@ -78,7 +78,7 @@ const rowKey = computed(() => {
 
     <button
       type="button"
-      class="focus-ring truncate rounded-key text-left text-body"
+      class="focus-ring line-clamp-2 rounded-key text-left text-body"
       :class="step.state === 'DONE' ? 'text-text-subtle line-through decoration-text-subtle/50' : 'text-text'"
       :aria-current="selected ? 'true' : undefined"
       data-testid="plan-step-title"
@@ -89,7 +89,8 @@ const rowKey = computed(() => {
 
     <span class="flex items-center justify-end gap-1.5 text-caption text-text-subtle">
       <span
-        class="flex items-center gap-0.5 opacity-0 transition-opacity duration-(--motion-quick) group-focus-within/step:opacity-100 group-hover/step:opacity-100"
+        class="absolute inset-y-1 right-1 flex items-center gap-0.5 rounded-control pl-2 pr-1 opacity-0 transition-opacity duration-(--motion-quick) group-focus-within/step:opacity-100 group-hover/step:opacity-100 pointer-events-none group-focus-within/step:pointer-events-auto group-hover/step:pointer-events-auto"
+        :class="selected ? 'bg-surface-raised' : 'bg-surface-hover'"
         @click.stop
       >
         <button

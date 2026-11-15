@@ -46,6 +46,13 @@ describe('the stored UI preferences', () => {
     expect(loadUiPreferences().taskRailCollapsed).toBe(false)
   })
 
+  it('fold the properties bar on the Plan tab unless told otherwise', () => {
+    expect(loadUiPreferences().planRailCollapsed).toBe(true)
+
+    window.localStorage.setItem(KEY, JSON.stringify({ planRailCollapsed: false }))
+    expect(loadUiPreferences().planRailCollapsed).toBe(false)
+  })
+
   it('survive unreadable storage', () => {
     window.localStorage.setItem(KEY, '{broken')
 

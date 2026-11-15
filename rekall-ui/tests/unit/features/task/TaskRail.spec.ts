@@ -70,12 +70,12 @@ function hidden(element: Element): boolean {
   return (element as HTMLElement).style.display === 'none'
 }
 
-async function render() {
+async function render(props: { onPlan?: boolean } = {}) {
   const store = useConsoleStore()
   store.tasks = [task()]
   store.selectTask(taskId)
   const row = workRows([task()], [], () => 0)[0]!
-  const wrapper = mount(TaskRail, { props: { row } })
+  const wrapper = mount(TaskRail, { props: { row, ...props } })
   await flushPromises()
   return wrapper
 }
@@ -106,6 +106,18 @@ describe('TaskRail', () => {
     expect(hidden(git.element)).toBe(false)
     expect(git.get('[data-testid="branch-name"]').text()).toBe('rekall/rail')
     expect(git.find('[data-testid="commit-rail"]').exists()).toBe(true)
+  })
+
+  it('starts folded on the Plan tab with its own remembered choice, apart from the other tabs', async () => {
+    const wrapper = await render({ onPlan: true })
+
+    expect(wrapper.get('[data-testid="task-rail"]').attributes('data-collapsed')).toBe('true')
+
+    await wrapper.get('[data-testid="task-rail-toggle"]').trigger('click')
+
+    expect(usePreferencesStore().planRailCollapsed).toBe(false)
+    expect(usePreferencesStore().taskRailCollapsed).toBe(false)
+    expect(wrapper.find('[data-testid="rail-identity"]').exists()).toBe(true)
   })
 
   it('folds to an icon bar with the choice remembered, and opens again from an icon', async () => {

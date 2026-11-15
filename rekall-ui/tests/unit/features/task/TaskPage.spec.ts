@@ -130,7 +130,7 @@ describe('TaskPage', () => {
 
   it('selects the task the route names and says where it sits and what it is', async () => {
     const store = seed()
-    const page = await mountAt('/task/rk-1/plan')
+    const page = await mountAt('/task/rk-1/description')
 
     expect(store.selectedTaskId).toBe('rk-1')
     expect(page.get('[data-testid="task-title"]').text()).toBe('[RK-1] Task rk-1')
@@ -258,7 +258,7 @@ describe('TaskPage', () => {
 
   it('changes the status from the pill and confirms it', async () => {
     const store = seed()
-    const page = await mountAt('/task/rk-1/plan')
+    const page = await mountAt('/task/rk-1/description')
 
     await page.get('[data-testid="task-status"]').trigger('click')
     const items = page.findAll('[data-testid="popover-menu-item"]')
