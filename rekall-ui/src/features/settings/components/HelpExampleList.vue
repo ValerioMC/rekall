@@ -1,25 +1,26 @@
 <script setup lang="ts">
+import { useId } from 'vue'
 import type { HelpExample } from '@/features/settings/model/help-context'
+import { helpText, type HelpValues } from '@/features/settings/lib/help-template'
+import HelpCalls from '@/features/settings/components/HelpCalls.vue'
 import HelpCopyButton from '@/features/settings/components/HelpCopyButton.vue'
 
-defineProps<{ examples: readonly HelpExample[] }>()
+defineProps<{ examples: readonly HelpExample[]; values: HelpValues }>()
+
+const headingId = useId()
 </script>
 
 <template>
-  <section class="flex flex-col gap-2" aria-labelledby="help-examples" data-testid="help-examples">
-    <h3 id="help-examples" class="text-title font-semibold text-text">Ask it like this</h3>
-    <ul class="flex flex-col gap-3">
-      <li v-for="example in examples" :key="example.title" class="rounded-card border border-border bg-surface" data-testid="help-example">
-        <div class="flex items-center justify-between gap-3 border-b border-border px-4 py-2">
-          <h4 class="text-body font-medium text-text">{{ example.title }}</h4>
-          <span class="flex shrink-0 flex-wrap justify-end gap-x-3 font-mono text-micro text-text-subtle">
-            <span v-for="tool in example.tools" :key="tool">{{ tool }}</span>
-          </span>
+  <section class="flex flex-col gap-1" :aria-labelledby="headingId" data-testid="help-examples">
+    <h4 :id="headingId" class="text-small font-semibold text-text-muted">Ask in plain words</h4>
+    <ul class="divide-y divide-border border-y border-border">
+      <li v-for="example in examples" :key="example.title" class="flex items-start gap-3 py-3" data-testid="help-example">
+        <div class="flex min-w-0 flex-1 flex-col gap-1">
+          <h5 class="text-body font-medium text-text">{{ example.title }}</h5>
+          <p class="text-body text-text-muted" data-testid="help-example-prompt">{{ helpText(example.prompt, values) }}</p>
+          <HelpCalls :names="example.tools" />
         </div>
-        <div class="flex items-start gap-3 px-4 py-3">
-          <p class="min-w-0 flex-1 text-body text-text" data-testid="help-example-prompt">{{ example.prompt }}</p>
-          <HelpCopyButton :text="example.prompt" :label="`Copy the request: ${example.title}`" />
-        </div>
+        <HelpCopyButton :text="helpText(example.prompt, values)" :label="`Copy the request: ${example.title}`" />
       </li>
     </ul>
   </section>

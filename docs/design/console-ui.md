@@ -59,7 +59,7 @@ in the build by the terminal, session, run queue and usage stores. A number the 
 | `#/library/diagrams` | `/diagrams` | Diagram gallery and viewer |
 | `#/library/claude` | `/claude` | Claude files |
 | `#/security` | `/security` | Security |
-| `#/settings/:section` | `/settings/:section` | Settings |
+| `#/settings/:section/:topic` | `/settings/:section?/:topic?` | Settings |
 
 The routes that exist today keep their paths: the redesign changes what a screen shows, not where it
 lives. `/` is the Work ledger instead of the three-column console, and `/review` and `/settings`
@@ -240,12 +240,15 @@ group, the project page, a company's detail and the ⌘K palette.
 `common/report/time-report.ts`. **Library** has Diagrams (a gallery grouped by project, and the
 viewer with the Walkthrough) and Claude files (a tree of Memories, Skills, Commands and Agents with
 an editor). **Security** is the overview with its alert banner, the Needs attention list and the
-project rail. **Settings** is a screen at `/settings/:section?` with a rail of sections and the key `Settings` in the
-menu: General (the databases), Appearance (density, which is the Work ledger's, motion, text scale),
-Review (open the next item after a decision, confirm before sending work back), Sessions and run queue
-(Claude Code and its protections), Notifications, Time and usage (the workday goal the report's dashed
-line reads, the percentage the usage meter warns from), Connections (a link to the screen),
-Data and backup, Keyboard, Help (a tab per context, each listing its `/rk` commands, its MCP tools and, for a session outside Rekall, requests to paste; the catalog is `settings/model/help-context.ts`) and About. The browser-side choices live in `usePreferencesStore`, saved in
+project rail. **Settings** is a screen at `/settings/:section?/:topic?` with a sticky rail of sections in four groups and the key `Settings` in the
+menu. Workspace: General (the databases), Connections (a link to the screen), Data and backup. Work: Sessions and run queue
+(Claude Code and its protections), Review (open the next item after a decision, confirm before sending work back), Time and usage
+(the workday goal the report's dashed line reads, the percentage the usage meter warns from), Notifications. Console: Appearance
+(density, which is the Work ledger's, motion, text scale), Keyboard. Reference: Help and About. Help lists its topics (Load, Tasks,
+Steps, Wrapup, Notes and pages, Revisions, Diagrams, Security, Outside Rekall) under its own rail entry, each a `:topic` address:
+the `/rk` commands of the topic with the MCP tool each calls, the tools a session can be asked for directly, and for a session
+outside Rekall requests to paste. Project label and Task code fill every command and request, and a search finds across topics;
+the catalog is `settings/model/help-context.ts`. The browser-side choices live in `usePreferencesStore`, saved in
 `localStorage` through `common/config/ui-preferences.ts`: Reduced motion sets `data-motion` on the
 document, where the stylesheet drops the loops and keeps every state change; the text scale is the
 document's font size; every send back goes through `sendBackGuard`. A session's concurrency, terminal

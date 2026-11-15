@@ -40,9 +40,12 @@ export interface HelpTool {
   readonly effect: string
 }
 
+export type HelpGroupId = 'loop' | 'around' | 'elsewhere'
+
 export interface HelpCommand {
   readonly line: string
   readonly does: string
+  readonly calls: readonly HelpToolName[]
 }
 
 export interface HelpExample {
@@ -53,12 +56,20 @@ export interface HelpExample {
 
 export interface HelpContext {
   readonly id: HelpContextId
+  readonly group: HelpGroupId
   readonly label: string
   readonly summary: string
+  readonly commandsHeading: string
   readonly commands: readonly HelpCommand[]
-  readonly tools: readonly HelpToolName[]
+  readonly directTools: readonly HelpToolName[]
   readonly examples: readonly HelpExample[]
 }
+
+export const HELP_GROUPS: readonly Readonly<{ id: HelpGroupId; label: string }>[] = [
+  { id: 'loop', label: 'The loop' },
+  { id: 'around', label: 'Around it' },
+  { id: 'elsewhere', label: 'From elsewhere' }
+]
 
 export const HELP_TOOLS: Readonly<Record<HelpToolName, HelpTool>> = {
   rekall_context: { name: 'rekall_context', access: 'read', effect: 'Resolves anchors and returns the whole working context as markdown.' },
@@ -87,131 +98,155 @@ export const HELP_TOOLS: Readonly<Record<HelpToolName, HelpTool>> = {
 export const HELP_CONTEXTS: readonly HelpContext[] = [
   {
     id: 'load',
+    group: 'loop',
     label: 'Load',
     summary: 'Hand a session the current state of the work in one call, or find the work first.',
+    commandsHeading: 'Commands',
     commands: [
-      { line: '/rk task:RK-12', does: 'Loads the task: description, wrapup, steps and notes. Open steps become the work.' },
-      { line: '/rk project:vega', does: 'Loads a project and waits: with no task there is no brief.' },
-      { line: '/rk company:acme', does: 'Loads a company and its projects, and waits.' }
+      { line: '/rk task:{task}', does: 'Loads the task: description, wrapup, steps and notes. Open steps become the work.', calls: ['rekall_context'] },
+      { line: '/rk project:{project}', does: 'Loads a project and waits: with no task there is no brief.', calls: ['rekall_context'] },
+      { line: '/rk company:acme', does: 'Loads a company and its projects, and waits.', calls: ['rekall_context'] }
     ],
-    tools: ['rekall_context', 'rekall_search', 'rekall_read_sections'],
+    directTools: ['rekall_search', 'rekall_read_sections'],
     examples: []
   },
   {
     id: 'tasks',
+    group: 'loop',
     label: 'Tasks',
     summary: 'Start from a task, or create one. A created task starts as TODO, with its steps open.',
-    commands: [{ line: '/rk task:RK-12', does: 'Works the task: the open steps in order, or the description when there are none.' }],
-    tools: ['rekall_create_task', 'rekall_join_epic', 'rekall_context'],
+    commandsHeading: 'Commands',
+    commands: [{ line: '/rk task:{task}', does: 'Works the task: the open steps in order, or the description when there are none.', calls: ['rekall_context'] }],
+    directTools: ['rekall_create_task', 'rekall_join_epic'],
     examples: []
   },
   {
     id: 'steps',
+    group: 'loop',
     label: 'Steps',
     summary: 'Plan the checklist, then move each step as it is worked. Only you tick a step done.',
+    commandsHeading: 'Commands',
     commands: [
-      { line: '/rk task:RK-12 plan', does: 'Turns the task into a checklist, open and ready to work.' },
-      { line: '/rk task:RK-12 plan flow', does: 'The same, as a flow: steps joined by routes, for work whose outcome decides what is next.' },
-      { line: '/rk task:RK-12 replan "also cover the csv export"', does: 'Redesigns the draft and open steps. The quoted text is what the plan missed.' },
-      { line: '/rk task:RK-12 step:3 start', does: 'Marks step 3 running.' },
-      { line: '/rk task:RK-12 step:3 done', does: 'Claims step 3 for your review. It does not tick it.' },
-      { line: '/rk task:RK-12 step:3 done outcome:failed report:"job test: expected 1.2, got 1.3"', does: 'On a flow, claims the step with the route that happened and what was seen.' }
+      { line: '/rk task:{task} plan', does: 'Turns the task into a checklist, open and ready to work.', calls: ['rekall_propose_step'] },
+      { line: '/rk task:{task} plan flow', does: 'The same, as a flow: steps joined by routes, for work whose outcome decides what is next.', calls: ['rekall_propose_flow'] },
+      { line: '/rk task:{task} replan "also cover the csv export"', does: 'Redesigns the draft and open steps. The quoted text is what the plan missed.', calls: ['rekall_replan'] },
+      { line: '/rk task:{task} step:3 start', does: 'Marks step 3 running.', calls: ['rekall_step'] },
+      { line: '/rk task:{task} step:3 done', does: 'Claims step 3 for your review. It does not tick it.', calls: ['rekall_step'] },
+      { line: '/rk task:{task} step:3 done outcome:failed report:"job test: expected 1.2, got 1.3"', does: 'On a flow, claims the step with the route that happened and what was seen.', calls: ['rekall_step'] }
     ],
-    tools: ['rekall_step', 'rekall_propose_step', 'rekall_propose_flow', 'rekall_replan', 'rekall_delete_step', 'rekall_deviation'],
+    directTools: ['rekall_delete_step', 'rekall_deviation'],
     examples: []
   },
   {
     id: 'wrapup',
+    group: 'loop',
     label: 'Wrapup',
     summary: 'Record what the implementation is now, then bring the work home.',
+    commandsHeading: 'Commands',
     commands: [
-      { line: '/rk task:RK-12 wrapup', does: 'Replaces the wrapup with what the task’s implementation looks like now.' },
-      { line: '/rk task:RK-12 wrapup "only the export module"', does: 'The same, with a directive on what it has to say.' },
-      { line: '/rk task:RK-12 merge', does: 'An accepted task conflicts with the project’s branch: merges that branch into the task’s and resolves.' },
-      { line: '/rk task:RK-12 merge pull-request base:main', does: 'The task’s pull request conflicts with its base: merges the base in, resolves and pushes.' }
+      { line: '/rk task:{task} wrapup', does: 'Replaces the wrapup with what the task’s implementation looks like now.', calls: ['rekall_wrapup'] },
+      { line: '/rk task:{task} wrapup "only the export module"', does: 'The same, with a directive on what it has to say.', calls: ['rekall_wrapup'] },
+      { line: '/rk task:{task} merge', does: 'An accepted task conflicts with the project’s branch: merges that branch into the task’s and resolves.', calls: [] },
+      { line: '/rk task:{task} merge pull-request base:main', does: 'The task’s pull request conflicts with its base: merges the base in, resolves and pushes.', calls: [] }
     ],
-    tools: ['rekall_wrapup', 'rekall_record_commit'],
+    directTools: ['rekall_record_commit'],
     examples: []
   },
   {
     id: 'notes',
-    label: 'Notes',
+    group: 'around',
+    label: 'Notes and pages',
     summary: 'Keep what a session produced: a note belongs to one task, a page to the whole project.',
+    commandsHeading: 'Commands',
     commands: [
-      { line: '/rk task:RK-12 note "the export formats we settled on"', does: 'Writes a note on the task, or rewrites the one it already has on that subject.' },
-      { line: '/rk task:RK-12 section "Deployment" "how we ship to production"', does: 'Writes a project page under that title, or rewrites the one that exists.' },
-      { line: '/rk project:vega autoconfigure', does: 'Reads the repository and stores how it is built and how it takes a change, as pages.' }
+      { line: '/rk task:{task} note "the export formats we settled on"', does: 'Writes a note on the task, or rewrites the one it already has on that subject.', calls: ['rekall_note'] },
+      { line: '/rk task:{task} section "Deployment" "how we ship to production"', does: 'Writes a project page under that title, or rewrites the one that exists.', calls: ['rekall_project_section'] },
+      { line: '/rk project:{project} autoconfigure', does: 'Reads the repository and stores how it is built and how it takes a change, as pages.', calls: ['rekall_project_section'] }
     ],
-    tools: ['rekall_note', 'rekall_project_section', 'rekall_read_sections'],
+    directTools: ['rekall_read_sections'],
     examples: []
   },
   {
     id: 'revisions',
+    group: 'around',
     label: 'Revisions',
     summary: 'You revise a description in the console; a session answers it.',
+    commandsHeading: 'Commands',
     commands: [
-      { line: '/rk task:RK-12 revise', does: 'Works the pending revisions of the thread, on top of what is built.' },
-      { line: '/rk task:RK-12 rewrite fix', does: 'Corrects the wording of the description and stores it. Builds nothing.' },
-      { line: '/rk task:RK-12 rewrite restructure', does: 'Lays the description out under the standard headings.' }
+      { line: '/rk task:{task} revise', does: 'Works the pending revisions of the thread, on top of what is built.', calls: ['rekall_feedback'] },
+      { line: '/rk task:{task} rewrite fix', does: 'Corrects the wording of the description and stores it. Builds nothing.', calls: ['rekall_description'] },
+      { line: '/rk task:{task} rewrite restructure', does: 'Lays the description out under the standard headings.', calls: ['rekall_description'] }
     ],
-    tools: ['rekall_feedback', 'rekall_description'],
+    directTools: [],
     examples: []
   },
   {
     id: 'diagrams',
+    group: 'around',
     label: 'Diagrams',
     summary: 'A session reads the code and stores Mermaid sheets; the console draws them.',
+    commandsHeading: 'Commands',
     commands: [
-      { line: '/rk project:vega generate kinds:sequence,state "how checkout decides what to charge"', does: 'One sheet per kind, linked to the code. With a task anchor it is stored on the task too.' },
-      { line: '/rk project:vega explain "how an order is placed"', does: 'A walkthrough the console plays one call at a time.' }
+      { line: '/rk project:{project} generate kinds:sequence,state "how checkout decides what to charge"', does: 'One sheet per kind, linked to the code. With a task anchor it is stored on the task too.', calls: ['rekall_diagram'] },
+      { line: '/rk project:{project} explain "how an order is placed"', does: 'A walkthrough the console plays one call at a time.', calls: ['rekall_diagram'] }
     ],
-    tools: ['rekall_diagram'],
+    directTools: [],
     examples: []
   },
   {
     id: 'security',
+    group: 'around',
     label: 'Security',
     summary: 'List what a project is built from, then decide which advisories really reach it.',
+    commandsHeading: 'Commands',
     commands: [
-      { line: '/rk project:vega inventory', does: 'Records every library at its exact version; Rekall checks it against critical advisories.' },
-      { line: '/rk project:vega assess', does: 'Gives a verdict on each advisory not yet assessed.' },
-      { line: '/rk project:vega assess advisory:GHSA-xxxx-xxxx-xxxx', does: 'Gives a verdict on one advisory.' }
+      { line: '/rk project:{project} inventory', does: 'Records every library at its exact version; Rekall checks it against critical advisories.', calls: ['rekall_inventory'] },
+      { line: '/rk project:{project} assess', does: 'Gives a verdict on each advisory not yet assessed.', calls: ['rekall_vulnerabilities', 'rekall_assess_vulnerability'] },
+      { line: '/rk project:{project} assess advisory:GHSA-xxxx-xxxx-xxxx', does: 'Gives a verdict on one advisory.', calls: ['rekall_vulnerabilities', 'rekall_assess_vulnerability'] }
     ],
-    tools: ['rekall_inventory', 'rekall_vulnerabilities', 'rekall_assess_vulnerability'],
+    directTools: [],
     examples: []
   },
   {
     id: 'outside',
+    group: 'elsewhere',
     label: 'Outside Rekall',
     summary:
-      'Registered with --scope user, the MCP server answers in any folder and any Claude Code session, one Rekall did not open. Ask in plain words; the session picks the tool. Use labels and codes, never titles.',
-    commands: [],
-    tools: [],
+      'Registered once for every folder, the MCP server answers in any Claude Code session, including one Rekall did not open. Ask in plain words and the session picks the tool. Use labels and codes, never titles.',
+    commandsHeading: 'Set up once',
+    commands: [
+      {
+        line: 'claude mcp add --scope user --transport http rekall http://localhost:47355/mcp',
+        does: 'Registers the server for every folder. Sessions and run queue does the same in one click and repairs a registration.',
+        calls: []
+      }
+    ],
+    directTools: [],
     examples: [
       {
         title: 'Create a task in a project',
         prompt:
-          'In Rekall, create a task in project vega titled "Export the report as CSV". Describe what it is for, and add three steps: expose the endpoint, add the download button, cover it with tests.',
+          'In Rekall, create a task in project {project} titled "Export the report as CSV". Describe what it is for, and add three steps: expose the endpoint, add the download button, cover it with tests.',
         tools: ['rekall_create_task']
       },
       {
         title: 'Create an epic and file a task under it',
-        prompt: 'In Rekall, create an epic "Reporting" in project vega, then file task RK-12 under it.',
+        prompt: 'In Rekall, create an epic "Reporting" in project {project}, then file task {task} under it.',
         tools: ['rekall_create_task', 'rekall_join_epic']
       },
       {
         title: 'Add a step to a task',
-        prompt: 'In Rekall, add a step "Cover the empty report" to task RK-12.',
+        prompt: 'In Rekall, add a step "Cover the empty report" to task {task}.',
         tools: ['rekall_propose_step']
       },
       {
         title: 'Keep what this conversation settled',
-        prompt: 'In Rekall, write a note on task RK-12 titled "Export formats" with what we settled on in this conversation.',
+        prompt: 'In Rekall, write a note on task {task} titled "Export formats" with what we settled on in this conversation.',
         tools: ['rekall_note']
       },
       {
         title: 'Log the commit you just made',
-        prompt: 'In Rekall, log the commit I just made against task RK-12.',
+        prompt: 'In Rekall, log the commit I just made against task {task}.',
         tools: ['rekall_record_commit']
       },
       {
@@ -225,6 +260,6 @@ export const HELP_CONTEXTS: readonly HelpContext[] = [
 
 export const DEFAULT_HELP_CONTEXT: HelpContextId = 'load'
 
-export function helpContextOf(id: HelpContextId): HelpContext {
-  return HELP_CONTEXTS.find((context) => context.id === id) ?? HELP_CONTEXTS[0]!
+export function helpContextOf(segment: string | undefined): HelpContext {
+  return HELP_CONTEXTS.find((context) => context.id === segment) ?? HELP_CONTEXTS[0]!
 }
