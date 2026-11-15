@@ -37,9 +37,19 @@ impl World {
     }
 
     pub async fn project(&self, label: &str, folder: Option<&str>, auto_commit: bool) -> project::Model {
+        let company = self.company(&format!("Company {label}")).await;
+        self.project_in(&company, label, folder, auto_commit).await
+    }
+
+    pub async fn company(&self, name: &str) -> company::Model {
         let now = Instant::now();
-        let company = company::Model { id: Id::random(), name: format!("Company {label}"), description: None, created_at: now, updated_at: now };
+        let company = company::Model { id: Id::random(), name: name.into(), description: None, created_at: now, updated_at: now };
         company.clone().into_active_model().insert(self.db()).await.unwrap();
+        company
+    }
+
+    pub async fn project_in(&self, company: &company::Model, label: &str, folder: Option<&str>, auto_commit: bool) -> project::Model {
+        let now = Instant::now();
         let project = project::Model {
             id: Id::random(),
             label: label.into(),

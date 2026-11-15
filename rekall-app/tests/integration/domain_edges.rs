@@ -60,7 +60,7 @@ const STORE: LayeredCrate = LayeredCrate {
 const CORE: LayeredCrate = LayeredCrate {
     folder: "rekall-core",
     domain_root: &[],
-    foundations: &["ctx", "events", "load", "services", "text_rule", "tx"],
+    foundations: &["ctx", "events", "load", "project_ref", "services", "text_rule", "tx"],
     facades: &[],
     allowed: &[
         ("backup", &[]),

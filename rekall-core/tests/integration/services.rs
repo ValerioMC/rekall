@@ -14,6 +14,7 @@ use rekall_core::component::ComponentReferences;
 use rekall_core::step::{NewStep, Staging, StepEdit};
 use rekall_core::timeentry::IDLE_AFTER;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
+use rekall_core::ProjectRef;
 use support::{commit, git, init_with_identity, world, world_at};
 
 // ------------------------------------------------------------------------------ step snapshot
@@ -984,20 +985,20 @@ async fn a_search_in_a_project_finds_its_own_text_even_when_other_projects_have_
     world.task(&orion, "ledger").await;
     world.services.notes.write(Some("orion"), "ledger", Some("ledger.md"), Some("Settlement of the ledger."), OnTitleClash::Refuse).await.unwrap();
 
-    let scoped = world.services.search.search_in_project(Some("settlement"), "vega").await.unwrap();
+    let scoped = world.services.search.search_in_project(Some("settlement"), &ProjectRef::bare("vega")).await.unwrap();
 
     assert_eq!(scoped.len(), 1, "{scoped:?}");
     assert_eq!(scoped[0].r#where, "task:EXPORT");
     assert!(scoped[0].excerpt.contains("settlement batch runs nightly"));
     assert!(world.services.search.search(Some("settlement")).await.unwrap().len() > scoped.len());
-    let in_orion = world.services.search.search_in_project(Some("settlement"), "orion").await.unwrap();
+    let in_orion = world.services.search.search_in_project(Some("settlement"), &ProjectRef::bare("orion")).await.unwrap();
     assert!(in_orion.iter().any(|hit| hit.title == "ledger.md" && hit.context_anchor.starts_with("note:")));
 }
 
 #[tokio::test]
 async fn a_search_in_an_unknown_project_is_refused() {
     let world = world().await;
-    assert!(world.services.search.search_in_project(Some("settlement"), "nowhere").await.is_err());
+    assert!(world.services.search.search_in_project(Some("settlement"), &ProjectRef::bare("nowhere")).await.is_err());
 }
 
 // ------------------------------------------------------------------------------ wrapup versions
@@ -1378,8 +1379,8 @@ async fn a_session_creates_an_epic_and_files_a_new_task_under_it() {
     let world = world().await;
     world.project("vega", None, false).await;
 
-    let epic = world.services.task_authoring.create("vega", &epic_brief("Checkout"), &plan(vec![])).await.unwrap();
-    world.services.task_authoring.create("vega", &brief_under("Pay", "VE-1"), &plan(vec![draft("Charge")])).await.unwrap();
+    let epic = world.services.task_authoring.create(&ProjectRef::bare("vega"), &epic_brief("Checkout"), &plan(vec![])).await.unwrap();
+    world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief_under("Pay", "VE-1"), &plan(vec![draft("Charge")])).await.unwrap();
 
     assert_eq!(epic.kind, rekall_store::TaskKind::Epic);
     assert_eq!(epic.task_anchor, "task:VE-1");
@@ -1395,8 +1396,8 @@ async fn an_epic_created_with_steps_or_under_a_plain_task_is_refused_and_creates
     let project = world.project("vega", None, false).await;
     world.task(&project, "report").await;
 
-    let with_steps = world.services.task_authoring.create("vega", &epic_brief("Checkout"), &plan(vec![draft("First")])).await.unwrap_err();
-    let under_plain = world.services.task_authoring.create("vega", &brief_under("Pay", "report"), &plan(vec![])).await.unwrap_err();
+    let with_steps = world.services.task_authoring.create(&ProjectRef::bare("vega"), &epic_brief("Checkout"), &plan(vec![draft("First")])).await.unwrap_err();
+    let under_plain = world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief_under("Pay", "report"), &plan(vec![])).await.unwrap_err();
 
     assert!(with_steps.to_string().contains("An epic holds no steps"), "{with_steps}");
     assert!(under_plain.to_string().contains("is not an epic"), "{under_plain}");
@@ -1407,8 +1408,8 @@ async fn an_epic_created_with_steps_or_under_a_plain_task_is_refused_and_creates
 async fn a_session_files_an_existing_task_under_an_epic_and_moves_it_between_epics() {
     let world = world().await;
     let project = world.project("vega", None, false).await;
-    world.services.task_authoring.create("vega", &epic_brief("Checkout"), &plan(vec![])).await.unwrap();
-    world.services.task_authoring.create("vega", &epic_brief("Billing"), &plan(vec![])).await.unwrap();
+    world.services.task_authoring.create(&ProjectRef::bare("vega"), &epic_brief("Checkout"), &plan(vec![])).await.unwrap();
+    world.services.task_authoring.create(&ProjectRef::bare("vega"), &epic_brief("Billing"), &plan(vec![])).await.unwrap();
     world.task(&project, "pay").await;
 
     let joined = world.services.epic_membership.join(Some("vega"), "pay", "VE-1").await.unwrap();
@@ -1426,7 +1427,7 @@ async fn a_session_files_an_existing_task_under_an_epic_and_moves_it_between_epi
 async fn an_epic_is_never_run() {
     let world = world().await;
     world.project("vega", Some("/tmp"), false).await;
-    world.services.task_authoring.create("vega", &epic_brief("Checkout"), &plan(vec![])).await.unwrap();
+    world.services.task_authoring.create(&ProjectRef::bare("vega"), &epic_brief("Checkout"), &plan(vec![])).await.unwrap();
     let epic = rekall_store::repository::task::find_by_code(world.db(), "VE-1").await.unwrap().unwrap();
 
     let refused = world.services.terminal_launch.resolve(rekall_core::claude::TerminalTarget::Task(epic.id)).await.unwrap_err();
@@ -1442,7 +1443,7 @@ async fn a_created_task_starts_todo_with_its_description_and_its_steps_as_drafts
     let created = world
         .services
         .task_authoring
-        .create("vega", &brief("  Task creation ", Some("Let the llm open tasks.")), &plan(vec![draft("First"), draft("Second")]))
+        .create(&ProjectRef::bare("vega"), &brief("  Task creation ", Some("Let the llm open tasks.")), &plan(vec![draft("First"), draft("Second")]))
         .await
         .unwrap();
 
@@ -1464,8 +1465,8 @@ async fn each_task_of_a_project_takes_the_next_number_after_the_last() {
     let world = world().await;
     world.project("vega", None, false).await;
 
-    let first = world.services.task_authoring.create("vega", &brief("Report builder", None), &plan(vec![draft("First")])).await.unwrap();
-    let second = world.services.task_authoring.create("vega", &brief("Report builder", None), &plan(vec![draft("First")])).await.unwrap();
+    let first = world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief("Report builder", None), &plan(vec![draft("First")])).await.unwrap();
+    let second = world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief("Report builder", None), &plan(vec![draft("First")])).await.unwrap();
 
     assert_eq!((first.task_anchor.as_str(), second.task_anchor.as_str()), ("task:VE-1", "task:VE-2"));
 }
@@ -1475,7 +1476,7 @@ async fn a_task_is_named_by_its_code_in_any_case_and_a_project_beside_it_must_be
     let world = world().await;
     world.project("vega", None, false).await;
     world.project("beacon", None, false).await;
-    world.services.task_authoring.create("vega", &brief("Report builder", None), &plan(vec![])).await.unwrap();
+    world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief("Report builder", None), &plan(vec![])).await.unwrap();
 
     let context = &world.services.context;
     let found = context.load(Some(rekall_core::context::AnchorEntity::Task), "ve-1").await.unwrap();
@@ -1494,7 +1495,7 @@ async fn an_anchor_written_with_a_project_and_a_label_before_codes_existed_still
 
     let world = world().await;
     world.project("vega", None, false).await;
-    world.services.task_authoring.create("vega", &brief("Report builder", None), &plan(vec![])).await.unwrap();
+    world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief("Report builder", None), &plan(vec![])).await.unwrap();
     let task = rekall_store::repository::task::find_by_code(world.db(), "VE-1").await.unwrap().unwrap();
     let mut row = task.clone().into_active_model();
     row.label = ActiveValue::Set("report-builder".into());
@@ -1515,7 +1516,7 @@ async fn a_step_title_sent_twice_or_past_the_draft_cap_is_refused_before_anythin
     let too_many = plan((0..21).map(|at| draft(&format!("Step {at}"))).collect());
 
     for steps in [&twice, &too_many] {
-        let result = world.services.task_authoring.create("vega", &brief("New", None), steps).await;
+        let result = world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief("New", None), steps).await;
         assert!(result.is_err());
     }
 
@@ -1535,7 +1536,7 @@ async fn a_task_created_with_routes_is_a_flow_whose_open_steps_keep_their_sessio
         },
     ];
 
-    let created = world.services.task_authoring.create("vega", &brief("Release", None), &plan(steps)).await.unwrap();
+    let created = world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief("Release", None), &plan(steps)).await.unwrap();
 
     assert_eq!((created.steps, created.routes), (2, 3));
     let task = rekall_store::repository::task::find_by_code(world.db(), "VE-1").await.unwrap().unwrap();
@@ -1552,7 +1553,7 @@ async fn a_flow_that_could_loop_forever_is_refused_at_creation_and_creates_nothi
     let project = world.project("vega", None, false).await;
     let steps = vec![routed("Test", &[("app-error", Some(1))]), routed("Fix", &[("fixed", Some(0))])];
 
-    let refused = world.services.task_authoring.create("vega", &brief("Release", None), &plan(steps)).await.unwrap_err();
+    let refused = world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief("Release", None), &plan(steps)).await.unwrap_err();
 
     assert!(refused.to_string().contains("can loop forever"), "{refused}");
     assert!(rekall_store::repository::task::list_of_project(world.db(), project.id).await.unwrap().is_empty());
@@ -1608,8 +1609,8 @@ async fn a_task_needs_a_title_and_a_project_that_exists() {
     let world = world().await;
     world.project("vega", None, false).await;
 
-    let untitled = world.services.task_authoring.create("vega", &brief("   ", None), &plan(vec![])).await.unwrap_err();
-    let unknown = world.services.task_authoring.create("nowhere", &brief("New", None), &plan(vec![])).await.unwrap_err();
+    let untitled = world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief("   ", None), &plan(vec![])).await.unwrap_err();
+    let unknown = world.services.task_authoring.create(&ProjectRef::bare("nowhere"), &brief("New", None), &plan(vec![])).await.unwrap_err();
 
     assert!(untitled.to_string().contains("needs a title"), "{untitled}");
     assert!(unknown.to_string().contains("No project matches 'nowhere'"), "{unknown}");

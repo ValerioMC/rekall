@@ -3,7 +3,7 @@ use rekall_kernel::Id;
 use rekall_core::diagram::{DiagramService, DiagramTarget, GeneratedDiagram, GeneratedDiagramView};
 use serde_json::{json, Value};
 
-use crate::tool::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
+use crate::tool::{told, Anchor, AnchoredProject, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
 use crate::protocol::{McpTool, ToolError, ToolSchema};
 use crate::texts;
 
@@ -75,11 +75,11 @@ fn target_of(anchors: &[Anchor]) -> Result<DiagramTarget, ToolError> {
         let task = AnchoredTask::from(anchors)?;
         return Ok(DiagramTarget::Task { project_label: task.project_label, task_code: task.task_code });
     }
-    match anchors {
-        [project] if project.is("project") => Ok(DiagramTarget::Project { label: project.value.clone() }),
-        _ => Err(ToolError::Failure(
+    match AnchoredProject::alone(anchors) {
+        Some(project) => Ok(DiagramTarget::Project { project }),
+        None => Err(ToolError::Failure(
             "A diagram belongs to one project, and optionally one of its tasks: pass `project:<label>` or \
-             `project:<label> task:<code>`."
+             `project:<label> task:<code>`, with `company:<name>` beside the label when two companies share it."
                 .into(),
         )),
     }

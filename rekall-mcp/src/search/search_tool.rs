@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use rekall_core::search::{SearchHit, SearchHitKind, SearchService, TERM_MIN};
+use rekall_core::ProjectRef;
 use rekall_kernel::jstr;
 use serde_json::Value;
 
@@ -44,19 +45,19 @@ impl McpTool for SearchTool {
             return Ok(too_short_message());
         }
         let hits = match &project {
-            Some(label) => self.search.search_in_project(Some(&term), label).await,
+            Some(reference) => self.search.search_in_project(Some(&term), reference).await,
             None => self.search.search(Some(&term)).await,
         }
         .map_err(|e| told(e, ""))?;
-        Ok(report(&term, project.as_deref(), &hits))
+        Ok(report(&term, project.as_ref(), &hits))
     }
 }
 
-fn project_of(anchors: Option<&str>) -> Result<Option<String>, ToolError> {
+fn project_of(anchors: Option<&str>) -> Result<Option<ProjectRef>, ToolError> {
     let Some(raw) = anchors else {
         return Ok(None);
     };
-    Ok(Some(AnchoredProject::from(&Anchor::parse_all(Some(raw))?)?.project_label))
+    Ok(Some(AnchoredProject::from(&Anchor::parse_all(Some(raw))?)?.project))
 }
 
 fn is_too_short(term: &str) -> bool {
@@ -67,8 +68,8 @@ fn too_short_message() -> String {
     format!("Nothing was searched: the term needs at least {TERM_MIN} characters.")
 }
 
-fn report(term: &str, project_label: Option<&str>, hits: &[SearchHit]) -> String {
-    let scope = project_label.map_or("every project".to_string(), |label| format!("`project:{label}`"));
+fn report(term: &str, project: Option<&ProjectRef>, hits: &[SearchHit]) -> String {
+    let scope = project.map_or("every project".to_string(), |reference| format!("`{reference}`"));
     if hits.is_empty() {
         return format!("Nothing in {scope} matches \"{term}\".");
     }

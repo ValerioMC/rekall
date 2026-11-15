@@ -5,7 +5,9 @@ use rekall_core::task::{Created, TaskAuthoringService, TaskBrief};
 use serde_json::Value;
 
 use crate::flow::plan_of;
-use crate::tool::{told, Anchor, Arguments};
+use rekall_core::ProjectRef;
+
+use crate::tool::{told, Anchor, AnchoredProject, Arguments};
 use crate::protocol::{McpTool, ToolError, ToolSchema};
 use crate::texts;
 
@@ -38,7 +40,7 @@ impl McpTool for TaskCreationTool {
 
     fn input_schema(&self) -> Value {
         ToolSchema::object()
-            .required_string("anchors", "The project the task goes in, `project:vega`. A label, never a title.")
+            .required_string("anchors", "The project the task goes in, `project:vega`. A label, never a title. Add `company:acme` beside it when two companies share the label.")
             .required_string("title", "What the task is, short, under 200 characters.")
             .optional_string(
                 "description",
@@ -58,7 +60,7 @@ impl McpTool for TaskCreationTool {
 
     async fn execute(&self, arguments: Option<&Value>) -> Result<String, ToolError> {
         let args = Arguments::of(arguments);
-        let project = project_label(&Anchor::parse_all(Some(&args.required_string("anchors")?))?)?;
+        let project = project_ref(&Anchor::parse_all(Some(&args.required_string("anchors")?))?)?;
         let plan = plan_or_empty(args.value("steps"))?;
         let brief = TaskBrief {
             title: Some(args.required_string("title")?),
@@ -102,11 +104,10 @@ fn kind_of(argument: Option<&str>) -> Result<TaskKind, ToolError> {
     }
 }
 
-fn project_label(anchors: &[Anchor]) -> Result<String, ToolError> {
-    match anchors {
-        [project] if project.is("project") => Ok(project.value.clone()),
-        _ => Err(ToolError::Failure("A task is created in one project: pass `project:<label>`.".into())),
-    }
+fn project_ref(anchors: &[Anchor]) -> Result<ProjectRef, ToolError> {
+    AnchoredProject::alone(anchors).ok_or_else(|| {
+        ToolError::Failure("A task is created in one project: pass `project:<label>`, with `company:<name>` beside it when two companies share the label.".into())
+    })
 }
 
 fn plan_or_empty(argument: Option<&Value>) -> Result<FlowPlan, ToolError> {

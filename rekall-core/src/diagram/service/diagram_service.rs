@@ -125,7 +125,7 @@ async fn require_task_on_project(db: &impl ConnectionTrait, task_id: Option<Id>,
 
 async fn resolve_target(db: &impl ConnectionTrait, target: &DiagramTarget) -> Result<(project::Model, Option<task::Model>)> {
     match target {
-        DiagramTarget::Project { label } => Ok((load::resolve_project(db, label).await?, None)),
+        DiagramTarget::Project { project } => Ok((load::resolve_project(db, project).await?, None)),
         DiagramTarget::Task { project_label, task_code } => {
             let task = load::resolve_task(db, project_label.as_deref(), task_code).await?;
             Ok((load::project_of(db, &task).await?, Some(task)))

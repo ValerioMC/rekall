@@ -4,6 +4,7 @@ use super::{diagram_id, sheets_argument, target_of};
 use crate::protocol::ToolError;
 use crate::tool::Anchor;
 use rekall_core::diagram::DiagramTarget;
+use rekall_core::ProjectRef;
 
 fn anchors(raw: &str) -> Vec<Anchor> {
     Anchor::parse_all(Some(raw)).unwrap()
@@ -11,7 +12,15 @@ fn anchors(raw: &str) -> Vec<Anchor> {
 
 #[test]
 fn a_project_alone_is_a_project_target() {
-    assert_eq!(target_of(&anchors("project:vega")).unwrap(), DiagramTarget::Project { label: "vega".into() });
+    assert_eq!(target_of(&anchors("project:vega")).unwrap(), DiagramTarget::Project { project: ProjectRef::bare("vega") });
+}
+
+#[test]
+fn a_company_beside_the_project_qualifies_the_project_target() {
+    assert_eq!(
+        target_of(&anchors("company:Acme project:vega")).unwrap(),
+        DiagramTarget::Project { project: ProjectRef::in_company("Acme", "vega") }
+    );
 }
 
 #[test]

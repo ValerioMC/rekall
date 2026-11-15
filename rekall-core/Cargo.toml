@@ -67,3 +67,7 @@ path = "tests/integration/feedback.rs"
 [[test]]
 name = "descriptions"
 path = "tests/integration/descriptions.rs"
+
+[[test]]
+name = "project_refs"
+path = "tests/integration/project_refs.rs"

@@ -213,7 +213,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `wrapup` | `task` | `catalog`, `commit`, `review`, `task` | - | nothing | `commit` |
 
 Each crate's foundations are modules every domain may use and are no domain: `ctx`, `events`,
-`load`, `services`, `text_rule` and `tx` in `rekall-core`; `constraints`, `enums`, `prelude`,
+`load`, `project_ref`, `services`, `text_rule` and `tx` in `rekall-core`; `constraints`, `enums`, `prelude`,
 `slug`, `stamped` and `task_key` in `rekall-store`, with `database`, `migration`, `query_support`,
 `stamped_update` and `repository`, whose re-exports the test reads back to their domains; `shared` in `rekall-console`; `api_ports`, `api_state`, `router` and `shared` in `rekall-http`; `controller`, `protocol`, `texts`,
 `tool` and `tool_registry` in `rekall-mcp`. A new edge is a design decision: change the table and
@@ -385,7 +385,12 @@ so before the save is the interface's job.
 
 Project labels are unique per company rather than globally, for the same reason task labels are
 unique per project: two companies routinely have a project called `website`. A bare
-`project:website` that matches twice is reported as ambiguous, resolvable with `company:acme`.
+`project:website` that matches twice is reported as ambiguous, with each candidate written as
+`company:<name> project:<label>`. Every tool that takes a project alone (`rekall_create_task`,
+`rekall_search`, `rekall_inventory`, `rekall_vulnerabilities`, `rekall_assess_vulnerability`,
+`rekall_diagram`, `rekall_read_sections`) accepts that pair as its anchors, and `ProjectRef` in
+`rekall-core` carries it down to `load::resolve_project`. A task is named by its globally unique code,
+so a task anchor never needs the company.
 
 A note belongs to **exactly one task** and is deleted with it. Cluster access, a naming
 convention and an onboarding step are all notes of that kind, written on the task that needs them.

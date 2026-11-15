@@ -4,7 +4,7 @@ use rekall_kernel::{Id, Result};
 use rekall_store::{project, project_dependency};
 use rekall_store::repository as repo;
 
-use crate::{in_read, load, Ctx, Tx};
+use crate::{in_read, load, Ctx, ProjectRef, Tx};
 
 use crate::inventory::{model::manifest_freshness, rule::rules, DeclaredDependency, InventoryStreamEvent, InventorySummaryView, InventoryWritten, ProjectDependencyView};
 
@@ -47,8 +47,8 @@ impl DependencyInventoryService {
     }
 
     /// Replaces the inventory of the project `project:<label>` names with what a session declared.
-    pub async fn write_in(&self, tx: &mut Tx, project_label: &str, declared: &[DeclaredDependency]) -> Result<InventoryWritten> {
-        let project = load::resolve_project(tx.db(), project_label).await?;
+    pub async fn write_in(&self, tx: &mut Tx, project_ref: &ProjectRef, declared: &[DeclaredDependency]) -> Result<InventoryWritten> {
+        let project = load::resolve_project(tx.db(), project_ref).await?;
         let rows = rules::dependencies(project.id, declared, self.ctx.now())?;
         let written = InventoryWritten::of(&project, &rows, declared.len());
         repo::project_dependency::replace_of_project(tx.db(), project.id, rows).await?;

@@ -1,8 +1,9 @@
 use async_trait::async_trait;
 use rekall_core::section::{ProjectSectionService, SectionsRead};
+use rekall_core::ProjectRef;
 use serde_json::Value;
 
-use crate::tool::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
+use crate::tool::{told, Anchor, AnchoredProject, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
 use crate::protocol::{McpTool, ToolError, ToolSchema};
 use crate::texts;
 
@@ -20,7 +21,7 @@ impl SectionReadTool {
 
 /// Where to read: a project alone, or a task whose project it is.
 struct ReadTarget {
-    project_label: Option<String>,
+    project: Option<ProjectRef>,
     task_code: Option<String>,
 }
 
@@ -54,7 +55,7 @@ impl McpTool for SectionReadTool {
         let hint = if target.task_code.is_some() { QUALIFY_WITH_PROJECT } else { "" };
         let read = self
             .sections
-            .read(target.project_label.as_deref(), target.task_code.as_deref(), args.optional_string("title").as_deref())
+            .read(target.project.as_ref(), target.task_code.as_deref(), args.optional_string("title").as_deref())
             .await
             .map_err(|e| told(e, hint))?;
         Ok(report(&read))
@@ -64,14 +65,14 @@ impl McpTool for SectionReadTool {
 fn target_of(anchors: &[Anchor]) -> Result<ReadTarget, ToolError> {
     if anchors.iter().any(|anchor| anchor.is("task") || !anchor.is_qualified()) {
         let task = AnchoredTask::from(anchors)?;
-        return Ok(ReadTarget { project_label: task.project_label, task_code: Some(task.task_code) });
+        return Ok(ReadTarget { project: task.project_label.as_deref().map(ProjectRef::bare), task_code: Some(task.task_code) });
     }
-    match anchors {
-        [project] if project.is("project") => {
-            Ok(ReadTarget { project_label: Some(project.value.clone()), task_code: None })
-        }
-        _ => Err(ToolError::Failure(
-            "Sections belong to one project: pass `project:<label>` or `project:<label> task:<code>`.".into(),
+    match AnchoredProject::alone(anchors) {
+        Some(project) => Ok(ReadTarget { project: Some(project), task_code: None }),
+        None => Err(ToolError::Failure(
+            "Sections belong to one project: pass `project:<label>` or `project:<label> task:<code>`, with \
+             `company:<name>` beside the label when two companies share it."
+                .into(),
         )),
     }
 }

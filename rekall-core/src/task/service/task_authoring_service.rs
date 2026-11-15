@@ -7,7 +7,7 @@ use sea_orm::{ActiveModelTrait, IntoActiveModel};
 use crate::flow::{FlowPlan, FlowProposalService};
 use crate::task::{Created, TaskBrief, TaskCreatedEvent, TaskStreamEvent};
 use crate::step::TaskStepService;
-use crate::{in_write, load, text_rule, Ctx};
+use crate::{in_write, load, text_rule, Ctx, ProjectRef};
 
 /// Creates a task or an epic for a session. The task starts `TODO` and its steps, a checklist or a
 /// flow with its routes and sessions, start open: the session wrote them to be worked, not reviewed.
@@ -26,11 +26,11 @@ impl TaskAuthoringService {
     /// The task takes the next code of its project; `brief.epic` files the task under an epic of the same
     /// project. A plan with a route is checked as a flow, one without as a checklist. Task, steps and
     /// routes land in one transaction, so a refused plan leaves no half-made task behind.
-    pub async fn create(&self, project_label: &str, brief: &TaskBrief, plan: &FlowPlan) -> Result<Created> {
+    pub async fn create(&self, project_ref: &ProjectRef, brief: &TaskBrief, plan: &FlowPlan) -> Result<Created> {
         require_plan_fits(plan)?;
         require_epic_stepless(brief.kind, plan)?;
         in_write!(&self.ctx, |tx| {
-            let project = load::resolve_project(tx.db(), project_label).await?;
+            let project = load::resolve_project(tx.db(), project_ref).await?;
             let title = required_title(brief.title.as_deref())?;
             let mut task = Model::new(String::new(), title, project.id, self.ctx.now());
             repo::task::assign_next_code(tx.db(), &mut task, &project).await?;

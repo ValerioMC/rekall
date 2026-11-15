@@ -1,5 +1,6 @@
 use rekall_kernel::{Id, Instant};
 use rekall_core::section::{ProjectSectionView, SectionsRead};
+use rekall_core::ProjectRef;
 
 use super::{report, target_of};
 use crate::tool::Anchor;
@@ -47,7 +48,7 @@ fn a_project_or_a_task_names_where_to_read_and_nothing_else_does() {
     let project = target_of(&Anchor::parse_all(Some("project:vega")).unwrap()).unwrap();
     let task = target_of(&Anchor::parse_all(Some("project:vega task:report")).unwrap()).unwrap();
 
-    assert_eq!((project.project_label.as_deref(), project.task_code), (Some("vega"), None));
-    assert_eq!((task.project_label.as_deref(), task.task_code.as_deref()), (Some("vega"), Some("report")));
+    assert_eq!((project.project, project.task_code), (Some(ProjectRef::bare("vega")), None));
+    assert_eq!((task.project, task.task_code.as_deref()), (Some(ProjectRef::bare("vega")), Some("report")));
     assert!(target_of(&Anchor::parse_all(Some("company:acme")).unwrap()).is_err());
 }

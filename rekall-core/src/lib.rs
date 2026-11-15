@@ -41,10 +41,12 @@ pub mod wrapup;
 
 mod ctx;
 mod load;
+mod project_ref;
 mod services;
 mod text_rule;
 
 pub use ctx::{system_clock, Clock, Ctx};
 pub use events::{DomainEvent, EventBus, PublishedEvent, StreamEvent};
+pub use project_ref::ProjectRef;
 pub use services::Services;
 pub use tx::Tx;

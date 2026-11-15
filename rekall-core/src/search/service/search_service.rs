@@ -1,7 +1,7 @@
 use rekall_kernel::{jstr, Id, RekallError, Result};
 use rekall_store::repository as repo;
 
-use crate::{in_read, load, Ctx, Tx};
+use crate::{in_read, load, Ctx, ProjectRef, Tx};
 
 use crate::search::{SearchHit, SearchHitKind};
 
@@ -25,18 +25,18 @@ impl SearchService {
     }
 
     /// The same search restricted to what belongs to one project; a note counts when any of its tasks does.
-    pub async fn search_in_project(&self, raw_term: Option<&str>, project_label: &str) -> Result<Vec<SearchHit>> {
-        self.search_scoped(raw_term, Some(project_label)).await
+    pub async fn search_in_project(&self, raw_term: Option<&str>, project_ref: &ProjectRef) -> Result<Vec<SearchHit>> {
+        self.search_scoped(raw_term, Some(project_ref)).await
     }
 
-    async fn search_scoped(&self, raw_term: Option<&str>, project_label: Option<&str>) -> Result<Vec<SearchHit>> {
+    async fn search_scoped(&self, raw_term: Option<&str>, project_ref: Option<&ProjectRef>) -> Result<Vec<SearchHit>> {
         let term = jstr::collapse_whitespace(jstr::strip(raw_term.unwrap_or("")));
         if jstr::len(&term) < TERM_MIN {
             return Ok(Vec::new());
         }
         in_read!(&self.ctx, |tx| {
-            let scope = match project_label {
-                Some(label) => Some(load::resolve_project(tx.db(), label).await?.id),
+            let scope = match project_ref {
+                Some(reference) => Some(load::resolve_project(tx.db(), reference).await?.id),
                 None => None,
             };
             let mut hits = description_hits(&tx, &term, scope).await?;

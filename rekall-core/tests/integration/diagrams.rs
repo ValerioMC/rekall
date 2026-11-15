@@ -11,6 +11,7 @@ use rekall_core::diagram::{DiagramDraft, DiagramService, DiagramTarget, Generate
 use rekall_core::diagram::DiagramStreamEvent;
 use sea_orm::EntityTrait;
 use serde_json::json;
+use rekall_core::ProjectRef;
 use support::world;
 
 const CHECKOUT: &str = "sequenceDiagram
@@ -194,7 +195,7 @@ async fn a_generated_diagram_can_belong_to_the_project_alone() {
     let world = world().await;
     let project = world.project("shop", None, false).await;
     let mut generated = on_task(order_flow());
-    generated.target = DiagramTarget::Project { label: "shop".into() };
+    generated.target = DiagramTarget::Project { project: ProjectRef::bare("shop") };
 
     let written = world.services.diagrams.write_generated(generated).await.unwrap();
 
@@ -203,7 +204,7 @@ async fn a_generated_diagram_can_belong_to_the_project_alone() {
     assert_eq!(written.anchors, "project:shop");
 
     let mut unknown = on_task(order_flow());
-    unknown.target = DiagramTarget::Project { label: "warehouse".into() };
+    unknown.target = DiagramTarget::Project { project: ProjectRef::bare("warehouse") };
     assert!(matches!(world.services.diagrams.write_generated(unknown).await, Err(RekallError::UnknownAnchor(_))));
 }
 
