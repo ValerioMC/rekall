@@ -6,12 +6,12 @@ import type { TaskStep } from '@/features/steps/model/task-step'
 
 /**
  * The keys a step's state offers a person, kept in the dock so they sit where reading ends:
- * accept or send back a claim, tick or hand an open step to a session, reopen a done one. A
- * reopen asks twice: the first press arms it. Only a person marks a step done.
+ * accept or send back a claim, tick or hand an open step to a session. A done step has no key
+ * here: reopening it is in the header. Only a person marks a step done.
  */
-defineProps<{ step: TaskStep; task: Task; reopenArmed: boolean }>()
+defineProps<{ step: TaskStep; task: Task }>()
 
-defineEmits<{ accept: []; 'send-back': []; reopen: []; 'mark-done': [] }>()
+defineEmits<{ accept: []; 'send-back': []; 'mark-done': [] }>()
 </script>
 
 <template>
@@ -25,14 +25,5 @@ defineEmits<{ accept: []; 'send-back': []; reopen: []; 'mark-done': [] }>()
       <OpenTerminalButton :task-id="task.id" :anchor="task.anchor" :step-id="step.id" :folder="task.projectRepoFolder" />
       <AppButton data-testid="decision-mark-done" @click="$emit('mark-done')">Mark done myself</AppButton>
     </template>
-
-    <AppButton
-      v-else-if="step.state === 'DONE'"
-      :variant="reopenArmed ? 'danger' : 'secondary'"
-      data-testid="step-reopen"
-      @click="$emit('reopen')"
-    >
-      {{ reopenArmed ? 'Confirm reopen' : 'Reopen' }}
-    </AppButton>
   </div>
 </template>

@@ -176,33 +176,38 @@ over the end of the row instead of taking a column. Under the rows come the draf
 the line, docked at the foot, that adds a draft (a new step is a draft).
 
 The right zone is one frame with two fillings, so nothing moves when a step is chosen. Its header
-holds a lead mark, a title, the keys (previous and next step, which the J and K keys do too except
-while typing, a button that hides the list so the step has the whole tab, and Overview, which Esc
-does too) and one line of facts. Its body is a reading column and, beside it, a column of evidence;
-the reading column holds a measure of 736px and the evidence sits right beside it (300 to 512px),
-the pair kept together under the title on a wide pane so no width is left empty between them; under
-832px they stack. Its dock holds the keys a person decides with. Pinned, the header and dock
-stay while the body scrolls.
+holds a lead mark, a title, the keys for the previous and next step (the J and K keys do the same,
+except while typing) and for hiding the list so the step has the whole tab, and under it one line
+of facts. Its body is as wide as the pane up to a page width of 76rem, and a dock at the foot holds
+the keys of a decision still to be made. Pinned, the header and dock stay while the body scrolls.
 
 With no step selected, which is how the tab opens, the frame holds the **overview**: its title says
-what waits for you ("1 step waits for you"), and the reading column is the review queue (Waiting for
-you, Working now, Up next, and Accepted, which opens by itself when nothing else is left), each row
-a step with what it holds (checks passed, commits, pass and claim time for a claim). The evidence
-column holds the drafts, the deviations and the flow to lay, when the task has them. The dock holds
-Review next, and Accept all once only claims are left.
+what waits for you ("1 step waits for you"). Under it a line of notices shows the drafts to
+promote and the deviations, when the task has them; then the review queue (Waiting for you,
+Working now, Up next, and Accepted, which opens by itself when nothing else is left), each row a
+step with what it holds (checks passed, commits, pass and claim time for a claim); then the flow to
+lay when the task can take one. The dock holds Review next, and Accept all once only claims are
+left, and is absent when nothing waits.
 
-With a step selected, the frame holds its **decision**. The header shows the seal and the title; the
-facts line says its state (a pill), its place, when it last moved, the pass, the checks passed or
-failed, the commits and a deviation. The reading column is the sealed passes hung on one line like a
-history, then the detail (or the feedback for the next pass). The evidence column is the last run
-of each check, the commits (with Log commit while a session runs or after it claimed), and the
-skills and checks that set the step up. The dock holds Accept and Send back on a claim, the session
-key and Mark done myself on an open or running step, Reopen on a done one, with one line saying
-what the state allows. The detail reads as a page that grows with its text: prose holds a measure
-of 74 characters. A task handed in whole shows its own decision, Accept task or Send back, in the
-same place. Nothing but a person marks a step done, and Claude moves a step only up to claimed.
-The list and the frame share the step editor, so a title or detail typed in the frame is saved as
-it was in the old checklist.
+With a step selected, the frame holds its **decision**. The title is renamed in place: pressing it
+turns it into a field, saved as it is typed. The facts line says the state (a pill), the place, when
+it last moved, the pass, and the checks and commits as buttons that open the evidence; a deviation
+and, while a session runs or after it claimed, Log commit follow. At its end sit the Write and Read
+switch, Reopen on a done step (which asks twice) and Overview (Esc does the same). The body is the
+sealed passes hung on one line like a history, then the detail, or the feedback for the next pass
+once the step was sent back, taking the whole width; prose in Read holds a measure of 100
+characters, and a table or a code block takes the width of the pane. Under the detail come the
+skills the step runs with and the checks it has to pass, side by side, which a finished step shows
+only if it carries checks. The evidence (the last run of each check, the commits) is a drawer under
+the header, open on a claim and on a failed check and folded otherwise, so no column is kept for
+it. With the list hidden on a pane 1100px wide or more, the page gains a rail beside the detail
+that holds the history of the step (created, each send-back, the session, the claim, the
+acceptance), the evidence and the setup, and the chips stop being buttons. The dock holds Accept
+and Send back on a claim, and the session key and Mark done myself on an open or running step; a
+done step has none. A task handed in whole shows its own decision, Accept task or Send back, in
+the same place. Nothing but a person marks a step done, and Claude moves a step only up to
+claimed. The list and the frame share the step editor, so a title or detail typed in the frame is
+saved as it was in the old checklist.
 
 **Changes** reads what the sessions changed in the application as a code review (`TaskChangesTab`,
 data from `GET /api/tasks/{id}/changes`). A track along the top picks what is compared: **All changes**

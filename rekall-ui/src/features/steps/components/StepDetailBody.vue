@@ -6,7 +6,8 @@ import type { Task } from '@/features/catalog/model/catalog'
 
 /**
  * What a step says, in the order it is read: the passes it was sent back from, then the detail
- * being written. What was found on it and what it runs with sit beside it, in the evidence.
+ * being written. Its title and the Write/Read switch are in the header above; a step sent back
+ * names its detail as the feedback for the next pass.
  */
 defineProps<{ step: TaskStep; task: Task }>()
 </script>
@@ -16,9 +17,10 @@ defineProps<{ step: TaskStep; task: Task }>()
     <StepPassHistory v-if="step.passes.length" :passes="step.passes" />
 
     <StepDetailEditor
+      bare
       :step-title="step.title"
       testid-prefix="step"
-      :label="step.passes.length ? `Feedback for pass ${step.passes.length + 1}` : 'Detail'"
+      :label="step.passes.length ? `Feedback for pass ${step.passes.length + 1}` : undefined"
       editor-height="24rem"
       :placeholder="
         step.passes.length

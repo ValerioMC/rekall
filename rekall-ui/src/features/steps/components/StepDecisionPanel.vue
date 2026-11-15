@@ -1,25 +1,31 @@
 <script setup lang="ts">
-import { computed, toRef } from 'vue'
+import { computed, nextTick, ref, toRef, watch } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import StatusPill, { type StatusPillTone } from '@/components/ui/StatusPill.vue'
+import LogCommitButton from '@/features/commits/components/LogCommitButton.vue'
 import DossierFrame from '@/features/steps/components/DossierFrame.vue'
 import StepDecisionKeys from '@/features/steps/components/StepDecisionKeys.vue'
 import StepDetailBody from '@/features/steps/components/StepDetailBody.vue'
 import StepEvidence from '@/features/steps/components/StepEvidence.vue'
+import StepHistory from '@/features/steps/components/StepHistory.vue'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
+import StepSetup from '@/features/steps/components/StepSetup.vue'
 import { useTaskDeviations } from '@/features/deviations/composables/useTaskDeviations'
 import { useStepCheckRuns } from '@/features/check/composables/useStepCheckRuns'
 import { checksLine as checksLineOf } from '@/features/check/lib/check-results'
+import { useStepEditor } from '@/features/steps/composables/useStepEditor'
 import { useConsoleStore } from '@/stores/console.store'
 import { relativeTime } from '@/common/format/relative-time'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { TaskStep, TaskStepState } from '@/features/steps/model/task-step'
 
 /**
- * The selected step as a decision: a header that names the step and says what was found on it, a
- * body that reads what it says beside the evidence for it, and a dock holding the keys a person
- * decides with. Pinned, the header and dock stay while the body scrolls, so a long detail is read
- * with the decision in reach. Only a person marks a step done.
+ * The selected step as a decision: a header that names the step (the title is renamed in place),
+ * switches the detail between Write and Read and says what was found on it; the detail taking the
+ * width of the pane; the evidence in a drawer the facts open, or in a rail when the list is hidden
+ * on a wide pane; and a dock with the keys a person decides with, only while a decision is still
+ * to be made. Only a person marks a step done.
  */
 const props = defineProps<{
   step: TaskStep
@@ -47,11 +53,29 @@ defineEmits<{
 }>()
 
 const store = useConsoleStore()
+const editor = useStepEditor()
 const { deviations } = useTaskDeviations(computed(() => props.task.id))
 const { runs, failures } = useStepCheckRuns(toRef(props, 'step'))
 const hasDeviation = computed(() => deviations.value.some((deviation) => deviation.stepNumber === props.number))
 const commitCount = computed(() => store.stepCommitReferences(props.step.id).length)
+const hasEvidence = computed(() => runs.value.length > 0 || commitCount.value > 0)
 const passNumber = computed(() => props.step.passes.length + 1)
+const awaitsDecision = computed(() => props.step.state !== 'DONE' && props.step.state !== 'DRAFT')
+const canLogCommit = computed(() => props.step.state === 'RUNNING' || props.step.state === 'CLAIMED')
+
+const evidenceOpen = ref(false)
+const renaming = ref(false)
+const titleField = ref<HTMLInputElement | null>(null)
+
+// A claim is opened on its evidence, since the decision is read from it; so is a failed check.
+watch(
+  () => props.step.id,
+  () => {
+    evidenceOpen.value = props.step.state === 'CLAIMED' || failures.value > 0
+    renaming.value = false
+  },
+  { immediate: true }
+)
 
 const STATE_WORD: Readonly<Record<TaskStepState, string>> = {
   DRAFT: 'Draft',
@@ -69,14 +93,6 @@ const STATE_TONE: Readonly<Record<TaskStepState, StatusPillTone>> = {
   DONE: 'done'
 }
 
-const DOCK_NOTE: Readonly<Record<TaskStepState, string>> = {
-  DRAFT: '',
-  OPEN: 'Claude gets this detail while the step is open.',
-  RUNNING: 'A session is working on this step. Log its commit as it lands, or mark it done yourself.',
-  CLAIMED: 'Accept it to tick the step, or send it back for another pass.',
-  DONE: 'Accepted. Reopening drops it back to open and clears the review it passed.'
-}
-
 const stateMoment = computed(() => {
   const { step } = props
   const moment = step.state === 'CLAIMED' ? step.claimedAt : step.state === 'DONE' ? step.doneAt : null
@@ -85,20 +101,57 @@ const stateMoment = computed(() => {
 
 const checksLine = computed(() => checksLineOf(runs.value))
 
+async function startRenaming(): Promise<void> {
+  renaming.value = true
+  await nextTick()
+  titleField.value?.focus()
+  titleField.value?.select()
+}
+
+function stopRenaming(): void {
+  if (!editor.title.value.trim()) editor.title.value = props.step.title
+  renaming.value = false
+}
+
 const ICON_BUTTON =
   'focus-ring grid size-7 cursor-pointer place-items-center rounded-key text-text-subtle transition-colors duration-(--motion-quick) hover:bg-surface-raised hover:text-text disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-text-subtle'
+const FACT_BUTTON =
+  'focus-ring -mx-2 inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-control px-2 transition-colors duration-(--motion-quick) hover:bg-surface-raised hover:text-text aria-expanded:bg-surface-raised aria-expanded:text-text'
 </script>
 
 <template>
-  <DossierFrame :pinned="pinned" aria-label="Decision" data-testid="decision-panel" :data-step-state="step.state">
+  <DossierFrame :pinned="pinned" :focused="focused === true" aria-label="Decision" data-testid="decision-panel" :data-step-state="step.state">
     <template #lead><StepSeal :state="step.state" /></template>
-    <template #title><span data-testid="decision-title">{{ step.title }}</span></template>
+
+    <template #title>
+      <input
+        v-if="renaming"
+        ref="titleField"
+        v-model="editor.title.value"
+        class="-my-0.5 w-full rounded-control border border-accent bg-canvas px-2 py-0.5 text-heading font-medium tracking-[-0.015em] text-text outline-none ring-1 ring-accent"
+        :aria-label="`Title of ${step.title}`"
+        data-testid="step-title-field"
+        @input="editor.scheduleSave()"
+        @blur="stopRenaming"
+        @keydown.enter.prevent="stopRenaming"
+        @keydown.esc.stop="stopRenaming"
+      />
+      <button
+        v-else
+        type="button"
+        class="focus-ring group/title -mx-1 rounded-key px-1 text-left transition-colors duration-(--motion-quick) hover:bg-surface-raised"
+        title="Rename the step"
+        data-testid="decision-title"
+        @click="startRenaming"
+      >
+        {{ step.title }}
+        <svg class="ml-2 inline size-3.5 -translate-y-px text-text-subtle opacity-0 group-hover/title:opacity-100 group-focus-visible/title:opacity-100" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M10.5 3.5l2 2L5 13H3v-2z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+    </template>
 
     <template #controls>
-      <AppButton v-if="focused !== undefined" variant="quiet" size="sm" title="Back to the overview (Esc)" data-testid="decision-overview" @click="$emit('overview')">
-        Overview
-        <kbd class="font-mono text-micro text-text-subtle">Esc</kbd>
-      </AppButton>
       <template v-if="neighbours">
         <button
           type="button"
@@ -158,20 +211,49 @@ const ICON_BUTTON =
       </button>
     </template>
 
-    <template #facts>
+    <template #facts="{ railed }">
       <StatusPill :tone="STATE_TONE[step.state]" :live="step.state === 'RUNNING'" data-testid="decision-state">
         {{ STATE_WORD[step.state] }}
       </StatusPill>
       <span data-testid="decision-position">Step {{ number }} of {{ total }}</span>
       <span v-if="stateMoment" class="text-text-subtle" data-testid="decision-moment">{{ stateMoment }}</span>
       <span v-if="step.passes.length" data-testid="decision-pass">Pass {{ passNumber }}</span>
-      <span v-if="checksLine" :class="failures ? 'text-danger' : 'text-text-muted'" data-testid="decision-checks">
-        <svg v-if="!failures" class="mr-1 inline size-3 -translate-y-px text-safe" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-          <path d="M2.2 6.4 4.8 9l5-5.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-        {{ checksLine }}
-      </span>
-      <span v-if="commitCount" data-testid="decision-commits">{{ commitCount }} {{ commitCount === 1 ? 'commit' : 'commits' }}</span>
+      <template v-if="checksLine">
+        <span v-if="railed" :class="failures ? 'text-danger' : 'text-text-muted'" data-testid="decision-checks">{{ checksLine }}</span>
+        <button
+          v-else
+          type="button"
+          :class="[FACT_BUTTON, failures ? 'text-danger' : 'text-text-muted']"
+          :aria-expanded="evidenceOpen"
+          data-testid="decision-checks"
+          @click="evidenceOpen = !evidenceOpen"
+        >
+          <svg v-if="!failures" class="size-3 text-safe" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path d="M2.2 6.4 4.8 9l5-5.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          {{ checksLine }}
+          <svg class="size-2.5 text-text-subtle transition-transform" :class="evidenceOpen && 'rotate-90'" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </template>
+      <template v-if="commitCount">
+        <span v-if="railed" data-testid="decision-commits">{{ commitCount }} {{ commitCount === 1 ? 'commit' : 'commits' }}</span>
+        <button
+          v-else
+          type="button"
+          :class="[FACT_BUTTON, 'text-text-muted']"
+          :aria-expanded="evidenceOpen"
+          data-testid="decision-commits"
+          @click="evidenceOpen = !evidenceOpen"
+        >
+          {{ commitCount }} {{ commitCount === 1 ? 'commit' : 'commits' }}
+          <svg class="size-2.5 text-text-subtle transition-transform" :class="evidenceOpen && 'rotate-90'" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </template>
+      <LogCommitButton v-if="canLogCommit" variant="bar" :task-id="task.id" :step-id="step.id" :folder="task.projectRepoFolder" />
       <button
         v-if="hasDeviation"
         type="button"
@@ -183,20 +265,51 @@ const ICON_BUTTON =
         <span class="size-1.5 rounded-full bg-warn" aria-hidden="true" />
         Deviation
       </button>
+      <span class="ml-auto flex items-center gap-1.5">
+        <AppModeToggle v-model="editor.mode.value" class="mr-1" testid-prefix="step-detail" />
+        <AppButton
+          v-if="step.state === 'DONE'"
+          variant="quiet"
+          size="sm"
+          :class="reopenArmed && 'text-danger'"
+          title="Drops it back to open and clears the review it passed"
+          data-testid="step-reopen"
+          @click="$emit('reopen')"
+        >
+          {{ reopenArmed ? 'Confirm reopen' : 'Reopen' }}
+        </AppButton>
+        <AppButton v-if="focused !== undefined" variant="quiet" size="sm" title="Back to the overview (Esc)" data-testid="decision-overview" @click="$emit('overview')">
+          Overview
+          <kbd class="font-mono text-micro text-text-subtle">Esc</kbd>
+        </AppButton>
+      </span>
     </template>
 
-    <template #main><StepDetailBody :step="step" :task="task" /></template>
-    <template #side><StepEvidence :step="step" :task="task" /></template>
+    <template #drawer="{ railed }">
+      <div v-if="evidenceOpen && !railed && hasEvidence" class="border-b border-border bg-canvas" data-testid="step-evidence">
+        <div class="mx-auto grid w-full max-w-[76rem] grid-cols-[repeat(auto-fit,minmax(22rem,1fr))] items-start gap-x-10 gap-y-4 px-7 pb-2 pt-4">
+          <StepEvidence :step="step" />
+        </div>
+      </div>
+    </template>
 
-    <template #dock>
-      <p class="min-w-0 flex-1 text-small text-text-muted" data-testid="decision-note">{{ DOCK_NOTE[step.state] }}</p>
+    <template #main="{ railed }">
+      <StepDetailBody :step="step" :task="task" />
+      <StepSetup v-if="!railed" :step="step" :task="task" />
+    </template>
+
+    <template #rail>
+      <StepHistory :step="step" />
+      <StepEvidence :step="step" />
+      <StepSetup :step="step" :task="task" stacked />
+    </template>
+
+    <template v-if="awaitsDecision" #dock>
       <StepDecisionKeys
         :step="step"
         :task="task"
-        :reopen-armed="reopenArmed"
         @accept="$emit('accept')"
         @send-back="$emit('send-back')"
-        @reopen="$emit('reopen')"
         @mark-done="$emit('mark-done')"
       />
     </template>

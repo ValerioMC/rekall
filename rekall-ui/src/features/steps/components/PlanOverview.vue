@@ -14,8 +14,8 @@ import type { TaskStep } from '@/features/steps/model/task-step'
 /**
  * What the pane beside the step list shows while no step is selected: the same frame a step
  * fills, holding the review queue (what waits for the reader, what is being worked, what is next,
- * what was accepted) and what else the plan has (drafts, deviations, a flow to lay). Nothing
- * moves when a step is chosen; the step takes the frame over.
+ * what was accepted), under a line of notices for what else the plan has (drafts, deviations) and
+ * the flow to lay. Nothing moves when a step is chosen; the step takes the frame over.
  */
 const props = defineProps<{
   task: Task
@@ -42,7 +42,6 @@ const title = computed(() => overviewTitle(groups.value, runningStep.value ? pro
 const allDone = computed(() => props.steps.length > 0 && groups.value.done.length === props.steps.length)
 const readyToAcceptAll = computed(() => groups.value.waiting.length > 0 && groups.value.done.length + groups.value.waiting.length === props.steps.length)
 const deviationSteps = computed(() => [...new Set(deviations.value.map((deviation) => deviation.stepNumber))].sort((first, second) => first - second))
-const hasAside = computed(() => props.draftCount > 0 || deviationSteps.value.length > 0 || props.canLayGraph)
 
 const QUEUES = computed(() => [
   { key: 'waiting', label: 'Waiting for you', steps: groups.value.waiting },
@@ -98,6 +97,25 @@ const ICON_BUTTON =
 
     <template #main>
       <div class="flex flex-col gap-7">
+        <div v-if="draftCount > 0 || deviationSteps.length" class="flex flex-wrap gap-2" data-testid="overview-notices">
+          <p
+            v-if="draftCount > 0"
+            class="flex min-h-9 items-center gap-3 rounded-control border border-border bg-canvas pl-3 pr-1.5 text-small text-text-muted"
+            data-testid="overview-drafts"
+          >
+            <span><b class="font-medium text-text">{{ draftCount }} {{ draftCount === 1 ? 'draft' : 'drafts' }}</b> not on the plan yet</span>
+            <AppButton size="sm" @click="emit('show-drafts')">Show drafts</AppButton>
+          </p>
+          <p
+            v-if="deviationSteps.length"
+            class="flex min-h-9 items-center gap-3 rounded-control border border-border bg-canvas pl-3 pr-1.5 text-small text-text-muted"
+            data-testid="overview-deviations"
+          >
+            <span><b class="font-medium text-warn">{{ deviations.length }} {{ deviations.length === 1 ? 'deviation' : 'deviations' }}</b> on {{ stepsLabel(deviationSteps) }}</span>
+            <AppButton size="sm" @click="emit('open-deviation', deviationSteps[0] ?? 0)">Open</AppButton>
+          </p>
+        </div>
+
         <section
           v-for="queue in QUEUES"
           v-show="queue.steps.length"
@@ -126,33 +144,14 @@ const ICON_BUTTON =
             <StepQueueRow v-for="step in groups.done" :key="step.id" :step="step" :number="numberOf(step)" :complete="allDone" @select="emit('select', step)" />
           </ul>
         </details>
+
+        <GraphAttachPanel v-if="canLayGraph" :task="task" has-steps @attached="emit('attached')" />
       </div>
     </template>
 
-    <template #side>
-      <section v-if="draftCount > 0" data-testid="overview-drafts">
-        <span class="eyebrow">Drafts <span class="font-mono">{{ draftCount }}</span></span>
-        <p class="mt-1 text-small text-text-muted">A draft is not part of the plan until you promote it.</p>
-        <AppButton class="mt-2.5" size="sm" @click="emit('show-drafts')">Show drafts</AppButton>
-      </section>
-
-      <section v-if="deviationSteps.length" data-testid="overview-deviations">
-        <span class="eyebrow">Deviations <span class="font-mono">{{ deviations.length }}</span></span>
-        <p class="mt-1 text-small text-text-muted">The work left the plan on {{ stepsLabel(deviationSteps) }}.</p>
-        <AppButton class="mt-2.5" size="sm" @click="emit('open-deviation', deviationSteps[0] ?? 0)">Open deviations</AppButton>
-      </section>
-
-      <GraphAttachPanel v-if="canLayGraph" :task="task" has-steps @attached="emit('attached')" />
-
-      <p v-if="!hasAside" class="text-small text-text-subtle" data-testid="overview-aside-empty">
-        Drafts, deviations and a flow to lay show here when the task has them.
-      </p>
-    </template>
-
-    <template #dock>
-      <p class="min-w-0 flex-1 text-small text-text-muted">Select a step to read it. J and K move between steps, Esc comes back here.</p>
+    <template v-if="groups.waiting.length" #dock>
       <div class="flex items-center gap-2">
-        <AppButton v-if="groups.waiting.length" :variant="readyToAcceptAll ? 'secondary' : 'primary'" data-testid="overview-review-next" @click="emit('review-next')">
+        <AppButton :variant="readyToAcceptAll ? 'secondary' : 'primary'" data-testid="overview-review-next" @click="emit('review-next')">
           Review next
         </AppButton>
         <AppButton

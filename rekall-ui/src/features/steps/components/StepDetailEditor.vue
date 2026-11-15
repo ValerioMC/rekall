@@ -14,10 +14,13 @@ import { useStepEditor } from '@/features/steps/composables/useStepEditor'
 defineProps<{
   /** Read flush inside a row, in a fixed-height writing surface; unset it reads and writes as a page that grows with its text. */
   compact?: boolean
+  /** The title and the Write/Read switch live in the header above, so only the detail is drawn. */
+  bare?: boolean
   stepTitle: string
   /** `step` or `draft`: the prefix of each field's test id. */
   testidPrefix: string
-  label: string
+  /** Names the text above it; a bare editor shows no header without one. */
+  label?: string
   editorHeight: string
   placeholder: string
   emptyText: string
@@ -33,21 +36,22 @@ const projectTasks = useSelectedProjectTasks()
 
 <template>
   <div>
-    <div class="mb-2 flex items-center gap-2">
+    <div v-if="!bare || label" class="mb-2 flex items-center gap-2">
       <span class="eyebrow" :data-testid="`${testidPrefix}-detail-label`">{{ label }}</span>
       <span class="h-px flex-1 bg-border" aria-hidden="true" />
-      <AppModeToggle v-model="mode" :testid-prefix="`${testidPrefix}-detail`" />
+      <AppModeToggle v-if="!bare" v-model="mode" :testid-prefix="`${testidPrefix}-detail`" />
     </div>
 
     <Transition name="fade-quick" mode="out-in">
       <div v-if="mode === 'write'" key="write">
         <AppInput
+          v-if="!bare"
           v-model="title"
           :aria-label="`Title of ${stepTitle}`"
           :data-testid="`${testidPrefix}-title-field`"
           @update:model-value="scheduleSave"
         />
-        <div class="mt-2 min-w-0" :class="compact && 'overflow-hidden'" :style="compact ? { height: editorHeight } : undefined">
+        <div class="min-w-0" :class="[compact && 'overflow-hidden', !bare && 'mt-2']" :style="compact ? { height: editorHeight } : undefined">
           <AppMarkdownEditor
             v-model="body"
             :height="compact ? '100%' : editorHeight"
@@ -86,7 +90,7 @@ const projectTasks = useSelectedProjectTasks()
 }
 
 .step-reading :deep(.md-editor-preview) > :where(p, ul, ol, blockquote, h1, h2, h3, h4) {
-  max-width: 76ch;
+  max-width: 100ch;
 }
 
 .step-detail :deep(.md-editor-preview) h1,

@@ -5,6 +5,7 @@ import type * as VueRouter from 'vue-router'
 import TaskPlanTab from '@/features/task/components/TaskPlanTab.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useToastStore } from '@/stores/toast.store'
+import type { CommitReference } from '@/features/commits/model/commitReference'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { TaskStep, TaskStepState } from '@/features/steps/model/task-step'
 import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
@@ -364,6 +365,91 @@ describe('TaskPlanTab', () => {
     await tab.findAll('[data-testid="plan-step-title"]')[0]!.trigger('click')
 
     expect(tab.get('[data-testid="plan-band"]').find('[data-testid="plan-adherence"]').exists()).toBe(true)
+  })
+
+  function commitOn(stepId: string): CommitReference {
+    return {
+      id: 'c1', taskId, stepId: stepId as TaskStepId, stepTitle: null, componentId: null, componentName: null,
+      commitHash: 'a3f9c21', comment: 'expose the import', inContext: false, createdAt: '2026-10-01T09:30:00Z'
+    }
+  }
+
+  it('opens a claim on its evidence and folds it away from the commits chip', async () => {
+    const store = seed([makeStep('s1', 0, 'CLAIMED')])
+    store.commitReferences = [commitOn('s1')]
+    const tab = render()
+    await tab.get('[data-testid="overview-review-next"]').trigger('click')
+
+    expect(tab.find('[data-testid="step-evidence"]').exists()).toBe(true)
+
+    await tab.get('[data-testid="decision-commits"]').trigger('click')
+    expect(tab.find('[data-testid="step-evidence"]').exists()).toBe(false)
+
+    await tab.get('[data-testid="decision-commits"]').trigger('click')
+    expect(tab.find('[data-testid="step-evidence"]').exists()).toBe(true)
+  })
+
+  it('keeps the evidence of a step that was accepted behind its chip until it is asked for', async () => {
+    const store = seed([makeStep('s1', 0, 'DONE')])
+    store.commitReferences = [commitOn('s1')]
+    const tab = render()
+    await tab.get('[data-testid="plan-step-title"]').trigger('click')
+
+    expect(tab.find('[data-testid="step-evidence"]').exists()).toBe(false)
+    await tab.get('[data-testid="decision-commits"]').trigger('click')
+    expect(tab.find('[data-testid="step-evidence"]').exists()).toBe(true)
+  })
+
+  it('reopens an accepted step from the header, which asks twice, and has no dock', async () => {
+    const store = seed([makeStep('s1', 0, 'DONE')])
+    const tab = render()
+    await tab.get('[data-testid="plan-step-title"]').trigger('click')
+
+    expect(tab.find('[data-testid="decision-actions"]').exists()).toBe(false)
+    await tab.get('[data-testid="step-reopen"]').trigger('click')
+    expect(store.reopenStep).not.toHaveBeenCalled()
+    expect(tab.get('[data-testid="step-reopen"]').text()).toBe('Confirm reopen')
+
+    await tab.get('[data-testid="step-reopen"]').trigger('click')
+    await flushPromises()
+    expect(store.reopenStep).toHaveBeenCalledWith('s1')
+  })
+
+  it('shows the dock only while a decision is still to be made', async () => {
+    seed([makeStep('s1', 0, 'OPEN'), makeStep('s2', 1, 'DONE')])
+    const tab = render()
+
+    await tab.findAll('[data-testid="plan-step-title"]')[0]!.trigger('click')
+    expect(tab.get('[data-testid="decision-actions"]').find('[data-testid="decision-mark-done"]').exists()).toBe(true)
+
+    await tab.findAll('[data-testid="plan-step-title"]')[1]!.trigger('click')
+    expect(tab.find('[data-testid="decision-actions"]').exists()).toBe(false)
+  })
+
+  it('renames the step in place from its heading and saves what was typed', async () => {
+    const store = seed([makeStep('s1', 0, 'OPEN')])
+    const tab = render()
+    await tab.get('[data-testid="plan-step-title"]').trigger('click')
+
+    await tab.get('[data-testid="decision-title"]').trigger('click')
+    await tab.get('[data-testid="step-title-field"]').setValue('A better name')
+    await tab.get('[data-testid="step-title-field"]').trigger('keydown.enter')
+    await new Promise((resolve) => setTimeout(resolve, 800))
+
+    expect(store.saveStep).toHaveBeenCalledWith('s1', { title: 'A better name', bodyMarkdown: '' })
+    expect(tab.find('[data-testid="step-title-field"]').exists()).toBe(false)
+  })
+
+  it('keeps the old title when the new one is emptied', async () => {
+    seed([makeStep('s1', 0, 'OPEN')])
+    const tab = render()
+    await tab.get('[data-testid="plan-step-title"]').trigger('click')
+    await tab.get('[data-testid="decision-title"]').trigger('click')
+
+    await tab.get('[data-testid="step-title-field"]').setValue('  ')
+    await tab.get('[data-testid="step-title-field"]').trigger('keydown.enter')
+
+    expect(tab.get('[data-testid="decision-title"]').text()).toBe('Step s1')
   })
 
   it('invites the first step on a task with none', () => {
