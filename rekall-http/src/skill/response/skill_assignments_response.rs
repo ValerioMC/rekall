@@ -9,6 +9,7 @@ pub struct TaskSkillResponse {
     pub task_id: Id,
     pub step_id: Option<Id>,
     pub skill_name: String,
+    pub arguments: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -16,6 +17,7 @@ pub struct TaskSkillResponse {
 pub struct TagSkillResponse {
     pub tag_id: Id,
     pub skill_name: String,
+    pub arguments: Option<String>,
 }
 
 /// Every assignment, in rank order within each owner: what the console loads once.
@@ -32,6 +34,7 @@ impl From<TaskSkillView> for TaskSkillResponse {
             task_id: view.task_id,
             step_id: view.step_id,
             skill_name: view.skill_name,
+            arguments: view.arguments,
         }
     }
 }
@@ -41,6 +44,7 @@ impl From<TagSkillView> for TagSkillResponse {
         Self {
             tag_id: view.tag_id,
             skill_name: view.skill_name,
+            arguments: view.arguments,
         }
     }
 }
