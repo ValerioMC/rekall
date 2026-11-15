@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  assignmentsOf,
   describeSkills,
   invocationKey,
   invocationName,
@@ -35,7 +34,11 @@ describe('invocationName', () => {
       name: 'docx',
       source: { kind: 'plugin', name: 'anthropic-skills', detail: null }
     })
-    const own = summary('skills/rk/SKILL.md', { kind: 'skill', name: 'rk', source: { kind: 'own', name: 'You', detail: null } })
+    const own = summary('skills/rk/SKILL.md', {
+      kind: 'skill',
+      name: 'rk',
+      source: { kind: 'own', name: 'You', detail: null }
+    })
 
     expect(invocationName(plugin)).toBe('anthropic-skills:docx')
     expect(invocationName(own)).toBe('rk')
@@ -51,7 +54,9 @@ describe('taskSkills', () => {
   })
 
   it('reads nothing from another task or from a task with no tag', () => {
-    expect(taskSkills(other, null, owned, tagged)).toEqual([{ name: 'elsewhere', arguments: null, origin: 'task' }])
+    expect(taskSkills(other, null, owned, tagged)).toEqual([
+      { name: 'elsewhere', arguments: null, origin: 'task' }
+    ])
   })
 })
 
@@ -74,17 +79,25 @@ describe('stepSkills', () => {
 
   it('does not list a step skill the task already has', () => {
     const taskLevel = taskSkills(task, null, owned, [])
-    const duplicate: TaskSkill[] = [...owned, { taskId: task, stepId: step, skillName: 'rust-standards', arguments: null }]
+    const duplicate: TaskSkill[] = [
+      ...owned,
+      { taskId: task, stepId: step, skillName: 'rust-standards', arguments: null }
+    ]
 
-    expect(stepSkills(step, taskLevel, duplicate).filter((skill) => skill.name === 'rust-standards')).toHaveLength(1)
+    expect(
+      stepSkills(step, taskLevel, duplicate).filter((skill) => skill.name === 'rust-standards')
+    ).toHaveLength(1)
   })
 })
 
 describe('describeSkills', () => {
   it('names each skill and where it comes from, one per line', () => {
-    expect(describeSkills([{ name: 'a', arguments: null, origin: 'tag' }, { name: 'b', arguments: null, origin: 'step' }])).toBe(
-      'a, from its tag\nb, from this step'
-    )
+    expect(
+      describeSkills([
+        { name: 'a', arguments: null, origin: 'tag' },
+        { name: 'b', arguments: null, origin: 'step' }
+      ])
+    ).toBe('a, from its tag\nb, from this step')
   })
 
   it('puts a skill arguments beside its name', () => {
@@ -96,7 +109,9 @@ describe('describeSkills', () => {
 
 describe('arguments', () => {
   it('carry through from the task rows and the tag rows', () => {
-    const withArguments: TaskSkill[] = [{ taskId: task, stepId: null, skillName: 'impeccable', arguments: 'redesign' }]
+    const withArguments: TaskSkill[] = [
+      { taskId: task, stepId: null, skillName: 'impeccable', arguments: 'redesign' }
+    ]
     const fromTag: TagSkill[] = [{ tagId: tag, skillName: 'impeccable', arguments: 'polish' }]
 
     expect(taskSkills(task, tag, withArguments, fromTag)).toEqual([
@@ -106,10 +121,14 @@ describe('arguments', () => {
   })
 
   it('make the same skill with the same arguments one invocation, listed once', () => {
-    const withArguments: TaskSkill[] = [{ taskId: task, stepId: null, skillName: 'impeccable', arguments: 'redesign' }]
+    const withArguments: TaskSkill[] = [
+      { taskId: task, stepId: null, skillName: 'impeccable', arguments: 'redesign' }
+    ]
     const fromTag: TagSkill[] = [{ tagId: tag, skillName: 'impeccable', arguments: 'redesign' }]
 
-    expect(taskSkills(task, tag, withArguments, fromTag)).toEqual([{ name: 'impeccable', arguments: 'redesign', origin: 'task' }])
+    expect(taskSkills(task, tag, withArguments, fromTag)).toEqual([
+      { name: 'impeccable', arguments: 'redesign', origin: 'task' }
+    ])
   })
 
   it('list a step skill again when its arguments differ from the task one', () => {
@@ -119,7 +138,10 @@ describe('arguments', () => {
     ]
     const taskLevel = taskSkills(task, null, rows, [])
 
-    expect(stepSkills(step, taskLevel, rows).map((skill) => `${skill.origin}:${skill.arguments}`)).toEqual(['step:polish', 'task:redesign'])
+    expect(stepSkills(step, taskLevel, rows).map((skill) => `${skill.origin}:${skill.arguments}`)).toEqual([
+      'step:polish',
+      'task:redesign'
+    ])
   })
 
   it('leave out a step skill identical in name and arguments to the task one', () => {
@@ -135,21 +157,8 @@ describe('arguments', () => {
 
 describe('invocationKey', () => {
   it('differs when only the arguments differ', () => {
-    expect(invocationKey({ name: 'a', arguments: 'x' })).not.toBe(invocationKey({ name: 'a', arguments: null }))
-  })
-})
-
-describe('assignmentsOf', () => {
-  it('keeps the arguments of a name already held and gives a new one none', () => {
-    const current = [{ name: 'impeccable', arguments: 'redesign' }]
-
-    expect(assignmentsOf(['impeccable', 'rk'], current)).toEqual([
-      { name: 'impeccable', arguments: 'redesign' },
-      { name: 'rk', arguments: null }
-    ])
-  })
-
-  it('drops a name that is no longer picked', () => {
-    expect(assignmentsOf(['rk'], [{ name: 'impeccable', arguments: 'redesign' }])).toEqual([{ name: 'rk', arguments: null }])
+    expect(invocationKey({ name: 'a', arguments: 'x' })).not.toBe(
+      invocationKey({ name: 'a', arguments: null })
+    )
   })
 })

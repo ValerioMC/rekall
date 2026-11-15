@@ -4,7 +4,7 @@ import SkillChip from '@/features/skills/components/SkillChip.vue'
 import SkillGlyph from '@/features/skills/components/SkillGlyph.vue'
 import SkillPicker from '@/features/skills/components/SkillPicker.vue'
 import { useSkillCatalog } from '@/features/skills/composables/useSkillCatalog'
-import { assignmentsOf, type EffectiveSkill, type SkillAssignment } from '@/features/skills/model/skill-assignment'
+import type { EffectiveSkill, SkillAssignment } from '@/features/skills/model/skill-assignment'
 
 /**
  * The skills of one owner as chips, with the button that opens the catalogue to change them.
@@ -25,9 +25,9 @@ const skills = defineModel<readonly SkillAssignment[]>({ required: true })
 
 const { names: known, loaded } = useSkillCatalog()
 const open = ref(false)
+const editing = ref<string | null>(null)
 const addButton = ref<HTMLElement | null>(null)
 
-const ownNames = computed(() => skills.value.map((skill) => skill.name))
 const inheritedNames = computed(() => props.inherited.map((skill) => skill.name))
 const isMissing = (name: string): boolean => loaded.value && !known.value.has(name)
 
@@ -35,8 +35,14 @@ function remove(name: string): void {
   skills.value = skills.value.filter((candidate) => candidate.name !== name)
 }
 
-function pick(names: readonly string[]): void {
-  skills.value = assignmentsOf(names, skills.value)
+function editArguments(name: string): void {
+  editing.value = name
+  open.value = true
+}
+
+function toggleCatalogue(): void {
+  editing.value = null
+  open.value = !open.value
 }
 </script>
 
@@ -46,6 +52,7 @@ function pick(names: readonly string[]): void {
       v-for="skill in inherited"
       :key="`inherited:${skill.name}`"
       :name="skill.name"
+      :arguments="skill.arguments"
       :origin="skill.origin"
       :missing="isMissing(skill.name)"
       :removable="false"
@@ -54,8 +61,11 @@ function pick(names: readonly string[]): void {
       v-for="skill in skills"
       :key="skill.name"
       :name="skill.name"
+      :arguments="skill.arguments"
       :origin="ownOrigin"
       :missing="isMissing(skill.name)"
+      editable
+      @edit="editArguments(skill.name)"
       @remove="remove(skill.name)"
     />
     <button
@@ -66,18 +76,19 @@ function pick(names: readonly string[]): void {
       aria-haspopup="dialog"
       :aria-label="`Add a skill to this ${owner}`"
       data-testid="skill-add"
-      @click="open = !open"
+      @click="toggleCatalogue"
     >
       <SkillGlyph :size="11" />
       {{ skills.length + inherited.length ? 'Add' : 'Add a skill' }}
     </button>
     <SkillPicker
       v-if="open && addButton"
-      :model-value="ownNames"
+      :model-value="skills"
       :anchor="addButton"
+      :focus-name="editing"
       :inherited="inheritedNames"
       :title="`Skills for this ${owner}`"
-      @update:model-value="pick"
+      @update:model-value="skills = $event"
       @close="open = false"
     />
   </div>

@@ -275,6 +275,31 @@ archive, not as a list that has gone dim.
 A tag badge (`tag-chip`) is the tag picker's quiet key: a neutral face warmed a few percent by the
 tag's colour, a tinted hairline, and the colour itself carried by the glowing icon.
 
+## Skills
+
+A skill is a chip, `name · arguments`: the name in monospace, the arguments after a dim dot in
+the text face, cut with an ellipsis before the name is (the name keeps its width, up to 26
+characters) and whole in the chip's tooltip. The task bar, the step panel, the new-task dialog,
+the tag editor and the line that adds a step all draw the same chip, so a skill reads the same
+wherever it is assigned. A skill the owner holds is a solid chip: its name and arguments are one
+button that opens the catalogue on that skill's arguments, and its cross takes the skill off. A
+skill a wider scope already brings (the task's and the tag's, on a step) is a dashed chip that
+shows its arguments too, and is read-only: changing it is done where it is assigned.
+
+The catalogue is the one place a skill is chosen. Ticking a row opens a field under it, "Arguments,
+optional", capped at 300 characters like the server; unticking removes the skill with its
+arguments. Ticking is a save of the owner's whole list, but arguments are saved when the field is
+left, on Enter, or when the panel closes, never per keystroke: Enter ends the typing and gives
+the keyboard back to the filter, it does not tick the highlighted row. A blank field is no
+arguments. Opened from a chip, the panel puts the keyboard on that skill's field. A skill that is
+no longer under `~/.claude` is listed on top with its own field, so its arguments can still be
+read and changed. A name a wider scope brings is ticked and locked ("already on the task") unless
+the owner also holds it, in which case it is an ordinary row: the same skill with other arguments
+is its own invocation.
+
+The panel hangs from its button, above it when the button sits low, 380px wide and never wider
+than the screen less its gutters, so on a phone the field spans the row under the ticked skill.
+
 ## Tokens, not values
 
 Every size, corner, grey and tempo a component uses is a token in `main.css`, because values

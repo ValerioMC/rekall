@@ -25,7 +25,11 @@ describe('useSkillAssignments', () => {
     await useSkillAssignments(state).assignTaskSkills(task, [{ name: 'new', arguments: null }])
 
     expect(api.setTaskSkills).toHaveBeenCalledWith(task, [{ name: 'new', arguments: null }])
-    expect(state.taskSkills.value.map((skill) => skill.skillName).sort()).toEqual(['new', 'of-the-step', 'other-task'])
+    expect(state.taskSkills.value.map((skill) => skill.skillName).sort()).toEqual([
+      'new',
+      'of-the-step',
+      'other-task'
+    ])
   })
 
   it('replaces one step skills and nothing else', async () => {
@@ -59,7 +63,9 @@ describe('useSkillAssignments', () => {
     state.tagSkills.value = [{ tagId: tag, skillName: 'old', arguments: null }]
     api.setTagSkills.mockRejectedValue(new Error('refused'))
 
-    await expect(useSkillAssignments(state).assignTagSkills(tag, [{ name: 'new', arguments: null }])).rejects.toThrow('refused')
+    await expect(
+      useSkillAssignments(state).assignTagSkills(tag, [{ name: 'new', arguments: null }])
+    ).rejects.toThrow('refused')
 
     expect(state.tagSkills.value.map((skill) => skill.skillName)).toEqual(['old'])
   })
@@ -69,7 +75,9 @@ describe('useSkillAssignments, arguments', () => {
   it('sends the arguments with the name and keeps the ones the server answers', async () => {
     const state = createConsoleState()
     const skills = [{ name: 'impeccable', arguments: 'redesign website ui' }]
-    api.setTaskSkills.mockResolvedValue([{ taskId: task, stepId: null, skillName: 'impeccable', arguments: 'redesign website ui' }])
+    api.setTaskSkills.mockResolvedValue([
+      { taskId: task, stepId: null, skillName: 'impeccable', arguments: 'redesign website ui' }
+    ])
 
     await useSkillAssignments(state).assignTaskSkills(task, skills)
 
@@ -80,7 +88,9 @@ describe('useSkillAssignments, arguments', () => {
   it('replaces the arguments of a step skill with the list it sends', async () => {
     const state = createConsoleState()
     state.taskSkills.value = [{ taskId: task, stepId: step, skillName: 'impeccable', arguments: 'redesign' }]
-    api.setStepSkills.mockResolvedValue([{ taskId: task, stepId: step, skillName: 'impeccable', arguments: 'polish' }])
+    api.setStepSkills.mockResolvedValue([
+      { taskId: task, stepId: step, skillName: 'impeccable', arguments: 'polish' }
+    ])
 
     await useSkillAssignments(state).assignStepSkills(step, [{ name: 'impeccable', arguments: 'polish' }])
 

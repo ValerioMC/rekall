@@ -5,6 +5,7 @@ import SkillGlyph from '@/features/skills/components/SkillGlyph.vue'
 import SkillPicker from '@/features/skills/components/SkillPicker.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import type { SkillAssignment } from '@/features/skills/model/skill-assignment'
 
 /**
  * The line at the foot of the checklist that names a new step, which starts as a draft. The
@@ -12,24 +13,32 @@ import AppInput from '@/components/ui/AppInput.vue'
  * session toggle makes the step open a fresh Claude session instead of joining the running one.
  */
 const title = defineModel<string>({ required: true })
-const skills = defineModel<readonly string[]>('skills', { default: () => [] })
+const skills = defineModel<readonly SkillAssignment[]>('skills', { default: () => [] })
 const newSession = defineModel<boolean>('newSession', { default: false })
 
 defineEmits<{ submit: [] }>()
 
 const picking = ref(false)
+const editing = ref<string | null>(null)
 const pickButton = ref<HTMLElement | null>(null)
 
 function remove(name: string): void {
-  skills.value = skills.value.filter((candidate) => candidate !== name)
+  skills.value = skills.value.filter((candidate) => candidate.name !== name)
+}
+
+function editArguments(name: string): void {
+  editing.value = name
+  picking.value = true
+}
+
+function toggleCatalogue(): void {
+  editing.value = null
+  picking.value = !picking.value
 }
 </script>
 
 <template>
-  <form
-    class="shrink-0 border-t border-border bg-surface px-5 py-3"
-    @submit.prevent="$emit('submit')"
-  >
+  <form class="shrink-0 border-t border-border bg-surface px-5 py-3" @submit.prevent="$emit('submit')">
     <div class="flex items-center gap-2">
       <span
         class="grid size-[22px] shrink-0 place-items-center rounded-full border border-dashed border-border-strong text-text-subtle"
@@ -58,7 +67,7 @@ function remove(name: string): void {
         aria-haspopup="dialog"
         aria-label="Choose skills for the new step"
         data-testid="new-step-skills"
-        @click="picking = !picking"
+        @click="toggleCatalogue"
       >
         <SkillGlyph :size="12" />
         <span v-if="skills.length" class="tabular-nums">{{ skills.length }}</span>
@@ -87,12 +96,22 @@ function remove(name: string): void {
       class="mt-2 flex flex-wrap gap-1.5 pl-[30px]"
       data-testid="new-step-skill-chips"
     >
-      <SkillChip v-for="name in skills" :key="name" :name="name" origin="step" @remove="remove(name)" />
+      <SkillChip
+        v-for="skill in skills"
+        :key="skill.name"
+        :name="skill.name"
+        :arguments="skill.arguments"
+        origin="step"
+        editable
+        @edit="editArguments(skill.name)"
+        @remove="remove(skill.name)"
+      />
     </div>
     <SkillPicker
       v-if="picking && pickButton"
       :model-value="skills"
       :anchor="pickButton"
+      :focus-name="editing"
       title="Skills for the new step"
       @update:model-value="skills = $event"
       @close="picking = false"

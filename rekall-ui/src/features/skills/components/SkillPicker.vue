@@ -1,31 +1,39 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import SkillChip from '@/features/skills/components/SkillChip.vue'
+import SkillArgumentsInput from '@/features/skills/components/SkillArgumentsInput.vue'
 import SkillGlyph from '@/features/skills/components/SkillGlyph.vue'
 import { enterDialog, leaveDialog } from '@/common/a11y/dialog-stack'
 import { useSkillCatalog } from '@/features/skills/composables/useSkillCatalog'
-import { filterSkillOptions, groupSkillOptions, type SkillOption } from '@/features/skills/model/skill-options'
-import { SKILLS_PER_OWNER_MAX } from '@/features/skills/model/skill-assignment'
+import {
+  filterSkillOptions,
+  groupSkillOptions,
+  type SkillOption
+} from '@/features/skills/model/skill-options'
+import { SKILLS_PER_OWNER_MAX, type SkillAssignment } from '@/features/skills/model/skill-assignment'
 
 /**
  * The catalogue of Claude skills, hung from the button that opened it, to tick any number of
  * them. Every tick is sent up at once, so the owner's list is always what the panel shows. A
- * name the owner holds that is no longer under `~/.claude` stays on top, to be taken off.
+ * ticked skill opens a field under its row for the arguments it is invoked with. A skill the
+ * owner holds that is no longer under `~/.claude` stays on top, to be taken off.
  * It opens above a modal and takes the keyboard from it, so Escape closes the panel alone.
  */
 const props = withDefaults(
   defineProps<{
-    modelValue: readonly string[]
+    modelValue: readonly SkillAssignment[]
     /** The element the panel hangs from: its left edge is the panel's left edge. */
     anchor: HTMLElement
     /** Skills already in force from a wider scope; shown ticked and left alone. */
     inherited?: readonly string[]
     title?: string
+    /** The held skill whose arguments take the keyboard when the panel opens. */
+    focusName?: string | null
   }>(),
-  { inherited: () => [], title: 'Skills' }
+  { inherited: () => [], title: 'Skills', focusName: null }
 )
 
-const emit = defineEmits<{ 'update:modelValue': [names: string[]]; close: [] }>()
+const emit = defineEmits<{ 'update:modelValue': [skills: SkillAssignment[]]; close: [] }>()
 
 const WIDTH = 380
 const GUTTER = 8
@@ -41,29 +49,58 @@ const position = ref({ top: 0, left: 0, width: 0, opensUp: false })
 
 const shown = computed(() => filterSkillOptions(options.value, filter.value))
 const groups = computed(() => groupSkillOptions(shown.value))
-const missing = computed(() => props.modelValue.filter((name) => loaded.value && !known.value.has(name)))
+const missing = computed(() =>
+  props.modelValue.filter((skill) => loaded.value && !known.value.has(skill.name))
+)
 const full = computed(() => props.modelValue.length >= SKILLS_PER_OWNER_MAX)
 
+function held(name: string): SkillAssignment | undefined {
+  return props.modelValue.find((skill) => skill.name === name)
+}
+
+function argumentsOf(name: string): string | null {
+  return held(name)?.arguments ?? null
+}
+
 function chosen(option: SkillOption): boolean {
-  return props.modelValue.includes(option.name)
+  return held(option.name) !== undefined
 }
 
 function fromWiderScope(option: SkillOption): boolean {
-  return props.inherited.includes(option.name)
+  return props.inherited.includes(option.name) && !chosen(option)
 }
 
 function toggle(option: SkillOption): void {
   if (fromWiderScope(option)) return
   if (chosen(option)) return remove(option.name)
   if (full.value) return
-  emit('update:modelValue', [...props.modelValue, option.name])
+  emit('update:modelValue', [...props.modelValue, { name: option.name, arguments: null }])
 }
 
 function remove(name: string): void {
   emit(
     'update:modelValue',
-    props.modelValue.filter((candidate) => candidate !== name)
+    props.modelValue.filter((candidate) => candidate.name !== name)
   )
+}
+
+function setArguments(name: string, value: string | null): void {
+  emit(
+    'update:modelValue',
+    props.modelValue.map((skill) => (skill.name === name ? { name, arguments: value } : skill))
+  )
+}
+
+function focusArguments(name: string): boolean {
+  const fields = panel.value?.querySelectorAll<HTMLInputElement>('[data-arguments-for]') ?? []
+  const field = Array.from(fields).find((candidate) => candidate.dataset.argumentsFor === name)
+  field?.focus()
+  field?.scrollIntoView({ block: 'nearest' })
+  return field !== undefined
+}
+
+function isArgumentsField(target: EventTarget | null): target is HTMLInputElement {
+  return target instanceof HTMLInputElement && target.dataset.argumentsFor !== undefined
 }
 
 function indexOf(option: SkillOption): number {
@@ -93,6 +130,7 @@ function onKeydown(event: KeyboardEvent): void {
     emit('close')
     return
   }
+  if (isArgumentsField(event.target)) return leaveArgumentsField(event)
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     event.preventDefault()
     event.stopPropagation()
@@ -114,6 +152,14 @@ function onKeydown(event: KeyboardEvent): void {
   event.stopPropagation()
 }
 
+function leaveArgumentsField(event: KeyboardEvent): void {
+  event.stopPropagation()
+  if (event.key !== 'Enter') return
+  event.preventDefault()
+  ;(event.target as HTMLInputElement).blur()
+  filterField.value?.focus()
+}
+
 function onPointerDown(event: PointerEvent): void {
   const target = event.target as Node | null
   if (!target || panel.value?.contains(target) || props.anchor.contains(target)) return
@@ -127,6 +173,7 @@ onMounted(async () => {
   window.addEventListener('pointerdown', onPointerDown, true)
   window.addEventListener('resize', place)
   await nextTick()
+  if (props.focusName && focusArguments(props.focusName)) return
   filterField.value?.focus()
 })
 
@@ -176,8 +223,15 @@ onUnmounted(() => {
 
       <div v-if="missing.length" class="border-b border-border px-3 py-2" data-testid="skill-picker-missing">
         <p class="eyebrow mb-1.5 text-micro">Not in ~/.claude any more</p>
-        <div class="flex flex-wrap gap-1.5">
-          <SkillChip v-for="name in missing" :key="name" :name="name" missing @remove="remove(name)" />
+        <div class="flex flex-col gap-1.5">
+          <div v-for="skill in missing" :key="skill.name" class="flex min-w-0 flex-col items-start gap-1">
+            <SkillChip :name="skill.name" :arguments="skill.arguments" missing @remove="remove(skill.name)" />
+            <SkillArgumentsInput
+              :name="skill.name"
+              :model-value="skill.arguments"
+              @update:model-value="setArguments(skill.name, $event)"
+            />
+          </div>
         </div>
       </div>
 
@@ -200,56 +254,63 @@ onUnmounted(() => {
         <div v-else role="listbox" aria-multiselectable="true" :aria-label="title">
           <section v-for="group in groups" :key="group.provider">
             <h3 class="eyebrow sticky top-0 bg-surface px-3.5 pb-1 pt-2 text-micro">{{ group.provider }}</h3>
-            <button
-              v-for="option in group.options"
-              :key="option.name"
-              type="button"
-              role="option"
-              class="focus-ring relative flex w-full items-start gap-2.5 px-3.5 py-1.5 text-left transition-colors disabled:cursor-default"
-              :class="indexOf(option) === highlighted ? 'bg-surface-raised' : 'hover:bg-surface-raised'"
-              :aria-selected="chosen(option) || fromWiderScope(option)"
-              :disabled="fromWiderScope(option) || (full && !chosen(option))"
-              :data-row-index="indexOf(option)"
-              data-testid="skill-picker-row"
-              @mousemove="highlighted = indexOf(option)"
-              @click="toggle(option)"
-            >
-              <span
-                class="mt-0.5 grid size-4 shrink-0 place-items-center rounded-key border"
-                :class="
-                  chosen(option) || fromWiderScope(option)
-                    ? 'border-anchor bg-anchor text-canvas'
-                    : 'border-border-strong'
-                "
-                aria-hidden="true"
+            <div v-for="option in group.options" :key="option.name">
+              <button
+                type="button"
+                role="option"
+                class="focus-ring relative flex w-full items-start gap-2.5 px-3.5 py-1.5 text-left transition-colors disabled:cursor-default"
+                :class="indexOf(option) === highlighted ? 'bg-surface-raised' : 'hover:bg-surface-raised'"
+                :aria-selected="chosen(option) || fromWiderScope(option)"
+                :disabled="fromWiderScope(option) || (full && !chosen(option))"
+                :data-row-index="indexOf(option)"
+                data-testid="skill-picker-row"
+                @mousemove="highlighted = indexOf(option)"
+                @click="toggle(option)"
               >
-                <svg
-                  v-if="chosen(option) || fromWiderScope(option)"
-                  class="size-2.5"
-                  viewBox="0 0 10 10"
-                  fill="none"
+                <span
+                  class="mt-0.5 grid size-4 shrink-0 place-items-center rounded-key border"
+                  :class="
+                    chosen(option) || fromWiderScope(option)
+                      ? 'border-anchor bg-anchor text-canvas'
+                      : 'border-border-strong'
+                  "
+                  aria-hidden="true"
                 >
-                  <path
-                    d="M2 5.2l2 2 4-4.4"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </span>
-              <span class="min-w-0 flex-1">
-                <span class="flex min-w-0 items-center gap-2">
-                  <span class="truncate font-mono text-small font-medium text-text">{{ option.name }}</span>
-                  <span v-if="fromWiderScope(option)" class="shrink-0 text-micro text-text-subtle"
-                    >already on the task</span
+                  <svg
+                    v-if="chosen(option) || fromWiderScope(option)"
+                    class="size-2.5"
+                    viewBox="0 0 10 10"
+                    fill="none"
                   >
+                    <path
+                      d="M2 5.2l2 2 4-4.4"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
                 </span>
-                <span v-if="option.description" class="line-clamp-2 text-caption text-text-subtle">{{
-                  option.description
-                }}</span>
-              </span>
-            </button>
+                <span class="min-w-0 flex-1">
+                  <span class="flex min-w-0 items-center gap-2">
+                    <span class="truncate font-mono text-small font-medium text-text">{{ option.name }}</span>
+                    <span v-if="fromWiderScope(option)" class="shrink-0 text-micro text-text-subtle"
+                      >already on the task</span
+                    >
+                  </span>
+                  <span v-if="option.description" class="line-clamp-2 text-caption text-text-subtle">{{
+                    option.description
+                  }}</span>
+                </span>
+              </button>
+              <div v-if="chosen(option)" class="px-3.5 pb-1.5 pl-[2.375rem]">
+                <SkillArgumentsInput
+                  :name="option.name"
+                  :model-value="argumentsOf(option.name)"
+                  @update:model-value="setArguments(option.name, $event)"
+                />
+              </div>
+            </div>
           </section>
         </div>
       </div>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import SkillGlyph from '@/features/skills/components/SkillGlyph.vue'
 import type { SkillOrigin } from '@/features/skills/model/skill-assignment'
 
@@ -9,21 +10,32 @@ import type { SkillOrigin } from '@/features/skills/model/skill-assignment'
 const props = withDefaults(
   defineProps<{
     name: string
+    /** The free text the skill is invoked with, drawn after the name. */
+    arguments?: string | null
     origin?: SkillOrigin
+    /** The name and arguments are a button that asks to edit them. */
+    editable?: boolean
     /** The skill is no longer under `~/.claude`, so a session could not invoke it. */
     missing?: boolean
     removable?: boolean
   }>(),
-  { origin: 'task', missing: false, removable: true }
+  { arguments: null, origin: 'task', missing: false, removable: true, editable: false }
 )
 
-defineEmits<{ remove: [] }>()
+defineEmits<{ remove: []; edit: [] }>()
 
 const originNote: Record<SkillOrigin, string> = {
   step: 'assigned to this step',
   task: 'assigned to this task',
   tag: "from the task's tag"
 }
+
+const description = computed(() => {
+  const named = props.arguments ? `${props.name} ${props.arguments}` : props.name
+  return props.missing
+    ? `${named} is not in ~/.claude, ${originNote[props.origin]}`
+    : `${named}, ${originNote[props.origin]}`
+})
 </script>
 
 <template>
@@ -36,16 +48,28 @@ const originNote: Record<SkillOrigin, string> = {
         : 'border-anchor-line bg-anchor-soft text-anchor',
       props.missing && 'border-danger/50 text-danger'
     ]"
-    :title="
-      props.missing
-        ? `${props.name} is not in ~/.claude, ${originNote[props.origin]}`
-        : `${props.name}, ${originNote[props.origin]}`
-    "
+    :title="description"
     data-testid="skill-chip"
     :data-origin="props.origin"
   >
-    <SkillGlyph :size="11" />
-    <span class="truncate">{{ props.name }}</span>
+    <component
+      :is="props.editable ? 'button' : 'span'"
+      :type="props.editable ? 'button' : undefined"
+      class="flex min-w-0 items-center gap-1"
+      :class="props.editable && 'focus-ring -ml-1 rounded-key pl-1 transition-opacity hover:opacity-80'"
+      :aria-label="props.editable ? `Edit arguments of skill ${props.name}` : undefined"
+      :data-testid="props.editable ? 'skill-chip-edit' : undefined"
+      @click="props.editable && $emit('edit')"
+    >
+      <SkillGlyph :size="11" />
+      <span class="max-w-[26ch] shrink-0 truncate">{{ props.name }}</span>
+      <template v-if="props.arguments">
+        <span class="opacity-50" aria-hidden="true">·</span>
+        <span class="max-w-[22ch] min-w-0 truncate font-sans opacity-80" data-testid="skill-chip-arguments">{{
+          props.arguments
+        }}</span>
+      </template>
+    </component>
     <button
       v-if="props.removable && props.origin !== 'tag'"
       type="button"

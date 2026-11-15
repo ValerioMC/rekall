@@ -19,11 +19,17 @@ function replace(path: string, skills: readonly SkillAssignment[]): Promise<unkn
   return apiClient(path, { method: 'PUT', body })
 }
 
-export async function setTaskSkills(taskId: TaskId, skills: readonly SkillAssignment[]): Promise<TaskSkill[]> {
+export async function setTaskSkills(
+  taskId: TaskId,
+  skills: readonly SkillAssignment[]
+): Promise<TaskSkill[]> {
   return request(async () => TaskSkillListSchema.parse(await replace(`/api/tasks/${taskId}/skills`, skills)))
 }
 
-export async function setStepSkills(stepId: TaskStepId, skills: readonly SkillAssignment[]): Promise<TaskSkill[]> {
+export async function setStepSkills(
+  stepId: TaskStepId,
+  skills: readonly SkillAssignment[]
+): Promise<TaskSkill[]> {
   return request(async () => TaskSkillListSchema.parse(await replace(`/api/steps/${stepId}/skills`, skills)))
 }
 

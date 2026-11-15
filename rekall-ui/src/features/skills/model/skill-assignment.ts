@@ -31,6 +31,9 @@ export interface EffectiveSkill extends SkillAssignment {
 
 export const SKILLS_PER_OWNER_MAX = 20
 
+/** What the server accepts as a skill's arguments, counted in UTF-16 units like the input's `maxlength`. */
+export const SKILL_ARGUMENTS_MAX = 300
+
 /** What a session types after the slash: a plugin's skill is `plugin:skill`, any other its own name. */
 export function invocationName(skill: ResourceSummary): string {
   return skill.source?.kind === 'plugin' ? `${skill.source.name}:${skill.name}` : skill.name
@@ -39,11 +42,6 @@ export function invocationName(skill: ResourceSummary): string {
 /** What identifies an invocation: the same skill with other arguments is another one. */
 export function invocationKey(skill: SkillAssignment): string {
   return JSON.stringify([skill.name, skill.arguments])
-}
-
-/** `names` as assignments: a name already in `current` keeps its arguments, any other has none. */
-export function assignmentsOf(names: readonly string[], current: readonly SkillAssignment[]): SkillAssignment[] {
-  return names.map((name) => current.find((skill) => skill.name === name) ?? { name, arguments: null })
 }
 
 /** The skills a tag brings to every task under it. */
@@ -62,9 +60,15 @@ export function taskSkills(
   tagged: readonly TagSkill[]
 ): readonly EffectiveSkill[] {
   const own = owned.filter((skill) => skill.taskId === taskId && skill.stepId === null)
-  const held = new Set(own.map((skill) => invocationKey({ name: skill.skillName, arguments: skill.arguments })))
+  const held = new Set(
+    own.map((skill) => invocationKey({ name: skill.skillName, arguments: skill.arguments }))
+  )
   return [
-    ...own.map((skill): EffectiveSkill => ({ name: skill.skillName, arguments: skill.arguments, origin: 'task' })),
+    ...own.map((skill): EffectiveSkill => ({
+      name: skill.skillName,
+      arguments: skill.arguments,
+      origin: 'task'
+    })),
     ...skillsOfTag(tagId, tagged).filter((skill) => !held.has(invocationKey(skill)))
   ]
 }
