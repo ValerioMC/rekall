@@ -8,20 +8,24 @@ import ClaudeCodeSection from '@/features/settings/components/ClaudeCodeSection.
 import ConnectionsSection from '@/features/settings/components/ConnectionsSection.vue'
 import DatabaseSection from '@/features/settings/components/DatabaseSection.vue'
 import GuardProtectionSection from '@/features/settings/components/GuardProtectionSection.vue'
+import HelpSection from '@/features/settings/components/HelpSection.vue'
 import KeyboardSection from '@/features/settings/components/KeyboardSection.vue'
 import LangfuseSection from '@/features/settings/components/LangfuseSection.vue'
 import NotificationsSection from '@/features/settings/components/NotificationsSection.vue'
 import ReviewSection from '@/features/settings/components/ReviewSection.vue'
 import TimeUsageSection from '@/features/settings/components/TimeUsageSection.vue'
 import VersionSection from '@/features/settings/components/VersionSection.vue'
-import { SETTINGS_SECTIONS, SETTINGS_SECTION_LABEL, settingsSectionOf } from '@/features/settings/model/settings-section'
+import SettingsRail from '@/features/settings/components/SettingsRail.vue'
+import { helpContextOf } from '@/features/settings/model/help-context'
+import { settingsSectionOf } from '@/features/settings/model/settings-section'
 import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
 
-/** Settings at `/settings/:section?`: a rail of sections beside the one open. */
+/** Settings at `/settings/:section?/:topic?`: a grouped rail beside the section open; Help takes a topic from the rail. */
 const route = useRoute()
 const claudeConnection = useClaudeConnectionStore()
 
 const section = computed(() => settingsSectionOf(typeof route.params.section === 'string' ? route.params.section : undefined))
+const helpTopic = computed(() => helpContextOf(typeof route.params.topic === 'string' ? route.params.topic : undefined).id)
 
 // Settings is where the Claude registration gets repaired or changed by hand, so read it again on leaving.
 onUnmounted(() => void claudeConnection.load().catch(() => undefined))
@@ -31,21 +35,9 @@ onUnmounted(() => void claudeConnection.load().catch(() => undefined))
   <div class="min-h-0 flex-1 overflow-y-auto bg-canvas" data-testid="settings-page">
     <AppCatalogHeader title="Settings" />
     <div class="mx-auto grid max-w-[1100px] gap-8 px-8 py-6 min-[860px]:grid-cols-[220px_minmax(0,1fr)]">
-      <nav class="flex flex-row flex-wrap gap-1 min-[860px]:flex-col" aria-label="Settings sections" data-testid="settings-rail">
-        <RouterLink
-          v-for="id in SETTINGS_SECTIONS"
-          :key="id"
-          :to="`/settings/${id}`"
-          class="focus-ring rounded-control px-3 py-2 text-body transition-colors"
-          :class="section === id ? 'bg-surface-raised text-text' : 'text-text-muted hover:bg-surface-hover hover:text-text'"
-          :aria-current="section === id ? 'page' : undefined"
-          :data-testid="`settings-rail-${id}`"
-        >
-          {{ SETTINGS_SECTION_LABEL[id] }}
-        </RouterLink>
-      </nav>
+      <SettingsRail :section="section" :topic="helpTopic" />
 
-      <main class="min-w-0 max-w-[620px]">
+      <main class="min-w-0" :class="section === 'help' ? 'max-w-[820px]' : 'max-w-[620px]'">
         <DatabaseSection v-if="section === 'general'" />
         <AppearanceSection v-else-if="section === 'appearance'" />
         <ReviewSection v-else-if="section === 'review'" />
@@ -62,6 +54,7 @@ onUnmounted(() => void claudeConnection.load().catch(() => undefined))
           <LangfuseSection class="border-t border-border pt-5" />
         </div>
         <KeyboardSection v-else-if="section === 'keyboard'" />
+        <HelpSection v-else-if="section === 'help'" :context-id="helpTopic" />
         <VersionSection v-else />
       </main>
     </div>

@@ -12,7 +12,7 @@ vi.mock('@/features/settings/components/DatabaseSection.vue', () => ({ default: 
 vi.mock('@/features/settings/components/VersionSection.vue', () => ({ default: { template: '<div data-testid="version-section" />' } }))
 
 async function mountAt(path: string) {
-  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/settings/:section?', name: 'settings', component: { render: () => null } }, { path: '/:p(.*)*', component: { render: () => null } }] })
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/settings/:section?/:topic?', name: 'settings', component: { render: () => null } }, { path: '/:p(.*)*', component: { render: () => null } }] })
   await router.push(path)
   const page = mountWithHeaderChrome(SettingsPage, { global: { plugins: [router] } })
   await flushPromises()
@@ -25,13 +25,28 @@ describe('the Settings screen', () => {
     setActivePinia(createPinia())
   })
 
-  it('opens on General and lists every section in the rail', async () => {
+  it('opens on General and lists every section in the rail, grouped', async () => {
     const page = await mountAt('/settings')
 
     expect(page.find('[data-testid="database-section"]').exists()).toBe(true)
-    expect(page.findAll('[data-testid="settings-rail"] a').map((link) => link.text())).toEqual([
-      'General', 'Appearance', 'Review', 'Sessions and run queue', 'Notifications', 'Time and usage', 'Connections', 'Data and backup', 'Keyboard', 'About'
+    expect(page.findAll('[data-testid="settings-rail"] > div > p').map((group) => group.text())).toEqual(['Workspace', 'Work', 'Console', 'Reference'])
+    expect(page.findAll('[data-testid="settings-rail"] > div > div > a').map((link) => link.text())).toEqual([
+      'General', 'Connections', 'Data and backup', 'Sessions and run queue', 'Review', 'Time and usage', 'Notifications', 'Appearance', 'Keyboard', 'Help', 'About'
     ])
+  })
+
+  it('opens Help on the topic the address names, with the topics listed under Help in the rail', async () => {
+    const page = await mountAt('/settings/help/steps')
+
+    expect(page.get('[data-testid="help-panel"]').attributes('aria-label')).toBe('Steps')
+    expect(page.get('[data-testid="settings-help-topic-steps"]').attributes('aria-current')).toBe('page')
+    expect(page.findAll('[data-testid="settings-help-topics"] a')).toHaveLength(9)
+  })
+
+  it('lists the Help topics only while Help is open', async () => {
+    const page = await mountAt('/settings/appearance')
+
+    expect(page.find('[data-testid="settings-help-topics"]').exists()).toBe(false)
   })
 
   it('opens the section the address names', async () => {

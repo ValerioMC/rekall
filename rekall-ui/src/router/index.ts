@@ -55,7 +55,7 @@ export const router = createRouter({
       component: () => import('@/features/claude-resources/components/ClaudeResourcesPage.vue')
     },
     {
-      path: '/settings/:section?',
+      path: '/settings/:section?/:topic?',
       name: 'settings',
       component: () => import('@/features/settings/components/SettingsPage.vue')
     },
