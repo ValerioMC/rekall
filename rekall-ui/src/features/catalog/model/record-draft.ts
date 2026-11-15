@@ -1,4 +1,5 @@
 import type { CompanyId, ProjectId, TagId, TaskId } from '../../../model/branded'
+import type { SkillAssignment } from '../../skills/model/skill-assignment'
 import type { Company, Project, Task, TaskKind } from './catalog'
 import type { ProjectStatus } from './project-status'
 import type { TaskStatus } from './task-status'
@@ -42,7 +43,7 @@ export type RecordDraft =
       /** The epic of the same project the task belongs to; always null on an epic. */
       epicId: TaskId | null
       /** The skills a new task starts with; an existing task's are changed on its own pane. */
-      skills: string[]
+      skills: SkillAssignment[]
     }
 
 export function titleOf(draft: RecordDraft): string {

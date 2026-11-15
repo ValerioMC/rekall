@@ -11,6 +11,7 @@ import { TASK_STATUSES, TASK_STATUS_LABEL } from '@/features/catalog/model/task-
 import { epicChoices } from '@/features/catalog/model/epic'
 import { taskCodeOf } from '@/features/catalog/model/task-code'
 import type { TaskDraft } from '@/features/catalog/model/record-draft'
+import type { SkillAssignment } from '@/features/skills/model/skill-assignment'
 import { useConsoleStore } from '@/stores/console.store'
 import type { ProjectId } from '@/model/branded'
 
@@ -41,7 +42,7 @@ function moveToProject(projectId: string): void {
   draft.value.projectId = projectId as ProjectId
 }
 
-function setSkills(skills: readonly string[]): void {
+function setSkills(skills: readonly SkillAssignment[]): void {
   draft.value.skills = [...skills]
 }
 </script>

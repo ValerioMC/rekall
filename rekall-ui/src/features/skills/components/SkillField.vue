@@ -4,7 +4,7 @@ import SkillChip from '@/features/skills/components/SkillChip.vue'
 import SkillGlyph from '@/features/skills/components/SkillGlyph.vue'
 import SkillPicker from '@/features/skills/components/SkillPicker.vue'
 import { useSkillCatalog } from '@/features/skills/composables/useSkillCatalog'
-import type { EffectiveSkill } from '@/features/skills/model/skill-assignment'
+import { assignmentsOf, type EffectiveSkill, type SkillAssignment } from '@/features/skills/model/skill-assignment'
 
 /**
  * The skills of one owner as chips, with the button that opens the catalogue to change them.
@@ -21,17 +21,22 @@ const props = withDefaults(
   { inherited: () => [], ownOrigin: 'task' }
 )
 
-const skills = defineModel<readonly string[]>({ required: true })
+const skills = defineModel<readonly SkillAssignment[]>({ required: true })
 
 const { names: known, loaded } = useSkillCatalog()
 const open = ref(false)
 const addButton = ref<HTMLElement | null>(null)
 
+const ownNames = computed(() => skills.value.map((skill) => skill.name))
 const inheritedNames = computed(() => props.inherited.map((skill) => skill.name))
 const isMissing = (name: string): boolean => loaded.value && !known.value.has(name)
 
 function remove(name: string): void {
-  skills.value = skills.value.filter((candidate) => candidate !== name)
+  skills.value = skills.value.filter((candidate) => candidate.name !== name)
+}
+
+function pick(names: readonly string[]): void {
+  skills.value = assignmentsOf(names, skills.value)
 }
 </script>
 
@@ -46,12 +51,12 @@ function remove(name: string): void {
       :removable="false"
     />
     <SkillChip
-      v-for="name in skills"
-      :key="name"
-      :name="name"
+      v-for="skill in skills"
+      :key="skill.name"
+      :name="skill.name"
       :origin="ownOrigin"
-      :missing="isMissing(name)"
-      @remove="remove(name)"
+      :missing="isMissing(skill.name)"
+      @remove="remove(skill.name)"
     />
     <button
       ref="addButton"
@@ -68,11 +73,11 @@ function remove(name: string): void {
     </button>
     <SkillPicker
       v-if="open && addButton"
-      :model-value="skills"
+      :model-value="ownNames"
       :anchor="addButton"
       :inherited="inheritedNames"
       :title="`Skills for this ${owner}`"
-      @update:model-value="skills = $event"
+      @update:model-value="pick"
       @close="open = false"
     />
   </div>

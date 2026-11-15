@@ -6,7 +6,7 @@ import TaskDependenciesField from '@/features/dependency/components/TaskDependen
 import TaskTagControl from '@/features/tags/components/TaskTagControl.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useConsoleStore } from '@/stores/console.store'
-import { skillsOfTag } from '@/features/skills/model/skill-assignment'
+import { skillsOfTag, type SkillAssignment } from '@/features/skills/model/skill-assignment'
 import type { Task } from '@/features/catalog/model/catalog'
 
 /**
@@ -23,12 +23,12 @@ const { run } = useAsyncAction()
 const own = computed(() =>
   owned.value
     .filter((skill) => skill.taskId === props.task.id && skill.stepId === null)
-    .map((skill) => skill.skillName)
+    .map((skill): SkillAssignment => ({ name: skill.skillName, arguments: skill.arguments }))
 )
 const fromTag = computed(() => skillsOfTag(props.task.tagId, tagged.value))
 
-function save(names: readonly string[]): void {
-  void run(() => store.assignTaskSkills(props.task.id, names))
+function save(skills: readonly SkillAssignment[]): void {
+  void run(() => store.assignTaskSkills(props.task.id, skills))
 }
 </script>
 

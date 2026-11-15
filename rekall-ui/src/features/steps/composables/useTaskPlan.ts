@@ -7,6 +7,7 @@ import { provideStepEditor, type StepEditor } from '@/features/steps/composables
 import { groupBySession, type StepSession } from '@/features/steps/lib/step-sessions'
 import { stepIsComplete, type TaskStep } from '@/features/steps/model/task-step'
 import type { Task } from '@/features/catalog/model/catalog'
+import { assignmentsOf } from '@/features/skills/model/skill-assignment'
 import { useConsoleStore } from '@/stores/console.store'
 import { useSendBackGuardStore } from '@/features/review/store/sendBackGuard.store'
 import { useToastStore } from '@/stores/toast.store'
@@ -244,7 +245,7 @@ export function useTaskPlan(): TaskPlan {
     newSession.value = false
     const created = await run(async () => {
       const step = await store.addStep(task.id, title)
-      if (skills.length) await store.assignStepSkills(step.id, skills)
+      if (skills.length) await store.assignStepSkills(step.id, assignmentsOf(skills, []))
       if (opensSession) await store.beginStepSession(step.id, true)
       return step
     })
