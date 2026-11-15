@@ -30,7 +30,7 @@ describe('the Settings screen', () => {
 
     expect(page.find('[data-testid="database-section"]').exists()).toBe(true)
     expect(page.findAll('[data-testid="settings-rail"] a').map((link) => link.text())).toEqual([
-      'General', 'Appearance', 'Review', 'Sessions and run queue', 'Notifications', 'Time and usage', 'Connections', 'Data and backup', 'Keyboard', 'About'
+      'General', 'Appearance', 'Review', 'Sessions and run queue', 'Notifications', 'Time and usage', 'Connections', 'Data and backup', 'Keyboard', 'Help', 'About'
     ])
   })
 

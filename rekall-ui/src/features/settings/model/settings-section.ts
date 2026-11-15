@@ -8,6 +8,7 @@ export const SETTINGS_SECTIONS = [
   'connections',
   'data',
   'keyboard',
+  'help',
   'about'
 ] as const
 
@@ -23,6 +24,7 @@ export const SETTINGS_SECTION_LABEL: Readonly<Record<SettingsSection, string>> =
   connections: 'Connections',
   data: 'Data and backup',
   keyboard: 'Keyboard',
+  help: 'Help',
   about: 'About'
 }
 

@@ -8,6 +8,7 @@ import ClaudeCodeSection from '@/features/settings/components/ClaudeCodeSection.
 import ConnectionsSection from '@/features/settings/components/ConnectionsSection.vue'
 import DatabaseSection from '@/features/settings/components/DatabaseSection.vue'
 import GuardProtectionSection from '@/features/settings/components/GuardProtectionSection.vue'
+import HelpSection from '@/features/settings/components/HelpSection.vue'
 import KeyboardSection from '@/features/settings/components/KeyboardSection.vue'
 import LangfuseSection from '@/features/settings/components/LangfuseSection.vue'
 import NotificationsSection from '@/features/settings/components/NotificationsSection.vue'
@@ -45,7 +46,7 @@ onUnmounted(() => void claudeConnection.load().catch(() => undefined))
         </RouterLink>
       </nav>
 
-      <main class="min-w-0 max-w-[620px]">
+      <main class="min-w-0" :class="section === 'help' ? 'max-w-[780px]' : 'max-w-[620px]'">
         <DatabaseSection v-if="section === 'general'" />
         <AppearanceSection v-else-if="section === 'appearance'" />
         <ReviewSection v-else-if="section === 'review'" />
@@ -62,6 +63,7 @@ onUnmounted(() => void claudeConnection.load().catch(() => undefined))
           <LangfuseSection class="border-t border-border pt-5" />
         </div>
         <KeyboardSection v-else-if="section === 'keyboard'" />
+        <HelpSection v-else-if="section === 'help'" />
         <VersionSection v-else />
       </main>
     </div>

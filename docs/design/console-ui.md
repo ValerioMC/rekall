@@ -245,7 +245,7 @@ menu: General (the databases), Appearance (density, which is the Work ledger's, 
 Review (open the next item after a decision, confirm before sending work back), Sessions and run queue
 (Claude Code and its protections), Notifications, Time and usage (the workday goal the report's dashed
 line reads, the percentage the usage meter warns from), Connections (a link to the screen),
-Data and backup, Keyboard and About. The browser-side choices live in `usePreferencesStore`, saved in
+Data and backup, Keyboard, Help (a tab per context, each listing its `/rk` commands, its MCP tools and, for a session outside Rekall, requests to paste; the catalog is `settings/model/help-context.ts`) and About. The browser-side choices live in `usePreferencesStore`, saved in
 `localStorage` through `common/config/ui-preferences.ts`: Reduced motion sets `data-motion` on the
 document, where the stylesheet drops the loops and keeps every state change; the text scale is the
 document's font size; every send back goes through `sendBackGuard`. A session's concurrency, terminal
