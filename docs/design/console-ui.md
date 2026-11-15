@@ -179,7 +179,9 @@ The right zone is one frame with two fillings, so nothing moves when a step is c
 holds a lead mark, a title, the keys (previous and next step, which the J and K keys do too except
 while typing, a button that hides the list so the step has the whole tab, and Overview, which Esc
 does too) and one line of facts. Its body is a reading column and, beside it, a column of evidence;
-under 832px they stack. Its dock holds the keys a person decides with. Pinned, the header and dock
+the reading column holds a measure of 736px and the evidence sits right beside it (300 to 512px),
+the pair kept together under the title on a wide pane so no width is left empty between them; under
+832px they stack. Its dock holds the keys a person decides with. Pinned, the header and dock
 stay while the body scrolls.
 
 With no step selected, which is how the tab opens, the frame holds the **overview**: its title says

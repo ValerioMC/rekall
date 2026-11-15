@@ -4,13 +4,12 @@
  * of facts, a body of a reading column and a column of evidence, and a dock for the decision. A
  * step and the overview fill the same slots, so the pane keeps its shape whether a step is
  * selected or not. Pinned, the header and dock stay while the body scrolls; narrow, the columns
- * stack.
+ * stack. The reading column holds a writing measure and the evidence column sits beside it, so on
+ * a wide pane the pair stays together under the title and no width is left empty between them.
  */
 defineProps<{
   /** The header and dock stay and the body scrolls; unset, the pane grows with its text inside a page that scrolls. */
   pinned?: boolean
-  /** The step list is hidden, so the columns spread to the width they have. */
-  focused?: boolean
 }>()
 </script>
 
@@ -30,13 +29,10 @@ defineProps<{
     </header>
 
     <div :class="pinned && 'min-h-0 flex-1 overflow-y-auto px-8 pb-8 pt-6'">
-      <div
-        class="mx-auto grid grid-cols-1 gap-x-9 gap-y-7 @min-[52rem]:grid-cols-[minmax(0,1fr)_18.75rem]"
-        :class="focused && 'max-w-[74rem] @min-[52rem]:grid-cols-[minmax(0,1fr)_21rem] @min-[52rem]:gap-x-14'"
-      >
-        <div class="min-w-0 max-w-[74ch]"><slot name="main" /></div>
+      <div class="flex flex-col gap-7 @min-[52rem]:flex-row @min-[52rem]:gap-x-9">
+        <div class="min-w-0 flex-1 @min-[52rem]:max-w-[46rem]"><slot name="main" /></div>
         <div
-          class="flex min-w-0 flex-col gap-6 border-t border-border pt-6 @min-[52rem]:border-l @min-[52rem]:border-t-0 @min-[52rem]:pl-8 @min-[52rem]:pt-0"
+          class="flex min-w-0 flex-col gap-6 border-t border-border pt-6 @min-[52rem]:w-[clamp(18.75rem,30%,32rem)] @min-[52rem]:shrink-0 @min-[52rem]:border-l @min-[52rem]:border-t-0 @min-[52rem]:pl-8 @min-[52rem]:pt-0"
         >
           <slot name="side" />
         </div>

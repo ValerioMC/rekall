@@ -342,6 +342,24 @@
 .rekall-md .md-editor-toolbar-wrapper {
   padding: 6px 8px;
   border-bottom: 1px solid var(--color-border);
+  /* The library scrolls a toolbar wider than its column with the scrollbar hidden, which cuts the
+     keys off. Wrapping keeps every key in reach at any width; the fitted height reads the result. */
+  overflow: visible;
+}
+
+.rekall-md .md-editor-toolbar {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  row-gap: 2px;
+}
+
+.rekall-md .md-editor-toolbar-left,
+.rekall-md .md-editor-toolbar-right {
+  flex-wrap: wrap;
+}
+
+.rekall-md .md-editor-toolbar-right {
+  margin-inline-start: auto;
 }
 
 .rekall-md .md-editor-toolbar-item {

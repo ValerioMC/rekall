@@ -90,7 +90,7 @@ const ICON_BUTTON =
 </script>
 
 <template>
-  <DossierFrame :pinned="pinned" :focused="focused" aria-label="Decision" data-testid="decision-panel" :data-step-state="step.state">
+  <DossierFrame :pinned="pinned" aria-label="Decision" data-testid="decision-panel" :data-step-state="step.state">
     <template #lead><StepSeal :state="step.state" /></template>
     <template #title><span data-testid="decision-title">{{ step.title }}</span></template>
 
