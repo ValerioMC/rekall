@@ -32,6 +32,61 @@ async fn a_task_step_and_tag_skills_all_reach_the_context_with_their_scope() {
 }
 
 #[tokio::test]
+async fn a_skill_reaches_the_context_with_its_arguments_to_pass_as_args() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = app.a_task(&project_id, "report-builder").await;
+    app.put(&format!("/api/tasks/{task_id}/skills"), json!({ "skills": [{ "name": "impeccable", "arguments": "  redesign website ui " }, { "name": "rk" }] })).await;
+
+    let context = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
+
+    assert_contains!(context, "<skills count=\"2\">", "- `impeccable` args: \"redesign website ui\" (task)", "- `rk` (task)");
+}
+
+#[tokio::test]
+async fn a_step_with_the_same_skill_and_other_arguments_is_its_own_invocation() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = app.a_task(&project_id, "report-builder").await;
+    let step_id = app.a_step(&task_id, "Polish the picker", None).await;
+    app.put(&format!("/api/tasks/{task_id}/skills"), json!({ "skills": [{ "name": "impeccable", "arguments": "redesign" }] })).await;
+    app.put(&format!("/api/steps/{step_id}/skills"), json!({ "skills": [{ "name": "impeccable", "arguments": "polish" }] })).await;
+
+    let context = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
+
+    assert_contains!(context, "<skills count=\"2\">", "- `impeccable` args: \"redesign\" (task)", "- `impeccable` args: \"polish\" (step: Polish the picker)");
+}
+
+#[tokio::test]
+async fn a_step_with_the_same_skill_and_the_same_arguments_is_listed_once() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = app.a_task(&project_id, "report-builder").await;
+    let step_id = app.a_step(&task_id, "Polish the picker", None).await;
+    app.put(&format!("/api/tasks/{task_id}/skills"), json!({ "skills": [{ "name": "impeccable", "arguments": "redesign" }, { "name": "rk" }] })).await;
+    app.put(&format!("/api/steps/{step_id}/skills"), json!({ "skills": [{ "name": "impeccable", "arguments": "redesign" }, { "name": "rk", "arguments": "step:1" }] })).await;
+
+    let context = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
+
+    assert_contains!(context, "<skills count=\"3\">", "- `impeccable` args: \"redesign\" (task)", "- `rk` (task)", "- `rk` args: \"step:1\" (step: Polish the picker)");
+}
+
+#[tokio::test]
+async fn arguments_over_the_cap_are_a_400() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = app.a_task(&project_id, "report-builder").await;
+
+    let response = app.put(&format!("/api/tasks/{task_id}/skills"), json!({ "skills": [{ "name": "impeccable", "arguments": "a".repeat(301) }] })).await;
+
+    assert_eq!(response.status, 400);
+}
+
+#[tokio::test]
 async fn a_finished_steps_skill_is_no_longer_handed_over() {
     let app = app().await;
     let acme = app.a_company("Acme").await;

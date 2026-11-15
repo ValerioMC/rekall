@@ -356,8 +356,8 @@ Project ──< VulnerabilityExposure >── SecurityAdvisory
 | `telemetry_setting` | one row | `enabled`, `host` (the Langfuse address), `public_key`, `log_content` (whether prompt and command text travel with the traces); absent until first saved, which reads as off. The secret key is in the credential store under `langfuse-secret-key`, never in the row |
 | `token_usage` | through its task | `session_id`, `task_id`, `step_id`, the four token counts, `spent_on` |
 | `transcript_scan` | `session_id` | `scanned_bytes`, `scanned_at` |
-| `task_skill` | through its task | `task_id`, `step_id` (null for the task's own), `skill_name`, `position`; deleted with its task or step |
-| `tag_skill` | through its tag | `tag_id`, `skill_name`, `position`; deleted with its tag |
+| `task_skill` | through its task | `task_id`, `step_id` (null for the task's own), `skill_name`, `arguments` (optional), `position`; deleted with its task or step |
+| `tag_skill` | through its tag | `tag_id`, `skill_name`, `arguments` (optional), `position`; deleted with its tag |
 | `skill_placement` | `skill_path` | `group_label`, `placed_at`; no foreign key: the skill is a file under `~/.claude` |
 
 `task.project_id` and `project.company_id` are both `ON DELETE CASCADE`: a project's tasks have
@@ -480,11 +480,15 @@ The walk distinguishes by direction, not by depth:
 | Inverse (`@OneToMany`) | Labels only, printed as anchors | What points back at this. Unbounded fan-out: a project has forty tasks |
 | One-to-one (`wrapup`) | In full, in a tag of its own, ahead of the notes | Exactly one, so there is no fan-out to bound. Ahead of the notes because a session that opens on a task is asking what it does now, and the notes are the background to that answer |
 | Owned collection (`task_step`) | Open and running ones in full, finished ones as a title | Bounded by the task and ordered, so it is not fan-out. Rendered between the description and the wrapup, which is the order the three are asked in: what is this, what is left, what did it become |
-| Assigned skills (`task_skill`, `tag_skill`) | A `<skills>` block after the description: the task's, its tag's, then those of the steps still to be worked, each with its scope | Short (20 per owner) and invoked by name, so only the name travels |
+| Assigned skills (`task_skill`, `tag_skill`) | A `<skills>` block after the description: the task's, its tag's, then those of the steps still to be worked, each with its scope | Short (20 per owner) and invoked by name, so only the name and its arguments travel |
 
 Skills follow three rules. A tag's skills are read when the context loads and never copied onto its
-tasks, so editing a tag changes every task under it. A skill already listed at a wider scope is not
-listed again, and a finished step's skills are dropped. The name is checked for its shape only
+tasks, so editing a tag changes every task under it. An invocation, a skill's name and its arguments
+together, already listed at a wider scope is not listed again, so a step that assigns the same skill
+with other arguments is listed as its own, and a finished step's skills are dropped. The arguments are
+free text, trimmed and capped at 300 characters (`rekall_store::skill_arguments`), one string per skill
+per owner: Rekall does not model a skill's grammar, and the context prints them as `args: "..."` for
+the session to pass to the Skill tool. The name is checked for its shape only
 (`rekall_store::skill_name`): `rekall-console` cannot see `~/.claude`, which `rekall-infra` reads, so the
 picker offers only what exists and a skill that later vanishes stays assigned and is flagged in the
 console. The writes are `SkillAssignmentService` in `rekall-console`, each replacing one owner's whole

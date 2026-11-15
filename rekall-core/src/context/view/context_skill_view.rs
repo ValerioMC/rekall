@@ -8,9 +8,11 @@ pub enum ContextSkillScope {
     Step(String),
 }
 
-/// One skill a session invokes with the Skill tool, and why it was handed over.
+/// One invocation of a skill with the Skill tool, and why it was handed over. A skill is told apart
+/// by its name and its arguments together.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ContextSkillView {
     pub name: String,
+    pub arguments: Option<String>,
     pub scope: ContextSkillScope,
 }
