@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { failedRuns, latestRunsOfStep, runDuration, runOutcome } from '@/features/check/lib/check-results'
+import { checksLine, failedRuns, latestRunsOfStep, runDuration, runOutcome } from '@/features/check/lib/check-results'
 import { STEP, result } from './fixtures'
 import type { TaskStepId } from '@/model/branded'
 
@@ -27,6 +27,15 @@ describe('the runs of a step', () => {
     const runs = [result('r1', 'tests', false, '2026-11-03T10:01:00Z'), result('r2', 'lint', true, '2026-11-03T10:02:00Z')]
 
     expect(failedRuns(runs).map((run) => run.id)).toEqual(['r1'])
+  })
+
+  it('sums the runs up in one line, naming the failures, and says nothing when nothing ran', () => {
+    const passed = result('r1', 'tests', true, '2026-11-03T10:01:00Z')
+    const failed = result('r2', 'lint', false, '2026-11-03T10:02:00Z')
+
+    expect(checksLine([passed, passed])).toBe('2 checks passed')
+    expect(checksLine([passed, failed])).toBe('1 of 2 checks failed')
+    expect(checksLine([])).toBeNull()
   })
 
   it('says how a run ended: passed, exited with a code, or timed out', () => {

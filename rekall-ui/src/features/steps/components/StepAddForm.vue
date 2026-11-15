@@ -39,7 +39,7 @@ function toggleCatalogue(): void {
 
 <template>
   <form class="shrink-0 border-t border-border bg-surface px-5 py-3" @submit.prevent="$emit('submit')">
-    <div class="flex items-center gap-2">
+    <div class="flex flex-wrap items-center gap-2">
       <span
         class="grid size-[22px] shrink-0 place-items-center rounded-full border border-dashed border-border-strong text-text-subtle"
         aria-hidden="true"
@@ -51,6 +51,7 @@ function toggleCatalogue(): void {
       <AppInput
         id="new-step"
         v-model="title"
+        class="min-w-48 flex-1"
         placeholder="Name the next piece of this task. It starts as a draft."
         data-testid="new-step"
       />
@@ -87,7 +88,7 @@ function toggleCatalogue(): void {
       >
         New session
       </button>
-      <AppButton variant="secondary" type="submit" :disabled="!title.trim()" data-testid="add-step">
+      <AppButton class="ml-auto" variant="secondary" type="submit" :disabled="!title.trim()" data-testid="add-step">
         Add draft
       </AppButton>
     </div>

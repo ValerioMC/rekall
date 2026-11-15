@@ -2,8 +2,8 @@ import type { TaskStep } from '@/features/steps/model/task-step'
 
 export const ADHERENCE_HELP = 'A high share of steps sent back usually means steps are too large or their detail too vague.'
 
-/** One pass at a step: one that was sent back, or the one now under way or accepted. */
-export type PassKind = 'sent-back' | 'current'
+/** One pass at a step: one that was sent back, the accepted one, or the one a session has in hand. */
+export type PassKind = 'sent-back' | 'accepted' | 'in-hand'
 
 /** The share of accepted steps that needed one pass, as a whole percentage; none before a step is accepted. */
 export function shareDetail(share: number | null): string {
@@ -17,7 +17,8 @@ function hasStarted(step: TaskStep): boolean {
 /** The passes of a step in order: each send-back, then the pass the step is in once started. */
 export function passesOf(step: TaskStep): PassKind[] {
   const sentBack = step.passes.map((): PassKind => 'sent-back')
-  return hasStarted(step) ? [...sentBack, 'current'] : sentBack
+  if (!hasStarted(step)) return sentBack
+  return [...sentBack, step.state === 'DONE' ? 'accepted' : 'in-hand']
 }
 
 export function passesSummary(step: TaskStep): string {
@@ -30,4 +31,19 @@ export function passesSummary(step: TaskStep): string {
 
 export function stepsLabel(numbers: readonly number[]): string {
   return numbers.length === 1 ? `step ${numbers[0]}` : `steps ${numbers.join(', ')}`
+}
+
+export interface FlowVisit {
+  readonly visits: number
+  readonly budgetSpent: boolean
+}
+
+/** How many steps the flow entered and how many entries that was, for the line that folds the list. */
+export function visitsSummary(visits: readonly FlowVisit[]): string {
+  const entries = visits.reduce((sum, entry) => sum + entry.visits, 0)
+  return `${visits.length} ${visits.length === 1 ? 'step' : 'steps'}, ${entries} ${entries === 1 ? 'visit' : 'visits'}`
+}
+
+export function spentBudgets(visits: readonly FlowVisit[]): number {
+  return visits.filter((entry) => entry.budgetSpent).length
 }

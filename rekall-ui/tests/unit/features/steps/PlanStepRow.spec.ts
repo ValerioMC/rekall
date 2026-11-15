@@ -37,3 +37,32 @@ describe('PlanStepRow', () => {
     expect(seal.classes()).toContain('relative')
   })
 })
+
+describe('PlanStepRow standing and passes', () => {
+  const props = { number: 2, selected: false, isNext: false, allDone: false, isLast: false, canChooseSession: false }
+
+  it('says where the step stands under its title and draws a bar for each pass', () => {
+    const claimed: TaskStep = {
+      ...step,
+      state: 'CLAIMED',
+      done: false,
+      doneAt: null,
+      claimedAt: new Date(Date.now() - 14 * 60_000).toISOString(),
+      passes: [{ detailMarkdown: null, sentBackAt: '2026-10-01T08:00:00Z' }]
+    }
+
+    const row = mount(PlanStepRow, { props: { ...props, step: claimed } })
+
+    expect(row.get('[data-testid="plan-step-standing"]').text()).toBe('Claimed 14 min ago')
+    expect(row.findAll('[data-testid="step-pass-bar"]').map((bar) => bar.attributes('data-kind'))).toEqual(['sent-back', 'in-hand'])
+  })
+
+  it('says a running step is being worked and an untouched one is open, with no bars', () => {
+    const running = mount(PlanStepRow, { props: { ...props, step: { ...step, state: 'RUNNING', done: false } } })
+    const open = mount(PlanStepRow, { props: { ...props, step: { ...step, state: 'OPEN', done: false } } })
+
+    expect(running.get('[data-testid="plan-step-standing"]').text()).toBe('Working now')
+    expect(open.get('[data-testid="plan-step-standing"]').text()).toBe('Open')
+    expect(open.find('[data-testid="step-pass-bar"]').exists()).toBe(false)
+  })
+})

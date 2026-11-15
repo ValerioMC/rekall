@@ -91,12 +91,6 @@ export function useTaskPlan(): TaskPlan {
     return checklistSteps.value.find((step) => !stepIsComplete(step.state) && step.id !== excluding)
   }
 
-  /** A claim waiting for a person comes first, then the first step still to finish, then the first draft. */
-  function openFirstUnfinished(): void {
-    const next = stepAwaitingDecision(null) ?? nextUnfinishedStep(null) ?? draftSteps.value[0]
-    if (next) editor.open(next)
-  }
-
   watch(
     () => selectedTask.value?.id ?? null,
     () => {
@@ -104,7 +98,6 @@ export function useTaskPlan(): TaskPlan {
       hideDone.value = false
       view.value = isFlow.value ? 'flow' : 'list'
       editor.close()
-      openFirstUnfinished()
     },
     { immediate: true }
   )

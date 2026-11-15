@@ -2,7 +2,7 @@
 import { computed, watch } from 'vue'
 import AdherenceFigure from '@/features/adherence/components/AdherenceFigure.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { ADHERENCE_HELP, passesOf, passesSummary, shareDetail, stepsLabel } from '@/features/adherence/lib/adherence-figures'
+import { ADHERENCE_HELP, shareDetail, spentBudgets, stepsLabel, visitsSummary } from '@/features/adherence/lib/adherence-figures'
 import { useAdherenceStore } from '@/features/adherence/store/adherence.store'
 import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TaskId } from '@/model/branded'
@@ -10,9 +10,11 @@ import type { TaskId } from '@/model/branded'
 /**
  * How closely this task followed its plan: the steps accepted at the first pass, the ones sent
  * back, the notes that record a departure, and for a flow the visits against each budget. Only
- * the numbers, with no judgment: what they mean is the reader's to decide.
+ * the numbers, with no judgment: what they mean is the reader's to decide. It is never folded or
+ * narrowed to a column; each step's passes are drawn on its row in the plan. `embedded` drops the
+ * card so it can share one with the plan's progress.
  */
-const props = defineProps<{ taskId: TaskId; steps: readonly TaskStep[] }>()
+const props = defineProps<{ taskId: TaskId; steps: readonly TaskStep[]; embedded?: boolean }>()
 
 const store = useAdherenceStore()
 const { run } = useAsyncAction()
@@ -29,9 +31,14 @@ watch(
 </script>
 
 <template>
-  <section class="@container rounded-card border border-border bg-surface px-4 py-3" aria-label="Plan adherence" data-testid="plan-adherence">
+  <section
+    class="@container px-5 py-4"
+    :class="!embedded && 'rounded-card border border-border bg-surface'"
+    aria-label="Plan adherence"
+    data-testid="plan-adherence"
+  >
     <div class="flex flex-wrap items-baseline gap-x-3">
-      <span class="eyebrow">Plan adherence</span>
+      <h2 class="text-title font-semibold text-text">Plan adherence</h2>
       <span class="text-caption text-text-subtle" data-testid="adherence-help">{{ ADHERENCE_HELP }}</span>
     </div>
 
@@ -40,20 +47,23 @@ watch(
     </p>
 
     <template v-else-if="adherence">
-      <div class="mt-2 grid grid-cols-1 gap-4 @md:grid-cols-3">
+      <div class="mt-3 grid grid-cols-1 gap-4 @md:grid-cols-3 @md:gap-0">
         <AdherenceFigure
+          class="@md:pr-5"
           label="Accepted first time"
           :value="`${adherence.acceptedFirstTime} of ${adherence.stepsDone}`"
           :detail="shareDetail(adherence.firstTimeShare)"
           testid="adherence-first-time"
         />
         <AdherenceFigure
+          class="@md:border-l @md:border-border @md:px-5"
           label="Sent back"
           :value="String(adherence.sentBack)"
           :detail="`${adherence.passesTotal} ${adherence.passesTotal === 1 ? 'pass' : 'passes'} in all`"
           testid="adherence-sent-back"
         />
         <AdherenceFigure
+          class="@md:border-l @md:border-border @md:pl-5"
           label="Deviations"
           :value="String(adherence.deviations)"
           :detail="adherence.deviationSteps.length ? `on ${stepsLabel(adherence.deviationSteps)}` : 'the plan was built as drawn'"
@@ -61,36 +71,18 @@ watch(
         />
       </div>
 
-      <p v-if="!adherence.passesTotal" class="mt-3 text-small text-text-muted" data-testid="adherence-no-passes">
-        No step has been worked yet, so there are no passes to show.
-      </p>
-
-      <ol v-else class="mt-3 flex flex-col gap-1" aria-label="Passes per step">
-        <li
-          v-for="(step, index) in planned"
-          :key="step.id"
-          class="flex items-center gap-2 text-caption"
-          data-testid="adherence-step"
-        >
-          <span class="w-6 shrink-0 text-right font-mono text-text-subtle">{{ index + 1 }}</span>
-          <span class="min-w-0 flex-1 truncate text-text-muted" :title="step.title">{{ step.title }}</span>
-          <span class="flex shrink-0 gap-0.5" role="img" :aria-label="passesSummary(step)">
-            <span
-              v-for="(pass, number) in passesOf(step)"
-              :key="number"
-              class="h-2 w-5 rounded-key"
-              :class="pass === 'sent-back' ? 'bg-warn' : 'bg-accent'"
-              data-testid="adherence-pass"
-              :data-kind="pass"
-            />
+      <details v-if="adherence.visits.length" class="group/visits mt-3 border-t border-border pt-2" data-testid="adherence-visits">
+        <summary class="focus-ring flex min-h-7 cursor-pointer list-none items-center gap-2 rounded-key text-small text-text-muted hover:text-text">
+          <svg class="size-2.5 shrink-0 text-text-subtle transition-transform group-open/visits:rotate-90" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span class="font-medium text-text">Flow visits</span>
+          <span class="text-text-subtle">{{ visitsSummary(adherence.visits) }}</span>
+          <span v-if="spentBudgets(adherence.visits)" class="font-semibold text-warn" data-testid="adherence-budgets-spent">
+            {{ spentBudgets(adherence.visits) }} budget{{ spentBudgets(adherence.visits) === 1 ? '' : 's' }} spent
           </span>
-          <span class="w-36 shrink-0 text-right text-text-subtle" data-testid="adherence-step-summary">{{ passesSummary(step) }}</span>
-        </li>
-      </ol>
-
-      <div v-if="adherence.visits.length" class="mt-3" data-testid="adherence-visits">
-        <span class="eyebrow">Flow visits</span>
-        <ul class="mt-1 flex flex-col gap-0.5">
+        </summary>
+        <ul class="mt-1 grid max-h-56 grid-cols-1 gap-x-8 gap-y-0.5 overflow-y-auto @2xl:grid-cols-2">
           <li v-for="entry in adherence.visits" :key="entry.stepNumber" class="flex items-baseline gap-2 text-caption" data-testid="adherence-visit">
             <span class="w-6 shrink-0 text-right font-mono text-text-subtle">{{ entry.stepNumber }}</span>
             <span class="min-w-0 flex-1 truncate text-text-muted">{{ entry.title }}</span>
@@ -98,7 +90,7 @@ watch(
             <span v-if="entry.budgetSpent" class="shrink-0 font-semibold text-warn" data-testid="adherence-budget-spent">budget spent</span>
           </li>
         </ul>
-      </div>
+      </details>
     </template>
   </section>
 </template>

@@ -154,12 +154,18 @@ describe('TaskPlanTab', () => {
     expect(tab.get('[data-testid="drafts"]').text()).toContain('Step s3')
   })
 
-  it('opens the claim waiting for a decision and accepts it from the decision panel', async () => {
+  it('starts on the overview, which leads with the claim waiting, and opens it on Review next', async () => {
     const store = seed([makeStep('s1', 0, 'DONE'), makeStep('s2', 1, 'CLAIMED'), makeStep('s3', 2, 'OPEN')])
     const tab = render()
 
+    expect(tab.find('[data-testid="decision-panel"]').exists()).toBe(false)
+    expect(tab.get('[data-testid="overview-title"]').text()).toBe('1 step waits for you')
+    expect(tab.get('[data-testid="queue-waiting"]').text()).toContain('Step s2')
+
+    await tab.get('[data-testid="overview-review-next"]').trigger('click')
     const panel = tab.get('[data-testid="decision-panel"]')
-    expect(panel.get('[data-testid="decision-state"]').text()).toContain('Step 2 of 3 · claimed')
+    expect(panel.get('[data-testid="decision-state"]').text()).toBe('Claimed')
+    expect(panel.get('[data-testid="decision-position"]').text()).toBe('Step 2 of 3')
 
     await panel.get('[data-testid="step-accept"]').trigger('click')
     await flushPromises()
@@ -171,6 +177,7 @@ describe('TaskPlanTab', () => {
   it('sends a claim back from the decision panel', async () => {
     const store = seed([makeStep('s1', 0, 'CLAIMED')])
     const tab = render()
+    await tab.get('[data-testid="overview-review-next"]').trigger('click')
 
     await tab.get('[data-testid="step-send-back"]').trigger('click')
     await flushPromises()
@@ -178,11 +185,9 @@ describe('TaskPlanTab', () => {
     expect(store.sendBackStep).toHaveBeenCalledWith('s1')
   })
 
-  it('shows the pressed step in the panel and lists the other claims as up next', async () => {
+  it('shows the pressed step in the panel', async () => {
     seed([makeStep('s1', 0, 'CLAIMED'), makeStep('s2', 1, 'OPEN'), makeStep('s3', 2, 'CLAIMED')])
     const tab = render()
-
-    expect(tab.get('[data-testid="decision-up-next"]').text()).toContain('Step s3')
 
     await tab.findAll('[data-testid="plan-step-title"]')[1]!.trigger('click')
 
@@ -203,6 +208,7 @@ describe('TaskPlanTab', () => {
   it('ticks an open step from the panel: marking it done is a person’s move', async () => {
     const store = seed([makeStep('s1', 0, 'OPEN')])
     const tab = render()
+    await tab.get('[data-testid="plan-step-title"]').trigger('click')
 
     await tab.get('[data-testid="decision-mark-done"]').trigger('click')
     await flushPromises()
@@ -268,6 +274,7 @@ describe('TaskPlanTab', () => {
   it('hides the step list while a step is in focus and brings it back', async () => {
     seed([makeStep('s1', 0, 'OPEN'), makeStep('s2', 1, 'CLAIMED')])
     const tab = render()
+    await tab.get('[data-testid="overview-review-next"]').trigger('click')
     const list = tab.get('section[aria-label="Steps"]')
     expect(list.classes()).not.toContain('hidden')
 
@@ -308,11 +315,63 @@ describe('TaskPlanTab', () => {
     expect(tab.get('[data-testid="decision-title"]').text()).toBe('Step s1')
   })
 
+  it('keeps the list and the pane in place whether or not a step is selected', async () => {
+    seed([makeStep('s1', 0, 'DONE'), makeStep('s2', 1, 'CLAIMED')])
+    const tab = render()
+    const list = tab.get('section[aria-label="Steps"]')
+    const resting = list.classes().join(' ')
+
+    expect(tab.find('[data-testid="plan-overview"]').exists()).toBe(true)
+    await tab.findAll('[data-testid="plan-step-title"]')[1]!.trigger('click')
+
+    expect(tab.find('[data-testid="plan-overview"]').exists()).toBe(false)
+    expect(tab.find('[data-testid="decision-panel"]').exists()).toBe(true)
+    expect(tab.get('section[aria-label="Steps"]').classes().join(' ')).toBe(resting)
+  })
+
+  it('goes back to the overview on Esc and from the Overview key in the panel header', async () => {
+    seed([makeStep('s1', 0, 'OPEN'), makeStep('s2', 1, 'OPEN')])
+    const tab = render()
+    await tab.findAll('[data-testid="plan-step-title"]')[0]!.trigger('click')
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await flushPromises()
+    expect(tab.find('[data-testid="plan-overview"]').exists()).toBe(true)
+
+    await tab.findAll('[data-testid="plan-step-title"]')[1]!.trigger('click')
+    await tab.get('[data-testid="decision-overview"]').trigger('click')
+    expect(tab.find('[data-testid="plan-overview"]').exists()).toBe(true)
+  })
+
+  it('opens the first step on J while none is selected', async () => {
+    seed([makeStep('s1', 0, 'OPEN'), makeStep('s2', 1, 'OPEN')])
+    const tab = render()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'j' }))
+    await flushPromises()
+
+    expect(tab.get('[data-testid="decision-title"]').text()).toBe('Step s1')
+  })
+
+  it('shows the progress and the adherence in one band that stays whatever is selected', async () => {
+    seed([makeStep('s1', 0, 'OPEN'), makeStep('s2', 1, 'OPEN')])
+    const tab = render()
+    const band = tab.get('[data-testid="plan-band"]')
+
+    expect(band.find('[data-testid="plan-progress"]').exists()).toBe(true)
+    expect(band.find('[data-testid="plan-adherence"]').exists()).toBe(true)
+
+    await tab.findAll('[data-testid="plan-step-title"]')[0]!.trigger('click')
+
+    expect(tab.get('[data-testid="plan-band"]').find('[data-testid="plan-adherence"]').exists()).toBe(true)
+  })
+
   it('invites the first step on a task with none', () => {
     seed([])
     const tab = render()
 
     expect(tab.find('[data-testid="write-first-step"]').exists()).toBe(true)
     expect(tab.find('[data-testid="decision-panel"]').exists()).toBe(false)
+    expect(tab.find('[data-testid="plan-band"]').exists()).toBe(false)
   })
 })

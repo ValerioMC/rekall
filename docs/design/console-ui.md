@@ -160,26 +160,47 @@ then Labels (tag, skills, dependencies), Context (what `/rk` hands a session, as
 its heaviest parts, with the tokens the task generated) and Git (the branch and the commits, shown
 only while there is one). The Description tab keeps one strip: its views, Fix wording and Write/Read.
 
-**Plan** is two zones. The left is the step list, a column of 360px: a row is the step's seal, its
-number, its title (two lines before it is cut) and when it last moved, and its hover keys (Accept or
-Done, New session, To draft, move, delete) lie over the end of the row instead of taking a column.
-Above it sit the plan tube, a line that says who has to act, List or Flow when the steps have
-routes, Hide done, Review next and Accept all once only claims are left; under it the drafts with
-Promote, the adherence and branch panels, and the line that adds a draft (a new step is a draft).
-The right is the **decision panel** of the selected step, which opens on the first claim waiting
-for a decision and takes the rest of the tab. Its header stays while the body scrolls: the step's
-seal and title, the keys a person decides with (Accept and Send back on a claim, the session key
-and Mark done myself on an open or running one, Reopen on a done one), arrows to the previous and
-next step (the J and K keys do the same, except while typing), and a button that hides the list so
-the step has the whole tab. Under the title one line says where the step is and what was found on
-it: its place and state, the pass, the checks passed or failed, the commits and a deviation. The body
-reads in the order a decision is made: the state, the sealed passes, the detail, then the check
-results and commits, then Skills and checks folded (open on an open step), and Up next to review.
-The detail reads as a page that grows with its text: prose holds a measure of 76 characters, and a
-table or a code block takes the width of the pane. A task handed in whole shows its own decision,
-Accept task or Send back, in the same place. Nothing but a person marks a step done, and Claude
-moves a step only up to claimed. The panel and the list share the step editor, so a title or detail
-typed in the panel is saved as it was in the old checklist.
+**Plan** is a band over a workspace of two zones. The band spans the tab and never folds: on the
+left the plan tube with a line that says who has to act (and the drafts still to promote), on the
+right **Plan adherence** at full size, its three figures (accepted first time, sent back,
+deviations) side by side with the help line beside the title. A flow adds its visits against each
+budget as a folded line that names the budgets spent. The band stays whatever is selected.
+
+Under it the left zone is the step list, a column of 420px that keeps its width whether or not a
+step is selected. Its head names the list and holds Hide done, Review next and List or Flow (when
+the steps have routes). A row is the step's seal, its number and its title (two lines before it is
+cut), and under the title where the step stands (claimed or done and when, working now, open) with
+one bar for each pass at it: yellow for a pass sent back, green for the one accepted, indigo for the
+one a session has in hand. The hover keys (Accept or Done, New session, To draft, move, delete) lie
+over the end of the row instead of taking a column. Under the rows come the drafts with Promote and
+the line, docked at the foot, that adds a draft (a new step is a draft).
+
+The right zone is one frame with two fillings, so nothing moves when a step is chosen. Its header
+holds a lead mark, a title, the keys (previous and next step, which the J and K keys do too except
+while typing, a button that hides the list so the step has the whole tab, and Overview, which Esc
+does too) and one line of facts. Its body is a reading column and, beside it, a column of evidence;
+under 832px they stack. Its dock holds the keys a person decides with. Pinned, the header and dock
+stay while the body scrolls.
+
+With no step selected, which is how the tab opens, the frame holds the **overview**: its title says
+what waits for you ("1 step waits for you"), and the reading column is the review queue (Waiting for
+you, Working now, Up next, and Accepted, which opens by itself when nothing else is left), each row
+a step with what it holds (checks passed, commits, pass and claim time for a claim). The evidence
+column holds the drafts, the deviations and the flow to lay, when the task has them. The dock holds
+Review next, and Accept all once only claims are left.
+
+With a step selected, the frame holds its **decision**. The header shows the seal and the title; the
+facts line says its state (a pill), its place, when it last moved, the pass, the checks passed or
+failed, the commits and a deviation. The reading column is the sealed passes hung on one line like a
+history, then the detail (or the feedback for the next pass). The evidence column is the last run
+of each check, the commits (with Log commit while a session runs or after it claimed), and the
+skills and checks that set the step up. The dock holds Accept and Send back on a claim, the session
+key and Mark done myself on an open or running step, Reopen on a done one, with one line saying
+what the state allows. The detail reads as a page that grows with its text: prose holds a measure
+of 74 characters. A task handed in whole shows its own decision, Accept task or Send back, in the
+same place. Nothing but a person marks a step done, and Claude moves a step only up to claimed.
+The list and the frame share the step editor, so a title or detail typed in the frame is saved as
+it was in the old checklist.
 
 **Changes** reads what the sessions changed in the application as a code review (`TaskChangesTab`,
 data from `GET /api/tasks/{id}/changes`). A track along the top picks what is compared: **All changes**

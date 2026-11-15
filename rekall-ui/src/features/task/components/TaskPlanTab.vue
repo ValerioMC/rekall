@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import PlanAdherencePanel from '@/features/adherence/components/PlanAdherencePanel.vue'
 import StepFlowView from '@/features/flow/components/StepFlowView.vue'
 import GraphAttachPanel from '@/features/graph/components/GraphAttachPanel.vue'
+import PlanListHeader from '@/features/steps/components/PlanListHeader.vue'
+import PlanOverview from '@/features/steps/components/PlanOverview.vue'
+import PlanProgress from '@/features/steps/components/PlanProgress.vue'
 import PlanStepRow from '@/features/steps/components/PlanStepRow.vue'
-import PlanSummary from '@/features/steps/components/PlanSummary.vue'
 import StepAddForm from '@/features/steps/components/StepAddForm.vue'
 import StepDecisionPanel from '@/features/steps/components/StepDecisionPanel.vue'
 import StepDraftShelf from '@/features/steps/components/StepDraftShelf.vue'
@@ -27,8 +29,6 @@ import type { TaskStepId } from '@/model/branded'
  * through the list. Drafts sit under their own heading until they are promoted.
  */
 const props = defineProps<{ task: Task }>()
-
-const MAX_UP_NEXT = 3
 
 const plan = useTaskPlan()
 const store = useConsoleStore()
@@ -73,14 +73,10 @@ const selectedStep = computed(
   () => checklistSteps.value.find((step) => step.id === editor.expandedId.value) ?? null
 )
 const handedIn = computed(() => handedInWhole(props.task))
-const showsPanel = computed(() => view.value === 'list' && (selectedStep.value !== null || handedIn.value))
-const listHidden = computed(() => focused.value && showsPanel.value)
+const hasChecklist = computed(() => checklistSteps.value.length > 0)
+const showsPanel = computed(() => view.value === 'list' && (hasChecklist.value || handedIn.value))
+const listHidden = computed(() => focused.value && selectedStep.value !== null && view.value === 'list')
 const neighbours = computed(() => neighboursOf(visibleSteps.value, selectedStep.value?.id ?? null))
-const upNext = computed(() =>
-  checklistSteps.value
-    .filter((step) => step.state === 'CLAIMED' && step.id !== selectedStep.value?.id)
-    .slice(0, MAX_UP_NEXT)
-)
 const hasNoSteps = computed(() => checklistSteps.value.length === 0 && draftSteps.value.length === 0)
 
 function numberOf(step: TaskStep): number {
@@ -104,14 +100,27 @@ async function stepTo(step: TaskStep): Promise<void> {
   revealRow(step.id, 'auto', 'nearest')
 }
 
+function showOverview(): void {
+  editor.flush()
+  editor.close()
+}
+
 function stepThroughWithKeys(event: KeyboardEvent): void {
   if (event.metaKey || event.ctrlKey || event.altKey || isTypingTarget(event.target)) return
   if (!showsPanel.value || deleting.value) return
+  if (event.key === 'Escape' && selectedStep.value) {
+    showOverview()
+    return
+  }
   const target = event.key === 'j' ? neighbours.value.next : event.key === 'k' ? neighbours.value.previous : null
   if (!target) return
   event.preventDefault()
   void stepTo(target)
 }
+
+watch(selectedStep, (step) => {
+  if (!step) focused.value = false
+})
 
 onMounted(() => window.addEventListener('keydown', stepThroughWithKeys))
 onBeforeUnmount(() => window.removeEventListener('keydown', stepThroughWithKeys))
@@ -165,31 +174,41 @@ function canChooseSession(step: TaskStep): boolean {
 </script>
 
 <template>
-  <div class="flex min-h-0 flex-1 flex-col" data-testid="plan-tab">
-    <div class="flex min-h-0 flex-1">
+  <div class="@container flex min-h-0 flex-1 flex-col" data-testid="plan-tab">
+    <section
+      v-if="hasChecklist"
+      class="mx-6 mb-4 mt-4 grid shrink-0 grid-cols-1 rounded-card border border-border bg-surface shadow-raised @min-[56rem]:grid-cols-[minmax(18rem,4fr)_9fr]"
+      aria-label="Plan progress and adherence"
+      data-testid="plan-band"
+    >
+      <PlanProgress
+        class="border-b border-border @min-[56rem]:border-b-0 @min-[56rem]:border-r"
+        v-bind="counts"
+        :running-number="runningNumber"
+        :draft-count="draftSteps.length"
+        @show-drafts="showDrafts"
+      />
+      <PlanAdherencePanel embedded :task-id="task.id" :steps="allSteps" />
+    </section>
+
+    <div class="flex min-h-0 flex-1" :class="hasChecklist && 'border-t border-border'">
       <section
         class="flex min-h-0 min-w-0 flex-col"
-        :class="[showsPanel ? 'w-90 shrink-0 border-r border-border' : 'flex-1', listHidden && 'hidden']"
+        :class="[showsPanel ? 'w-105 shrink-0 border-r border-border' : 'flex-1', listHidden && 'hidden']"
         aria-label="Steps"
       >
-        <div v-if="view === 'flow' && checklistSteps.length" class="flex min-h-0 flex-1 flex-col">
-          <div class="px-6 pt-4">
-            <PlanSummary
-              v-model:hide-done="hideDone"
-              v-model:view="view"
-              v-bind="counts"
-              :running-number="runningNumber"
-              :draft-count="draftSteps.length"
-              :can-show-flow="isFlow"
-              @review-next="reviewNext"
-              @accept-all="plan.acceptAll"
-              @show-drafts="showDrafts"
-            />
-          </div>
-          <StepFlowView :task="task" :steps="checklistSteps" @open-detail="openFromFlow" />
-        </div>
+        <PlanListHeader
+          v-if="hasChecklist"
+          v-model:hide-done="hideDone"
+          v-model:view="view"
+          v-bind="counts"
+          :can-show-flow="isFlow"
+          @review-next="reviewNext"
+        />
 
-        <div v-else ref="listEl" class="min-h-0 min-w-0 flex-1 overflow-y-auto pb-16 pt-4" :class="showsPanel ? 'px-4' : 'px-6'">
+        <StepFlowView v-if="view === 'flow' && hasChecklist" :task="task" :steps="checklistSteps" @open-detail="openFromFlow" />
+
+        <div v-else ref="listEl" class="min-h-0 min-w-0 flex-1 overflow-y-auto pb-6 pt-1" :class="showsPanel ? 'px-3' : 'px-6 pt-4'">
           <template v-if="hasNoSteps">
             <GraphAttachPanel :task="task" :has-steps="false" @attached="showAttachedGraph" />
             <p v-if="handedIn" class="py-6 text-small text-text-muted" data-testid="plan-handed-in">
@@ -199,40 +218,39 @@ function canChooseSession(step: TaskStep): boolean {
           </template>
 
           <template v-else>
-            <template v-if="checklistSteps.length">
-              <PlanSummary
-                v-model:hide-done="hideDone"
-                v-model:view="view"
-                v-bind="counts"
-                :running-number="runningNumber"
-                :draft-count="draftSteps.length"
-                :can-show-flow="isFlow"
-                @review-next="reviewNext"
-                @accept-all="plan.acceptAll"
-                @show-drafts="showDrafts"
-              />
-              <p v-if="!visibleSteps.length" class="py-6 text-small text-text-subtle">
+            <template v-if="hasChecklist">
+              <p v-if="!visibleSteps.length" class="px-2 py-6 text-small text-text-subtle">
                 Every step is done. Show them again to correct one.
               </p>
-              <ol v-else class="flex flex-col gap-0.5" data-testid="plan-steps">
-                <PlanStepRow
-                  v-for="step in visibleSteps"
-                  :key="step.id"
-                  :step="step"
-                  :number="numberOf(step)"
-                  :selected="selectedStep?.id === step.id"
-                  :is-next="step.id === currentId"
-                  :all-done="allDone"
-                  :is-last="step.position === checklistSteps.length - 1"
-                  :can-choose-session="canChooseSession(step)"
-                  @select="select(step)"
-                  @mark-forward="plan.markForward(step)"
-                  @to-draft="plan.returnToDraft(step)"
-                  @move="(by) => plan.move(step, by)"
-                  @remove="deleting = step"
-                  @session="(startsSession) => plan.chooseSession(step, startsSession)"
-                />
-              </ol>
+              <template v-else>
+                <ol class="flex flex-col gap-0.5" data-testid="plan-steps">
+                  <PlanStepRow
+                    v-for="step in visibleSteps"
+                    :key="step.id"
+                    :step="step"
+                    :number="numberOf(step)"
+                    :selected="selectedStep?.id === step.id"
+                    :is-next="step.id === currentId"
+                    :all-done="allDone"
+                    :is-last="step.position === checklistSteps.length - 1"
+                    :can-choose-session="canChooseSession(step)"
+                    @select="select(step)"
+                    @mark-forward="plan.markForward(step)"
+                    @to-draft="plan.returnToDraft(step)"
+                    @move="(by) => plan.move(step, by)"
+                    @remove="deleting = step"
+                    @session="(startsSession) => plan.chooseSession(step, startsSession)"
+                  />
+                </ol>
+                <p class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 px-2 text-caption text-text-subtle" data-testid="plan-pass-legend">
+                  <span class="flex gap-0.5" aria-hidden="true">
+                    <span class="h-1.5 w-3 rounded-key bg-warn" />
+                    <span class="h-1.5 w-3 rounded-key bg-safe" />
+                    <span class="h-1.5 w-3 rounded-key bg-session" />
+                  </span>
+                  One bar per pass: yellow sent back, green accepted, indigo in hand.
+                </p>
+              </template>
             </template>
 
             <StepDraftShelf
@@ -247,28 +265,19 @@ function canChooseSession(step: TaskStep): boolean {
               @remove="(step) => (deleting = step)"
               @session="plan.chooseSession"
             />
-
-            <template v-if="checklistSteps.length">
-              <PlanAdherencePanel class="mt-6" :task-id="task.id" :steps="allSteps" />
-              <GraphAttachPanel v-if="canLayGraph" class="mt-4" :task="task" has-steps @attached="showAttachedGraph" />
-            </template>
           </template>
-
-          <StepAddForm
-            v-model="newTitle"
-            v-model:skills="newSkills"
-            v-model:new-session="newSession"
-            class="mt-6 rounded-card border"
-            @submit="add"
-          />
         </div>
+
+        <StepAddForm
+          v-if="view === 'list' || !hasChecklist"
+          v-model="newTitle"
+          v-model:skills="newSkills"
+          v-model:new-session="newSession"
+          @submit="add"
+        />
       </section>
 
-      <aside
-        v-if="showsPanel"
-        class="flex min-h-0 min-w-0 flex-1 flex-col bg-surface"
-        data-testid="plan-decision"
-      >
+      <aside v-if="showsPanel" class="flex min-h-0 min-w-0 flex-1 flex-col bg-surface" data-testid="plan-decision">
         <StepDecisionPanel
           v-if="selectedStep"
           :step="selectedStep"
@@ -279,15 +288,28 @@ function canChooseSession(step: TaskStep): boolean {
           pinned
           :focused="listHidden"
           :neighbours="neighbours"
-          :up-next="upNext"
-          :number-of="numberOf"
           @accept="plan.markForward(selectedStep)"
           @send-back="plan.sendBack(selectedStep)"
           @reopen="plan.reopen(selectedStep)"
           @mark-done="plan.markForward(selectedStep)"
           @select="stepTo"
+          @overview="showOverview"
           @toggle-focus="focused = !focused"
           @open-deviation="openDeviation"
+        />
+        <PlanOverview
+          v-else-if="hasChecklist"
+          :task="task"
+          :steps="checklistSteps"
+          :draft-count="draftSteps.length"
+          :can-lay-graph="canLayGraph"
+          :number-of="numberOf"
+          @select="stepTo"
+          @review-next="reviewNext"
+          @accept-all="plan.acceptAll"
+          @show-drafts="showDrafts"
+          @open-deviation="openDeviation"
+          @attached="showAttachedGraph"
         />
         <div v-else class="min-h-0 flex-1 overflow-y-auto px-8 py-6">
           <TaskHandedInPanel :task="task" />

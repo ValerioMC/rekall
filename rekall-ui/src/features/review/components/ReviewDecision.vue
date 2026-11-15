@@ -65,8 +65,6 @@ watch(
       :number="numberOf(step)"
       :total="checklistLength"
       :reopen-armed="false"
-      :up-next="[]"
-      :number-of="numberOf"
       @accept="plan.markForward(step)"
       @send-back="plan.sendBack(step)"
     />
