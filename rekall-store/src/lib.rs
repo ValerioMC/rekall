@@ -60,7 +60,7 @@ pub use inventory::entity::project_dependency;
 pub use note::entity::document;
 pub use queue::{entity::run_queue, entity::run_queue_item};
 pub use section::entity::project_section;
-pub use skill::{entity::skill_name, entity::skill_placement, entity::tag_skill, entity::task_skill};
+pub use skill::{entity::skill_arguments, entity::skill_name, entity::skill_placement, entity::tag_skill, entity::task_skill};
 pub use step::{entity::step_pass, entity::task_step};
 pub use telemetry::entity::telemetry_setting;
 pub use tracker::entity::{task_pull_request, task_tracker_link};

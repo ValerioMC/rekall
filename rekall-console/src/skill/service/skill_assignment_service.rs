@@ -57,6 +57,7 @@ impl SkillAssignmentService {
                     id: Id::random(),
                     tag_id,
                     skill_name,
+                    arguments: None,
                     position: position as i32,
                     created_at: now,
                 })
@@ -82,6 +83,7 @@ impl SkillAssignmentService {
                 task_id,
                 step_id,
                 skill_name,
+                arguments: None,
                 position: position as i32,
                 created_at: now,
             })
