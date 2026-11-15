@@ -7,6 +7,7 @@ import { provideStepEditor, type StepEditor } from '@/features/steps/composables
 import { groupBySession, type StepSession } from '@/features/steps/lib/step-sessions'
 import { stepIsComplete, type TaskStep } from '@/features/steps/model/task-step'
 import type { Task } from '@/features/catalog/model/catalog'
+import type { SkillAssignment } from '@/features/skills/model/skill-assignment'
 import { useConsoleStore } from '@/stores/console.store'
 import { useSendBackGuardStore } from '@/features/review/store/sendBackGuard.store'
 import { useToastStore } from '@/stores/toast.store'
@@ -33,7 +34,7 @@ export interface TaskPlan {
   readonly deleting: Ref<TaskStep | null>
   readonly deletingBlast: ComputedRef<string>
   readonly newTitle: Ref<string>
-  readonly newSkills: Ref<readonly string[]>
+  readonly newSkills: Ref<readonly SkillAssignment[]>
   readonly newSession: Ref<boolean>
   markForward: (step: TaskStep) => Promise<void>
   acceptAll: () => Promise<void>
@@ -229,7 +230,7 @@ export function useTaskPlan(): TaskPlan {
   }
 
   const newTitle = ref('')
-  const newSkills = ref<readonly string[]>([])
+  const newSkills = ref<readonly SkillAssignment[]>([])
   const newSession = ref(false)
 
   /** A new step starts as a draft, opened for writing its detail. */

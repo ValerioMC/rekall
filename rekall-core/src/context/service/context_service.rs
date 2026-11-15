@@ -310,25 +310,27 @@ impl ContextService {
         })
     }
 
-    /// The task's own skills, then its tag's, then those of the steps still to be worked. A skill
-    /// already listed at a wider scope is not listed again.
+    /// The task's own skills, then its tag's, then those of the steps still to be worked. An
+    /// invocation (name and arguments) already listed at a wider scope is not listed again.
     async fn skills_of(&self, tx: &Tx, task: &task::Model, steps: &[TaskStepView]) -> Result<Vec<ContextSkillView>> {
         let assigned = repo::task_skill::list_of_task(tx.db(), task.id).await?;
         let mut skills: Vec<ContextSkillView> = assigned
             .iter()
             .filter(|skill| skill.step_id.is_none())
-            .map(|skill| ContextSkillView { name: skill.skill_name.clone(), scope: ContextSkillScope::Task })
+            .map(|skill| ContextSkillView { name: skill.skill_name.clone(), arguments: skill.arguments.clone(), scope: ContextSkillScope::Task })
             .collect();
         if let Some(tag) = self.tag_of(tx, task).await? {
             for skill in repo::tag_skill::list_of_tag(tx.db(), tag.id).await? {
-                skills.push(ContextSkillView { name: skill.skill_name, scope: ContextSkillScope::Tag(tag.name.clone()) });
+                skills.push(ContextSkillView { name: skill.skill_name, arguments: skill.arguments, scope: ContextSkillScope::Tag(tag.name.clone()) });
             }
         }
         let mut seen = std::collections::HashSet::new();
-        skills.retain(|skill| seen.insert(skill.name.clone()));
+        skills.retain(|skill| seen.insert((skill.name.clone(), skill.arguments.clone())));
         for step in steps.iter().filter(|step| !step.state.draft() && !step.state.complete()) {
-            for skill in assigned.iter().filter(|skill| skill.step_id == Some(step.id) && !seen.contains(&skill.skill_name)) {
-                skills.push(ContextSkillView { name: skill.skill_name.clone(), scope: ContextSkillScope::Step(step.title.clone()) });
+            for skill in assigned.iter().filter(|skill| skill.step_id == Some(step.id)) {
+                if seen.insert((skill.skill_name.clone(), skill.arguments.clone())) {
+                    skills.push(ContextSkillView { name: skill.skill_name.clone(), arguments: skill.arguments.clone(), scope: ContextSkillScope::Step(step.title.clone()) });
+                }
             }
         }
         Ok(skills)

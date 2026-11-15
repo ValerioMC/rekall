@@ -28,3 +28,7 @@ pub async fn replace(
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "../../../tests/unit/skill/repository/task_skill_repository_tests.rs"]
+mod tests;

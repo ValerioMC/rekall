@@ -18,3 +18,7 @@ pub async fn replace(db: &impl ConnectionTrait, tag_id: Id, skills: Vec<Model>) 
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "../../../tests/unit/skill/repository/tag_skill_repository_tests.rs"]
+mod tests;

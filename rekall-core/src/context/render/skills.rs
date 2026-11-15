@@ -13,7 +13,8 @@ impl ContextRenderer {
         }
         let mut out = format!(
             "\n<skills count=\"{}\">\nInvoke each skill below with the Skill tool before you start working, and follow \
-             it for the whole task. One scoped to a step applies only while you work that step.\n",
+             it for the whole task. Where a line gives args, pass that text, the string inside the quotes, as the \
+             tool's args. One scoped to a step applies only while you work that step.\n",
             skills.len()
         );
         for skill in skills {
@@ -22,9 +23,14 @@ impl ContextRenderer {
                 ContextSkillScope::Tag(name) => format!("tag: {}", attribute(name)),
                 ContextSkillScope::Step(title) => format!("step: {}", attribute(title)),
             };
-            out.push_str(&format!("- `{}` ({scope})\n", skill.name));
+            out.push_str(&format!("- `{}`{} ({scope})\n", skill.name, arguments_of(skill)));
         }
         out.push_str("</skills>\n");
         out
     }
+}
+
+/// Quoted as a JSON string so any text a person typed reaches the skill exactly as written.
+fn arguments_of(skill: &ContextSkillView) -> String {
+    skill.arguments.as_ref().map(|arguments| format!(" args: {}", serde_json::Value::String(arguments.clone()))).unwrap_or_default()
 }

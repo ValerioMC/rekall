@@ -49,8 +49,10 @@ Call `rekall_context` with `anchors` set to exactly the arguments above, unchang
   guessing the label or the code from it.
 - If a term matched more than one record, show me the candidates and stop. Do not choose.
 - A `<skills>` block lists the Claude skills assigned to the task, to its tag or to one of its steps.
-  Invoke each one with the Skill tool before you start working and follow it. A skill scoped to a step
-  applies only while you work that step.
+  Invoke each one with the Skill tool before you start working and follow it. A line that reads
+  `args: "..."` carries the arguments to invoke that skill with: pass the text inside the quotes as the
+  Skill tool's `args`. The same skill can be listed twice with different arguments, and each is its own
+  invocation. A skill scoped to a step applies only while you work that step.
 - A `<connections>` block lists the systems the project reaches (a Kubernetes cluster, a GitLab
   instance) and the one way to reach each. Use only what its lines say, and only in a terminal Rekall
   opened. Never print, echo or write a credential or a kubeconfig, never read the files or environment

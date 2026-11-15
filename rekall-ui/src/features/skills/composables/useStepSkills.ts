@@ -1,7 +1,7 @@
 import { computed, type Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
-import { stepSkills, taskSkills } from '@/features/skills/model/skill-assignment'
+import { stepSkills, taskSkills, type SkillAssignment } from '@/features/skills/model/skill-assignment'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { TaskStep } from '@/features/steps/model/task-step'
 
@@ -12,7 +12,9 @@ export function useStepSkills(step: Ref<TaskStep>, task: Ref<Task>) {
   const taskLevel = computed(() => taskSkills(task.value.id, task.value.tagId, owned.value, tagged.value))
   const effective = computed(() => stepSkills(step.value.id, taskLevel.value, owned.value))
   const own = computed(() =>
-    owned.value.filter((skill) => skill.stepId === step.value.id).map((skill) => skill.skillName)
+    owned.value
+      .filter((skill) => skill.stepId === step.value.id)
+      .map((skill): SkillAssignment => ({ name: skill.skillName, arguments: skill.arguments }))
   )
 
   return { taskLevel, effective, own }
