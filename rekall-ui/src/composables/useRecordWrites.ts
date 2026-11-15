@@ -1,5 +1,6 @@
 import { useConsoleStore } from '@/stores/console.store'
 import { blankToNull } from '@/stores/console/rows'
+import { taskDeletionBlast } from '@/features/catalog/lib/task-deletion'
 import type { RecordDraft } from '@/features/catalog/model/record-draft'
 import type { CompanyId, ProjectId } from '@/model/branded'
 
@@ -91,8 +92,7 @@ export function useRecordWrites() {
       const count = store.tasks.filter((task) => task.projectId === draft.id).length
       return `${plural(count, 'task')} · the notes it owns`
     }
-    const task = store.tasks.find((candidate) => candidate.id === draft.id)
-    return `${plural(task?.documentCount ?? 0, 'note')} unlinked · each stays where it lives`
+    return taskDeletionBlast(store.tasks.find((candidate) => candidate.id === draft.id))
   }
 
   return { write, erase, deletionBlast }

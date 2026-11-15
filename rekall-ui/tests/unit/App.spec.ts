@@ -593,7 +593,7 @@ describe('the console', () => {
       await wrapper.find('[data-testid="record-delete"]').trigger('click')
       await flushPromises()
 
-      expect(wrapper.text()).toContain('1 note unlinked')
+      expect(wrapper.text()).toContain('1 note deleted')
       expect(deleteTask).not.toHaveBeenCalled()
 
       const confirm = wrapper

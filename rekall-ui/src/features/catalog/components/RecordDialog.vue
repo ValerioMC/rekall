@@ -11,6 +11,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useRecordWrites } from '@/composables/useRecordWrites'
 import { identityHue } from '@/common/identity'
+import { taskDeletionBody } from '@/features/catalog/lib/task-deletion'
 import { slugify } from '@/features/catalog/model/catalog'
 import { labelOf, titleOf, type RecordDraft } from '@/features/catalog/model/record-draft'
 
@@ -57,6 +58,7 @@ const canSave = computed(() => title.value.trim().length > 0 && (!hasLabel || la
 
 const writes = useRecordWrites()
 const blast = computed(() => writes.deletionBlast(form.value))
+const trackerIssueKey = computed(() => store.tasks.find((task) => task.id === form.value.id)?.trackerIssueKey ?? null)
 
 async function save(): Promise<void> {
   if (isRunning.value) return
@@ -191,7 +193,7 @@ onUnmounted(() => window.removeEventListener('keydown', saveOnModEnter, true))
           :title="`Delete ${title}?`"
           :body="
             kind === 'task'
-              ? 'The notes on it are unlinked. Every one of them stays in the project, company or global list that owns it.'
+              ? taskDeletionBody(trackerIssueKey)
               : 'Everything underneath goes with it. This is not recoverable.'
           "
           :blast="blast"
