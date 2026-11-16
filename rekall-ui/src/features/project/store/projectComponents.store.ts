@@ -5,10 +5,11 @@ import {
   deleteProjectComponent,
   fetchProjectComponents,
   reorderProjectComponents,
+  scanProjectComponents,
   updateProjectComponent
 } from '@/features/project/api/project-components.api'
 import { movedOne, type Direction } from '@/features/project/lib/section-order'
-import type { ProjectComponent, ProjectComponentInput } from '@/features/project/model/project-component'
+import type { ComponentScan, ProjectComponent, ProjectComponentInput } from '@/features/project/model/project-component'
 import type { ProjectComponentId, ProjectId } from '@/model/branded'
 
 /**
@@ -58,6 +59,12 @@ export const useProjectComponentsStore = defineStore('projectComponents', () => 
     return created
   }
 
+  async function scan(projectId: ProjectId): Promise<ComponentScan> {
+    const scanned = await scanProjectComponents(projectId)
+    put(projectId, [...componentsOf(projectId), ...scanned.added])
+    return scanned
+  }
+
   async function update(id: ProjectComponentId, input: ProjectComponentInput): Promise<ProjectComponent> {
     const saved = await updateProjectComponent(id, input)
     put(
@@ -85,5 +92,5 @@ export const useProjectComponentsStore = defineStore('projectComponents', () => 
     put(projectId, componentsOf(projectId).filter((component) => component.id !== id))
   }
 
-  return { componentsOf, isLoaded, isLoading, load, ensureLoaded, create, update, move, remove }
+  return { componentsOf, isLoaded, isLoading, load, ensureLoaded, create, scan, update, move, remove }
 })

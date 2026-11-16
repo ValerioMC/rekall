@@ -1,11 +1,11 @@
 use axum::extract::{Path, State};
 use axum::response::Response;
-use axum::routing::{get, put};
+use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use rekall_core::component::ProjectComponentView;
 
 use crate::shared::{created, no_content};
-use crate::component::{ProjectComponentOrderRequest, ProjectComponentRequest};
+use crate::component::{ComponentScanResponse, ProjectComponentOrderRequest, ProjectComponentRequest};
 use crate::shared::error::ApiResult;
 use crate::shared::extract::{uuid, JsonBody, Validator};
 use crate::ApiState;
@@ -14,6 +14,7 @@ pub fn routes() -> Router<ApiState> {
     Router::new()
         .route("/api/projects/{id}/components", get(list).post(create))
         .route("/api/projects/{id}/components/order", put(reorder))
+        .route("/api/projects/{id}/components/scan", post(scan))
         .route("/api/project-components/{id}", put(update).delete(delete))
 }
 
@@ -25,6 +26,10 @@ async fn create(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(
     let project_id = uuid("id", &id)?;
     Validator::new().not_blank("folder", request.folder.as_deref()).finish()?;
     Ok(created(state.component_catalog.create(project_id, request.into()).await?))
+}
+
+async fn scan(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<ComponentScanResponse>> {
+    Ok(Json(state.component_scan.scan(uuid("id", &id)?).await?.into()))
 }
 
 async fn reorder(

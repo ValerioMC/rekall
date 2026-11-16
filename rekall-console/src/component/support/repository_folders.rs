@@ -3,14 +3,27 @@
 
 use std::path::{Path, PathBuf};
 
+use rekall_kernel::{jstr, RekallError, Result};
 use tracing::warn;
 
 /// How far below the project's folder the walk looks: far enough for a folder of service groups.
 const MAX_DEPTH: usize = 4;
 const SKIPPED: [&str; 1] = ["node_modules"];
 
+/// The folder a project's repositories are looked for in: its own, which has to be set and exist.
+pub(crate) fn project_root(repo_folder: Option<&str>) -> Result<PathBuf> {
+    let Some(folder) = repo_folder.filter(|folder| !jstr::is_blank(folder)) else {
+        return Err(RekallError::illegal("This project has no folder yet. Set it before looking for its repositories."));
+    };
+    let root = PathBuf::from(jstr::strip(folder));
+    if !root.is_dir() {
+        return Err(RekallError::illegal(format!("{} is not a folder on this machine.", root.display())));
+    }
+    Ok(root)
+}
+
 /// Every repository under `root`, `root` itself included, in path order.
-pub(in crate::connection) fn repositories_under(root: &Path) -> Vec<PathBuf> {
+pub(crate) fn repositories_under(root: &Path) -> Vec<PathBuf> {
     let mut found = Vec::new();
     collect(root, 0, &mut found);
     found
@@ -54,5 +67,5 @@ fn is_walked(name: &str) -> bool {
 }
 
 #[cfg(test)]
-#[path = "../../../tests/unit/connection/support/repository_folders_tests.rs"]
+#[path = "../../../tests/unit/component/support/repository_folders_tests.rs"]
 mod tests;

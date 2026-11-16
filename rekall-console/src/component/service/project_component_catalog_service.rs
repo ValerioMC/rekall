@@ -44,14 +44,14 @@ impl ProjectComponentCatalogService {
 
     /// A component for `folder`, named after it, unless one already has that folder. A name another
     /// component holds takes the first free number.
-    pub async fn add_for_folder_in(&self, tx: &Tx, project_id: Id, folder: &str) -> Result<Option<ProjectComponentView>> {
+    pub async fn add_for_folder_in(&self, tx: &Tx, project_id: Id, folder: &str, description: &str) -> Result<Option<ProjectComponentView>> {
         let folder = folder_of(Some(folder))?;
         let existing = repo::project_component::list_of_project(tx.db(), project_id).await?;
         if existing.iter().any(|component| component.folder == folder) {
             return Ok(None);
         }
         let name = first_free_name(&folder_name(&folder), &existing);
-        Ok(Some(self.insert_in(tx, project_id, name, folder, String::new()).await?))
+        Ok(Some(self.insert_in(tx, project_id, name, folder, description.to_string()).await?))
     }
 
     async fn insert_in(&self, tx: &Tx, project_id: Id, name: String, folder: String, description: String) -> Result<ProjectComponentView> {

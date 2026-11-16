@@ -76,6 +76,7 @@ async-trait = "0.1"
 dirs = "6"
 zeroize = "1"
 serde_norway = "0.9"
+toml = { version = "0.9", default-features = false, features = ["std", "serde", "parse"] }
 keyring = { version = "3.6", default-features = false }
 
 [profile.release]

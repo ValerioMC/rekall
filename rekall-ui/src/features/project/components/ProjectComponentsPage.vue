@@ -6,8 +6,10 @@ import ProjectComponentRow from '@/features/project/components/ProjectComponentR
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useToastStore } from '@/stores/toast.store'
 import { folderName } from '@/features/project/lib/component-folder'
 import { componentBranches, componentMatches, type ComponentBranch, type ComponentLeaf } from '@/features/project/lib/component-tree'
+import { scanSummary } from '@/features/project/lib/component-scan-summary'
 import { canMove, type Direction } from '@/features/project/lib/section-order'
 import { useProjectComponentsStore } from '@/features/project/store/projectComponents.store'
 import type { ProjectComponent, ProjectComponentInput } from '@/features/project/model/project-component'
@@ -23,6 +25,7 @@ const props = defineProps<{ projectId: ProjectId; projectTitle: string; repoFold
 type TreeEntry = { readonly kind: 'leaf'; readonly leaf: ComponentLeaf } | { readonly kind: 'branch'; readonly branch: ComponentBranch }
 
 const store = useProjectComponentsStore()
+const toast = useToastStore()
 const { run } = useAsyncAction()
 
 const components = computed(() => store.componentsOf(props.projectId))
@@ -33,6 +36,7 @@ const query = ref('')
 const editingId = ref<ProjectComponentId | null>(null)
 const composing = ref(false)
 const creating = ref(false)
+const scanning = ref(false)
 const deleting = ref<ProjectComponent | null>(null)
 
 const shown = computed(() => components.value.filter((component) => componentMatches(component, query.value)))
@@ -60,6 +64,13 @@ async function add(input: ProjectComponentInput): Promise<void> {
   const created = await run(() => store.create(props.projectId, input), 'Component added')
   creating.value = false
   if (created) composing.value = false
+}
+
+async function scan(): Promise<void> {
+  scanning.value = true
+  const scanned = await run(() => store.scan(props.projectId))
+  scanning.value = false
+  if (scanned) toast.notify(scanSummary(scanned))
 }
 
 async function move(direction: Direction): Promise<void> {
@@ -109,6 +120,16 @@ watch(
         class="field text-text h-8 w-[280px] max-w-full rounded-control px-2.5 text-small"
         data-testid="components-filter"
       />
+      <AppButton
+        size="sm"
+        :loading="scanning"
+        :disabled="!repoFolder"
+        :title="repoFolder ? undefined : 'Set the project folder first'"
+        data-testid="scan-components"
+        @click="scan"
+      >
+        Scan folder
+      </AppButton>
       <AppButton variant="primary" size="sm" data-testid="add-component" @click="startComposing">+ Add component</AppButton>
     </header>
 
@@ -125,8 +146,8 @@ watch(
           data-testid="components-empty"
         >
           A project that is one folder needs none. When it holds several modules or repositories, add each folder so a
-          session can tell which one you mean. <span class="text-text-muted">Find repositories</span>, on the Connections
-          tab, adds one for every git repository under the project's folder.
+          session can tell which one you mean. <span class="text-text-muted">Scan folder</span> adds one for every git
+          repository under the project's folder, described by its manifest or README.
         </div>
 
         <template v-else>
