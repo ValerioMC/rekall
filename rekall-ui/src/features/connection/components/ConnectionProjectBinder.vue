@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppField from '@/components/ui/AppField.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import TargetSuggestionList from '@/features/connection/components/TargetSuggestionList.vue'
+import { useTargetSuggestions } from '@/features/connection/composables/useTargetSuggestions'
 import { TARGET_FIELD } from '@/features/connection/lib/connection-fields'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
 import type { ConnectionKind } from '@/features/connection/model/connection'
@@ -18,6 +20,7 @@ const props = defineProps<{
   connectionId: ConnectionId
   connectionTitle: string
   kind: ConnectionKind
+  credentialSet: boolean
   projects: readonly { readonly id: ProjectId; readonly title: string }[]
 }>()
 const emit = defineEmits<{ close: []; bound: [] }>()
@@ -29,7 +32,12 @@ const target = ref('')
 const picker = ref<HTMLElement | null>(null)
 
 const targetField = computed(() => TARGET_FIELD[props.kind])
+const takesSuggestions = computed(() => (props.kind === 'JIRA' || props.kind === 'CONFLUENCE') && props.credentialSet)
+const suggestionListId = computed(() => `target-suggestions-${props.connectionId}`)
+const { suggestions, unavailable, ask } = useTargetSuggestions(() => props.connectionId, () => takesSuggestions.value)
 const options = computed(() => props.projects.map((project) => ({ value: project.id, label: project.title })))
+
+watch(target, (typed) => ask(typed))
 
 async function bind(): Promise<void> {
   const project = props.projects.find((known) => known.id === projectId.value)
@@ -57,9 +65,19 @@ onMounted(async () => {
     <AppField
       v-slot="{ fieldId, describedBy }"
       :label="targetField.name"
-      hint="Optional. Leave it empty to give the project the whole connection; type one to narrow it."
+      :hint="unavailable ? `Suggestions unavailable: ${unavailable}` : 'Optional. Leave it empty to give the project the whole connection; type one to narrow it.'"
     >
-      <AppInput :id="fieldId" v-model="target" :described-by="describedBy" mono :placeholder="targetField.placeholder" data-testid="binder-target" />
+      <AppInput
+        :id="fieldId"
+        v-model="target"
+        :described-by="describedBy"
+        mono
+        :placeholder="targetField.placeholder"
+        :list="takesSuggestions ? suggestionListId : undefined"
+        data-testid="binder-target"
+        @focus="ask(target)"
+      />
+      <TargetSuggestionList v-if="takesSuggestions" :id="suggestionListId" :suggestions="suggestions" />
     </AppField>
     <div class="flex items-center justify-end gap-2">
       <AppButton size="sm" variant="ghost" class="max-sm:min-h-11" @click="emit('close')">Cancel</AppButton>

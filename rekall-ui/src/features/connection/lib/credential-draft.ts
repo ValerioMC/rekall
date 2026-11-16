@@ -11,11 +11,12 @@ export function emptyDraft(kind: ConnectionKind): CredentialDraft {
     case 'KUBERNETES':
       return { kind, kubeconfig: '', context: null }
     case 'JIRA':
+    case 'CONFLUENCE':
       return { kind, deployment: 'CLOUD', email: '', token: '' }
   }
 }
 
-/** Whether the draft holds enough to send: a token, a kubeconfig with a context chosen, on Jira Cloud an email and a token, or on Grafana a token or a user and a password. */
+/** Whether the draft holds enough to send: a token, a kubeconfig with a context chosen, on Atlassian Cloud an email and a token, or on Grafana a token or a user and a password. */
 export function isComplete(draft: CredentialDraft): boolean {
   switch (draft.kind) {
     case 'GITLAB':
@@ -26,6 +27,7 @@ export function isComplete(draft: CredentialDraft): boolean {
     case 'KUBERNETES':
       return draft.kubeconfig.trim().length > 0 && draft.context !== null
     case 'JIRA':
+    case 'CONFLUENCE':
       return draft.token.trim().length > 0 && (draft.deployment === 'DATA_CENTER' || draft.email.trim().includes('@'))
   }
 }
@@ -41,6 +43,7 @@ export function isStarted(draft: CredentialDraft): boolean {
     case 'KUBERNETES':
       return draft.kubeconfig.length > 0
     case 'JIRA':
+    case 'CONFLUENCE':
       return draft.token.length > 0 || (draft.deployment === 'CLOUD' && draft.email.length > 0)
   }
 }
@@ -55,11 +58,12 @@ export function credentialNoun(kind: ConnectionKind): string {
     case 'KUBERNETES':
       return 'kubeconfig'
     case 'JIRA':
+    case 'CONFLUENCE':
       return 'token'
   }
 }
 
-/** The credential as edited beside the one stored: Jira Cloud when an email was stored, Grafana with a password when a user was, a Kubernetes one keeps its stored context. */
+/** The credential as edited beside the one stored: Atlassian Cloud when an email was stored, Grafana with a password when a user was, a Kubernetes one keeps its stored context. */
 export function draftOfEdit(connection: Connection, secret: string, email: string | null, user: string | null): CredentialDraft {
   switch (connection.kind) {
     case 'GITLAB':
@@ -72,8 +76,9 @@ export function draftOfEdit(connection: Connection, secret: string, email: strin
     case 'KUBERNETES':
       return { kind: 'KUBERNETES', kubeconfig: secret, context: connection.kubeContext }
     case 'JIRA':
+    case 'CONFLUENCE':
       return email === null
-        ? { kind: 'JIRA', deployment: 'DATA_CENTER', email: '', token: secret }
-        : { kind: 'JIRA', deployment: 'CLOUD', email, token: secret }
+        ? { kind: connection.kind, deployment: 'DATA_CENTER', email: '', token: secret }
+        : { kind: connection.kind, deployment: 'CLOUD', email, token: secret }
   }
 }

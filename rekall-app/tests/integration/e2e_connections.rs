@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use rekall_app::server::StartOptions;
-use rekall_core::connection::{InMemorySecretStore, JiraCredential, JiraFailure, JiraIssue, JiraIssues, JiraSite, ScriptedTaskTracker, SecretStore};
+use rekall_core::connection::{InMemorySecretStore, AtlassianCredential, AtlassianFailure, JiraIssue, JiraIssues, JiraProject, AtlassianSite, ConfluencePage, ConfluenceSpace, ConfluenceSpaces, ScriptedTaskTracker, SecretStore};
 use serde_json::json;
 use support::{app, app_with, app_with_secrets, await_until, id, run_git, App};
 
@@ -301,10 +301,18 @@ struct FakeJira;
 
 #[async_trait]
 impl JiraIssues for FakeJira {
-    async fn search(&self, site: &JiraSite, credential: &JiraCredential, _jql: &str, _limit: u16) -> Result<Vec<JiraIssue>, JiraFailure> {
+    async fn search(&self, site: &AtlassianSite, credential: &AtlassianCredential, _jql: &str, _limit: u16) -> Result<Vec<JiraIssue>, AtlassianFailure> {
         assert_eq!((site.url.as_str(), site.proxy_url.as_deref(), credential.email()), ("https://example.atlassian.net", Some("http://proxy.example.com:8080"), Some("ada@example.com")));
         let issue = |key: &str, summary: &str| JiraIssue { key: key.into(), summary: summary.into(), status: Some("To Do".into()), issue_type: Some("Story".into()), description: Some("Steps.".into()) };
         Ok(vec![issue("ENG-1", "Fix login"), issue("ENG-2", "Add export")])
+    }
+
+    async fn projects(&self, _site: &AtlassianSite, _credential: &AtlassianCredential, _query: &str, _limit: u16) -> Result<Vec<JiraProject>, AtlassianFailure> {
+        Ok(vec![JiraProject { key: "ENG".into(), name: "Engineering".into() }])
+    }
+
+    async fn project(&self, _site: &AtlassianSite, _credential: &AtlassianCredential, key: &str) -> Result<Option<JiraProject>, AtlassianFailure> {
+        Ok((key == "ENG").then(|| JiraProject { key: "ENG".into(), name: "Engineering".into() }))
     }
 }
 
@@ -335,6 +343,52 @@ async fn a_jira_connection_imports_the_issues_a_project_picks_as_its_tasks() {
     assert!(!app.get(&issues).await.list()[0]["taskId"].is_null(), "an imported issue names its task");
 
     assert_eq!(app.post(&format!("{issues}/import"), json!({ "keys": ["OPS-1"] })).await.status, 400);
+}
+
+/// A Confluence site with one space, whose home page and two others fill the project.
+struct FakeConfluence;
+
+#[async_trait]
+impl ConfluenceSpaces for FakeConfluence {
+    async fn space(&self, _site: &AtlassianSite, credential: &AtlassianCredential, key: &str) -> Result<Option<ConfluenceSpace>, AtlassianFailure> {
+        assert_eq!(credential.email(), Some("ada@example.com"));
+        Ok((key == "DOCS").then(|| ConfluenceSpace { key: "DOCS".into(), name: "Documentation".into(), description: Some("How Vega is built".into()), home_page_id: Some("1".into()) }))
+    }
+
+    async fn spaces(&self, _site: &AtlassianSite, _credential: &AtlassianCredential, _query: &str, _limit: u16) -> Result<Vec<ConfluenceSpace>, AtlassianFailure> {
+        Ok(vec![ConfluenceSpace { key: "DOCS".into(), name: "Documentation".into(), description: None, home_page_id: None }])
+    }
+
+    async fn pages(&self, _site: &AtlassianSite, _credential: &AtlassianCredential, _space_key: &str, _limit: u16) -> Result<Vec<ConfluencePage>, AtlassianFailure> {
+        let page = |id: &str, title: &str, markdown: &str| ConfluencePage { id: id.into(), title: title.into(), labels: vec![], markdown: markdown.into(), url: format!("https://example.atlassian.net/wiki/{id}") };
+        Ok(vec![page("1", "Home", "Vega ships orders."), page("2", "Deployment guide", "Run make deploy."), page("3", "System architecture", "Three services.")])
+    }
+}
+
+#[tokio::test]
+async fn a_confluence_space_is_suggested_checked_and_fills_the_project() {
+    let secrets = Arc::new(InMemorySecretStore::new());
+    let options = StartOptions { no_restart: true, secrets: Some(secrets.clone()), confluence_spaces: Some(Arc::new(FakeConfluence)), ..StartOptions::default() };
+    let app = app_with(&[], options).await;
+    let acme = app.a_company("Acme").await;
+    let vega = app.a_project(&acme, "vega", "ACTIVE").await;
+    let wiki = id(&app.post("/api/connections", json!({ "companyIds": [acme], "kind": "CONFLUENCE", "title": "Wiki", "baseUrl": "https://example.atlassian.net/wiki" })).await);
+    assert_eq!(app.put(&format!("/api/connections/{wiki}/credential"), json!({ "email": "ada@example.com", "token": "atl-secret" })).await.status, 200);
+
+    let suggested = app.get(&format!("/api/connections/{wiki}/target-suggestions?query=doc")).await;
+    assert_eq!((suggested.list()[0]["value"].as_str(), suggested.list()[0]["name"].as_str()), (Some("DOCS"), Some("Documentation")));
+    let refused = app.post(&format!("/api/projects/{vega}/connections"), json!({ "connectionId": wiki, "target": "NOPE" })).await;
+    assert_eq!(refused.status, 400, "{}", refused.text);
+    assert!(refused.text.contains("Confluence has no space 'NOPE'"));
+    let binding = id(&app.post(&format!("/api/projects/{vega}/connections"), json!({ "connectionId": wiki, "target": "DOCS" })).await);
+
+    let imported = app.post(&format!("/api/projects/{vega}/connections/{binding}/confluence/import"), json!({})).await;
+    assert_eq!(imported.status, 200, "{}", imported.text);
+    assert_eq!((imported.str("spaceKey"), imported.get("pagesRead").as_u64(), imported.get("blueprintWritten").as_bool()), ("DOCS".into(), Some(3), Some(true)));
+    let project = app.get(&format!("/api/projects/{vega}")).await;
+    assert_eq!((project.str("description"), project.str("blueprintMarkdown").starts_with("Vega ships orders.")), ("How Vega is built".into(), true));
+    let sections = app.get(&format!("/api/projects/{vega}/sections")).await;
+    assert_eq!(sections.list().iter().map(|section| section["title"].as_str().unwrap().to_string()).collect::<Vec<_>>(), ["Architecture", "Deployment"]);
 }
 
 #[tokio::test]

@@ -176,7 +176,7 @@ fn failure_message(kind: ConnectionKind, failure: &TrackerFailure) -> String {
         ConnectionKind::Jira => "Jira",
         ConnectionKind::Gitlab => "GitLab",
         ConnectionKind::Github => "GitHub",
-        ConnectionKind::Kubernetes | ConnectionKind::Grafana => "The task manager",
+        ConnectionKind::Kubernetes | ConnectionKind::Grafana | ConnectionKind::Confluence => "The task manager",
     };
     match failure {
         TrackerFailure::Rejected { status } => format!("{name} rejected the stored credential (HTTP {status}). Replace it on the Connections page."),

@@ -14,6 +14,7 @@ pub use support::icon_raster::{MASTER_SIDE, MAX_UPLOAD_BYTES};
 pub use command::project_command::ProjectCommand;
 pub use service::project_icon_service::ProjectIconService;
 pub use view::project_repository_view::ProjectRepositoryView;
+pub use view::project_texts_written::ProjectTextsWritten;
 pub use service::project_service::ProjectService;
 pub use view::project_view::ProjectView;
 pub use support::snapshot::Snapshot;

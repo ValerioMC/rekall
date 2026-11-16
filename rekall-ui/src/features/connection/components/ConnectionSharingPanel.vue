@@ -107,6 +107,7 @@ async function unbind(binding: ConnectionProject): Promise<void> {
           :connection-id="detail.id"
           :connection-title="detail.title"
           :kind="detail.kind"
+          :credential-set="detail.credentialSetAt !== null"
           :projects="group.projects"
           @close="companyBinding = null"
           @bound="companyBinding = null"

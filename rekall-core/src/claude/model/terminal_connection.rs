@@ -8,11 +8,11 @@ pub struct TerminalConnection {
     pub connection_id: Id,
     pub kind: ConnectionKind,
     pub label: String,
-    /// The GitLab project path, the Kubernetes namespace or the Jira project key.
+    /// The GitLab project path, the Kubernetes namespace, the Jira project key or the Confluence space key.
     pub target: Option<String>,
-    /// GitLab and Jira only: the instance or site pushes and API calls go to.
+    /// GitLab, Jira and Confluence only: the instance or site pushes and API calls go to.
     pub instance_url: Option<String>,
-    /// Jira and Grafana only: the proxy API calls go through.
+    /// Jira, Confluence and Grafana only: the proxy API calls go through.
     pub proxy_url: Option<String>,
     /// Grafana only: the instance serves a self-signed certificate the helper does not verify.
     pub accept_self_signed: bool,

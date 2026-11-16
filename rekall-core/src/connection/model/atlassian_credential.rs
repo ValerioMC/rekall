@@ -2,42 +2,42 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use rekall_kernel::{InternalFailure, RekallError, Result};
 
-use crate::connection::{JiraDeployment, Secret};
+use crate::connection::{AtlassianDeployment, Secret};
 
 /// What the store keeps in place of an email for a personal access token; it holds no `@`, so no email reads as it.
 const PERSONAL_ACCESS_TOKEN: &str = "pat";
 
-/// How Rekall signs in to a Jira site, which also says which Jira it is: Cloud takes the account's
+/// How Rekall signs in to a Jira or Confluence site, which also says which edition it is: Cloud takes the account's
 /// email and an API token as Basic authentication, Data Center a personal access token as Bearer.
 /// The store keeps `email:token` or `pat:token`, so an email holding `:` is refused.
 #[derive(Debug)]
-pub struct JiraCredential {
+pub struct AtlassianCredential {
     email: Option<String>,
     token: Secret,
 }
 
-impl JiraCredential {
+impl AtlassianCredential {
     pub fn cloud(email: &str, token: Secret) -> Result<Self> {
         let email = email.trim();
         if !email.contains('@') || email.contains(':') {
-            return Err(RekallError::illegal("A Jira Cloud connection needs the email of the Atlassian account the API token belongs to."));
+            return Err(RekallError::illegal("An Atlassian Cloud connection needs the email of the Atlassian account the API token belongs to."));
         }
         if token.is_blank() {
-            return Err(RekallError::illegal("A Jira Cloud connection needs an API token of that account."));
+            return Err(RekallError::illegal("An Atlassian Cloud connection needs an API token of that account."));
         }
         Ok(Self { email: Some(email.to_string()), token })
     }
 
     pub fn data_center(token: Secret) -> Result<Self> {
         if token.is_blank() {
-            return Err(RekallError::illegal("A Jira Data Center connection needs a personal access token."));
+            return Err(RekallError::illegal("An Atlassian Data Center connection needs a personal access token."));
         }
         Ok(Self { email: None, token })
     }
 
     /// Reads back what `to_stored` kept.
     pub fn from_stored(stored: &Secret) -> Result<Self> {
-        let corrupt = || RekallError::internal(InternalFailure::CorruptData, "a stored Jira credential is neither an email and a token nor a personal access token");
+        let corrupt = || RekallError::internal(InternalFailure::CorruptData, "a stored Atlassian credential is neither an email and a token nor a personal access token");
         let (account, token) = stored.expose().split_once(':').ok_or_else(corrupt)?;
         let token = Secret::new(token);
         match account {
@@ -51,15 +51,15 @@ impl JiraCredential {
         Secret::new(format!("{}:{}", self.email.as_deref().unwrap_or(PERSONAL_ACCESS_TOKEN), self.token.expose()))
     }
 
-    pub fn deployment(&self) -> JiraDeployment {
+    pub fn deployment(&self) -> AtlassianDeployment {
         if self.email.is_some() {
-            JiraDeployment::Cloud
+            AtlassianDeployment::Cloud
         } else {
-            JiraDeployment::DataCenter
+            AtlassianDeployment::DataCenter
         }
     }
 
-    /// Jira Cloud only: the account the API token belongs to.
+    /// Atlassian Cloud only: the account the API token belongs to.
     pub fn email(&self) -> Option<&str> {
         self.email.as_deref()
     }
@@ -78,5 +78,5 @@ impl JiraCredential {
 }
 
 #[cfg(test)]
-#[path = "../../../tests/unit/connection/model/jira_credential_tests.rs"]
+#[path = "../../../tests/unit/connection/model/atlassian_credential_tests.rs"]
 mod tests;

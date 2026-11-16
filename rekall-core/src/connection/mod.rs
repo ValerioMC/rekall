@@ -1,6 +1,6 @@
 //! A company's connections as Rekall's services see them: the view a context names them by, the
 //! credential type that never prints, the store that keeps it outside the database, the kubeconfig
-//! a Kubernetes credential arrives as, and the Jira credential and issues a Jira connection reads, and the task manager a project writes its tasks to.
+//! a Kubernetes credential arrives as, and the Atlassian credential, the Jira issues and the Confluence spaces a connection reads, and the task manager a project writes its tasks to.
 
 mod event;
 mod model;
@@ -23,12 +23,16 @@ pub use model::hand_out::{HandOut, Refusal};
 pub use port::in_memory_secret_store::InMemorySecretStore;
 pub use model::grafana_credential::GrafanaCredential;
 pub use model::grafana_instance::GrafanaInstance;
-pub use model::jira_credential::JiraCredential;
-pub use model::jira_deployment::JiraDeployment;
-pub use model::jira_failure::JiraFailure;
+pub use model::atlassian_credential::AtlassianCredential;
+pub use model::atlassian_deployment::AtlassianDeployment;
+pub use model::atlassian_failure::AtlassianFailure;
+pub use model::confluence_page::ConfluencePage;
+pub use model::confluence_space::ConfluenceSpace;
+pub use port::confluence_spaces::ConfluenceSpaces;
 pub use model::jira_issue::JiraIssue;
+pub use model::jira_project::JiraProject;
 pub use port::jira_issues::JiraIssues;
-pub use model::jira_site::JiraSite;
+pub use model::atlassian_site::AtlassianSite;
 pub use model::kube_access::KubeAccess;
 pub use model::kube_context_summary::KubeContextSummary;
 pub use model::kube_credential::KubeCredential;

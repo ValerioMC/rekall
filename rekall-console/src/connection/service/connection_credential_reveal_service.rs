@@ -6,7 +6,7 @@ use std::sync::Arc;
 use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::{external_connection, ConnectionKind};
 use rekall_store::repository as repo;
-use rekall_core::connection::{GrafanaCredential, JiraCredential, Secret, SecretStore};
+use rekall_core::connection::{GrafanaCredential, AtlassianCredential, Secret, SecretStore};
 use rekall_core::{in_read, Ctx};
 
 use crate::connection::support::credential_keeping::recall;
@@ -41,8 +41,8 @@ fn revealed(connection: &external_connection::Model, stored: Secret) -> Result<R
             let grafana = GrafanaCredential::from_stored(&stored)?;
             Ok(RevealedCredentialView { token: Some(Secret::new(grafana.secret().expose())), kubeconfig: None, email: None, user: grafana.user().map(str::to_string) })
         }
-        ConnectionKind::Jira => {
-            let jira = JiraCredential::from_stored(&stored)?;
+        ConnectionKind::Jira | ConnectionKind::Confluence => {
+            let jira = AtlassianCredential::from_stored(&stored)?;
             Ok(RevealedCredentialView { token: Some(Secret::new(jira.token().expose())), kubeconfig: None, email: jira.email().map(str::to_string), user: None })
         }
     }

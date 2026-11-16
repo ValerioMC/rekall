@@ -9,7 +9,7 @@ use axum::http::StatusCode;
 use axum::{middleware, Router};
 use rekall_core::check::CheckRunner;
 use rekall_core::claude::{TerminalHost, UsageReader};
-use rekall_core::connection::{ConnectionProbe, JiraIssues, MigratingSecretStore, RememberingSecretStore, SecretStore, TaskTracker, TaskTrackerService};
+use rekall_core::connection::{ConfluenceSpaces, ConnectionProbe, JiraIssues, MigratingSecretStore, RememberingSecretStore, SecretStore, TaskTracker, TaskTrackerService};
 use rekall_core::queue::RunQueueService;
 use rekall_core::version::ReleaseFeed;
 use rekall_core::vulnerability::AdvisoryFeed;
@@ -22,6 +22,7 @@ use rekall_infra::check::ShellCheckRunner;
 use rekall_infra::cli::ClaudeCli;
 use rekall_infra::connection::CredentialBroker;
 use rekall_infra::credentials::ClaudeCredentials;
+use rekall_infra::confluence::HttpConfluenceSpaces;
 use rekall_infra::jira::HttpJiraIssues;
 use rekall_infra::login_shell::LoginShellEnvironment;
 use rekall_infra::probes::HttpConnectionProbe;
@@ -74,6 +75,13 @@ pub(super) fn jira_issues_of(options: &StartOptions) -> Arc<dyn JiraIssues> {
     match &options.jira_issues {
         Some(jira) => jira.clone(),
         None => Arc::new(HttpJiraIssues::new()),
+    }
+}
+
+pub(super) fn confluence_spaces_of(options: &StartOptions) -> Arc<dyn ConfluenceSpaces> {
+    match &options.confluence_spaces {
+        Some(confluence) => confluence.clone(),
+        None => Arc::new(HttpConfluenceSpaces::new()),
     }
 }
 

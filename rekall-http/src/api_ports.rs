@@ -3,7 +3,7 @@ use std::sync::Arc;
 use rekall_core::backup::{DatabaseBackups, DatabaseRestore};
 use rekall_core::chat::ChatPipe;
 use rekall_core::claude::{ClaudeCodeSetup, GuardInstaller, ClaudeResources, TerminalHost, TerminalPipe, UsageReader};
-use rekall_core::connection::{ConnectionProbe, CredentialDesk, JiraIssues, SecretStore, TaskTrackerService};
+use rekall_core::connection::{ConfluenceSpaces, ConnectionProbe, CredentialDesk, JiraIssues, SecretStore, TaskTrackerService};
 use rekall_core::queue::QueueRunner;
 use rekall_core::settings::{ApplicationRestart, DatabaseFolders};
 use rekall_core::version::ReleaseFeed;
@@ -15,6 +15,7 @@ use rekall_core::worktree::TaskWorktreeService;
 pub struct ApiPorts {
     pub secrets: Arc<dyn SecretStore>,
     pub jira: Arc<dyn JiraIssues>,
+    pub confluence: Arc<dyn ConfluenceSpaces>,
     pub terminals: Arc<dyn TerminalHost>,
     pub terminal_pipe: Arc<dyn TerminalPipe>,
     pub chat_pipe: Arc<dyn ChatPipe>,

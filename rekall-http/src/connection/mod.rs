@@ -1,12 +1,14 @@
 //! The routes of the workspace's connections, the companies each is shared with, their credentials, the projects that bind them, the
 //! repositories a project binds by discovery, their access log and the Jira issues a project
-//! imports as tasks, served by `rekall_console::connection`.
+//! imports as tasks, the Confluence space it is filled from and the projects and spaces a binding's target is suggested from, served by `rekall_console::connection`.
 
 mod controller;
 mod request;
 mod response;
 mod routes;
 
+pub use request::confluence_import_request::ConfluenceImportRequest;
+pub use response::confluence_import_response::{ConfluenceImportResponse, ConfluenceSectionResponse};
 pub use request::connection_access_query::ConnectionAccessQuery;
 pub use response::connection_access_response::ConnectionAccessResponse;
 pub use request::connection_companies_request::ConnectionCompaniesRequest;
@@ -27,5 +29,7 @@ pub use request::project_connection_request::ProjectConnectionRequest;
 pub use response::project_connection_response::ProjectConnectionResponse;
 pub use response::repository_discovery_response::RepositoryDiscoveryResponse;
 pub use response::revealed_credential_response::RevealedCredentialResponse;
+pub use request::target_suggestion_query::TargetSuggestionQuery;
+pub use response::target_suggestion_response::TargetSuggestionResponse;
 pub(crate) use controller::credential_controller::routes as credential_routes;
 pub(crate) use routes::routes;

@@ -31,9 +31,9 @@ The commands that gate a claim (`done_check`) are written by `CheckService` in `
 Running those commands is a port. `CheckExecutionService` (`rekall-core/src/check/`, in `Services::check_execution`) reads a step's checks (the project's first, then the step's), runs them one at a time through `CheckRunner` and stops at the first that fails; each run is saved to `done_check_result`, the failing one included, and the answer is a `CheckReport` (`NoChecks`, `Passed`, `Failed`). A check's folder is the project's folder, or a folder inside it: an absolute path or `..` is refused with a 400. `ShellCheckRunner` (`rekall-infra/src/check/`) runs `/bin/sh -c` in the environment of the user's login shell, in its own process group so a timeout ends the command and its children. It keeps the last 60 lines of the combined output (at most 4000 characters) and never logs them, since they may hold secrets; the log carries the label, the exit code and the duration.
 
 Connection credentials never reach `rekall-mcp`. A GitLab or GitHub token, a Kubernetes kubeconfig or a Jira
-credential (`JiraCredential`: a Jira Cloud email and API token, kept as the `email:token` pair Basic
+credential (`AtlassianCredential`, shared by Jira and Confluence: an Atlassian Cloud email and API token, kept as the `email:token` pair Basic
 authentication sends, or a Data Center personal access token sent as Bearer, kept as `pat:token`; which
-one it is decides the site's `JiraDeployment`) lives in
+one it is decides the site's `AtlassianDeployment`) lives in
 Rekall's own credential file (`FileSecretStore` in `rekall-infra`: `secrets.json` under `rekall.home`, one
 account per connection's `secret_ref`, mode 0600, not encrypted, outside the database and its backups),
 behind the `SecretStore` trait in `rekall-core/src/connection/`. The file never prompts, so a terminal's
@@ -66,10 +66,9 @@ used in the project is a 409, and without one the connection's label takes the f
 `RepositoryDiscoveryService` (further down), `ConnectionAccessQueryService` (the access log, newest first) and
 `KubeconfigPreviewService` (a kubeconfig's contexts with why each can or cannot be imported, storing
 nothing). Credentials go in through `PUT /api/connections/{id}/credential`, which takes `token` (GitLab, GitHub),
-`kubeconfig` and `context` (Kubernetes), `token` with an `email` on Jira Cloud and without one on Jira
-Data Center, or on Grafana `token` alone for a service account and `token` (the password) with a `user` for a password sign-in, and answers the connection with `credentialSetAt`. The only route that returns one is
+`kubeconfig` and `context` (Kubernetes), `token` with an `email` on Atlassian Cloud and without one on Data Center (Jira and Confluence), or on Grafana `token` alone for a service account and `token` (the password) with a `user` for a password sign-in, and answers the connection with `credentialSetAt`. The only route that returns one is
 `GET /api/connections/{id}/credential`, served by `ConnectionCredentialRevealService` (the write service
-stays write-only): it answers `token`, `kubeconfig` and, on Jira Cloud, `email`, or a 404 when none is stored, and
+stays write-only): it answers `token`, `kubeconfig` and, on Atlassian Cloud, `email`, or a 404 when none is stored, and
 the console calls it only when the person presses the eye or the copy button on a connection's credential,
 keeping the answer in the component until it is hidden, replaced or the view closes. Once shown, the value
 can be edited in place and stored through the same `PUT`; a Kubernetes edit keeps the stored context. Like the rest of the
@@ -77,8 +76,8 @@ console API it answers any local caller, so a session that curls it by hand read
 rules below do not cover it. The store is written before the row, so a failed write leaves the row
 saying no credential is set; clearing empties the store before the row, so the row never claims less
 than the store holds. A Kubernetes connection takes its server and context from the imported
-kubeconfig and refuses a typed URL; GitLab, GitHub (`https://github.com` or an Enterprise Server), Jira and Grafana need theirs; a connection's kind is fixed once created.
-Only a Jira or Grafana connection takes a `proxyUrl`: an `http://` or `https://` address with no user or password in
+kubeconfig and refuses a typed URL; GitLab, GitHub (`https://github.com` or an Enterprise Server), Jira, Confluence and Grafana need theirs; a connection's kind is fixed once created.
+Only a Jira, Confluence or Grafana connection takes a `proxyUrl`: an `http://` or `https://` address with no user or password in
 it (it is stored in the row and shown, not kept in the keychain), refused without being echoed; a blank
 one clears it. Only a Grafana connection takes `acceptSelfSigned`, a flag; the other kinds refuse it when it is true. A GitLab or GitHub connection may name a `rootPath`, the group, namespace or owner its token covers, stored
 without a slash at either end; the other kinds refuse it. A label is unique across the workspace. The routes are
@@ -141,7 +140,31 @@ Jira is reached through the `JiraIssues` trait in `rekall-core/src/connection/`,
 `HttpJiraIssues` in `rekall-infra` (`POST /rest/api/3/search/jql` on Jira Cloud, `POST
 /rest/api/2/search` on Data Center, the first page only), or a fake
 through `StartOptions::jira_issues`. It is asked before any transaction opens. Both it and the check
-take a `JiraSite`, the site URL and the connection's proxy, and go through the proxy when there is one. The Grafana check takes a `GrafanaInstance`: the URL, the proxy and whether the instance's self-signed certificate is accepted (certificate verification is then off, which also lets an expired one or one for another host through).
+take an `AtlassianSite`, the site URL and the connection's proxy, and go through the proxy when there is one. The Grafana check takes a `GrafanaInstance`: the URL, the proxy and whether the instance's self-signed certificate is accepted (certificate verification is then off, which also lets an expired one or one for another host through).
+
+`ConnectionTargetService` (`rekall-console/src/connection/`) checks the target of a Jira or Confluence binding
+against the site before it is kept, and suggests what to type. `POST /api/projects/{id}/connections` and `PUT
+.../{bindingId}` go through it: a Jira project key (`JiraIssues::project`) or a Confluence space key
+(`ConfluenceSpaces::space`) the site does not have is refused (400) and nothing is bound; a blank target is
+kept without asking, and a typed one on a connection with no credential is refused because it cannot be
+checked. `GET /api/connections/{id}/target-suggestions?query=` lists at most 25 projects or spaces whose key
+or name holds the query (`JiraIssues::projects`, `ConfluenceSpaces::spaces`), and nothing for another kind.
+
+`ConfluenceSpaceService` fills a project from the space its binding names: `POST
+/api/projects/{id}/connections/{bindingId}/confluence/import` reads the space and up to 200 of its current
+pages (`ConfluenceSpaces`, implemented by `HttpConfluenceSpaces` in `rekall-infra/src/confluence/`, which turns
+Confluence's storage format into markdown in `storage_format.rs` and reads `/rest/api` under `/wiki` on a
+`*.atlassian.net` site) before any transaction opens, then writes in one. The rules are in
+`confluence_grouping_rules.rs`:
+
+- The space's home page becomes the project's blueprint, with a link back to it; the space's description, or
+  the home page's first paragraph, becomes the project's description.
+- Every other page goes to the section of the concept it is about: by its labels first, by the words of its
+  title second (`Architecture`, `Decisions`, `API`, `Deployment`, `Operations`, `Conventions`, `Requirements`,
+  `Glossary`), or `General`. A section lists its pages under their titles with a link each and is cut to the
+  section limit with a note.
+- What the project already has stays: a description or blueprint that holds text and a section whose title
+  exists are kept, and `replace: true` rewrites them. The answer says what was written, replaced or kept.
 
 A project writes its own tasks to one binding, its task manager. `PUT /api/projects/{id}/connections/{bindingId}`
 takes `taskManager` beside the label and the target (left out, the flag stays; the target is still

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { asCompanyId, asConnectionId, asProjectConnectionId, asProjectId, asTaskId, asTerminalId } from '@/model/branded'
 
-const KindSchema = z.enum(['GITLAB', 'GITHUB', 'KUBERNETES', 'JIRA', 'GRAFANA'])
+const KindSchema = z.enum(['GITLAB', 'GITHUB', 'KUBERNETES', 'JIRA', 'CONFLUENCE', 'GRAFANA'])
 
 export const ConnectionSchema = z.object({
   id: z.string().uuid().transform(asConnectionId),
@@ -82,6 +82,17 @@ export const JiraIssueListSchema = z.array(
     taskId: z.string().uuid().transform(asTaskId).nullable()
   })
 )
+
+export const TargetSuggestionListSchema = z.array(z.object({ value: z.string(), name: z.string() }))
+
+export const ConfluenceImportSchema = z.object({
+  spaceKey: z.string(),
+  spaceName: z.string(),
+  pagesRead: z.number().int(),
+  descriptionWritten: z.boolean(),
+  blueprintWritten: z.boolean(),
+  sections: z.array(z.object({ title: z.string(), pages: z.number().int(), outcome: z.enum(['created', 'replaced', 'kept']) }))
+})
 
 export const ConnectionRemovedSchema = z.object({ unboundProjects: z.number().int() })
 

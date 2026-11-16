@@ -44,9 +44,14 @@ impl ConnectionProbe for FakeProbe {
         self.outcome.clone()
     }
 
-    async fn jira(&self, site: &JiraSite, credential: &JiraCredential) -> ProbeOutcome {
+    async fn jira(&self, site: &AtlassianSite, credential: &AtlassianCredential) -> ProbeOutcome {
         let proxy = site.proxy_url.as_deref().unwrap_or("no proxy");
         self.asked.lock().unwrap().push(format!("{} via {proxy} as {}", site.url, credential.email().unwrap_or("a personal access token")));
+        self.outcome.clone()
+    }
+
+    async fn confluence(&self, site: &AtlassianSite, credential: &AtlassianCredential) -> ProbeOutcome {
+        self.asked.lock().unwrap().push(format!("confluence {} as {}", site.url, credential.email().unwrap_or("a personal access token")));
         self.outcome.clone()
     }
 
@@ -79,6 +84,7 @@ impl World {
             ConnectionKind::Gitlab => Some("https://gitlab.example.com".to_string()),
             ConnectionKind::Github => Some("https://github.com".to_string()),
             ConnectionKind::Jira => Some("https://example.atlassian.net".to_string()),
+            ConnectionKind::Confluence => Some("https://example.atlassian.net/wiki".to_string()),
             ConnectionKind::Grafana => Some("https://grafana.example.com".to_string()),
             ConnectionKind::Kubernetes => None,
         };
@@ -205,4 +211,16 @@ async fn a_grafana_check_hands_the_probe_the_user_of_a_stored_password() {
     world.checks.check(id).await.unwrap();
 
     assert_eq!(*world.probe.asked.lock().unwrap(), ["grafana https://grafana.example.com via http://proxy.example.com:8080, certificate verified as admin"]);
+}
+
+#[tokio::test]
+async fn a_confluence_check_asks_the_site_with_the_stored_atlassian_credential() {
+    let world = world(ProbeOutcome::Accepted { identity: Some("Ada Lovelace".into()), version: None }).await;
+    let id = world.connection(ConnectionKind::Confluence, Some("ada@example.com:atl-secret")).await;
+
+    let check = world.checks.check(id).await.unwrap();
+
+    assert!(check.ok);
+    assert_eq!(check.detail, "Signed in as Ada Lovelace.");
+    assert_eq!(*world.probe.asked.lock().unwrap(), ["confluence https://example.atlassian.net/wiki as ada@example.com"]);
 }

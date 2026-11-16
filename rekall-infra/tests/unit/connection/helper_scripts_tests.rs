@@ -73,6 +73,18 @@ fn the_jira_wrapper_calls_the_rest_api_of_each_site_with_json_both_ways() {
 }
 
 #[test]
+fn the_confluence_wrapper_calls_the_rest_api_of_each_site_with_the_space_key_for_the_project() {
+    let wiki = TerminalConnection { kind: ConnectionKind::Confluence, label: "wiki".into(), target: Some("DOCS".into()), instance_url: Some("https://example.atlassian.net/wiki/".into()), ..jira() };
+
+    let script = api_wrapper(&CONFLUENCE_API, ENDPOINT, &[&wiki]);
+
+    assert!(script.contains("usage: rekall-confluence --connection <label> <METHOD> <path> [curl options]"));
+    assert!(script.contains("  'wiki') base='https://example.atlassian.net/wiki/rest/api'; project='DOCS'; proxy=''; insecure='' ;;"));
+    assert!(script.contains("\"$label?for=confluence\""));
+    assert!(script.contains("this terminal has no Confluence connection labelled"));
+}
+
+#[test]
 fn the_jira_wrapper_sends_its_calls_through_the_connections_proxy() {
     let behind = TerminalConnection { proxy_url: Some("http://proxy.example.com:8080".into()), ..jira() };
     let script = api_wrapper(&JIRA_API, ENDPOINT, &[&behind]);

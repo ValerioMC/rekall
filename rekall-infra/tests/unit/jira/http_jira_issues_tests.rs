@@ -1,5 +1,5 @@
 use axum::http::{HeaderMap, StatusCode as AxumStatus};
-use axum::routing::post;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use rekall_core::connection::Secret;
 
@@ -53,19 +53,35 @@ fn data_center_site() -> Router {
     )
 }
 
-fn direct(url: String) -> JiraSite {
-    JiraSite { url, proxy_url: None }
+fn projects_site() -> Router {
+    Router::new()
+        .route(
+            CLOUD_PROJECTS,
+            get(|headers: HeaderMap| async move {
+                if headers.get("authorization").and_then(|value| value.to_str().ok()) != Some("Basic YWRhQGV4YW1wbGUuY29tOmF0bC1nb29k") {
+                    return Err(AxumStatus::UNAUTHORIZED);
+                }
+                Ok(Json(json!({ "values": [{ "key": "ENG", "name": "Engineering" }, { "key": "OPS", "name": "Operations" }] })))
+            }),
+        )
+        .route("/rest/api/3/project/ENG", get(|| async { Json(json!({ "key": "ENG", "name": "Engineering" })) }))
+        .route("/rest/api/3/project/NOPE", get(|| async { AxumStatus::NOT_FOUND }))
+        .route(DATA_CENTER_PROJECTS, get(|| async { Json(json!([{ "key": "OPS", "name": "Operations" }, { "key": "ENG", "name": "Engineering" }])) }))
 }
 
-fn credential(token: &str) -> JiraCredential {
-    JiraCredential::cloud("ada@example.com", Secret::new(token)).unwrap()
+fn direct(url: String) -> AtlassianSite {
+    AtlassianSite { url, proxy_url: None }
+}
+
+fn credential(token: &str) -> AtlassianCredential {
+    AtlassianCredential::cloud("ada@example.com", Secret::new(token)).unwrap()
 }
 
 #[tokio::test]
 async fn a_data_center_site_is_searched_through_v2_with_its_description_as_text() {
     let site = direct(serve(data_center_site()).await);
 
-    let issues = HttpJiraIssues::new().search(&site, &JiraCredential::data_center(Secret::new("NjQ0Mj")).unwrap(), "project = \"OPS\"", 50).await.unwrap();
+    let issues = HttpJiraIssues::new().search(&site, &AtlassianCredential::data_center(Secret::new("NjQ0Mj")).unwrap(), "project = \"OPS\"", 50).await.unwrap();
 
     assert_eq!(
         issues,
@@ -92,21 +108,43 @@ async fn a_search_reads_each_issue_with_its_description_as_markdown() {
 }
 
 #[tokio::test]
+async fn projects_are_listed_from_cloud_pages_and_from_data_center_lists_narrowed_by_the_query() {
+    let site = direct(serve(projects_site()).await);
+
+    let cloud = HttpJiraIssues::new().projects(&site, &credential("atl-good"), "oper", 10).await.unwrap();
+    let data_center = HttpJiraIssues::new().projects(&site, &AtlassianCredential::data_center(Secret::new("NjQ0Mj")).unwrap(), "", 1).await.unwrap();
+
+    assert_eq!(cloud, [JiraProject { key: "OPS".into(), name: "Operations".into() }]);
+    assert_eq!(data_center, [JiraProject { key: "OPS".into(), name: "Operations".into() }]);
+}
+
+#[tokio::test]
+async fn a_project_is_found_by_its_key_and_a_missing_one_is_none() {
+    let site = direct(serve(projects_site()).await);
+
+    let found = HttpJiraIssues::new().project(&site, &credential("atl-good"), "ENG").await.unwrap();
+    let missing = HttpJiraIssues::new().project(&site, &credential("atl-good"), "NOPE").await.unwrap();
+
+    assert_eq!(found, Some(JiraProject { key: "ENG".into(), name: "Engineering".into() }));
+    assert_eq!(missing, None);
+}
+
+#[tokio::test]
 async fn a_rejected_credential_is_told_apart_from_a_refused_search() {
     let site = direct(serve(jira_site()).await);
 
     let rejected = HttpJiraIssues::new().search(&site, &credential("atl-bad"), "project = \"ENG\"", 50).await.unwrap_err();
     let refused = HttpJiraIssues::new().search(&site, &credential("atl-good"), "broken", 50).await.unwrap_err();
 
-    assert_eq!(rejected, JiraFailure::Rejected { status: 401 });
-    assert_eq!(refused, JiraFailure::Failed { reason: "it answered HTTP 400: The value 'NOPE' does not exist for the field 'project'.".into() });
+    assert_eq!(rejected, AtlassianFailure::Rejected { status: 401 });
+    assert_eq!(refused, AtlassianFailure::Failed { reason: "it answered HTTP 400: The value 'NOPE' does not exist for the field 'project'.".into() });
 }
 
 /// The fake site answers the absolute-form requests a proxy receives, so it stands in for the proxy:
 /// the site's own host does not resolve, and only a search sent through the proxy gets an answer.
 #[tokio::test]
 async fn a_site_behind_a_proxy_is_searched_through_it() {
-    let site = JiraSite { url: "http://jira.invalid".into(), proxy_url: Some(serve(jira_site()).await) };
+    let site = AtlassianSite { url: "http://jira.invalid".into(), proxy_url: Some(serve(jira_site()).await) };
 
     let issues = HttpJiraIssues::new().search(&site, &credential("atl-good"), "project = \"ENG\"", 50).await.unwrap();
 
@@ -115,9 +153,9 @@ async fn a_site_behind_a_proxy_is_searched_through_it() {
 
 #[tokio::test]
 async fn a_proxy_reqwest_cannot_use_is_said_plainly() {
-    let site = JiraSite { url: "https://example.atlassian.net".into(), proxy_url: Some("not a proxy".into()) };
+    let site = AtlassianSite { url: "https://example.atlassian.net".into(), proxy_url: Some("not a proxy".into()) };
 
     let failure = HttpJiraIssues::new().search(&site, &credential("atl-good"), "project = \"ENG\"", 50).await.unwrap_err();
 
-    assert_eq!(failure, JiraFailure::Failed { reason: "the connection's proxy is not a usable proxy address".into() });
+    assert_eq!(failure, AtlassianFailure::Failed { reason: "the connection's proxy is not a usable proxy address".into() });
 }

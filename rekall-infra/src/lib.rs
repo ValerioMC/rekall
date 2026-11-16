@@ -13,6 +13,7 @@ pub mod chat;
 pub mod check;
 pub mod cli;
 pub mod config;
+pub mod confluence;
 pub mod connection;
 pub mod credentials;
 pub mod installer;

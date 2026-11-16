@@ -73,6 +73,17 @@ pub(super) const JIRA_API: ApiWrapper = ApiWrapper {
     headers: "-H 'Accept: application/json' -H 'Content-Type: application/json' ",
 };
 
+/// Confluence's REST API under `/rest/api` with the credential's header and JSON both ways,
+/// `:project` the space key.
+pub(super) const CONFLUENCE_API: ApiWrapper = ApiWrapper {
+    name: "rekall-confluence",
+    system: "Confluence",
+    api_base: confluence_api_base,
+    escapes_target: true,
+    purpose: "confluence",
+    headers: "-H 'Accept: application/json' -H 'Content-Type: application/json' ",
+};
+
 /// Grafana's HTTP API under `/api` with the credential's header and JSON both ways,
 /// `:project` the folder UID.
 pub(super) const GRAFANA_API: ApiWrapper = ApiWrapper {
@@ -126,6 +137,10 @@ fn gitlab_api_base(instance_url: &str) -> String {
 
 fn grafana_api_base(instance_url: &str) -> String {
     format!("{}/api", instance_url.trim_end_matches('/'))
+}
+
+fn confluence_api_base(site_url: &str) -> String {
+    format!("{}/rest/api", site_url.trim_end_matches('/'))
 }
 
 fn jira_api_base(site_url: &str) -> String {

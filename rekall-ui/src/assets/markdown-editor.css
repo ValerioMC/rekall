@@ -679,6 +679,10 @@ body .cm-tooltip.cm-tooltip-autocomplete.rk-completion-tooltip .cm-completionDet
   color: var(--color-brand-jira);
 }
 
+.rk-completion-icon[data-icon='confluence'] {
+  color: var(--color-brand-confluence);
+}
+
 .rk-completion-icon[data-icon='grafana'] {
   color: var(--color-brand-grafana);
 }
