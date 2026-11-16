@@ -119,3 +119,41 @@ async fn deleting_a_project_takes_its_components_with_it() {
 
     assert_eq!(app.count("SELECT COUNT(*) FROM project_component", vec![]).await, 0);
 }
+
+fn a_repository(folder: &std::path::Path, readme: &str) {
+    std::fs::create_dir_all(folder.join(".git")).unwrap();
+    std::fs::write(folder.join("README.md"), readme).unwrap();
+}
+
+#[tokio::test]
+async fn scanning_a_projects_folder_makes_a_described_component_of_each_repository_and_leaves_known_ones_alone() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let folder = tempfile::tempdir().unwrap();
+    a_repository(&folder.path().join("billing"), "# Billing\n\nIssues invoices.\n");
+    a_repository(&folder.path().join("services/orders"), "Takes orders.\n");
+    std::fs::create_dir_all(folder.path().join("docs")).unwrap();
+    let project_id = app.a_project_in(&acme, "vega", folder.path()).await;
+    let url = format!("/api/projects/{project_id}/components");
+    let billing = folder.path().join("billing").display().to_string();
+    app.post(&url, json!({ "name": "Invoicing", "folder": billing, "description": "Mine." })).await;
+
+    let scanned = app.post_empty(&format!("{url}/scan")).await;
+
+    assert_eq!(scanned.status, 200, "{}", scanned.text);
+    let added: Vec<(String, String)> = scanned.get("added").as_array().unwrap().iter().map(|row| (row["name"].as_str().unwrap().into(), row["description"].as_str().unwrap().into())).collect();
+    assert_eq!(added, [("orders".to_string(), "Takes orders.".to_string())], "only a repository with no component gets one, and docs is no repository");
+    assert_eq!(scanned.get("alreadyKnown"), 1);
+    let kept = app.get(&url).await.list().iter().find(|c| c["name"] == "Invoicing").unwrap().clone();
+    assert_eq!(kept["description"], "Mine.", "a component that exists is not rewritten");
+    assert_eq!(app.post_empty(&format!("{url}/scan")).await.get("added").as_array().unwrap().len(), 0, "a second scan adds nothing");
+}
+
+#[tokio::test]
+async fn a_project_without_a_folder_cannot_be_scanned() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+
+    assert_eq!(app.post_empty(&format!("/api/projects/{project_id}/components/scan")).await.status, 400);
+}

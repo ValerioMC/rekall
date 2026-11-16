@@ -13,3 +13,9 @@ export const ProjectComponentSchema = z.object({
 })
 
 export const ProjectComponentListSchema = z.array(ProjectComponentSchema)
+
+export const ComponentScanSchema = z.object({
+  folder: z.string(),
+  added: ProjectComponentListSchema,
+  alreadyKnown: z.number().int()
+})

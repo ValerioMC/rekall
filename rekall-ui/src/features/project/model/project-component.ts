@@ -21,3 +21,10 @@ export interface ProjectComponentInput {
   readonly folder?: string
   readonly description?: string
 }
+
+/** What scanning a project's folder did: the components it added, and how many repositories already had one. */
+export interface ComponentScan {
+  readonly folder: string
+  readonly added: readonly ProjectComponent[]
+  readonly alreadyKnown: number
+}
