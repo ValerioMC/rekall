@@ -40,6 +40,8 @@ const props = withDefaults(
     compact?: boolean
     /** Read as a message in a log: `compact`, and also without the indent that the section ticks hang into. */
     bare?: boolean
+    /** Offers the `Aa` key for the reading column's width; off where the pane sets the page width itself. */
+    readSettings?: boolean
     /** Whether the toolbar offers the page full screen, for text whose pane already gives it the room it needs. */
     pageFullscreen?: boolean
     /**
@@ -66,6 +68,7 @@ const props = withDefaults(
     placeholder: '# Contesto',
     compact: false,
     bare: false,
+    readSettings: true,
     pageFullscreen: true,
     pathRoot: null,
     components: null,
@@ -195,7 +198,7 @@ const toolbars = computed(() => (props.pageFullscreen ? TOOLBARS : TOOLBARS.filt
           @previous="search.previous"
           @close="search.close"
         />
-        <ReadModeSettings v-model:width="readWidth" v-model:align="readAlign" />
+        <ReadModeSettings v-if="readSettings" v-model:width="readWidth" v-model:align="readAlign" />
       </div>
     </div>
     <MdPreview

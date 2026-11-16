@@ -10,17 +10,17 @@ function frame(props: Record<string, unknown> = {}) {
 }
 
 describe('the dossier frame', () => {
-  it('fills the pane, so a step detail takes the width the list leaves it', () => {
-    const body = frame().get('[data-testid="detail"]').element.parentElement!.parentElement!
+  const bodyOf = (wrapper: ReturnType<typeof frame>) => wrapper.get('[data-testid="detail"]').element.parentElement!.parentElement!
 
-    expect(body.className).toContain('w-full')
-    expect(body.className).not.toContain('max-w')
+  it('fills the pane, so a step detail takes the width the list leaves it', () => {
+    expect(bodyOf(frame()).getAttribute('style')).toBeNull()
   })
 
-  it('holds a bounded frame to a page width, centred', () => {
-    const body = frame({ bounded: true }).get('[data-testid="detail"]').element.parentElement!.parentElement!
+  it('holds the header, body and dock to the width it is given, centred', () => {
+    const held = frame({ maxWidth: '1040px' })
 
-    expect(body.className).toContain('max-w-[76rem]')
-    expect(body.className).toContain('mx-auto')
+    expect(bodyOf(held).getAttribute('style')).toContain('max-width: 1040px')
+    expect(bodyOf(held).className).toContain('mx-auto')
+    expect(held.get('header > div').attributes('style')).toContain('max-width: 1040px')
   })
 })

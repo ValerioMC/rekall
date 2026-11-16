@@ -68,7 +68,7 @@ const projectTasks = useSelectedProjectTasks()
       </div>
 
       <div v-else-if="body.trim()" key="read" class="min-w-0 overflow-x-auto" :class="compact ? 'step-detail' : 'step-reading'">
-        <AppMarkdownEditor :model-value="body" :components="projectComponents" :connections="projectConnections" :tasks="projectTasks" readonly :compact="compact" :data-testid="`${testidPrefix}-detail-read`" />
+        <AppMarkdownEditor :model-value="body" :components="projectComponents" :connections="projectConnections" :tasks="projectTasks" readonly :compact="compact" :read-settings="false" :data-testid="`${testidPrefix}-detail-read`" />
       </div>
 
       <p v-else key="empty" class="py-1 text-small text-text-subtle">

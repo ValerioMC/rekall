@@ -39,6 +39,8 @@ const props = defineProps<{
   focused?: boolean
   /** The steps either side of this one, to step through. Unset where there is no list to step through. */
   neighbours?: { readonly previous: TaskStep | null; readonly next: TaskStep | null }
+  /** A CSS `max-width` that holds the panel to a centred column; unset it fills the pane. */
+  maxWidth?: string
 }>()
 
 defineEmits<{
@@ -120,7 +122,7 @@ const FACT_BUTTON =
 </script>
 
 <template>
-  <DossierFrame :pinned="pinned" :focused="focused === true" aria-label="Decision" data-testid="decision-panel" :data-step-state="step.state">
+  <DossierFrame :pinned="pinned" :focused="focused === true" :max-width="maxWidth" aria-label="Decision" data-testid="decision-panel" :data-step-state="step.state">
     <template #lead><StepSeal :state="step.state" /></template>
 
     <template #title>
@@ -152,6 +154,7 @@ const FACT_BUTTON =
     </template>
 
     <template #controls>
+      <slot name="controls" />
       <template v-if="neighbours">
         <button
           type="button"

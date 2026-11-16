@@ -12,6 +12,9 @@ import StepDecisionPanel from '@/features/steps/components/StepDecisionPanel.vue
 import StepDraftShelf from '@/features/steps/components/StepDraftShelf.vue'
 import StepsEmptyState from '@/features/steps/components/StepsEmptyState.vue'
 import TaskHandedInPanel from '@/features/task/components/TaskHandedInPanel.vue'
+import TaskWidthMenu from '@/features/task/components/TaskWidthMenu.vue'
+import { columnMaxWidth } from '@/features/task/model/task-width'
+import { usePreferencesStore } from '@/features/settings/store/preferences.store'
 import { useTaskPlan } from '@/features/steps/composables/useTaskPlan'
 import { isTypingTarget, neighboursOf } from '@/features/steps/lib/step-navigation'
 import { stepNumberOf } from '@/features/deviations/model/deviation'
@@ -30,6 +33,7 @@ const props = defineProps<{ task: Task }>()
 
 const plan = useTaskPlan()
 const store = useConsoleStore()
+const preferences = usePreferencesStore()
 const router = useRouter()
 const {
   editor,
@@ -276,6 +280,7 @@ function canChooseSession(step: TaskStep): boolean {
           pinned
           :focused="listHidden"
           :neighbours="neighbours"
+          :max-width="columnMaxWidth(preferences.taskWidth)"
           @accept="plan.markForward(selectedStep)"
           @send-back="plan.sendBack(selectedStep)"
           @reopen="plan.reopen(selectedStep)"
@@ -284,7 +289,9 @@ function canChooseSession(step: TaskStep): boolean {
           @overview="showOverview"
           @toggle-focus="focused = !focused"
           @open-deviation="openDeviation"
-        />
+        >
+          <template #controls><TaskWidthMenu v-model="preferences.taskWidth" /></template>
+        </StepDecisionPanel>
         <PlanOverview
           v-else-if="hasChecklist"
           :task="task"

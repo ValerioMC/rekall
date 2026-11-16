@@ -188,8 +188,10 @@ out and in with the level between, and Fit. Zooming holds until Fit is pressed.
 The right zone is one frame with two fillings, so nothing moves when a step is chosen. Its header
 holds a lead mark, a title, the keys for the previous and next step (the J and K keys do the same,
 except while typing) and for hiding the list so the step has the whole tab, and under it one line
-of facts. A step's body, header and dock are as wide as the pane, so hiding the list gives the detail
-the whole tab; the overview alone is held to a page width of 76rem. A dock at the foot holds the keys
+of facts. A step's header, body and dock follow the page width (Narrow, Standard, Wide or Full),
+centred in the pane; the key for it sits among the header's keys as well as at the right of the tab
+strip, and Full gives the detail the whole pane, so hiding the list widens it. The detail has no
+`Aa` key, since the page width is the one setting for it. The overview alone is held to 76rem. A dock at the foot holds the keys
 of a decision still to be made. Pinned, the header and dock stay while the body scrolls.
 
 With no step selected, which is how the tab opens, the frame holds the **overview**: its title says

@@ -37,6 +37,16 @@ describe('AppMarkdownEditor', () => {
     expect(wrapper.classes()).not.toContain('rekall-md--compact')
   })
 
+  it('offers no Aa key where the pane sets the page width itself, and keeps the search', async () => {
+    const wrapper = mount(AppMarkdownEditor, {
+      props: { modelValue: 'Una riga.', readonly: true, readSettings: false }
+    })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="read-settings-toggle"]').exists()).toBe(false)
+    expect(wrapper.find('.rekall-read-controls').exists()).toBe(true)
+  })
+
   it('drops the reading controls and the column width when compact, inside a card', async () => {
     const wrapper = mount(AppMarkdownEditor, {
       props: { modelValue: 'Una riga.', readonly: true, compact: true }
