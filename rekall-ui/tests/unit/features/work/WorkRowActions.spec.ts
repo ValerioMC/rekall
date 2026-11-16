@@ -89,4 +89,21 @@ describe('the actions on a ledger row', () => {
     expect(rowOf(wrapper, 'Fix the login').find('[data-testid="work-row-quick"]').text()).toBe('Quick')
     expect(rowOf(wrapper, 'Write the docs').find('[data-testid="work-row-quick"]').exists()).toBe(false)
   })
+
+  it('deletes a task from its row after the confirm, without opening the row', async () => {
+    seed()
+    const store = useConsoleStore()
+    const deleteTask = vi.spyOn(store, 'deleteTask').mockResolvedValue()
+    const wrapper = await mountWork()
+    const row = rowOf(wrapper, 'Fix the login')
+
+    await row.get('[data-testid="task-delete"]').trigger('click')
+    expect(deleteTask).not.toHaveBeenCalled()
+    expect(useWorkStore().peekedTaskId).toBeNull()
+    const confirm = Array.from(document.body.querySelectorAll('button')).find((key) => key.textContent?.trim() === 'Delete task')!
+    confirm.click()
+    await flushPromises()
+
+    expect(deleteTask).toHaveBeenCalledWith('PR-2')
+  })
 })

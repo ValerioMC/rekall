@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unified tasks section</title>
+<style>
+  @font-face { font-family: 'Fira Sans'; font-weight: 400; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 500; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 600; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Code'; font-weight: 300 700; src: url('../../../rekall-ui/node_modules/@fontsource-variable/fira-code/files/fira-code-latin-wght-normal.woff2') format('woff2'); }
+
+  :root {
+    --canvas: #0d1017; --surface: #151922; --raised: #1d2330; --hover: #262d3c;
+    --border: #2a3243; --border-strong: #3b4558; --border-field: #5e6a82;
+    --text: #f2f5f9; --muted: #a3acba; --subtle: #8c96a6;
+    --accent: #eaa43c; --accent-strong: #ffd88e; --accent-ink: #2b1804; --accent-soft: #eaa43c24;
+    --anchor: #55c9ea;
+    --session: #7c83f7; --session-strong: #b4b9ff; --session-soft: #7c83f71f;
+    --safe: #3ddc97; --warn: #f3c04a; --danger: #fb7185; --danger-soft: #fb71851f;
+    --filed: #8fa89d; --filed-soft: #8fa89d1f;
+    --font-sans: 'Fira Sans', ui-sans-serif, -apple-system, sans-serif;
+    --font-mono: 'Fira Code', ui-monospace, Menlo, monospace;
+    --t-micro: 11px; --t-caption: 11.5px; --t-small: 12.5px; --t-body: 13.5px; --t-title: 15px; --t-heading: 19px;
+    --r-key: 3px; --r-control: 5px; --r-card: 8px;
+    --ease: cubic-bezier(.22, 1, .36, 1);
+    --cols: 28px 22px minmax(260px, 1fr) 140px 170px 104px 48px 56px 48px 30px;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--canvas); color: var(--text); font: 400 var(--t-body)/1.4 var(--font-sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; text-align: left; }
+  button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  ::selection { background: var(--accent-soft); color: var(--accent-strong); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 8px; border: 3px solid transparent; background-clip: padding-box; }
+  .mono { font-family: var(--font-mono); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  svg.i { width: 14px; height: 14px; flex: none; }
+
+  .app { display: flex; flex-direction: column; height: 100vh; }
+
+  /* shell header */
+  .topbar { height: 48px; flex: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 620px) minmax(0, 1fr); gap: 12px; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .brand { font-weight: 600; font-size: var(--t-title); letter-spacing: -0.01em; }
+  .search { height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); color: var(--subtle); font-size: var(--t-small); }
+  .search kbd { margin-left: auto; font: 400 var(--t-micro) var(--font-mono); border: 1px solid var(--border-strong); border-radius: var(--r-key); padding: 0 5px; }
+  .topr { justify-self: end; display: flex; align-items: center; gap: 8px; position: relative; }
+  .capsule { white-space: nowrap; height: 32px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); color: var(--muted); font-size: var(--t-small); }
+  .about > summary { white-space: nowrap; list-style: none; height: 32px; padding: 0 10px; display: inline-flex; align-items: center; border: 1px dashed var(--border-strong); border-radius: var(--r-card); color: var(--subtle); font-size: var(--t-small); cursor: pointer; }
+  .about > summary::-webkit-details-marker { display: none; }
+  .about[open] > summary { color: var(--text); border-color: var(--border-field); }
+  .about > div { position: absolute; right: 0; top: 40px; z-index: 40; width: 420px; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--surface); box-shadow: 0 1px 2px rgb(0 0 0 / .55), 0 10px 22px -8px rgb(0 0 0 / .65); color: var(--muted); font-size: var(--t-small); line-height: 1.5; }
+  .about b { color: var(--text); font-weight: 500; }
+  .about p + p { margin-top: 8px; }
+
+  /* the one scroller: its gutter is reserved so a short tab and a long tab keep the same left edge */
+  .scroller { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
+  .col { margin-inline: auto; width: 100%; max-width: 1320px; padding-inline: 32px; }
+
+  /* scope bar */
+  .scope { display: flex; align-items: center; gap: 12px; min-height: 40px; padding-top: 20px; }
+  .switcher { height: 32px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px 0 8px; border-radius: var(--r-control); font-size: var(--t-heading); font-weight: 500; letter-spacing: -0.01em; }
+  .switcher:hover { background: var(--surface); }
+  .switcher .co { font-size: var(--t-small); font-weight: 400; color: var(--muted); letter-spacing: 0; }
+  .pmark { width: 20px; height: 20px; border-radius: var(--r-key); display: grid; place-items: center; font: 600 var(--t-micro) var(--font-mono); background: #2a3e57; color: #b9d3f2; flex: none; }
+  .meta { display: flex; align-items: center; gap: 10px; font-size: var(--t-small); color: var(--subtle); min-width: 0; }
+  .chip { height: 22px; display: inline-flex; align-items: center; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--r-key); background: var(--surface); color: var(--anchor); font: 400 var(--t-caption) var(--font-mono); white-space: nowrap; }
+  .copy { width: 22px; height: 22px; display: grid; place-items: center; border-radius: var(--r-key); color: var(--subtle); }
+  .copy:hover { background: var(--raised); color: var(--text); }
+  .pill { height: 22px; display: inline-flex; align-items: center; gap: 6px; padding: 0 8px; border-radius: 9999px; font-size: var(--t-caption); font-weight: 500; white-space: nowrap; }
+  .pill.neutral { background: var(--raised); color: var(--muted); }
+  .pill.progress { background: var(--accent-soft); color: var(--accent-strong); }
+  .pill.running { background: var(--session-soft); color: var(--session-strong); }
+  .pill.filed { background: var(--filed-soft); color: var(--filed); }
+  .pill.active { background: var(--accent-soft); color: var(--accent-strong); }
+  .pill .orb { width: 6px; height: 6px; border-radius: 50%; background: var(--session); animation: pulse 1.6s var(--ease) infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+
+  /* sub navigation */
+  .subnav { display: flex; align-items: flex-end; gap: 2px; border-bottom: 1px solid var(--border); }
+  .subnav .tab { position: relative; display: flex; align-items: center; gap: 8px; padding: 8px 12px 10px; color: var(--muted); transition: color 140ms; }
+  .subnav .tab:hover { color: var(--text); }
+  .subnav .tab::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--accent); transform: scaleX(0); transition: transform 240ms var(--ease); }
+  .subnav .tab[aria-selected="true"] { color: var(--text); }
+  .subnav .tab[aria-selected="true"]::after { transform: scaleX(1); }
+  .subnav .n { font-size: var(--t-caption); color: var(--subtle); font-variant-numeric: tabular-nums; }
+  .subnav .n.hot { background: var(--accent); color: var(--accent-ink); font-weight: 500; border-radius: 9999px; padding: 0 6px; line-height: 16px; }
+  .subnav .grow { flex: 1; }
+  .tools { display: flex; align-items: center; gap: 8px; padding: 0 0 6px 12px; }
+  .field { height: 32px; width: 220px; padding: 0 12px; border: 1px solid var(--border-field); border-radius: var(--r-control); background: var(--canvas); color: var(--text); font: inherit; font-size: var(--t-small); }
+  .field::placeholder { color: var(--subtle); }
+  .field:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .seg { display: inline-flex; padding: 2px; border: 1px solid var(--border); border-radius: var(--r-control); background: var(--surface); }
+  .seg button { height: 26px; padding: 0 10px; border-radius: var(--r-key); font-size: var(--t-small); color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }
+  .btn { height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border-radius: var(--r-control); font-size: var(--t-body); font-weight: 500; white-space: nowrap; }
+  .btn.secondary { background: var(--raised); border: 1px solid var(--border-strong); }
+  .btn.secondary:hover { background: var(--hover); }
+  .btn.quiet { color: var(--muted); }
+  .btn.quiet:hover { background: var(--raised); color: var(--text); }
+  .btn.danger { background: var(--danger); color: #3a0b14; font-weight: 600; }
+  .btn.danger:hover { filter: brightness(1.08); }
+
+  /* composer: the one way to start work */
+  .composer { position: relative; margin-top: 16px; border: 1px solid var(--border-field); border-radius: var(--r-card); background: var(--canvas); transition: border-color 140ms, box-shadow 140ms; }
+  .composer:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .composer .row { display: flex; align-items: flex-start; gap: 10px; padding: 7px 7px 7px 14px; }
+  .composer .plus { height: 30px; display: grid; place-items: center; color: var(--subtle); }
+  .composer textarea { flex: 1; min-width: 0; height: 30px; max-height: 160px; resize: none; border: 0; background: transparent; color: var(--text); font: inherit; line-height: 20px; padding: 5px 0; outline: none; overflow: hidden; }
+  .composer textarea::placeholder { color: var(--subtle); }
+  .composer .target { height: 30px; display: inline-flex; align-items: center; gap: 7px; padding: 0 8px; border-radius: var(--r-control); color: var(--muted); font-size: var(--t-small); white-space: nowrap; }
+  .composer button.target:hover { background: var(--raised); color: var(--text); }
+  .composer .target.fixed { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .composer .foot { display: none; align-items: center; gap: 12px; padding: 0 14px 9px 38px; font-size: var(--t-caption); color: var(--subtle); }
+  .composer.open .foot { display: flex; }
+  .composer .foot.warn { color: var(--warn); }
+  kbd { font: 400 var(--t-micro) var(--font-mono); border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: var(--r-key); padding: 0 5px; color: var(--muted); }
+  .split { display: inline-flex; flex: none; border-radius: var(--r-control); background: var(--accent); color: var(--accent-ink); box-shadow: 0 1px 0 rgb(255 255 255 / .05), 0 1px 2px rgb(0 0 0 / .5); }
+  .split button { height: 30px; font-weight: 600; font-size: var(--t-body); display: inline-flex; align-items: center; gap: 6px; }
+  .split .go { padding: 0 12px; border-radius: var(--r-control) 0 0 var(--r-control); }
+  .split .more { width: 28px; justify-content: center; border-left: 1px solid #a8651a; border-radius: 0 var(--r-control) var(--r-control) 0; }
+  .split button:hover { background: #ffd88e33; }
+  .split.off { background: var(--raised); color: var(--subtle); box-shadow: none; border: 1px solid var(--border); }
+  .split.off .go { cursor: not-allowed; }
+  .split.off .more { border-left-color: var(--border); }
+  .split.off button:hover { background: none; }
+  .split.off .more:hover { background: var(--hover); color: var(--text); }
+  .menu { position: absolute; z-index: 30; width: 340px; padding: 4px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--surface); box-shadow: 0 1px 2px rgb(0 0 0 / .55), 0 10px 22px -8px rgb(0 0 0 / .65); }
+  .menu[hidden] { display: none; }
+  .menu button { display: grid; grid-template-columns: 1fr auto; column-gap: 12px; width: 100%; padding: 8px 10px; border-radius: var(--r-control); }
+  .menu button:hover, .menu button:focus-visible { background: var(--raised); outline: none; }
+  .menu b { font-weight: 500; }
+  .menu small { grid-column: 1; font-size: var(--t-caption); color: var(--subtle); }
+  .menu kbd { grid-row: 1; grid-column: 2; align-self: start; }
+  .menu button[disabled] { opacity: .5; cursor: not-allowed; }
+
+  /* adherence */
+  .adherence { margin-top: 12px; display: flex; align-items: center; gap: 22px; min-height: 40px; padding: 0 14px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); font-size: var(--t-small); color: var(--muted); }
+  .adherence .lead { font-weight: 500; color: var(--text); }
+  .adherence .fig b { font: 400 var(--t-body) var(--font-mono); color: var(--text); margin-left: 4px; }
+  .adherence .fig i { font-style: normal; color: var(--subtle); margin-left: 6px; }
+  .adherence .sent { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: var(--r-key); min-width: 0; }
+  .adherence .sent:hover { background: var(--raised); }
+  .adherence .sent span:first-child { color: var(--subtle); }
+
+  /* ledger */
+  .ledger { margin-top: 4px; padding-bottom: 64px; }
+  .lhead, .lrow { display: grid; grid-template-columns: var(--cols); align-items: center; column-gap: 14px; padding-inline: 12px; }
+  .lhead { position: sticky; top: 0; z-index: 5; height: 36px; border-bottom: 1px solid var(--border); background: var(--canvas); font-size: var(--t-caption); color: var(--subtle); }
+  .lhead .r, .lrow .r { text-align: right; }
+  .lhead .key { display: inline-flex; gap: 4px; }
+  .lhead .key.on { color: var(--text); }
+  .group-h { display: flex; align-items: center; gap: 10px; height: 54px; padding: 16px 12px 0; }
+  .group-h a { font-weight: 600; }
+  .group-h .co { color: var(--muted); font-size: var(--t-small); }
+  .group-h .ct { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .lrow { height: 44px; border-radius: var(--r-control); color: var(--muted); cursor: pointer; transition: background-color 140ms, color 140ms; }
+  .lrow:hover, .lrow:focus-within { background: var(--surface); color: var(--text); }
+  .lrow.leaving { animation: leave 260ms var(--ease) forwards; }
+  @keyframes leave { to { opacity: 0; transform: translateX(8px); height: 0; } }
+  .open-btn { width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--r-key); color: var(--subtle); }
+  .open-btn:hover { background: var(--hover); color: var(--text); }
+  .mark { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--subtle); justify-self: center; }
+  .mark.progress { border-color: var(--accent); background: conic-gradient(var(--accent) 0 50%, transparent 0); }
+  .mark.running { border-color: var(--session); background: var(--session-soft); animation: pulse 1.6s var(--ease) infinite; }
+  .mark.filed { border-color: var(--filed); background: var(--filed); }
+  .title { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 500; color: var(--text); }
+  .title .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .title .code { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); flex: none; }
+  .filed-row .title { color: var(--muted); font-weight: 400; }
+  .badge { flex: none; height: 20px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: var(--r-key); background: var(--raised); color: var(--muted); font-size: var(--t-micro); font-weight: 500; }
+  .lrow .copy { opacity: 0; }
+  .lrow:hover .copy, .lrow:focus-within .copy { opacity: 1; }
+  .plan { display: flex; align-items: center; gap: 10px; font: 400 var(--t-caption) var(--font-mono); }
+  .tube { width: 96px; height: 8px; border-radius: 9999px; background: #0a0d13; box-shadow: inset 0 2px 4px rgb(0 0 0 / .5), 0 1px 0 rgb(255 255 255 / .035); overflow: hidden; flex: none; }
+  .tube i { display: block; height: 100%; background: var(--accent); border-radius: 9999px; }
+  .tube.live i { background: var(--session); }
+  .nosteps { color: var(--subtle); }
+  .needs { font-size: var(--t-small); font-weight: 500; }
+  .needs .w { color: var(--session-strong); }
+  .num { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); text-align: right; }
+  .del { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--r-control); color: var(--subtle); opacity: .6; transition: opacity 140ms, color 140ms, background-color 140ms; }
+  .lrow:hover .del, .lrow:focus-within .del, .del:focus-visible { opacity: 1; }
+  .del:hover { background: var(--danger-soft); color: var(--danger); }
+  .fold { display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 12px; margin-top: 4px; border-radius: var(--r-control); color: var(--filed); font-size: var(--t-small); }
+  .fold:hover { background: var(--filed-soft); }
+  .fold svg { transition: transform 240ms var(--ease); }
+  .fold[aria-expanded="true"] svg { transform: rotate(90deg); }
+  .empty { display: grid; justify-items: center; gap: 8px; padding: 64px 0; text-align: center; color: var(--muted); }
+  .empty b { font-size: var(--t-heading); font-weight: 500; color: var(--text); }
+
+  /* project page tabs and blueprint pane */
+  .ptabs { margin-top: 12px; }
+  .blueprint { margin-top: 16px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); box-shadow: 0 1px 0 rgb(255 255 255 / .05), 0 6px 18px -6px rgb(0 0 0 / .6); overflow: hidden; }
+  .blueprint header { padding: 12px 20px; border-bottom: 1px solid var(--border); }
+  .blueprint h2 { font-size: var(--t-title); font-weight: 600; }
+  .blueprint header p { margin-top: 2px; font-size: var(--t-small); color: var(--subtle); }
+  .blueprint header code { font-family: var(--font-mono); color: var(--anchor); }
+  .blueprint .doc { padding: 20px; max-width: 72ch; color: var(--muted); line-height: 1.6; }
+  .blueprint .doc h3 { color: var(--text); font-size: var(--t-title); margin: 0 0 6px; }
+  .blueprint .doc p + h3 { margin-top: 18px; }
+  .shiftrule { position: fixed; top: 48px; bottom: 0; left: 50%; width: 0; border-left: 1px dashed #fb718555; pointer-events: none; z-index: 2; display: none; }
+
+  /* dialog */
+  .scrim { position: fixed; inset: 0; z-index: 50; display: none; place-items: center; background: rgb(5 7 11 / .62); }
+  .scrim.show { display: grid; }
+  .dialog { width: 400px; padding: 18px 20px 16px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--surface); box-shadow: 0 40px 80px -24px rgb(0 0 0 / .9); animation: pop 220ms var(--ease); }
+  @keyframes pop { from { opacity: 0; transform: translateY(6px) scale(.985); } }
+  .dialog h2 { font-size: var(--t-title); font-weight: 600; }
+  .dialog p { margin-top: 6px; color: var(--muted); font-size: var(--t-small); line-height: 1.5; }
+  .dialog .blast { margin-top: 12px; padding: 8px 10px; border-radius: var(--r-control); background: var(--danger-soft); color: #ffb3bd; font: 400 var(--t-caption) var(--font-mono); }
+  .dialog .acts { margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px; }
+  .planned { width: 520px; }
+  .planned .fld { margin-top: 12px; display: grid; gap: 4px; font-size: var(--t-caption); color: var(--subtle); }
+  .planned .fld .v { padding: 7px 10px; border: 1px solid var(--border-field); border-radius: var(--r-control); background: var(--canvas); color: var(--text); font-size: var(--t-body); min-height: 32px; }
+
+  .toast { position: fixed; z-index: 60; left: 50%; bottom: 64px; transform: translate(-50%, 8px); opacity: 0; padding: 8px 14px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--raised); box-shadow: 0 1px 2px rgb(0 0 0 / .55), 0 10px 22px -8px rgb(0 0 0 / .65); font-size: var(--t-small); transition: opacity 200ms, transform 240ms var(--ease); pointer-events: none; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* mock scenes bar: not part of the product */
+  .scenes { position: fixed; z-index: 45; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 4px; padding: 4px; border: 1px dashed var(--border-strong); border-radius: var(--r-card); background: var(--surface); }
+  .scenes button { height: 28px; padding: 0 12px; border-radius: var(--r-control); font-size: var(--t-small); color: var(--muted); white-space: nowrap; }
+  .scenes button[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }
+
+  /* states scene */
+  .states { display: grid; gap: 30px; padding: 24px 0 90px; }
+  .state > h3 { font-size: var(--t-small); font-weight: 500; color: var(--muted); margin-bottom: 2px; }
+  .state > p { font-size: var(--t-caption); color: var(--subtle); }
+  .state .composer { margin-top: 8px; }
+  .state .menu { position: static; margin-top: 8px; }
+  [data-scene] { display: none; }
+  [data-scene].on { display: block; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <span class="brand">Rekall</span>
+    <div class="search"><svg class="i" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.3"/><path d="m9.5 9.5 3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Search or paste an anchor<kbd>⌘K</kbd></div>
+    <div class="topr">
+      <details class="about">
+        <summary>About this mock</summary>
+        <div>
+          <p><b>One section, two doors.</b> Work and Project › Tasks are the same component. The scope is its only input: all projects groups by project, one project drops the group header and adds the adherence strip.</p>
+          <p><b>One create path.</b> The quick-task textarea and the New task button become one composer. The key starts a quick task; its menu opens the full task dialog (key T) with the text as the title. With no project scope, a chip picks the project.</p>
+          <p><b>Delete from the list.</b> A trash key ends every row, shown on hover or focus, with the same confirm the task page uses. Fourteen of the Rekall vR tasks are quick tasks that stay In progress, so clearing them is a real job.</p>
+          <p><b>No sideways shift.</b> The page scroller reserves its scrollbar gutter, so a short tab (Blueprint) and a long one (Tasks) keep one left edge. Click Tasks and Blueprint in the Project scene.</p>
+          <p>Data is real: Rekall vR (173 tasks, 10 open, 266 of 278 steps accepted first time), with HyperCV beside it. The all-projects list shows 2 of its 12 groups.</p>
+        </div>
+      </details>
+      <div class="capsule"><span>0 to review</span><span>·</span><span>1 session</span></div>
+    </div>
+  </header>
+
+  <div class="scroller" id="scroller">
+    <div class="col" id="stage"></div>
+  </div>
+</div>
+
+<div class="scenes" role="group" aria-label="Mock scenes">
+  <button type="button" aria-pressed="true" data-go="work">Work · all projects</button>
+  <button type="button" aria-pressed="false" data-go="project">Project · Tasks</button>
+  <button type="button" aria-pressed="false" data-go="states">Composer states</button>
+</div>
+
+<div class="scrim" id="scrim-delete"><div class="dialog" role="alertdialog" aria-labelledby="dd-t">
+  <h2 id="dd-t">Delete RV-165?</h2>
+  <p>The notes on it are deleted with it.</p>
+  <div class="blast">0 notes deleted</div>
+  <div class="acts"><button class="btn quiet" data-close>Cancel</button><button class="btn danger" id="dd-go">Delete task</button></div>
+</div></div>
+
+<div class="scrim" id="scrim-plan"><div class="dialog planned" role="dialog" aria-labelledby="pd-t">
+  <h2 id="pd-t">New task</h2>
+  <div class="fld">Project<div class="v" id="pd-project">Rekall vR</div></div>
+  <div class="fld">Title<div class="v" id="pd-title"></div></div>
+  <div class="fld">Description<div class="v" style="min-height:64px;color:var(--subtle)">Markdown. Steps, epic, tags and skills follow in the full dialog.</div></div>
+  <div class="acts"><button class="btn quiet" data-close>Cancel</button><button class="btn secondary" data-close>Create task</button></div>
+</div></div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const PROJECT = { id: 'rv', title: 'Rekall vR', company: 'VFORGE', mark: 'RV', anchor: 'project:rekall-vrust', folder: '~/Projects/Personal/rekall-rust', total: 173 }
+const PROJECTS = [PROJECT, { id: 'hy', title: 'HyperCV', company: 'VFORGE', mark: 'HY', folder: '~/Projects/Personal/hypercv' }, { id: 'md', title: 'MAESTRO', company: 'ESA', mark: 'MA', folder: null }]
+
+const OPEN = [
+  { p: 'rv', code: 'RV-174', title: 'I want to know about how the application associate a skill to a task', status: 'progress', quick: true, age: '1d' },
+  { p: 'rv', code: 'RV-53', title: 'Updated showcase website', status: 'running', steps: [8, 8], docs: 3, age: '2d' },
+  { p: 'rv', code: 'RV-167', title: 'in the list of tasks. the arrow that opens directly the task should be at the beginning', status: 'progress', quick: true, age: '2d' },
+  { p: 'rv', code: 'RV-166', title: 'I want an improvement about the task. Currently what is missing is the changed files', status: 'progress', quick: true, age: '2d' },
+  { p: 'rv', code: 'RV-165', title: 'The icon of all work should be replaced by the icon of the application', status: 'progress', quick: true, age: '2d' },
+  { p: 'rv', code: 'RV-164', title: 'The current task section is a little bit a mess. can you create a mockup with the unified', status: 'progress', quick: true, age: '2d' },
+  { p: 'rv', code: 'RV-163', title: 'in the mockup with /impeccable there is an icon top bar on the left of the 3 horizontal', status: 'progress', quick: true, age: '2d' },
+  { p: 'rv', code: 'RV-162', title: 'In the mockup before the refactoring with /impeccable, there was a screen with the', status: 'progress', quick: true, age: '2d' },
+  { p: 'rv', code: 'RV-142', title: 'Changed the acceptance workflow', status: 'progress', age: '3d' },
+  { p: 'rv', code: 'RV-16', title: 'Suggestions for futire developments', status: 'backlog', docs: 2, age: '1mo' },
+  { p: 'hy', code: 'HY-6', title: 'MB PSE', status: 'progress', steps: [5, 5], age: '2w' },
+  { p: 'hy', code: 'HY-4', title: 'Add component', status: 'progress', age: '1mo' },
+  { p: 'hy', code: 'HY-3', title: 'Redesign the CV', status: 'progress', steps: [2, 2], age: '1mo' }
+]
+const FILED = [
+  { p: 'rv', code: 'RV-175', title: 'Skill arguments: pass arguments to a skill assigned to a task, step or', status: 'filed', steps: [6, 6], age: '1d' },
+  { p: 'rv', code: 'RV-172', title: 'Create section in settings/help to display mcp services/tools', status: 'filed', age: '1d' },
+  { p: 'rv', code: 'RV-171', title: 'Step details on right column', status: 'filed', age: '2d' },
+  { p: 'rv', code: 'RV-170', title: 'as jira stype i want the isse code', status: 'filed', quick: true, age: '2d' },
+  { p: 'rv', code: 'RV-169', title: 'Restore the task manager sync and the pull request link on the task page', status: 'filed', age: '2d' }
+]
+const ADHERENCE = { first: 266, steps: 278, share: 96, sent: 12, passes: 296, deviations: 42, worst: { code: 'RV-15', title: 'Improved ui components', sent: 4 } }
+const PROJECT_TABS = ['Tasks', 'Blueprint', 'Pages', 'Components', 'Diagrams', 'Deployment', 'Connections', 'Settings']
+
+const ic = {
+  plus: '<svg class="i" viewBox="0 0 14 14" fill="none"><path d="M7 2.5v9M2.5 7h9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+  caret: '<svg class="i" viewBox="0 0 14 14" fill="none"><path d="m3.5 5.5 3.5 3.5 3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  chev: '<svg class="i" viewBox="0 0 12 12" fill="none" style="width:12px;height:12px"><path d="m4.5 2.5 3.5 3.5-3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  trash: '<svg class="i" viewBox="0 0 14 14" fill="none"><path d="M2.5 4h9M5.5 4V2.75h3V4M3.75 4l.5 7.25h5.5l.5-7.25M5.75 6.25v3.25M8.25 6.25v3.25" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  open: '<svg class="i" viewBox="0 0 14 14" fill="none"><path d="M5 3H3.5A1 1 0 0 0 2.5 4v6.5a1 1 0 0 0 1 1H10a1 1 0 0 0 1-1V9M8 2.5h3.5V6M11.5 2.5 6.5 7.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  copy: '<svg class="i" viewBox="0 0 14 14" fill="none"><rect x="4.5" y="4.5" width="7" height="7" rx="1.2" stroke="currentColor" stroke-width="1.2"/><path d="M9.5 4.5V3.2A.7.7 0 0 0 8.8 2.5H3.2a.7.7 0 0 0-.7.7v5.6c0 .4.3.7.7.7h1.3" stroke="currentColor" stroke-width="1.2"/></svg>',
+  folder: '<svg class="i" viewBox="0 0 14 14" fill="none"><path d="M1.8 4.2c0-.5.4-.9.9-.9h2.6l1.2 1.3h4.8c.5 0 .9.4.9.9v4.9c0 .5-.4.9-.9.9H2.7a.9.9 0 0 1-.9-.9z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>',
+  proj: '<svg class="i" viewBox="0 0 14 14" fill="none"><rect x="2" y="2.5" width="10" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M2 5.5h10" stroke="currentColor" stroke-width="1.2"/></svg>'
+}
+
+const state = { scene: 'work', view: 'open', query: '', tab: 'Tasks', foldFiled: false, removed: new Set(), pending: null, draft: '' }
+const $ = (s, r = document) => r.querySelector(s)
+const $$ = (s, r = document) => [...r.querySelectorAll(s)]
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+const pOf = (id) => PROJECTS.find((p) => p.id === id)
+
+function tasksAll() { return [...OPEN, ...FILED].filter((t) => !state.removed.has(t.code)) }
+function visible(scene) {
+  const scoped = (t) => scene === 'project' ? t.p === 'rv' : true
+  const q = state.query.trim().toLowerCase()
+  const match = (t) => !q || t.title.toLowerCase().includes(q) || t.code.toLowerCase().includes(q)
+  const open = OPEN.filter((t) => !state.removed.has(t.code) && scoped(t) && match(t))
+  const filed = FILED.filter((t) => !state.removed.has(t.code) && scoped(t) && match(t))
+  if (state.view === 'needs') return { rows: [], filed: [] }
+  if (state.view === 'running') return { rows: open.filter((t) => t.status === 'running'), filed: [] }
+  return { rows: open, filed: state.view === 'filed' ? filed : [] , foldedCount: filed.length }
+}
+
+function composer(opts) {
+  const { scope, text = '', open = false, noFolder = false, menuOpen = false, id } = opts
+  const fixed = scope === 'project'
+  const target = fixed
+    ? `<span class="target fixed" title="Where the session opens">${ic.folder}${noFolder ? 'no folder set' : PROJECT.folder}</span>`
+    : `<button type="button" class="target" aria-label="Project for this task" data-pick>${ic.proj}${noFolder ? 'MAESTRO' : 'Rekall vR'}<span style="color:var(--subtle)">${ic.caret}</span></button>`
+  const ready = text.trim() !== '' && !noFolder
+  const hint = noFolder
+    ? "MAESTRO has no folder yet, so a session cannot open from it. Set it on the project page, or plan a task instead."
+    : '<kbd>⏎</kbd> start now &nbsp;<kbd>⇧⏎</kbd> new line &nbsp;<span>Claude does it in one session; accepted when the wrapup is written.</span>'
+  return `
+  <section class="composer ${open || text ? 'open' : ''}" data-composer="${id || ''}" aria-label="New task">
+    <div class="row">
+      <span class="plus">${ic.plus}</span>
+      <textarea rows="1" aria-label="What should Claude do?" placeholder="Describe a change, or a task to plan" ${noFolder ? '' : ''}>${esc(text)}</textarea>
+      ${target}
+      <div class="split ${ready ? '' : 'off'}">
+        <button type="button" class="go" ${ready ? '' : 'aria-disabled="true"'} data-start>Start quick task</button>
+        <button type="button" class="more" aria-label="More ways to create" aria-haspopup="menu" data-more>${ic.caret}</button>
+      </div>
+    </div>
+    <div class="foot ${noFolder ? 'warn' : ''}">${hint}</div>
+    <div class="menu" role="menu" style="right:7px;top:46px" ${menuOpen ? '' : 'hidden'}>
+      <button type="button" role="menuitem" data-start ${noFolder ? 'disabled' : ''}><b>Start quick task</b><kbd>⏎</kbd><small>A session opens now. No steps; accepted by itself.</small></button>
+      <button type="button" role="menuitem" data-plan><b>Plan a task…</b><kbd>T</kbd><small>Title, description, steps, epic, tags and skills.</small></button>
+    </div>
+  </section>`
+}
+
+function adherence() {
+  const a = ADHERENCE
+  return `<section class="adherence" aria-label="Plan adherence of the project">
+    <span class="lead">Plan adherence</span>
+    <span class="fig">Accepted first time<b>${a.first} of ${a.steps}</b><i>${a.share}%</i></span>
+    <span class="fig">Sent back<b>${a.sent}</b><i>${a.passes} passes</i></span>
+    <span class="fig">Deviations<b>${a.deviations}</b></span>
+    <button type="button" class="sent" title="Open the task with the most steps sent back"><span>Most sent back</span><span class="chip">${a.worst.code}</span><span class="trunc" style="max-width:220px">${a.worst.title}</span><b class="mono" style="font-weight:400;color:var(--text)">${a.worst.sent}</b></button>
+  </section>`
+}
+
+function counts(scene) {
+  const scoped = (t) => scene === 'project' ? t.p === 'rv' : true
+  const open = OPEN.filter((t) => !state.removed.has(t.code) && scoped(t))
+  return scene === 'project' ? { needs: 0, running: 1, open: 10, filed: 163 } : { needs: 0, running: 4, open: 78, filed: 289 }
+}
+
+function views(scene) {
+  const c = counts(scene)
+  const tabs = [['needs', 'Needs me', c.needs], ['running', 'Running', c.running], ['open', 'Open', c.open], ['filed', 'Filed', c.filed]]
+  return `<div class="subnav" role="tablist" aria-label="Task views">
+    ${tabs.map(([id, label, n]) => `<button type="button" role="tab" class="tab" aria-selected="${state.view === id}" data-view="${id}">${label}<span class="n ${id === 'needs' && n > 0 ? 'hot' : ''}">${n}</span></button>`).join('')}
+    <span class="grow"></span>
+    <div class="tools">
+      <input class="field" type="text" value="${esc(state.query)}" placeholder="Filter by title or anchor" aria-label="Filter the work" data-filter autocomplete="off" spellcheck="false">
+      <div class="seg" role="group" aria-label="Layout"><button type="button" aria-pressed="true">Ledger</button><button type="button" aria-pressed="false">Board</button></div>
+      <button type="button" class="btn secondary" style="height:32px" aria-haspopup="menu">View ${ic.caret}</button>
+    </div>
+  </div>`
+}
+
+function rowHtml(t) {
+  const filed = t.status === 'filed'
+  const pill = { progress: ['progress', 'In progress'], backlog: ['neutral', 'Backlog'], running: ['running', '<span class="orb"></span>Session working'], filed: ['filed', 'Filed'] }[t.status]
+  const markCls = t.status === 'filed' ? 'filed' : t.status === 'running' ? 'running' : t.status === 'progress' ? 'progress' : ''
+  const plan = t.steps
+    ? `<span class="tube ${t.status === 'running' ? 'live' : ''}"><i style="width:${(t.steps[0] / t.steps[1]) * 100}%"></i></span>${t.steps[0]}/${t.steps[1]}`
+    : '<span class="nosteps">no steps</span>'
+  const needs = t.status === 'running' ? '<span class="w">working</span>' : '<span style="color:var(--subtle)" aria-hidden="true">·</span>'
+  return `<div class="lrow ${filed ? 'filed-row' : ''}" data-row="${t.code}" tabindex="0" role="button">
+    <button type="button" class="open-btn" aria-label="Open ${t.code}" title="Open the task">${ic.open}</button>
+    <span class="mark ${markCls}"></span>
+    <span class="title"><span class="code">${t.code}</span><span class="t">${esc(t.title)}</span>${t.quick ? '<span class="badge">Quick</span>' : ''}<button type="button" class="copy" aria-label="Copy /rk task:${t.code}">${ic.copy}</button></span>
+    <span><span class="pill ${pill[0]}">${pill[1]}</span></span>
+    <span class="plan">${plan}</span>
+    <span class="needs">${needs}</span>
+    <span class="num">${t.docs || ''}</span>
+    <span class="num"></span>
+    <span class="num">${t.age}</span>
+    <button type="button" class="del" aria-label="Delete ${t.code}" title="Delete this task" data-delete="${t.code}">${ic.trash}</button>
+  </div>`
+}
+
+function ledger(scene) {
+  const { rows, filed, foldedCount } = visible(scene)
+  const head = `<div class="lhead" role="row"><span></span><span></span><span class="key on">Task</span><span>Status</span><span>Plan</span><span class="key">Needs you</span><span class="r">Notes</span><span class="r">Tokens</span><span class="r key on" style="justify-content:flex-end">Updated</span><span></span></div>`
+  let body = ''
+  if (scene === 'work') {
+    const ids = [...new Set([...rows, ...filed].map((t) => t.p))]
+    body = ids.map((id) => {
+      const p = pOf(id)
+      const mine = rows.filter((t) => t.p === id)
+      const count = `${mine.length} ${mine.length === 1 ? 'task' : 'tasks'}`
+      return `<section aria-label="${p.title}"><header class="group-h"><span class="pmark">${p.mark}</span><a>${p.title}</a><span class="co">${p.company}</span><span class="ct">${count}</span></header>${mine.map(rowHtml).join('')}${filed.filter((t) => t.p === id).map(rowHtml).join('')}</section>`
+    }).join('')
+  } else {
+    body = rows.map(rowHtml).join('') + filed.map(rowHtml).join('')
+  }
+  if (!rows.length && !filed.length) {
+    body = state.view === 'needs'
+      ? '<div class="empty"><b>Nothing waits for you.</b><span>Every claimed step is accepted. Resume a session to get more.</span></div>'
+      : '<div class="empty"><b>No task matches.</b><span>Clear the filter or change the view.</span></div>'
+  }
+  return `<div class="ledger" data-ledger>${head}${body}</div>`
+}
+
+function scopeBar(scene) {
+  if (scene === 'work') {
+    return `<div class="scope"><button type="button" class="switcher"><span>All work</span><span style="color:var(--subtle)">${ic.caret}</span></button><div class="meta"><span>367 tasks in 14 projects</span></div><span style="flex:1"></span></div>`
+  }
+  return `<div class="scope"><button type="button" class="switcher"><span class="pmark">${PROJECT.mark}</span><span>${PROJECT.title}</span><span class="co">${PROJECT.company}</span><span style="color:var(--subtle)">${ic.caret}</span></button>
+    <div class="meta"><span class="chip">/rk ${PROJECT.anchor}</span><button type="button" class="copy" aria-label="Copy anchor">${ic.copy}</button><span class="pill active">Active</span><span class="mono" style="font-size:var(--t-caption)">4.1M tokens</span></div><span style="flex:1"></span></div>`
+}
+
+function tasksSection(scene) {
+  return `<div data-tasks>${composer({ scope: scene, text: state.draft, id: scene })}${scene === 'project' ? adherence() : ''}<div style="margin-top:12px">${views(scene)}</div>${ledger(scene)}</div>`
+}
+
+function blueprint() {
+  return `<section class="blueprint" aria-label="Blueprint"><header><h2>Blueprint</h2><p>What <code>/rk ${PROJECT.anchor}</code> hands to Claude</p></header>
+    <div class="doc"><h3>What this is</h3><p>Rekall stores projects, tasks, notes and checklists in a local app and loads one task in full into a Claude Code session.</p>
+    <h3>How it is organised</h3><p>Layers are crates: kernel, store, core, console, http, with mcp and infra beside them and app wiring everything. Code is cut by domain.</p></div></section>`
+}
+
+function projectTabs() {
+  const items = PROJECT_TABS.map((t) => `<button type="button" role="tab" class="tab" aria-selected="${state.tab === t}" data-tab="${t}">${t}${t === 'Tasks' ? `<span class="n">${PROJECT.total}</span>` : ''}</button>`).join('')
+  return `<div class="subnav ptabs" role="tablist" aria-label="Project pages">${items}</div>`
+}
+
+function statesScene() {
+  return `<div class="states">
+    <div class="state"><h3>Idle, inside a project</h3><p>One 44px line. The list stays above the fold; the folder is where the session will open.</p>${composer({ scope: 'project', id: 's1' })}</div>
+    <div class="state"><h3>Writing, all-projects scope</h3><p>The line grows and the key becomes live. The chip picks the project, defaulting to the one last used.</p>${composer({ scope: 'work', text: 'Show the delete key on every row of the task list', open: true, id: 's2' })}</div>
+    <div class="state"><h3>Project without a folder</h3><p>A quick task cannot open a session, so its key is inert and says why. Planning still works.</p>${composer({ scope: 'work', text: 'Draft the first plan', open: true, noFolder: true, id: 's3' })}</div>
+    <div class="state"><h3>Menu open</h3><p>The key's menu is the only door to the full task dialog. T opens it from anywhere, as today.</p>${composer({ scope: 'project', text: 'Show the delete key on every row', open: true, menuOpen: true, id: 's4' })}<div style="height:76px"></div></div>
+  </div>`
+}
+
+function render() {
+  const sc = state.scene
+  const stage = $('#stage')
+  const keepFilter = document.activeElement && document.activeElement.matches('[data-filter]')
+  const caret = keepFilter ? document.activeElement.selectionStart : null
+  if (sc === 'states') stage.innerHTML = statesScene()
+  else if (sc === 'work') stage.innerHTML = scopeBar('work') + tasksSection('work')
+  else stage.innerHTML = scopeBar('project') + projectTabs() + (state.tab === 'Tasks' ? tasksSection('project') : state.tab === 'Blueprint' ? blueprint() : `<div class="empty"><b>${state.tab}</b><span>Unchanged by this redesign.</span></div>`)
+  $$('[data-go]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.go === sc)))
+  if (keepFilter) { const f = $('[data-filter]'); f.focus(); f.setSelectionRange(caret, caret) }
+  $$('textarea', stage).forEach(autosize)
+}
+
+function autosize(t) { t.style.height = '30px'; t.style.height = Math.min(t.scrollHeight, 160) + 'px'; t.style.overflow = t.scrollHeight > 160 ? 'auto' : 'hidden' }
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2200) }
+function showDialog(id, on) { $(id).classList.toggle('show', on) }
+
+document.addEventListener('click', (e) => {
+  const go = e.target.closest('[data-go]')
+  if (go) { state.scene = go.dataset.go; state.tab = 'Tasks'; render(); return }
+  const tab = e.target.closest('[data-tab]')
+  if (tab) { state.tab = tab.dataset.tab; render(); return }
+  const view = e.target.closest('[data-view]')
+  if (view) { state.view = view.dataset.view; render(); return }
+  const del = e.target.closest('[data-delete]')
+  if (del) { e.stopPropagation(); state.pending = del.dataset.delete; $('#dd-t').textContent = `Delete ${state.pending}?`; showDialog('#scrim-delete', true); $('#dd-go').focus(); return }
+  if (e.target.closest('#dd-go')) {
+    const code = state.pending
+    showDialog('#scrim-delete', false)
+    const row = $(`[data-row="${code}"]`)
+    if (row) { row.classList.add('leaving'); setTimeout(() => { state.removed.add(code); render() }, 250) }
+    toast(`Deleted ${code}`)
+    return
+  }
+  if (e.target.closest('[data-close]') || e.target === $('#scrim-delete') || e.target === $('#scrim-plan')) { showDialog('#scrim-delete', false); showDialog('#scrim-plan', false); return }
+  const more = e.target.closest('[data-more]')
+  if (more) { const m = $('.menu', more.closest('.composer')); m.hidden = !m.hidden; return }
+  const plan = e.target.closest('[data-plan]')
+  if (plan) {
+    const c = plan.closest('.composer')
+    $('#pd-title').textContent = $('textarea', c).value || ''
+    $('#pd-project').textContent = state.scene === 'project' ? PROJECT.title : 'Rekall vR'
+    $$('.menu').forEach((m) => { if (!c.closest('.state')) m.hidden = true })
+    showDialog('#scrim-plan', true)
+    return
+  }
+  const start = e.target.closest('[data-start]')
+  if (start && !start.hasAttribute('aria-disabled') && !start.disabled) {
+    const c = start.closest('.composer'); const ta = $('textarea', c)
+    if (ta.value.trim()) { toast('Quick task started · a session is opening'); state.draft = ''; ta.value = ''; render() }
+    return
+  }
+  if (!e.target.closest('.menu')) $$('.menu').forEach((m) => { if (!m.closest('.state')) m.hidden = true })
+  const fold = e.target.closest('[data-fold]')
+  if (fold) { state.foldFiled = !state.foldFiled; render() }
+})
+
+document.addEventListener('input', (e) => {
+  if (e.target.matches('[data-filter]')) { state.query = e.target.value; render(); return }
+  if (e.target.matches('.composer textarea')) {
+    const c = e.target.closest('.composer'); autosize(e.target)
+    c.classList.add('open')
+    const has = e.target.value.trim() !== ''
+    const split = $('.split', c); if (!c.closest('.state')) state.draft = e.target.value
+    split.classList.toggle('off', !has)
+    $('.go', split).toggleAttribute('aria-disabled', !has)
+  }
+})
+
+document.addEventListener('focusin', (e) => { if (e.target.matches('.composer textarea')) e.target.closest('.composer').classList.add('open') })
+document.addEventListener('focusout', (e) => { if (e.target.matches('.composer textarea') && !e.target.value.trim() && !e.target.closest('.state')) e.target.closest('.composer').classList.remove('open') })
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.matches('.composer textarea') && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('[data-start]', e.target.closest('.composer')).click(); return }
+  if (e.key === 'Escape') { showDialog('#scrim-delete', false); showDialog('#scrim-plan', false); $$('.menu').forEach((m) => { if (!m.closest('.state')) m.hidden = true }) }
+  const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)
+  if (!typing && e.key.toLowerCase() === 't' && !e.metaKey && !e.ctrlKey) { $('#pd-title').textContent = ''; showDialog('#scrim-plan', true) }
+  if (e.target.matches('.lrow') && e.key === 'Delete') $('[data-delete]', e.target).click()
+})
+
+const [hashScene, hashTab] = location.hash.slice(1).split(':')
+if (['work', 'project', 'states'].includes(hashScene)) state.scene = hashScene
+if (hashTab) state.tab = hashTab
+render()
+if (location.hash.includes('delete')) $('[data-delete="RV-165"]').click()
+</script>
+</body>
+</html>

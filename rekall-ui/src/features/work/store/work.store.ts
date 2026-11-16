@@ -38,6 +38,7 @@ export const useWorkStore = defineStore('work', () => {
       ? consoleStore.scopedTasks
       : consoleStore.tasks.filter((task) => task.projectId === focusedProjectId.value)
   )
+  const projectInView = computed(() => focusedProjectId.value ?? consoleStore.scopeProject)
   const rows = computed(() =>
     workRows(tasksInFocus.value, consoleStore.steps, (taskId) => tokenUsage.ofTask(taskId).generated)
   )
@@ -120,5 +121,5 @@ export const useWorkStore = defineStore('work', () => {
     })
   )
 
-  return { view, density, sort, query, unfoldedFiled, foldedEpics, peekedTaskId, sheetTaskId, rows, lanes, counts, shown, groups, focusProject, toggleFiled, toggleEpic, togglePeek, openSheet, closeSheet, linger }
+  return { view, density, sort, query, unfoldedFiled, foldedEpics, peekedTaskId, sheetTaskId, projectInView, rows, lanes, counts, shown, groups, focusProject, toggleFiled, toggleEpic, togglePeek, openSheet, closeSheet, linger }
 })

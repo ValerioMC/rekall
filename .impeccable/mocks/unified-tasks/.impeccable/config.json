@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "tiny-text",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/unified-tasks/index.html"
+        ],
+        "createdAt": "2026-11-16T08:50:27.330Z",
+        "reason": "DESIGN.md sets Micro 11px and Caption 11.5px as the sanctioned floor for kbd hints, badges and counts; the mock uses those tokens only"
+      }
+    ]
+  }
+}

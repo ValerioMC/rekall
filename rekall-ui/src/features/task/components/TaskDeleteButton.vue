@@ -9,8 +9,8 @@ import { codedTitle } from '@/features/catalog/model/task-code'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Task } from '@/features/catalog/model/catalog'
 
-/** Deletes the task after a confirm that names what goes with it, then returns to Work. The project's task manager loses the issue too. */
-const props = defineProps<{ task: Task }>()
+/** Deletes the task after a confirm that names what goes with it, then returns to Work unless it sits in a list. The project's task manager loses the issue too. */
+const props = withDefaults(defineProps<{ task: Task; leavesToWork?: boolean }>(), { leavesToWork: true })
 
 const store = useConsoleStore()
 const router = useRouter()
@@ -23,7 +23,7 @@ async function remove(): Promise<void> {
     return true
   }, `Deleted ${codedTitle(props.task)}`)
   isConfirming.value = false
-  if (deleted) await router.push({ name: 'work' })
+  if (deleted && props.leavesToWork) await router.push({ name: 'work' })
 }
 </script>
 

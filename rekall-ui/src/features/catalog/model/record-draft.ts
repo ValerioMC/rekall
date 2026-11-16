@@ -78,12 +78,12 @@ export function projectDraft(companyId: CompanyId, project?: Project): ProjectDr
   }
 }
 
-export function taskDraft(projectId: ProjectId, task?: Task, epicId: TaskId | null = null): RecordDraft {
+export function taskDraft(projectId: ProjectId, task?: Task, epicId: TaskId | null = null, title = ''): RecordDraft {
   return {
     kind: 'task',
     id: task?.id ?? null,
     code: task?.code ?? '',
-    title: task?.title ?? '',
+    title: task?.title ?? title,
     description: task?.description ?? '',
     status: task?.status ?? 'TODO',
     projectId: task?.projectId ?? projectId,

@@ -11,6 +11,8 @@ import type { TaskId } from '@/model/branded'
 
 const props = defineProps<{
   group: WorkGroup
+  /** False when one project is in view: the scope bar already names it. */
+  showsHeader: boolean
   density: WorkDensity
   now: number
   filedUnfolded: boolean
@@ -33,7 +35,7 @@ const taskCountLabel = computed(() => `${props.group.rows.length} ${props.group.
 
 <template>
   <section :aria-label="group.projectTitle" data-testid="work-group">
-    <header class="flex h-[54px] items-center gap-2.5 px-3 pt-4">
+    <header v-if="showsHeader" class="flex h-[54px] items-center gap-2.5 px-3 pt-4">
       <ProjectMark :project-id="group.projectId" :icon="group.icon" :image-version="group.iconImageVersion" :size="20" />
       <RouterLink
         :to="`/projects/${group.projectId}`"

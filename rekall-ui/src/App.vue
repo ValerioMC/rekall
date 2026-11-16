@@ -127,7 +127,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
     <ConsoleHeader />
     <div class="flex min-h-0 flex-1">
-      <WorkPage v-if="onWork" @new-task="taskEditor.beginCreate()" />
+      <WorkPage v-if="onWork" />
       <TaskPage v-else-if="onTask" />
       <ReviewPage v-else-if="onReview" />
       <div v-else ref="noteArea" class="relative flex min-h-0 min-w-0 flex-1" data-testid="console-terminal">

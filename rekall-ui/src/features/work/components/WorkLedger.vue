@@ -13,7 +13,7 @@ const MINUTE_MS = 60_000
 const store = useConsoleStore()
 const work = useWorkStore()
 const { projects } = storeToRefs(store)
-const { view, density, sort, groups, unfoldedFiled, foldedEpics } = storeToRefs(work)
+const { view, density, sort, groups, unfoldedFiled, foldedEpics, projectInView } = storeToRefs(work)
 const now = useNow(MINUTE_MS)
 
 const nothingWaits = computed(() => view.value === 'needs' && work.query.trim() === '')
@@ -35,12 +35,14 @@ const noProject = computed(() => projects.value.length === 0)
       <span class="text-right max-[1180px]:hidden">Notes</span>
       <WorkSortKey class="max-[1180px]:hidden" label="Tokens" align-end :active="sort === 'tokens'" @sort="sort = 'tokens'" />
       <WorkSortKey label="Updated" align-end :active="sort === 'updated'" @sort="sort = 'updated'" />
+      <span />
     </div>
 
     <WorkProjectGroup
       v-for="group in groups"
       :key="group.projectId"
       :group="group"
+      :shows-header="projectInView === null"
       :density="density"
       :now="now"
       :filed-unfolded="unfoldedFiled.has(group.projectId)"

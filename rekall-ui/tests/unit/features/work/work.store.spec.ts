@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
 import { useWorkStore } from '@/features/work/store/work.store'
-import type { TaskId } from '@/model/branded'
+import type { ProjectId, TaskId } from '@/model/branded'
 import { project, step, task } from './work-fixtures'
 
 function seed() {
@@ -43,5 +43,16 @@ describe('the work store', () => {
 
     work.togglePeek('PR-2' as TaskId)
     expect(work.peekedTaskId).toBeNull()
+  })
+
+  it('names the project in view: the one a page focuses, else the one the scope narrows to', () => {
+    const { console_, work } = seed()
+    expect(work.projectInView).toBeNull()
+
+    console_.setScope(null, 'p1' as ProjectId)
+    expect(work.projectInView).toBe('p1')
+
+    work.focusProject('p2' as ProjectId)
+    expect(work.projectInView).toBe('p2')
   })
 })

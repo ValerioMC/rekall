@@ -114,6 +114,15 @@
         ],
         "createdAt": "2026-11-15T18:24:09.218Z",
         "reason": "False positive: pills, segmented controls and keys are fixed-height flex boxes whose text is centred vertically, with horizontal padding of 8px or more. Decided by the model, not user confirmed."
+      },
+      {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/unified-tasks/index.html"
+        ],
+        "createdAt": "2026-11-16T08:50:54.858Z",
+        "reason": "DESIGN.md sanctions the pulsing orb for a running session (Status Pill: running); the dot marks RV-53, whose session is live in the real data"
       }
     ]
   }

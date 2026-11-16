@@ -99,8 +99,8 @@ describe('the project page', () => {
   it('opens on the tasks of the project, as the ledger', async () => {
     const page = await render()
 
-    expect(page.find('[data-testid="project-tasks"]').exists()).toBe(true)
-    await page.get('[data-testid="project-tasks"] [data-testid="sub-nav-open"]').trigger('click')
+    expect(page.find('[data-testid="tasks-section"]').exists()).toBe(true)
+    await page.get('[data-testid="tasks-section"] [data-testid="sub-nav-open"]').trigger('click')
     expect(page.find('[data-testid="work-ledger"]').text()).toContain('Build the report')
     expect(page.get('[data-testid="sub-nav-tasks"]').attributes('aria-selected')).toBe('true')
   })
@@ -135,7 +135,7 @@ describe('the project page', () => {
     const page = await render('components')
     const workspace = page.get('[data-testid="project-workspace"]')
     expect(workspace.find('[data-testid="project-components"]').exists()).toBe(true)
-    expect(workspace.find('[data-testid="project-tasks"]').exists()).toBe(false)
+    expect(workspace.find('[data-testid="tasks-section"]').exists()).toBe(false)
 
     await page.setProps({ tab: 'connections' })
     await flushPromises()

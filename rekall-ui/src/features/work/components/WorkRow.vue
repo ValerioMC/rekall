@@ -14,6 +14,7 @@ import { ageLabel } from '@/features/work/lib/age-label'
 import type { WorkDensity, WorkRow } from '@/features/work/model/work-view'
 import { useConsoleStore } from '@/stores/console.store'
 import { useWorkStore } from '@/features/work/store/work.store'
+import TaskDeleteButton from '@/features/task/components/TaskDeleteButton.vue'
 import TaskStatusMenu from '@/features/work/components/TaskStatusMenu.vue'
 import WorkPeek from '@/features/work/components/WorkPeek.vue'
 import WorkRowOpenButton from '@/features/work/components/WorkRowOpenButton.vue'
@@ -144,6 +145,14 @@ const memberSummary = computed(() => {
       {{ ageLabel(task.updatedAt, now) }}
     </span>
 
+    <span
+      class="opacity-60 transition-opacity duration-(--motion-quick) focus-within:opacity-100 group-hover/row:opacity-100"
+      data-testid="work-row-delete"
+      @click.stop
+      @keydown.stop
+    >
+      <TaskDeleteButton :task="task" :leaves-to-work="false" />
+    </span>
   </div>
   <div
     v-if="peeked"

@@ -4,6 +4,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import WorkPage from '@/features/work/components/WorkPage.vue'
 import { router } from '@/router'
 import { reviewQueue } from '@/features/catalog/model/review'
+import { useTaskEditor } from '@/features/catalog/composables/useTaskEditor'
 import { useConsoleStore } from '@/stores/console.store'
 import { useWorkStore } from '@/features/work/store/work.store'
 import type { ProjectId, TaskId } from '@/model/branded'
@@ -184,13 +185,37 @@ describe('WorkPage', () => {
 
     expect(wrapper.get('[data-testid="work-group"]').text()).toContain('Acme')
   })
+})
 
-  it('asks for a new task through its button', async () => {
-    seed()
-    const wrapper = await mountWork()
+describe('WorkPage composer', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'localStorage', { configurable: true, value: undefined })
+    document.body.innerHTML = ''
+  })
 
-    await wrapper.get('[data-testid="new-task"]').trigger('click')
+  it('opens the new task dialog on the picked project with the typed title through Plan a task', async () => {
+    const { store } = seed()
+    store.projects = store.projects.map((candidate) => ({ ...candidate, repoFolder: '/code' }))
+    const wrapper = mount(WorkPage, { attachTo: document.body, global: { plugins: [router] } })
+    await flushPromises()
 
-    expect(wrapper.emitted('newTask')).toHaveLength(1)
+    await wrapper.get('[data-testid="quick-task-input"]').setValue('Ship the export')
+    await wrapper.get('[data-testid="split-button-arrow"]').trigger('click')
+    document.body.querySelector<HTMLElement>('[data-testid="split-button-option-plan"]')!.click()
+
+    expect(useTaskEditor().editing.value).toMatchObject({ projectId: 'p1', title: 'Ship the export' })
+    useTaskEditor().close()
+  })
+
+  it('narrows the composer and the list to the project in view and drops the project headers', async () => {
+    const { store } = seed()
+    store.setScope(store.projects[0]!.companyId, 'p1' as ProjectId)
+    useWorkStore().view = 'open'
+    const wrapper = mount(WorkPage, { attachTo: document.body, global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="composer-project"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="work-group"] header').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="project-adherence"]').exists()).toBe(true)
   })
 })

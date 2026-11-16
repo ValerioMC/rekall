@@ -7,6 +7,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useWorkStore } from '@/features/work/store/work.store'
 import { mountWithHeaderChrome } from './support/mountWithHeaderChrome'
 import type { Company, Project, Task } from '@/features/catalog/model/catalog'
+import { useTaskEditor } from '@/features/catalog/composables/useTaskEditor'
 import type { RekallDocument } from '@/features/notes/model/document'
 import type { TaskStep } from '@/features/steps/model/task-step'
 import type { Wrapup } from '@/features/wrapup/model/wrapup'
@@ -347,6 +348,7 @@ const mountWork = (): ReturnType<typeof mountConsole> => mountConsole('/')
 
 describe('the console', () => {
   beforeEach(() => {
+    useTaskEditor().close()
     updateTask.mockClear()
     createTask.mockClear()
     createDocument.mockClear()

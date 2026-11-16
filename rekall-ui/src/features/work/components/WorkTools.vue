@@ -7,11 +7,13 @@ import { useWorkLayout, type WorkLayout } from '@/features/work/composables/useW
 import { useWorkStore } from '@/features/work/store/work.store'
 import { useConsoleStore } from '@/stores/console.store'
 
-/** The filter, the layout and the view menu: what a person adjusts about the list, apart from which project it shows. */
+/** The filter, the layout (Work only) and the view menu: what a person adjusts about the list, apart from which project it shows. */
 const LAYOUT_OPTIONS: readonly SegmentOption<WorkLayout>[] = [
   { value: 'ledger', label: 'Ledger' },
   { value: 'board', label: 'Board' }
 ]
+
+defineProps<{ choosesLayout: boolean }>()
 
 const { tasks } = storeToRefs(useConsoleStore())
 const { query } = storeToRefs(useWorkStore())
@@ -32,6 +34,6 @@ const hasQuickTasks = computed(() => tasks.value.some((task) => task.quick))
     class="field h-8 w-60 rounded-control px-3 text-small text-text"
     data-testid="work-filter"
   />
-  <SegmentedControl v-model="layout" :options="LAYOUT_OPTIONS" label="Layout" />
+  <SegmentedControl v-if="choosesLayout" v-model="layout" :options="LAYOUT_OPTIONS" label="Layout" />
   <WorkViewMenu v-if="isLedger || hasQuickTasks" :shows-density="isLedger" :shows-quick-tasks="hasQuickTasks" />
 </template>

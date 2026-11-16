@@ -27,7 +27,7 @@ function openFiledShelf(): void {
 
 <template>
   <div
-    class="grid min-h-0 flex-1 grid-cols-[repeat(3,minmax(0,1fr))_160px] gap-4 px-8 pb-5.5 pt-1.5 max-[1180px]:grid-cols-[repeat(3,minmax(0,1fr))]"
+    class="grid min-h-0 flex-1 grid-cols-[repeat(3,minmax(0,1fr))_160px] gap-4 pb-5.5 pt-1.5 max-[1180px]:grid-cols-[repeat(3,minmax(0,1fr))]"
     data-testid="work-board"
   >
     <WorkBoardLane v-for="lane in liveLanes" :key="lane.id" :lane="lane" :now="now" @open="work.openSheet" />

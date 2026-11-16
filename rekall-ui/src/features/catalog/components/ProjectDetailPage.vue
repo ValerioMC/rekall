@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ConsoleHeader from '@/components/console/ConsoleHeader.vue'
 import ProjectScopeMeta from '@/features/catalog/components/ProjectScopeMeta.vue'
@@ -8,7 +8,8 @@ import ScopeSwitcher from '@/features/catalog/components/ScopeSwitcher.vue'
 import SubNav from '@/components/ui/SubNav.vue'
 import type { SubNavItem } from '@/components/ui/SubNav.vue'
 import ProjectDiagramsTab from '@/features/project/components/ProjectDiagramsTab.vue'
-import ProjectTasksTab from '@/features/project/components/ProjectTasksTab.vue'
+import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
+import TasksSection from '@/features/work/components/TasksSection.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import ProjectBlueprintPane from '@/features/project/components/ProjectBlueprintPane.vue'
@@ -26,10 +27,12 @@ import { useConnectionStream } from '@/features/connection/composables/useConnec
 import { useProjectSectionStream } from '@/features/project/composables/useProjectSectionStream'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useRecentProjectsStore } from '@/features/catalog/store/recentProjects.store'
+import { useTaskEditor } from '@/features/catalog/composables/useTaskEditor'
+import { useWorkStore } from '@/features/work/store/work.store'
 import type { ScopeTarget } from '@/features/catalog/model/scope-target'
 import { asProjectId } from '@/model/branded'
 import { PROJECT_TABS, PROJECT_TAB_LABEL, projectTabOf, type ProjectTab } from '@/features/project/model/project-page'
-import type { DeploymentGraphId, ProjectSectionId, TaskId } from '@/model/branded'
+import type { DeploymentGraphId, ProjectSectionId } from '@/model/branded'
 
 const props = defineProps<{ id: string; tab?: string }>()
 
@@ -48,6 +51,8 @@ const graphsStore = useDeploymentGraphsStore()
 const componentsStore = useProjectComponentsStore()
 const connectionsStore = useConnectionsStore()
 const recentProjects = useRecentProjectsStore()
+const work = useWorkStore()
+const taskEditor = useTaskEditor()
 const { run } = useAsyncAction()
 
 const sections = computed(() => sectionsStore.sectionsOf(projectId.value))
@@ -99,10 +104,6 @@ function leaveDeletedProject(): void {
   void router.push('/projects')
 }
 
-function openTask(taskId: TaskId): void {
-  void router.push(`/task/${taskId}`)
-}
-
 function openProject(target: ScopeTarget): void {
   if (target.kind === 'project') void router.push(`/projects/${target.projectId}/${tab.value}`)
 }
@@ -110,6 +111,7 @@ function openProject(target: ScopeTarget): void {
 watch(
   () => project.value?.id ?? null,
   () => {
+    work.focusProject(project.value?.id ?? null)
     sectionId.value = null
     graphId.value = null
     settingUpGraph.value = false
@@ -123,6 +125,8 @@ watch(
   },
   { immediate: true }
 )
+
+onBeforeUnmount(() => work.focusProject(null))
 
 watch(
   [sections, tab],
@@ -140,7 +144,7 @@ watch([graphs, tab], () => {
 </script>
 
 <template>
-  <div class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-canvas">
+  <div class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-canvas scroll-gutter-stable">
     <template v-if="!store.isLoading && !project">
       <ConsoleHeader />
       <div class="page-column py-6">
@@ -171,7 +175,7 @@ watch([graphs, tab], () => {
         <SubNav class="mt-3 shrink-0" :model-value="tab" :items="tabItems" label="Project pages" />
         <div class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] py-4">
           <Transition name="fade-quick" mode="out-in">
-            <ProjectTasksTab v-if="tab === 'tasks'" key="tasks" :project="project" @open-task="openTask" />
+            <TasksSection v-if="tab === 'tasks'" key="tasks" :chooses-layout="false" />
             <ProjectBlueprintPane v-else-if="tab === 'blueprint'" key="blueprint" :project="project" />
             <ProjectSectionsPage
               v-else-if="tab === 'pages'"
@@ -204,5 +208,8 @@ watch([graphs, tab], () => {
       </div>
     </template>
 
+    <Transition name="dialog">
+      <RecordDialog v-if="taskEditor.editing.value" :draft="taskEditor.editing.value" @close="taskEditor.close()" />
+    </Transition>
   </div>
 </template>

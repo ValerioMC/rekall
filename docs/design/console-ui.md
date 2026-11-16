@@ -99,8 +99,17 @@ listed with it (another tab, or the epic is filed) keeps its place and carries t
 a chip. The grouping is `features/work/lib/epic-entries.ts`; which epics are folded is kept in the
 Work store and not remembered.
 
-The head is the scope bar shared with the project page (below): the project switcher as the title,
-what to know about the scope, and New task. Under it the views are sub-navigation tabs with counts,
+The head is the scope bar shared with the project page (below): the project switcher as the title
+and what to know about the scope. Under it, the composer and the views are one section, `TasksSection`,
+that Work and a project's Tasks page share: the scope is its only input, and a
+project in view (a project page, or Work narrowed to one) adds the plan adherence strip and drops the
+project headers from the ledger. Only Work chooses the layout, since the layout is a route.
+
+The composer (`TaskComposer`) is the one way to start work: one line that grows with the text, the
+project's folder (or, across projects, a picker that defaults to the project worked on last) and a
+split key. The key starts a quick task and opens its session; its menu, **Plan a task…**, opens the
+New task dialog with the text as its title, as does `T`. With no folder the key is inert and says why,
+and planning still works. The views are sub-navigation tabs with counts,
 and at their right end the filter on title and anchor, the Ledger or Board layout toggle and a **View**
 menu (`WorkViewMenu`) with the density (Comfortable or Compact) and whether quick tasks show; the
 toggle and the filter stay on the board, whose tabs are lanes: **Needs me** (the default), Running, Open and Filed. A
@@ -118,8 +127,9 @@ promises rows the table does not list.
 A row carries three actions that do not open it. The status pill is a menu (`TaskStatusMenu`, the
 same one the task page's properties bar uses): the pill says what the work is doing now, the menu
 marks the stored status, and a change keeps the row listed for a moment like an accept. The arrow
-at the end of the row opens the task page in one press. A quick task wears a `Quick` badge beside
-its title.
+at the end of the row opens the task page in one press, and the trash key that ends it deletes the
+task behind the same confirm the task page uses (`TaskDeleteButton`, which stays in the list). A quick
+task wears a `Quick` badge beside its title.
 
 A row expands in place, one at a time, to its **peek**: the task's `/rk` anchor with copy, up to
 three claimed steps each with Send back and Accept, a task handed in whole with Accept task and
