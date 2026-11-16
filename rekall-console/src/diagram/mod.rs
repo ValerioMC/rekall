@@ -1,8 +1,10 @@
 //! Stored diagrams and the source excerpts their code links open.
 
+mod command;
 mod service;
 mod view;
 
+pub use command::excerpt_scope::ExcerptScope;
 pub use service::diagram_catalog_service::DiagramCatalogService;
 pub use service::source_excerpt_service::SourceExcerptService;
 pub use view::source_excerpt_view::SourceExcerptView;

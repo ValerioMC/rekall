@@ -1,0 +1,706 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Walkthrough with the code in a modal</title>
+<style>
+  @font-face { font-family: 'Fira Sans'; font-weight: 400; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 500; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 600; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Code'; font-weight: 300 700; src: url('../../../rekall-ui/node_modules/@fontsource-variable/fira-code/files/fira-code-latin-wght-normal.woff2') format('woff2'); }
+
+  :root {
+    --canvas: #0d1017; --surface: #151922; --raised: #1d2330; --hover: #262d3c;
+    --border: #2a3243; --border-strong: #3b4558; --border-field: #5e6a82;
+    --text: #f2f5f9; --muted: #a3acba; --subtle: #8c96a6;
+    --accent: #eaa43c; --accent-strong: #ffd88e; --accent-deep: #a8651a; --accent-soft: #eaa43c24; --accent-ink: #2b1804;
+    --kind-data: #7fd66a;
+    --font-sans: 'Fira Sans', ui-sans-serif, -apple-system, sans-serif;
+    --font-mono: 'Fira Code', ui-monospace, Menlo, monospace;
+    --t-micro: 11px; --t-caption: 11.5px; --t-small: 12.5px; --t-body: 13.5px; --t-title: 15px;
+    --r-key: 3px; --r-control: 5px; --r-card: 8px;
+    --ease-out: cubic-bezier(.23, 1, .32, 1);
+    --ease-drawer: cubic-bezier(.32, .72, 0, 1);
+    --quick: 140ms; --move: 220ms;
+    --shadow-lift: 0 1px 2px rgb(0 0 0 / .55), 0 10px 22px -8px rgb(0 0 0 / .65);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--canvas); color: var(--text); font: 400 var(--t-body)/1.4 var(--font-sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; text-align: left; }
+  button:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  ::selection { background: var(--accent-soft); color: var(--accent-strong); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-corner { background: transparent; }
+  .mono { font-family: var(--font-mono); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  kbd { font: 400 var(--t-micro) var(--font-mono); border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: var(--r-key); padding: 0 5px; color: var(--muted); }
+  .press { transition: transform 160ms var(--ease-out), background var(--quick) ease, color var(--quick) ease, border-color var(--quick) ease; }
+  .press:active { transform: scale(.97); }
+  @media (hover: hover) and (pointer: fine) { .hov:hover { background: var(--raised); color: var(--text); } }
+  svg.i { width: 16px; height: 16px; flex: none; }
+
+  .app { display: flex; flex-direction: column; height: 100vh; }
+  .topbar { height: 48px; flex: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 620px) minmax(0, 1fr); gap: 12px; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .brand { font-weight: 600; font-size: var(--t-title); letter-spacing: -0.01em; }
+  .search { height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); color: var(--subtle); font-size: var(--t-small); }
+  .search kbd { margin-left: auto; }
+  .topr { justify-self: end; display: flex; align-items: center; gap: 8px; position: relative; }
+  .about > summary { white-space: nowrap; list-style: none; height: 32px; padding: 0 10px; display: inline-flex; align-items: center; border: 1px dashed var(--border-strong); border-radius: var(--r-card); color: var(--subtle); font-size: var(--t-small); cursor: pointer; }
+  .about > summary::-webkit-details-marker { display: none; }
+  .about[open] > summary { color: var(--text); border-color: var(--border-field); }
+  .about > div { position: absolute; right: 0; top: 40px; z-index: 60; width: 420px; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--surface); box-shadow: var(--shadow-lift); color: var(--muted); font-size: var(--t-small); line-height: 1.5; }
+  .about b { color: var(--text); font-weight: 500; }
+  .about ul { padding-left: 16px; display: grid; gap: 6px; }
+
+  .vbar { height: 44px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .back { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border-radius: var(--r-control); color: var(--muted); font-size: var(--t-small); }
+  .vtitle { font-size: var(--t-body); font-weight: 500; }
+  .vsub { color: var(--subtle); font-size: var(--t-small); }
+  .seg { display: inline-flex; padding: 2px; border: 1px solid var(--border); border-radius: var(--r-control); background: var(--surface); }
+  .seg button { height: 24px; padding: 0 10px; border-radius: var(--r-key); color: var(--subtle); font-size: var(--t-small); }
+  .seg button[aria-pressed="true"] { background: var(--raised); color: var(--text); }
+
+  /* the stage: the diagram is the background of everything */
+  .stage { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+  .canvas { position: absolute; inset: 0; overflow: auto; }
+  .world { display: flex; justify-content: center; min-width: max-content; padding: 24px 396px 120px 32px; }
+  .world svg { display: block; flex: none; }
+  .lane { stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 5; transition: stroke var(--quick) ease; }
+  .lane.lit { stroke: var(--border-strong); }
+  .pbox { fill: var(--surface); stroke: var(--border-strong); }
+  .pbox.ext { stroke-dasharray: 4 3; }
+  .ptxt { fill: var(--text); font: 500 var(--t-small) var(--font-sans); text-anchor: middle; }
+  .pext { fill: var(--subtle); font: 400 var(--t-micro) var(--font-sans); text-anchor: middle; }
+  .m .line { stroke: var(--border-strong); stroke-width: 1.6; fill: none; transition: stroke var(--quick) ease; }
+  .m.reply .line { stroke-dasharray: 6 5; }
+  .m .lbl { fill: var(--subtle); font: 400 var(--t-small) var(--font-mono); paint-order: stroke; stroke: var(--canvas); stroke-width: 5px; stroke-linejoin: round; transition: fill var(--quick) ease; }
+  .m .num { fill: var(--subtle); font: 500 var(--t-micro) var(--font-mono); }
+  .m.played .line { stroke: #eaa43c73; } .m.played .lbl { fill: var(--muted); }
+  .m.current .line { stroke: var(--accent); stroke-width: 2; } .m.current .lbl { fill: var(--accent-strong); } .m.current .num { fill: var(--accent); }
+  .m .hit { fill: transparent; cursor: pointer; }
+  @media (hover: hover) and (pointer: fine) { .m:hover .hit { fill: #ffffff08; } }
+  .m:focus-visible { outline: none; } .m:focus-visible .hit { stroke: var(--accent); stroke-width: 2; }
+  .m .dot { fill: var(--accent); filter: drop-shadow(0 0 5px var(--accent)); display: none; }
+  .m.current .dot { display: block; }
+
+  /* step card, as the console has it today, minus the code window */
+  .card { position: absolute; right: 16px; top: 16px; bottom: 16px; width: 364px; display: flex; flex-direction: column; background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(10px); border: 1px solid var(--border); border-radius: var(--r-card); box-shadow: var(--shadow-lift); overflow: hidden; }
+  .card-head { flex: none; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .card-body { flex: 1; min-height: 0; overflow: auto; padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+  .badge { display: inline-block; border-radius: var(--r-key); padding: 1px 8px; font-size: var(--t-caption); font-weight: 600; color: var(--tint); background: color-mix(in srgb, var(--tint) 14%, transparent); }
+  .badge.call, .badge.self { --tint: var(--accent); } .badge.reply { --tint: var(--kind-data); }
+  h3 { margin-top: 8px; font: 600 var(--t-body)/1.35 var(--font-mono); overflow-wrap: anywhere; }
+  .ends { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; font-size: var(--t-small); }
+  .end { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border); border-radius: var(--r-control); background: var(--canvas); padding: 1px 7px; min-width: 0; }
+  .end em { font-style: normal; font-size: var(--t-micro); color: var(--subtle); }
+  .explain { line-height: 1.55; }
+  .label { font-size: var(--t-caption); font-weight: 500; color: var(--subtle); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+  .val { border: 1px solid var(--border); border-radius: var(--r-control); background: var(--canvas); padding: 7px 10px; font: 400 var(--t-caption)/1.55 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 120px; overflow: auto; }
+  .into, .open-code { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border-radius: var(--r-control); }
+  .into { border: 1px solid #eaa43c73; background: #eaa43c14; color: var(--accent-strong); }
+  .into b { display: block; font-size: var(--t-small); font-weight: 600; } .into span span { display: block; font-size: var(--t-caption); opacity: .8; }
+  .into kbd { margin-left: auto; color: var(--accent-strong); border-color: #eaa43c59; }
+  .ext-note { border: 1px dashed var(--border-strong); border-radius: var(--r-control); padding: 8px 10px; color: var(--muted); font-size: var(--t-small); line-height: 1.5; }
+  .open-code { flex-direction: column; align-items: stretch; gap: 6px; padding: 0; border: 1px solid var(--border); background: var(--canvas); overflow: hidden; }
+  .oc-top { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-bottom: 1px solid var(--border); background: var(--raised); font: 400 var(--t-caption) var(--font-mono); }
+  .oc-top .where { flex: 1; min-width: 0; color: var(--text); } .oc-top .where i { font-style: normal; color: var(--subtle); }
+  .oc-sig { padding: 2px 10px 9px; font: 400 var(--t-caption)/1.5 var(--font-mono); color: var(--muted); white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+  @media (hover: hover) and (pointer: fine) { .open-code:hover { border-color: var(--border-field); } }
+  .swap { animation: swap 140ms var(--ease-out); } @keyframes swap { from { opacity: 0; } }
+  .quiet .swap { animation: none; }
+
+  /* transport: a floating capsule at the foot of the canvas */
+  .dock { position: absolute; left: 16px; right: 396px; bottom: 16px; display: flex; justify-content: center; pointer-events: none; }
+  .bar { pointer-events: auto; width: 100%; max-width: 760px; display: flex; align-items: center; gap: 4px; padding: 6px 8px; background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(10px); border: 1px solid var(--border); border-radius: var(--r-card); box-shadow: var(--shadow-lift); }
+  .key { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: var(--r-card); color: var(--muted); }
+  .gold { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 9999px; background: var(--accent); border: 1px solid var(--accent-deep); box-shadow: 0 1px 0 rgb(255 255 255 / .35) inset, 0 1px 2px rgb(0 0 0 / .5); color: var(--accent-ink); }
+  .counter { width: 64px; flex: none; text-align: center; font: 400 var(--t-caption) var(--font-mono); color: var(--muted); }
+  .ticks { flex: 1; min-width: 0; display: flex; gap: 3px; height: 32px; list-style: none; padding: 0 4px; }
+  .ticks li { flex: 1; min-width: 3px; display: flex; }
+  .tick { position: relative; width: 100%; height: 100%; border-radius: var(--r-key); --tint: var(--border-strong); }
+  .tick::before { content: ''; position: absolute; inset-inline: 0; bottom: 6px; top: calc(6px + min(var(--depth), 4) * 3px); border-radius: 2px; background: var(--tint); transition: background var(--quick) ease; }
+  .tick.reply::before { top: calc(12px + min(var(--depth), 4) * 3px); }
+  .tick.played { --tint: color-mix(in srgb, var(--accent) 45%, var(--border-strong)); }
+  .tick.now { --tint: var(--accent); } .tick.now::before { box-shadow: 0 0 8px -1px var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .tick:hover { --tint: var(--muted); } }
+  .tick i { position: absolute; left: 50%; top: 0; width: 4px; height: 4px; margin-left: -2px; border-radius: 9999px; background: var(--accent); }
+  .pace { display: flex; padding: 2px; border: 1px solid var(--border); border-radius: var(--r-control); flex: none; }
+  .pace button { height: 24px; padding: 0 7px; border-radius: var(--r-key); color: var(--subtle); font: 400 var(--t-micro) var(--font-mono); }
+  .pace button[aria-checked="true"] { background: var(--raised); color: var(--text); }
+
+  /* the code modal: a sheet that leaves a strip of the diagram beside it */
+  .modal { position: absolute; inset: 0; z-index: 40; visibility: hidden; transition: visibility 0s linear 160ms; }
+  .modal[data-open] { visibility: visible; transition-delay: 0s; }
+  .scrim { position: absolute; inset: 0; background: rgb(5 7 11 / .5); opacity: 0; transition: opacity 160ms ease; }
+  .modal[data-open] .scrim { opacity: 1; transition-duration: 220ms; }
+  .sheet { position: absolute; top: 16px; bottom: 16px; right: 16px; width: min(940px, calc(100% - 32px)); display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-card); box-shadow: 0 40px 80px -24px rgb(0 0 0 / .9); overflow: hidden; opacity: 0; transform: translateX(28px); transition: opacity 160ms ease, transform 160ms var(--ease-out); }
+  .modal[data-open] .sheet { opacity: 1; transform: none; transition: opacity 220ms var(--ease-out), transform 260ms var(--ease-drawer); }
+  .sh-head { flex: none; height: 48px; display: flex; align-items: center; gap: 10px; padding: 0 8px 0 16px; border-bottom: 1px solid var(--border); }
+  .sh-head .ttl { font-weight: 600; font-size: var(--t-title); }
+  .sh-head .stp { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .sh-head .sp { flex: 1; }
+  .sk { display: grid; place-items: center; width: 28px; height: 28px; border-radius: var(--r-control); color: var(--muted); }
+  .closer { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px 0 10px; border-radius: var(--r-control); color: var(--muted); font-size: var(--t-small); }
+  .strip { flex: none; padding: 10px 16px 12px; border-bottom: 1px solid var(--border); display: grid; gap: 6px; }
+  .strip .top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .strip .top h3 { margin: 0; font-size: var(--t-body); }
+  .strip .ends { margin: 0; margin-left: auto; flex-wrap: nowrap; }
+  .strip .explain { color: var(--muted); font-size: var(--t-small); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .tabs { flex: none; height: 36px; display: flex; align-items: stretch; background: var(--surface); border-bottom: 1px solid var(--border); overflow: hidden; }
+  .tab { position: relative; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-right: 1px solid var(--border); color: var(--subtle); font: 400 var(--t-small) var(--font-mono); white-space: nowrap; }
+  .tab .cnt { font: 500 var(--t-micro) var(--font-mono); color: var(--subtle); border: 1px solid var(--border-strong); border-radius: 9999px; min-width: 18px; padding: 0 5px; text-align: center; }
+  .tab[aria-selected="true"] { color: var(--text); background: var(--canvas); }
+  .tab[aria-selected="true"]::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); }
+  .tab[aria-selected="true"] .cnt { color: var(--accent-strong); border-color: #eaa43c59; }
+  .crumbs { flex: none; height: 32px; display: flex; align-items: center; gap: 6px; padding: 0 14px; border-bottom: 1px solid var(--border); background: var(--canvas); font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); min-width: 0; }
+  .crumbs > * { white-space: nowrap; flex: none; } .crumbs > .trunc { flex: 0 1 auto; }
+  .crumbs .sep { color: var(--border-strong); } .crumbs .scope { color: var(--muted); } .crumbs .scope.deep { color: var(--text); font-weight: 500; }
+  .crumbs .span { margin-left: auto; padding-left: 12px; color: var(--accent-strong); }
+  .backchip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; margin-left: 10px; border: 1px solid var(--border-strong); border-radius: var(--r-control); color: var(--muted); font: 400 var(--t-caption) var(--font-sans); }
+  .backchip[hidden] { display: none; }
+  .editor { flex: 1; min-height: 0; overflow: auto; background: var(--canvas); padding: 8px 0 120px; }
+  .lines { min-width: max-content; font: 400 13px/22px var(--font-mono); }
+  .ln { position: relative; display: flex; height: 22px; padding-right: 24px; }
+  .ln .mk { width: 52px; flex: none; display: flex; justify-content: flex-end; align-items: center; gap: 2px; padding-right: 4px; }
+  .ln .no { width: 36px; flex: none; padding-right: 14px; text-align: right; color: var(--subtle); font-variant-numeric: tabular-nums; user-select: none; }
+  .ln .tx { white-space: pre; color: var(--muted); }
+  .ln.in { background: #eaa43c12; transition: background var(--move) var(--ease-out); }
+  .ln.in::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent); box-shadow: 0 0 8px -1px var(--accent); }
+  .ln.in .no { color: var(--accent-strong); } .ln.in .tx { color: var(--text); }
+  .quiet .ln.in { transition: none; }
+  .chip { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 9999px; border: 1px solid var(--border-strong); background: var(--canvas); color: var(--subtle); font: 500 var(--t-micro)/1 var(--font-mono); }
+  .chip.now { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  @media (hover: hover) and (pointer: fine) { .chip:not(.now):hover { color: var(--text); border-color: var(--muted); } }
+  .tk-kw { color: #ff7b72; } .tk-str { color: #a5d6ff; } .tk-com { color: #8b949e; font-style: italic; } .tk-fn { color: #d2a8ff; } .tk-ty { color: #ffa657; } .tk-num { color: #79c0ff; } .tk-mac { color: #79c0ff; }
+  .link { cursor: pointer; text-decoration: underline dotted var(--border-field); text-decoration-thickness: 1px; text-underline-offset: 4px; border-radius: 2px; transition: background var(--quick) ease; }
+  .link.target { text-decoration-color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .link:hover { background: var(--hover); text-decoration-style: solid; text-decoration-color: var(--text); } }
+  .tip { position: fixed; z-index: 80; pointer-events: none; padding: 6px 9px; border: 1px solid var(--border-strong); border-radius: var(--r-control); background: var(--raised); box-shadow: var(--shadow-lift); font: 400 var(--t-small) var(--font-sans); color: var(--text); opacity: 0; transform: scale(.97); transform-origin: 0 100%; transition: opacity 125ms var(--ease-out), transform 125ms var(--ease-out); }
+  .tip.on { opacity: 1; transform: none; } .tip.instant { transition-duration: 0ms; }
+  .tip small { display: block; color: var(--subtle); font: 400 var(--t-micro) var(--font-mono); margin-top: 1px; }
+  .has-modal .world { padding-right: 972px; }
+  @media (prefers-reduced-motion: reduce) { .swap { animation: none; } .tip, .sheet, .scrim { transition: none !important; } .modal[data-open] .sheet { transform: none; } .sheet { transform: none; } .press:active { transform: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <span class="brand">Rekall</span>
+    <div class="search"><span>/rk</span><span>search</span><kbd>⌘K</kbd></div>
+    <div class="topr">
+      <details class="about">
+        <summary>About this mock</summary>
+        <div>
+          <p><b>The diagram stays the stage; the code is a modal.</b> Same real code as the three-pane mock, so the two can be compared.</p>
+          <ul>
+            <li><b>Background:</b> the sequence full bleed, the card and the transport exactly where the console has them today. The card loses its 320px code window and gains a <b>Code</b> row: file, lines and the signature of the method. <kbd>C</kbd> or a click opens it.</li>
+            <li><b>The modal is a sheet</b> anchored right, so a strip of the diagram stays visible. The canvas pans the current message into that strip.</li>
+            <li><b>Click a method</b> (dotted words, or a gutter chip): the walkthrough moves, the diagram behind pans to the message, the file and scroll follow. <kbd>←</kbd> <kbd>→</kbd> keep stepping with the modal open.</li>
+            <li><b>Motion:</b> the sheet eases in 260ms and out in 160ms; keyboard steps never animate. <kbd>Esc</kbd> closes.</li>
+          </ul>
+          <p style="margin-top:8px">Try: <kbd>C</kbd>, then click <span class="mono">project_folder</span> in the service.</p>
+        </div>
+      </details>
+    </div>
+  </header>
+
+  <div class="vbar">
+    <button class="back press hov"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg>Diagrams</button>
+    <span class="vtitle">How the console reads a diagram's code</span>
+    <span class="vsub">Rekall vR · 9 steps</span>
+    <div class="seg" style="margin-left:8px" role="group" aria-label="View"><button aria-pressed="false">Diagram</button><button aria-pressed="true">Walkthrough</button></div>
+  </div>
+
+  <main class="stage" id="stage">
+    <div class="canvas" id="canvas"><div class="world" id="world"></div></div>
+
+    <aside class="card" aria-label="This step" aria-live="polite">
+      <div class="card-head" id="cardHead"></div>
+      <div class="card-body" id="cardBody"></div>
+    </aside>
+
+    <div class="dock">
+      <div class="bar" role="group" aria-label="Walkthrough">
+        <button class="key press hov" id="restart" title="Start over" aria-label="Start over"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3.5v9M12 3.5 6.5 8l5.5 4.5Z"/></svg></button>
+        <button class="key press hov" id="prev" title="Previous step (←)" aria-label="Previous step"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m10 3.5-4.5 4.5 4.5 4.5"/></svg></button>
+        <button class="gold press" id="play" aria-label="Play" aria-pressed="false"></button>
+        <button class="key press hov" id="next" title="Next step (→)" aria-label="Next step"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 3.5 4.5 4.5L6 12.5"/></svg></button>
+        <span class="counter tnum" id="counter"></span>
+        <ol class="ticks" id="ticks" aria-label="Steps"></ol>
+        <div class="pace" role="radiogroup" aria-label="Pace"><button role="radio" aria-checked="false" data-pace="5200">0.5×</button><button role="radio" aria-checked="true" data-pace="3200">1×</button><button role="radio" aria-checked="false" data-pace="1600">2×</button></div>
+      </div>
+    </div>
+
+    <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="shTitle">
+      <div class="scrim" id="scrim"></div>
+      <section class="sheet" id="sheet">
+        <header class="sh-head">
+          <span class="ttl" id="shTitle">Implementation</span>
+          <span class="stp tnum" id="shStep"></span>
+          <span class="sp"></span>
+          <button class="sk press hov" id="shPrev" title="Previous step (←)" aria-label="Previous step"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m10 3.5-4.5 4.5 4.5 4.5"/></svg></button>
+          <button class="sk press hov" id="shNext" title="Next step (→)" aria-label="Next step"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 3.5 4.5 4.5L6 12.5"/></svg></button>
+          <button class="closer press hov" id="close" aria-label="Close code">Close <kbd>Esc</kbd></button>
+        </header>
+        <div class="strip" id="strip"></div>
+        <div class="tabs" role="tablist" id="tabs"></div>
+        <div class="crumbs" id="crumbs"></div>
+        <div class="editor" id="editor" tabindex="0" aria-label="Source file"><div class="lines" id="lines"></div></div>
+      </section>
+    </div>
+  </main>
+</div>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+const FILES = {"rekall-http/src/diagram/controller/diagram_controller.rs": ["use axum::extract::{Path, Query, State};", "use axum::response::Response;", "use axum::routing::get;", "use axum::{Json, Router};", "use rekall_kernel::{jstr, RekallError};", "use rekall_core::diagram::{DiagramDraft, DiagramService, DiagramSummaryView, DiagramView};", "use serde_json::json;", "", "use crate::shared::{created, no_content};", "use crate::diagram::{DiagramRequest, SourceExcerptQuery, SourceExcerptResponse};", "use crate::shared::error::ApiResult;", "use crate::shared::extract::{optional_uuid, required, uuid, JsonBody, Validator};", "use crate::ApiState;", "", "pub fn routes() -> Router<ApiState> {", "    Router::new()", "        .route(\"/api/diagrams\", get(list).post(create))", "        .route(\"/api/diagrams/{id}\", get(get_one).put(replace).delete(delete))", "        .route(\"/api/diagrams/{id}/source\", get(source))", "}", "", "async fn list(State(state): State<ApiState>) -> ApiResult<Json<Vec<DiagramSummaryView>>> {", "    Ok(Json(state.diagrams.list().await?))", "}", "", "async fn get_one(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<DiagramView>> {", "    Ok(Json(state.diagrams.get(uuid(\"id\", &id)?).await?))", "}", "", "async fn create(State(state): State<ApiState>, JsonBody(request): JsonBody<DiagramRequest>) -> ApiResult<Response> {", "    let draft = draft_of(None, request)?;", "    Ok(created(state.diagrams.write(draft).await?))", "}", "", "async fn replace(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<DiagramRequest>) -> ApiResult<Json<DiagramView>> {", "    let draft = draft_of(Some(uuid(\"id\", &id)?), request)?;", "    Ok(Json(state.diagrams.write(draft).await?))", "}", "", "async fn delete(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Response> {", "    state.diagram_catalog.delete(uuid(\"id\", &id)?).await?;", "    Ok(no_content())", "}", "", "async fn source(State(state): State<ApiState>, Path(id): Path<String>, Query(query): Query<SourceExcerptQuery>) -> ApiResult<Json<SourceExcerptResponse>> {", "    let file = required(query.file.filter(|file| !jstr::is_blank(file)))?;", "    Ok(Json(state.sources.excerpt(uuid(\"id\", &id)?, &file, query.start, query.end).await?.into()))", "}", "", "fn draft_of(id: Option<rekall_kernel::Id>, request: DiagramRequest) -> ApiResult<DiagramDraft> {", "    Validator::new()", "        .not_blank(\"projectId\", request.project_id.as_deref())", "        .not_blank(\"title\", request.title.as_deref())", "        .finish()?;", "    let sheets = request.sheets.ok_or_else(|| RekallError::illegal(\"A diagram needs at least one sheet.\"))?;", "    Ok(DiagramDraft {", "        id,", "        project_id: uuid(\"projectId\", request.project_id.as_deref().unwrap_or_default())?,", "        task_id: optional_uuid(\"taskId\", request.task_id.as_deref())?,", "        title: request.title.unwrap_or_default(),", "        question: request.question.unwrap_or_default(),", "        document: DiagramService::read_document(json!({ \"sheets\": sheets }))?,", "    })", "}"], "rekall-console/src/diagram/service/source_excerpt_service.rs": ["//! Reads the code a diagram element points at, so the console can show CONCEPT \u2192 CODE without", "//! leaving the page. It only ever reads inside the diagram's project folder (`ProjectFolder`).", "", "use std::path::{Path, PathBuf};", "", "use rekall_core::Ctx;", "", "use rekall_kernel::{jstr, Id, InternalFailure, RekallError, Result};", "use rekall_store::repository as repo;", "use rekall_core::diagram::ProjectFolder;", "use rekall_core::in_read;", "", "use crate::diagram::{SourceExcerptView, SourceLineView};", "", "/// Lines shown either side of the span, so it reads in its surroundings.", "const CONTEXT_LINES: u32 = 4;", "/// The most lines one excerpt carries; a longer span is cut and flagged.", "pub const MAX_LINES: u32 = 400;", "/// A file larger than this is not source a person reads, and is refused.", "const MAX_FILE_BYTES: u64 = 4 * 1024 * 1024;", "", "#[derive(Clone)]", "pub struct SourceExcerptService {", "    ctx: Ctx,", "}", "", "impl SourceExcerptService {", "    pub fn new(ctx: Ctx) -> Self {", "        Self { ctx }", "    }", "", "    pub async fn excerpt(&self, diagram_id: Id, file: &str, start: Option<u32>, end: Option<u32>) -> Result<SourceExcerptView> {", "        let folder = self.project_folder(diagram_id).await?;", "        let file = file.to_string();", "        tokio::task::spawn_blocking(move || read_excerpt(&folder, &file, start, end))", "            .await", "            .map_err(|failed| RekallError::internal(InternalFailure::Background, failed))?", "    }", "", "    async fn project_folder(&self, diagram_id: Id) -> Result<PathBuf> {", "        in_read!(&self.ctx, |tx| {", "            let row = repo::diagram::find_by_id(tx.db(), diagram_id).await?.ok_or_else(|| RekallError::not_found(\"Diagram\", diagram_id))?;", "            let project = repo::project::require(tx.db(), row.project_id).await?;", "            let folder = project.repo_folder.filter(|folder| !jstr::is_blank(folder)).ok_or_else(|| {", "                RekallError::illegal(\"This diagram's project has no folder, so its code cannot be shown. Set one on the project page.\")", "            })?;", "            Ok::<_, RekallError>(PathBuf::from(jstr::strip(&folder)))", "        })", "    }", "}", "", "/// The excerpt of `file` under `folder`, confined to it, with [`CONTEXT_LINES`] around the span.", "fn read_excerpt(folder: &Path, file: &str, start: Option<u32>, end: Option<u32>) -> Result<SourceExcerptView> {", "    let text = ProjectFolder::open(folder)?.read(file, MAX_FILE_BYTES)?;", "    let all: Vec<&str> = text.lines().collect();", "    let total = u32::try_from(all.len()).unwrap_or(u32::MAX);", "", "    let highlight_start = start.map(|line| line.clamp(1, total.max(1)));", "    let highlight_end = highlight_start.map(|first| end.unwrap_or(first).clamp(first, total.max(first)));", "    let (first, last) = match (highlight_start, highlight_end) {", "        (Some(first), Some(last)) => (first.saturating_sub(CONTEXT_LINES).max(1), last.saturating_add(CONTEXT_LINES).min(total)),", "        _ => (1, total),", "    };", "    let last_shown = last.min(first.saturating_add(MAX_LINES - 1));", "    let lines = (first..=last_shown)", "        .filter_map(|number| all.get((number - 1) as usize).map(|text| SourceLineView { number, text: text.to_string() }))", "        .collect();", "    Ok(SourceExcerptView {", "        file: file.to_string(),", "        language: language_of(file),", "        highlight_start,", "        highlight_end,", "        total_lines: total,", "        lines,", "        truncated: last_shown < last,", "    })", "}", "", "/// A highlight.js language name from the extension, when it is one the console registers.", "fn language_of(file: &str) -> Option<String> {", "    let extension = Path::new(file).extension()?.to_str()?.to_ascii_lowercase();", "    let language = match extension.as_str() {", "        \"rs\" => \"rust\",", "        \"ts\" | \"tsx\" | \"mts\" => \"typescript\",", "        \"js\" | \"jsx\" | \"mjs\" | \"cjs\" => \"javascript\",", "        \"vue\" | \"html\" | \"xml\" => \"xml\",", "        \"py\" => \"python\",", "        \"java\" => \"java\",", "        \"kt\" | \"kts\" => \"kotlin\",", "        \"go\" => \"go\",", "        \"sql\" => \"sql\",", "        \"json\" => \"json\",", "        \"yml\" | \"yaml\" => \"yaml\",", "        \"toml\" => \"ini\",", "        \"sh\" | \"zsh\" | \"bash\" => \"bash\",", "        \"css\" => \"css\",", "        \"md\" => \"markdown\",", "        _ => return None,", "    };", "    Some(language.to_string())", "}", "", "#[cfg(test)]", "#[path = \"../../../tests/unit/diagram/service/source_excerpt_service_tests.rs\"]", "mod tests;"], "rekall-core/src/diagram/model/project_folder.rs": ["use std::fs;", "use std::path::{Path, PathBuf};", "", "use rekall_kernel::{RekallError, Result};", "", "/// A project's folder, the only place a diagram's code is read from. A path that climbs out of", "/// it, through `..`, an absolute path or a symlink, is refused.", "#[derive(Clone, Debug)]", "pub struct ProjectFolder {", "    root: PathBuf,", "}", "", "impl ProjectFolder {", "    pub fn open(folder: &Path) -> Result<Self> {", "        let root = folder", "            .canonicalize()", "            .map_err(|_| RekallError::not_found_msg(format!(\"The project folder {} is not there.\", folder.display())))?;", "        Ok(Self { root })", "    }", "", "    /// `file` resolved under the folder: refused unless its real path is a file still inside it.", "    pub fn resolve(&self, file: &str) -> Result<PathBuf> {", "        let requested = Path::new(file.trim());", "        let joined = if requested.is_absolute() { requested.to_path_buf() } else { self.root.join(requested) };", "        let real = joined.canonicalize().map_err(|_| missing(file))?;", "        if !real.starts_with(&self.root) {", "            return Err(RekallError::illegal(format!(\"{file} is outside the project folder.\")));", "        }", "        if !real.is_file() {", "            return Err(RekallError::illegal(format!(\"{file} is not a file.\")));", "        }", "        Ok(real)", "    }", "", "    /// The file's text, lossily decoded, refused past `max_bytes`.", "    pub fn read(&self, file: &str, max_bytes: u64) -> Result<String> {", "        let path = self.resolve(file)?;", "        let size = fs::metadata(&path).map_err(|_| missing(file))?.len();", "        if size > max_bytes {", "            return Err(RekallError::illegal(format!(\"{file} is {size} bytes, too large to read.\")));", "        }", "        let bytes = fs::read(&path).map_err(|_| missing(file))?;", "        Ok(String::from_utf8_lossy(&bytes).into_owned())", "    }", "}", "", "fn missing(file: &str) -> RekallError {", "    RekallError::not_found_msg(format!(\"There is no file {file} in the project folder.\"))", "}"]};
+const A = 'rekall-http/src/diagram/controller/diagram_controller.rs';
+const B = 'rekall-console/src/diagram/service/source_excerpt_service.rs';
+const C = 'rekall-core/src/diagram/model/project_folder.rs';
+
+const PARTS = [
+  { id: 'console', label: ['Console'], name: 'Console', external: true },
+  { id: 'ctl', label: ['Diagram', 'controller'], name: 'diagram_controller' },
+  { id: 'svc', label: ['Excerpt', 'service'], name: 'SourceExcerptService' },
+  { id: 'folder', label: ['Project', 'Folder'], name: 'ProjectFolder' },
+  { id: 'disk', label: ['Disk'], name: 'Disk', external: true }
+];
+
+const BEATS = [
+  { from: 'console', to: 'ctl', motion: 'call', depth: 0, label: 'GET /source', title: 'GET /api/diagrams/{id}/source', file: A, start: 45, end: 48,
+    explain: 'The console asks for the lines a diagram element points at. The handler requires a file and refuses a blank one before anything is read.',
+    input: '?file=rekall-core/src/diagram/model/project_folder.rs&start=36&end=44', output: null },
+  { from: 'ctl', to: 'svc', motion: 'call', depth: 1, label: 'excerpt()', title: 'excerpt(id, file, start, end)', file: B, start: 32, end: 38,
+    explain: 'The controller hands the checked path and the optional span to the service. Reading runs on a blocking task, off the async runtime.',
+    input: 'id, file, start: 36, end: 44', output: 'SourceExcerptView' },
+  { from: 'svc', to: 'svc', motion: 'self', depth: 2, label: 'project_folder()', title: 'project_folder(diagram_id)', file: B, start: 40, end: 49,
+    explain: 'Finds the diagram’s project and takes its folder. A project with no folder is a 400 that says where to set one.',
+    input: 'diagram_id', output: 'PathBuf of the project folder' },
+  { from: 'svc', to: 'folder', motion: 'call', depth: 2, label: 'read()', title: 'read(file, max_bytes)', file: C, start: 36, end: 44,
+    explain: 'ProjectFolder is the only place a diagram’s code is read from. It resolves the path, then refuses a file past 4 MB.',
+    input: 'file, max_bytes: 4194304', output: 'the file’s text' },
+  { from: 'folder', to: 'folder', motion: 'self', depth: 3, label: 'resolve()', title: 'resolve(file)', file: C, start: 22, end: 33,
+    explain: 'Joins the path under the root and refuses anything whose real path leaves it: “..”, an absolute path or a symlink.',
+    input: 'file', output: 'PathBuf inside the folder' },
+  { from: 'folder', to: 'disk', motion: 'call', depth: 3, label: 'fs::read()', title: 'fs::read(path)', file: C, start: 42, end: 42,
+    explain: 'The one read of the disk. A failure becomes a not-found that names the file.', input: 'path', output: 'bytes' },
+  { from: 'folder', to: 'svc', motion: 'reply', depth: 2, label: 'text', title: 'text', file: C, start: 43, end: 43,
+    explain: 'The bytes are decoded lossily into a string, so a file with a stray byte still opens.', input: null, output: 'String' },
+  { from: 'svc', to: 'ctl', motion: 'reply', depth: 1, label: 'excerpt view', title: 'SourceExcerptView', file: B, start: 68, end: 76,
+    explain: 'The service cuts the span with four lines either side, caps it at 400 lines and names the highlight language from the extension.',
+    input: null, output: 'SourceExcerptView { lines, highlight_start, highlight_end, truncated }' },
+  { from: 'ctl', to: 'console', motion: 'reply', depth: 0, label: '200 JSON', title: '200 JSON', file: A, start: 47, end: 47,
+    explain: 'The controller maps the view to the response and the console draws it.', input: null, output: 'SourceExcerptResponse' }
+];
+
+// Words the walkthrough has a step for: a click on one walks to that step.
+const LINKS = [
+  { file: A, line: 45, text: 'source', beat: 0 }, { file: A, line: 47, text: 'excerpt', beat: 1 },
+  { file: B, line: 32, text: 'excerpt', beat: 1 }, { file: B, line: 33, text: 'project_folder', beat: 2 }, { file: B, line: 40, text: 'project_folder', beat: 2 },
+  { file: B, line: 54, text: 'read', beat: 3 },
+  { file: C, line: 36, text: 'read', beat: 3 }, { file: C, line: 37, text: 'resolve', beat: 4 }, { file: C, line: 22, text: 'resolve', beat: 4 }, { file: C, line: 42, text: 'fs::read', beat: 5 }
+];
+
+const SCOPES = {
+  [A]: [{ k: 'fn', n: 'source', s: 45, e: 48 }],
+  [B]: [{ k: 'impl', n: 'SourceExcerptService', s: 27, e: 50, in: [{ k: 'fn', n: 'excerpt', s: 32, e: 38 }, { k: 'fn', n: 'project_folder', s: 40, e: 49 }] }, { k: 'fn', n: 'read_excerpt', s: 53, e: 77 }],
+  [C]: [{ k: 'impl', n: 'ProjectFolder', s: 13, e: 45, in: [{ k: 'fn', n: 'open', s: 14, e: 19 }, { k: 'fn', n: 'resolve', s: 22, e: 33 }, { k: 'fn', n: 'read', s: 36, e: 44 }] }]
+};
+
+const FILE_ORDER = [...new Set(BEATS.map((beat) => beat.file))];
+const KEYWORDS = new Set('use pub fn async let mut impl struct enum const static match if else return Ok Err Some None self Self mod crate as in for while loop move where type trait dyn await derive'.split(' '));
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = (id) => document.getElementById(id);
+
+let cur = 0;
+let playing = false;
+let interval = 3200;
+let timer = null;
+let lastFrom = null;
+let shownFile = null;
+
+function esc(text) { return text.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function tokenize(text) {
+  const pattern = /(\/\/.*$)|("(?:[^"\\]|\\.)*")|(\b\d[\d_]*\b)|([A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*!?)|(\s+)|(.)/g;
+  const out = [];
+  let match;
+  let afterFn = false;
+  while ((match = pattern.exec(text))) {
+    const [raw, comment, string, number, word, space] = match;
+    if (comment) out.push({ s: raw, c: 'tk-com' });
+    else if (string) out.push({ s: raw, c: 'tk-str' });
+    else if (number) out.push({ s: raw, c: 'tk-num' });
+    else if (word) {
+      const last = word.split('::').pop();
+      const next = text[pattern.lastIndex];
+      let cls = '';
+      if (word.endsWith('!')) cls = 'tk-mac';
+      else if (!word.includes('::') && KEYWORDS.has(word)) cls = 'tk-kw';
+      else if (afterFn || next === '(') cls = 'tk-fn';
+      else if (/^[A-Z]/.test(last) && !/^[A-Z0-9_]+$/.test(last)) cls = 'tk-ty';
+      out.push({ s: word, c: cls, word });
+      afterFn = word === 'fn';
+      continue;
+    } else out.push({ s: raw, c: '' });
+    if (!space) afterFn = false;
+  }
+  return out;
+}
+
+function beatsOfFile(file) { return BEATS.map((beat, index) => ({ beat, index })).filter((entry) => entry.beat.file === file); }
+
+function scopeChain(file, line) {
+  const chain = [];
+  let level = SCOPES[file] || [];
+  while (level.length) {
+    const hit = level.find((scope) => line >= scope.s && line <= scope.e);
+    if (!hit) break;
+    chain.push(hit);
+    level = hit.in || [];
+  }
+  return chain;
+}
+
+function paintTabs() {
+  $('tabs').innerHTML = '';
+  FILE_ORDER.forEach((file) => {
+    const tab = document.createElement('button');
+    tab.className = 'tab press';
+    tab.setAttribute('role', 'tab');
+    tab.setAttribute('aria-selected', String(file === BEATS[cur].file));
+    tab.title = file;
+    const name = document.createElement('span');
+    name.textContent = file.split('/').pop();
+    const count = document.createElement('span');
+    count.className = 'cnt tnum';
+    count.textContent = String(beatsOfFile(file).length);
+    tab.append(name, count);
+    tab.addEventListener('click', () => { if (file !== BEATS[cur].file) go(beatsOfFile(file)[0].index, 'pointer'); });
+    $('tabs').append(tab);
+  });
+}
+
+function paintCrumbs() {
+  const beat = BEATS[cur];
+  const parts = beat.file.split('/');
+  const crumbs = $('crumbs');
+  crumbs.innerHTML = '';
+  const add = (text, cls) => { const node = document.createElement('span'); node.className = cls || ''; node.textContent = text; crumbs.append(node); return node; };
+  add(parts.slice(0, -1).join('/'), 'trunc');
+  add('/', 'sep');
+  add(parts[parts.length - 1], 'scope');
+  scopeChain(beat.file, beat.start).forEach((scope, i, chain) => { add('›', 'sep'); add(`${scope.k} ${scope.n}`, i === chain.length - 1 ? 'scope deep' : 'scope'); });
+  const back = document.createElement('button');
+  back.className = 'backchip press hov';
+  back.hidden = lastFrom === null;
+  if (lastFrom !== null) back.innerHTML = `<svg class="i" style="width:12px;height:12px" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3 2.5 6.5 6 10M3 6.5h6.5a4 4 0 0 1 0 8H7"/></svg>Back to step ${lastFrom + 1}<kbd>⌥←</kbd>`;
+  back.addEventListener('click', () => go(lastFrom, 'pointer'));
+  crumbs.append(back);
+  const range = beat.start === beat.end ? `L${beat.start}` : `L${beat.start}–${beat.end}`;
+  add(range, 'span tnum');
+}
+
+function renderFile(file) {
+  const lines = $('lines');
+  lines.innerHTML = '';
+  const chips = new Map();
+  beatsOfFile(file).forEach(({ beat, index }) => { (chips.get(beat.start) || chips.set(beat.start, []).get(beat.start)).push(index); });
+  FILES[file].forEach((text, i) => {
+    const number = i + 1;
+    const row = document.createElement('div');
+    row.className = 'ln';
+    row.dataset.n = String(number);
+    const mark = document.createElement('span');
+    mark.className = 'mk';
+    (chips.get(number) || []).forEach((index) => {
+      const chip = document.createElement('button');
+      chip.className = 'chip press';
+      chip.dataset.i = String(index);
+      chip.textContent = String(index + 1);
+      chip.setAttribute('aria-label', `Go to step ${index + 1}: ${BEATS[index].title}`);
+      chip.addEventListener('click', () => go(index, 'pointer'));
+      mark.append(chip);
+    });
+    const no = document.createElement('span'); no.className = 'no tnum'; no.textContent = String(number);
+    const tx = document.createElement('span'); tx.className = 'tx';
+    const linkHere = LINKS.filter((link) => link.file === file && link.line === number);
+    const used = new Set();
+    tokenize(text).forEach((token) => {
+      const node = document.createElement('span');
+      node.className = token.c;
+      node.textContent = token.s;
+      const link = token.word && linkHere.find((candidate) => !used.has(candidate) && (candidate.text === token.word || candidate.text === token.word.split('::').pop() && !candidate.text.includes('::')));
+      if (link) {
+        used.add(link);
+        node.classList.add('link');
+        node.dataset.i = String(link.beat);
+        node.setAttribute('role', 'button');
+        node.addEventListener('click', () => go(link.beat, 'pointer'));
+        node.addEventListener('mouseenter', () => showTip(node, link.beat));
+        node.addEventListener('mouseleave', hideTip);
+      }
+      tx.append(node);
+    });
+    row.append(mark, no, tx);
+    lines.append(row);
+  });
+  shownFile = file;
+}
+
+function paintEditor(via) {
+  const beat = BEATS[cur];
+  if (shownFile !== beat.file) renderFile(beat.file);
+  document.querySelectorAll('.ln').forEach((row) => {
+    const n = Number(row.dataset.n);
+    row.classList.toggle('in', n >= beat.start && n <= beat.end);
+  });
+  document.querySelectorAll('.chip').forEach((chip) => chip.classList.toggle('now', Number(chip.dataset.i) === cur));
+  document.querySelectorAll('.link').forEach((link) => link.classList.toggle('target', Number(link.dataset.i) === cur));
+  const editor = $('editor');
+  const first = editor.querySelector(`.ln[data-n="${beat.start}"]`);
+  const last = editor.querySelector(`.ln[data-n="${beat.end}"]`);
+  const spanHeight = last.offsetTop + last.offsetHeight - first.offsetTop;
+  const lead = spanHeight > editor.clientHeight * 0.6 ? 24 : editor.clientHeight * 0.22;
+  const instant = reduce || via === 'key' || via === 'init';
+  editor.scrollTo({ top: Math.max(0, first.offsetTop - lead), behavior: instant ? 'auto' : 'smooth' });
+}
+
+function paintTransport() {
+  $('counter').textContent = `${cur + 1} / ${BEATS.length}`;
+  $('play').innerHTML = playing
+    ? '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><rect x="4" y="3.5" width="2.6" height="9" rx=".8"/><rect x="9.4" y="3.5" width="2.6" height="9" rx=".8"/></svg>'
+    : '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.3v9.4c0 .5.5.8.9.5l7-4.7c.4-.3.4-.8 0-1.1l-7-4.6c-.4-.3-.9 0-.9.5Z"/></svg>';
+  $('play').setAttribute('aria-pressed', String(playing));
+  $('play').title = playing ? 'Pause (Space)' : 'Play (Space)';
+  document.querySelectorAll('.tick').forEach((tick, i) => {
+    tick.classList.toggle('now', i === cur);
+    tick.classList.toggle('played', i < cur);
+  });
+}
+
+function buildTicks() {
+  BEATS.forEach((beat, i) => {
+    const item = document.createElement('li');
+    const tick = document.createElement('button');
+    tick.className = `tick ${beat.motion}`;
+    tick.style.setProperty('--depth', beat.depth);
+    tick.title = `${i + 1}. ${beat.title}`;
+    tick.setAttribute('aria-label', `Step ${i + 1}: ${beat.title}`);
+    if (i === 3) tick.append(Object.assign(document.createElement('i'), {}));
+    tick.addEventListener('click', () => go(i, 'pointer'));
+    item.append(tick);
+    $('ticks').append(item);
+  });
+}
+
+function restartTimer() {
+  clearTimeout(timer);
+  if (playing) timer = setTimeout(() => { if (cur < BEATS.length - 1) go(cur + 1, 'play'); else { playing = false; paintTransport(); } }, interval);
+}
+
+function toggle() {
+  if (!playing && cur === BEATS.length - 1) go(0, 'key');
+  playing = !playing;
+  paintTransport();
+  restartTimer();
+}
+
+let tipShownAt = 0;
+let tipTimer = null;
+function showTip(node, index) {
+  clearTimeout(tipTimer);
+  const tip = $('tip');
+  const open = () => {
+    const beat = BEATS[index];
+    tip.innerHTML = `Step ${index + 1} · ${esc(beat.title)}<small>${esc(beat.file.split('/').pop())}${beat.motion === 'reply' ? '' : ''}</small>`;
+    const box = node.getBoundingClientRect();
+    tip.style.left = `${box.left}px`;
+    tip.style.top = `${box.top - tip.offsetHeight - 6}px`;
+    tip.classList.toggle('instant', Date.now() - tipShownAt < 400);
+    tip.classList.add('on');
+    tipShownAt = Date.now();
+  };
+  if (Date.now() - tipShownAt < 400) open(); else tipTimer = setTimeout(open, 350);
+}
+function hideTip() { clearTimeout(tipTimer); $('tip').classList.remove('on'); tipShownAt = Date.now(); }
+
+const GEOMETRY = { x0: 118, gap: 186, top: 20, rowTop: 140, rowGap: 64 };
+const messageX = (id) => GEOMETRY.x0 + GEOMETRY.gap * PARTS.findIndex((part) => part.id === id);
+const messageY = (index) => GEOMETRY.rowTop + index * GEOMETRY.rowGap;
+let modalOpen = false;
+let opener = null;
+
+function drawSequence() {
+  const { x0, gap, top, rowGap } = GEOMETRY;
+  const width = x0 * 2 + gap * (PARTS.length - 1);
+  const height = messageY(BEATS.length) + 24;
+  let svg = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Sequence diagram">`;
+  svg += `<defs><marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="9" markerHeight="9" orient="auto"><path d="M1 1 7 4 1 7z" fill="context-stroke"/></marker></defs>`;
+  PARTS.forEach((part) => {
+    const x = messageX(part.id);
+    svg += `<line class="lane" data-lane="${part.id}" x1="${x}" y1="${top + 46}" x2="${x}" y2="${height - 8}"/>`;
+    svg += `<rect class="pbox ${part.external ? 'ext' : ''}" x="${x - 82}" y="${top}" width="164" height="46" rx="5"/>`;
+    svg += `<text class="ptxt" x="${x}" y="${top + (part.external ? 21 : 28)}">${esc(part.name)}</text>`;
+    if (part.external) svg += `<text class="pext" x="${x}" y="${top + 36}">external</text>`;
+  });
+  BEATS.forEach((beat, i) => {
+    const y = messageY(i);
+    const a = messageX(beat.from), b = messageX(beat.to);
+    const self = a === b;
+    const path = self ? `M${a} ${y - 10} h34 v20 h-32` : `M${a} ${y} H${b + (b > a ? -2 : 2)}`;
+    const label = self ? `<text class="lbl" x="${a + 42}" y="${y + 4}">${esc(beat.label)}</text>` : `<text class="lbl" x="${Math.min(a, b) + 10}" y="${y - 9}">${esc(beat.label)}</text>`;
+    svg += `<g class="m ${beat.motion}" data-i="${i}" tabindex="0" role="button" aria-label="Step ${i + 1}: ${esc(beat.title)}">`;
+    svg += `<rect class="hit" x="0" y="${y - 28}" width="${width}" height="${rowGap - 4}" rx="4"/>`;
+    svg += `<path class="line" d="${path}" marker-end="url(#ah)"/>${label}<text class="num" x="10" y="${y + 4}">${i + 1}</text></g>`;
+  });
+  $('world').innerHTML = svg + '</svg>';
+  $('world').querySelectorAll('.m').forEach((node) => {
+    const index = Number(node.dataset.i);
+    node.addEventListener('click', () => go(index, 'pointer'));
+    node.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); go(index, 'pointer'); } });
+  });
+}
+
+function paintSequence() {
+  const reached = new Set();
+  BEATS.slice(0, cur + 1).forEach((beat) => { reached.add(beat.from); reached.add(beat.to); });
+  document.querySelectorAll('.lane').forEach((lane) => lane.classList.toggle('lit', reached.has(lane.dataset.lane)));
+  document.querySelectorAll('.m').forEach((node) => {
+    const index = Number(node.dataset.i);
+    node.classList.toggle('current', index === cur);
+    node.classList.toggle('played', index < cur);
+    node.setAttribute('aria-current', index === cur ? 'step' : 'false');
+  });
+}
+
+/** Brings the current message into the part of the canvas that no card or sheet covers. */
+function reveal(via) {
+  const canvas = $('canvas');
+  const svg = canvas.querySelector('svg');
+  const beat = BEATS[cur];
+  const covered = modalOpen ? $('sheet').offsetWidth + 32 : 380;
+  const clearWidth = canvas.clientWidth - covered;
+  const middle = (messageX(beat.from) + messageX(beat.to)) / 2;
+  const origin = svg.getBoundingClientRect();
+  const frame = canvas.getBoundingClientRect();
+  const svgLeft = origin.left - frame.left + canvas.scrollLeft;
+  const svgTop = origin.top - frame.top + canvas.scrollTop;
+  const left = Math.max(0, Math.min(svgLeft + middle - clearWidth / 2, canvas.scrollWidth - canvas.clientWidth));
+  const y = svgTop + messageY(cur);
+  const top = Math.max(0, y - (canvas.clientHeight - 100) / 2);
+  const instant = reduce || via === 'key' || via === 'init';
+  canvas.scrollTo({ left: modalOpen || canvas.scrollWidth > canvas.clientWidth ? left : 0, top, behavior: instant ? 'auto' : 'smooth' });
+}
+
+function endsMarkup(beat) {
+  const fromPart = PARTS.find((part) => part.id === beat.from);
+  const toPart = PARTS.find((part) => part.id === beat.to);
+  const end = (part) => `<span class="end"><span class="trunc">${esc(part.name)}</span>${part.external ? '<em>external</em>' : ''}</span>`;
+  const arrow = '<svg class="i" style="width:14px;height:14px;color:var(--subtle)" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h9.5M9 4.5 12.5 8 9 11.5"/></svg>';
+  return end(fromPart) + (beat.from === beat.to ? '' : arrow + end(toPart));
+}
+
+const MOTION_LABEL = { call: 'Call', reply: 'Returns', self: 'Inside' };
+
+function paintCard() {
+  const beat = BEATS[cur];
+  const toPart = PARTS.find((part) => part.id === beat.to);
+  $('cardHead').innerHTML = `<div class="swap"><p style="display:flex;align-items:center;gap:8px"><span class="badge ${beat.motion}">${MOTION_LABEL[beat.motion]}</span><span class="mono tnum" style="font-size:var(--t-caption);color:var(--subtle)">Step ${cur + 1} of ${BEATS.length}</span></p><h3>${esc(beat.title)}</h3><p class="ends">${endsMarkup(beat)}</p></div>`;
+  const values = beat.motion === 'reply' ? [['Returned', beat.output]] : [['Input', beat.input], ['Output', beat.output]];
+  const note = beat.motion === 'call' && toPart.external ? `<p class="ext-note">This call leaves the project’s code: what happens inside ${esc(toPart.name)} is not shown.</p>` : '';
+  const into = cur === 3 ? `<button class="into press" title="Unchanged by this mock"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v6.5h8M9 6.5l3 3-3 3"/></svg><span style="flex:1"><b>Step into this call</b><span>ProjectFolder.read</span></span><kbd>↵</kbd></button>` : '';
+  const parts = beat.file.split('/');
+  const range = beat.start === beat.end ? `L${beat.start}` : `L${beat.start}–${beat.end}`;
+  const signature = FILES[beat.file][beat.start - 1].trim();
+  const code = `<div class="swap"><p class="label">Code</p><button class="open-code press" id="openCode" aria-haspopup="dialog" title="Open the implementation (C)">
+    <span class="oc-top"><span class="where trunc"><i>${esc(parts.slice(-3, -1).join('/'))}/</i>${esc(parts[parts.length - 1])}</span><span class="tnum" style="color:var(--accent-strong)">${range}</span><kbd>C</kbd></span>
+    <span class="oc-sig">${esc(signature)}</span></button></div>`;
+  $('cardBody').innerHTML = `<p class="explain swap">${esc(beat.explain)}</p>${note}${values.filter(([, text]) => text).map(([name, text]) => `<div class="swap"><p class="label">${name}</p><div class="val">${esc(text)}</div></div>`).join('')}${into}${code}`;
+  $('openCode').addEventListener('click', openModal);
+}
+
+function paintSheetHead() {
+  const beat = BEATS[cur];
+  $('shStep').textContent = `Step ${cur + 1} of ${BEATS.length}`;
+  $('strip').innerHTML = `<div class="top"><span class="badge ${beat.motion}">${MOTION_LABEL[beat.motion]}</span><h3 class="trunc">${esc(beat.title)}</h3><p class="ends">${endsMarkup(beat)}</p></div><p class="explain">${esc(beat.explain)}</p>`;
+}
+
+function go(index, via) {
+  if (index < 0 || index >= BEATS.length) return;
+  if (via === 'pointer' && Math.abs(index - cur) > 1) lastFrom = cur;
+  else if (via === 'key' || via === 'play') lastFrom = null;
+  cur = index;
+  document.body.classList.toggle('quiet', via === 'key' || via === 'init');
+  paintSequence(); paintCard(); paintSheetHead(); paintTabs(); paintCrumbs(); paintEditor(via); paintTransport();
+  reveal(via);
+  restartTimer();
+}
+
+function openModal() {
+  if (modalOpen) return;
+  modalOpen = true;
+  opener = document.activeElement;
+  $('stage').classList.add('has-modal');
+  ['canvas', 'dock'].forEach((id) => { const node = id === 'dock' ? document.querySelector('.dock') : $(id); node.inert = true; });
+  document.querySelector('.card').inert = true;
+  $('modal').dataset.open = '';
+  paintEditor('init');
+  reveal('init');
+  setTimeout(() => $('editor').focus({ preventScroll: true }), 40);
+}
+
+function closeModal() {
+  if (!modalOpen) return;
+  modalOpen = false;
+  delete $('modal').dataset.open;
+  $('stage').classList.remove('has-modal');
+  $('canvas').inert = false; document.querySelector('.dock').inert = false; document.querySelector('.card').inert = false;
+  reveal('init');
+  const target = document.getElementById('openCode') || opener;
+  if (target) target.focus({ preventScroll: true });
+}
+
+document.addEventListener('keydown', (event) => {
+  if (event.metaKey || event.ctrlKey) return;
+  if (event.altKey && event.key === 'ArrowLeft') { if (lastFrom !== null) { event.preventDefault(); go(lastFrom, 'pointer'); } return; }
+  if (event.altKey) return;
+  const onButton = event.target.closest && event.target.closest('button, [role="button"]');
+  if (onButton && (event.key === ' ' || event.key === 'Enter')) return;
+  const actions = {
+    ArrowRight: () => go(cur + 1, 'key'), ArrowLeft: () => go(cur - 1, 'key'), ' ': toggle,
+    Home: () => go(0, 'key'), End: () => go(BEATS.length - 1, 'key'),
+    c: () => (modalOpen ? closeModal() : openModal()),
+    Escape: () => { if (modalOpen) closeModal(); else { playing = false; paintTransport(); restartTimer(); } }
+  };
+  if (!actions[event.key]) return;
+  event.preventDefault();
+  actions[event.key]();
+});
+
+$('restart').addEventListener('click', () => go(0, 'key'));
+$('prev').addEventListener('click', () => go(cur - 1, 'key'));
+$('next').addEventListener('click', () => go(cur + 1, 'key'));
+$('shPrev').addEventListener('click', () => go(cur - 1, 'key'));
+$('shNext').addEventListener('click', () => go(cur + 1, 'key'));
+$('play').addEventListener('click', toggle);
+$('close').addEventListener('click', closeModal);
+$('scrim').addEventListener('click', closeModal);
+document.querySelectorAll('[data-pace]').forEach((button) => button.addEventListener('click', () => {
+  interval = Number(button.dataset.pace);
+  document.querySelectorAll('[data-pace]').forEach((other) => other.setAttribute('aria-checked', String(other === button)));
+  restartTimer();
+}));
+
+drawSequence();
+buildTicks();
+const params = new URLSearchParams(location.search);
+go(Math.min(Math.max(Number(params.get('step') || 2) - 1, 0), BEATS.length - 1), 'init');
+if (params.get('open') === '1') openModal();
+</script>
+</body>
+</html>

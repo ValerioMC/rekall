@@ -17,10 +17,12 @@ const props = withDefaults(
     /** False lets Tab leave the panel, for a dialog that has handed focus to the system. */
     trapped?: boolean
     placement?: 'center' | 'right'
+    /** Light leaves what is behind legible, for a sheet that is read beside the page it came from. */
+    scrim?: 'heavy' | 'light'
     panelClass?: string
     panelTestid?: string
   }>(),
-  { role: 'dialog', dismissible: true, trapped: true, placement: 'center', panelClass: '', panelTestid: undefined }
+  { role: 'dialog', dismissible: true, trapped: true, placement: 'center', scrim: 'heavy', panelClass: '', panelTestid: undefined }
 )
 
 const emit = defineEmits<{ dismiss: [reason: 'escape' | 'backdrop'] }>()
@@ -61,8 +63,8 @@ defineExpose({ panel })
 
 <template>
   <div
-    class="fixed inset-0 z-(--z-modal) bg-black/65 backdrop-blur-sm"
-    :class="placement === 'center' && 'grid place-items-center p-5'"
+    class="fixed inset-0 z-(--z-modal)"
+    :class="[scrim === 'light' ? 'bg-black/40' : 'bg-black/65 backdrop-blur-sm', placement === 'center' && 'grid place-items-center p-5']"
     @click.self="onBackdrop"
   >
     <div

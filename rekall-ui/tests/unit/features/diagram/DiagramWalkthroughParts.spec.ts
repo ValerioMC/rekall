@@ -12,9 +12,9 @@ import { walkthroughBeats } from '@/features/diagram/lib/walkthrough/walkthrough
 import { ORION, REPORT, VEGA, project, task } from './diagram.fixtures'
 import type { SheetDrawing } from '@/features/diagram/lib/sheet-drawing'
 import type { SequenceScene } from '@/features/diagram/lib/scene/sequence-scene'
-import type { DiagramSheet, Walkthrough } from '@/features/diagram/model/diagram'
+import type { DiagramSheet, SourceLocation, Walkthrough } from '@/features/diagram/model/diagram'
 import type { GenerationRequest } from '@/features/diagram/store/diagram.store'
-import type { CompanyId, DiagramId } from '@/model/branded'
+import type { CompanyId } from '@/model/branded'
 
 const SCENE: SequenceScene = {
   participants: [
@@ -52,9 +52,9 @@ function drawn(scene: SequenceScene): SheetDrawing {
   return { drawing: 'sequence', scene, layout, calls: callTreeOf(scene), bounds: layout.bounds }
 }
 
-function card(position: number) {
+function card(position: number, sources: readonly SourceLocation[] = []) {
   return mount(WalkthroughCard, {
-    props: { diagramId: 'd1' as DiagramId, beat: BEATS[position]!, position, count: BEATS.length, labels: LABELS, external: new Set(['DB']), sources: [], opensTitle: 'Inside place' }
+    props: { beat: BEATS[position]!, position, count: BEATS.length, labels: LABELS, external: new Set(['DB']), sources, opensTitle: 'Inside place' }
   })
 }
 
@@ -78,6 +78,26 @@ describe('the walkthrough card', () => {
     expect(reply.text()).toContain('Returns')
     expect(reply.find('[data-testid="walkthrough-values"]').text()).toBe('Returnedid')
     expect(reply.find('[data-testid="walkthrough-step-into"]').exists()).toBe(false)
+  })
+})
+
+describe('the walkthrough card code row', () => {
+  const SOURCE: SourceLocation = { file: 'src/order/service.rs', startLine: 12, endLine: 30, symbol: 'OrderService::place' }
+
+  it('names where the step lives and asks to open it', async () => {
+    const wrapper = card(0, [SOURCE])
+    const row = wrapper.find('[data-testid="walkthrough-open-code"]')
+    expect(row.text()).toContain('service.rs')
+    expect(row.text()).toContain('L12–30')
+    expect(row.text()).toContain('OrderService::place')
+    await row.trigger('click')
+    expect(wrapper.emitted('openCode')).toHaveLength(1)
+  })
+
+  it('says so when the step is not linked to the code', () => {
+    const wrapper = card(0)
+    expect(wrapper.find('[data-testid="walkthrough-open-code"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Not linked to a place in the code.')
   })
 })
 
