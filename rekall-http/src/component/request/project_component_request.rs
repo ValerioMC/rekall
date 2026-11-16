@@ -8,6 +8,7 @@ use serde::Deserialize;
 pub struct ProjectComponentRequest {
     pub name: Option<String>,
     pub folder: Option<String>,
+    pub summary: Option<String>,
     pub description: Option<String>,
 }
 
@@ -16,6 +17,7 @@ impl From<ProjectComponentRequest> for ProjectComponentCommand {
         Self {
             name: request.name,
             folder: request.folder,
+            summary: request.summary,
             description: request.description,
         }
     }

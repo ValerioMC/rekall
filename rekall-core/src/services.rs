@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{check, claude, commit, context, deviation, diagram, feedback, flow, inventory, note, review, search, section, step, task, timeentry, token, vulnerability, wrapup, Ctx};
+use crate::{check, claude, commit, component, context, deviation, diagram, feedback, flow, inventory, note, review, search, section, step, task, timeentry, token, vulnerability, wrapup, Ctx};
 
 /// Every service, built once over one context: what a controller or a tool is handed.
 #[derive(Clone)]
@@ -23,6 +23,7 @@ pub struct Services {
     pub feedback: feedback::FeedbackService,
     pub diagrams: diagram::DiagramService,
     pub sections: section::ProjectSectionService,
+    pub components: component::ProjectComponentService,
     pub time_entries: timeentry::TimeEntryService,
     pub token_usage: token::TokenUsageService,
     pub context: context::ContextService,
@@ -74,6 +75,7 @@ impl Services {
             feedback: feedback::FeedbackService::new(ctx.clone()),
             diagrams: diagram::DiagramService::new(ctx.clone()),
             sections: section::ProjectSectionService::new(ctx.clone()),
+            components: component::ProjectComponentService::new(ctx.clone()),
             renderer: context::ContextRenderer,
             context_size: context::ContextSizeService::new(ctx.clone(), context.clone()),
             search: search::SearchService::new(ctx.clone()),

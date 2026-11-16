@@ -9,13 +9,14 @@ import type { ProjectComponent } from '@/features/project/model/project-componen
 import type { ProjectComponentId, ProjectId } from '@/model/branded'
 
 /** Typing `[[` offers the project's components, and choosing one writes `[[Name]]`. */
-function component(name: string, description = ''): ProjectComponent {
+function component(name: string, summary = ''): ProjectComponent {
   return {
     id: name as ProjectComponentId,
     projectId: 'p-1' as ProjectId,
     name,
     folder: `/work/${name}`,
-    description,
+    summary,
+    description: '',
     position: 0,
     createdAt: '',
     updatedAt: ''
@@ -63,7 +64,7 @@ describe('componentCompletion', () => {
     expect(labels(completeAt('[[weird|'))).toEqual([])
   })
 
-  it('shows the first line of the description beside the name', () => {
+  it('shows the first line of the summary beside the name', () => {
     const [first] = completeAt('[[|')?.options ?? []
 
     expect(first?.detail).toBe('Issues and checks tokens.')

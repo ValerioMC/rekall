@@ -898,7 +898,7 @@ async fn add_component(world: &crate::support::World, project: &rekall_store::pr
     let now = Instant::now();
     let component = rekall_store::project_component::Model {
         id: Id::random(), project_id: project.id, name: name.into(), folder: folder.to_string_lossy().into_owned(),
-        description: String::new(), position: 0, created_at: now, updated_at: now,
+        summary: String::new(), description: String::new(), position: 0, created_at: now, updated_at: now,
     };
     component.clone().into_active_model().insert(world.db()).await.unwrap();
     component
@@ -1233,7 +1233,8 @@ async fn a_component_named_in_a_task_text_is_expanded_in_the_context_but_not_in_
         project_id: project.id,
         name: "Auth Service".into(),
         folder: "services/auth".into(),
-        description: "Issues tokens.".into(),
+        summary: "Issues tokens.".into(),
+        description: "## Purpose\nChecks them too.".into(),
         position: 0,
         created_at: now,
         updated_at: now,
@@ -1251,7 +1252,7 @@ async fn a_component_named_in_a_task_text_is_expanded_in_the_context_but_not_in_
     let records = world.services.context.for_task(task.id).await.unwrap();
     let rendered = world.services.renderer.render(&records);
 
-    assert!(rendered.contains("Call **Auth Service** (component, folder `services/auth`): Issues tokens. and [[Billing]] (component not found in this project)."), "{rendered}");
+    assert!(rendered.contains("Call **Auth Service** (component, folder `services/auth`):\n\nIssues tokens.\n\n## Purpose\nChecks them too. and [[Billing]] (component not found in this project)."), "{rendered}");
     assert!(rendered.contains("Again **Auth Service** (component, folder `services/auth`)\n"), "{rendered}");
     let stored = world.services.context.for_task(task.id).await.unwrap();
     assert_eq!(stored[1].description.as_deref(), Some("Call [[auth service]] and [[Billing]]."));

@@ -5,6 +5,7 @@ use rekall_core::Services;
 use crate::protocol::McpTool;
 
 use crate::commit::CommitReferenceTool;
+use crate::component::{ComponentReadTool, ComponentTool};
 use crate::context::ContextTool;
 use crate::deviation::DeviationTool;
 use crate::diagram::DiagramTool;
@@ -39,6 +40,8 @@ pub fn all(services: &Services) -> Vec<Arc<dyn McpTool>> {
         Arc::new(DiagramTool::new(services.diagrams.clone())),
         Arc::new(ProjectSectionTool::new(services.sections.clone())),
         Arc::new(SectionReadTool::new(services.sections.clone())),
+        Arc::new(ComponentTool::new(services.components.clone())),
+        Arc::new(ComponentReadTool::new(services.components.clone())),
         Arc::new(SearchTool::new(services.search.clone())),
         Arc::new(InventoryTool::new(services.inventory_recording.clone())),
         Arc::new(VulnerabilityReadTool::new(services.exposures.clone())),

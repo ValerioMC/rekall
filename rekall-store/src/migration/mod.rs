@@ -65,6 +65,7 @@ mod m086_task_code;
 mod m087_commit_reference_component;
 mod m088_skill_arguments;
 mod m089_confluence_connection;
+mod m090_component_summary;
 mod migration_support;
 mod migrator;
 

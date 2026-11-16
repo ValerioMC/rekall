@@ -12,7 +12,7 @@ export const TerminalSchema = z.object({
   projectLabel: z.string(),
   taskCode: z.string().nullable(),
   taskTitle: z.string().nullable(),
-  mode: z.enum(['WORK', 'PLAN', 'PLAN_FLOW', 'REPLAN', 'REVISE', 'REWRITE_FIX', 'REWRITE_RESTRUCTURE', 'GENERATE', 'EXPLAIN', 'INVENTORY', 'ASSESS', 'ASSESS_ALL', 'AUTOCONFIGURE', 'MERGE']),
+  mode: z.enum(['WORK', 'PLAN', 'PLAN_FLOW', 'REPLAN', 'REVISE', 'REWRITE_FIX', 'REWRITE_RESTRUCTURE', 'GENERATE', 'EXPLAIN', 'INVENTORY', 'ASSESS', 'ASSESS_ALL', 'AUTOCONFIGURE', 'SCAN_COMPONENTS', 'MERGE']),
   skipPermissions: z.boolean(),
   model: z.string().nullable(),
   effort: z.string().nullable(),

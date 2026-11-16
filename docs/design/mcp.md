@@ -96,6 +96,16 @@ epic and never changes a kind, and publishes `task-created` so the console reads
 sections by title only, so this is the only way a session reads one. `ProjectSectionService::read` lists the titles, or returns one
 section by title ignoring case; a title the project lacks is refused with the titles it has.
 
+`rekall_component` writes one component of a project: `anchors` name the project, then `name`, `folder`, a `summary`
+(at most 500 characters, the only text a context carries) and the `description`, a markdown page whose headings the tool's text lists (Purpose,
+Responsibilities, Stack and layout, Interfaces, Depends on and Used by, Configuration and data, Run and develop, Adding a
+feature, Flow, Gotchas). `ProjectComponentService::write` in rekall-core rewrites the component with that name (ignoring
+case) or, failing that, the one holding that folder, keeping its name and place, and otherwise adds one last; a relative
+folder is taken from the project's. It publishes a `project-component` event so an open console lists the component while the
+session works. Reordering and deleting are the console's, in `ProjectComponentCatalogService`. `rekall_read_components` is its
+read side: without a `name` it lists the components with their summary and the size of their description, with one it returns
+that component whole. `/rk project:<label> components` is the playbook a scan session follows (`.claude/rk/scanning-components.md`).
+
 `rekall_search` is how a session learns that earlier work exists before redoing it: a context only
 holds what it was handed. `SearchTool` calls the `SearchService` the console's search bar uses, or
 `search_in_project` when a `project:` anchor comes, and answers with an index only: the kind, the

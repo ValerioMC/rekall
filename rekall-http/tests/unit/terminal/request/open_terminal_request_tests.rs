@@ -64,6 +64,11 @@ fn an_inventory_request_opens_an_inventory_terminal() {
 }
 
 #[test]
+fn a_scan_components_request_opens_a_scan_components_terminal() {
+    assert_eq!(parsed(r#"{"mode":"SCAN_COMPONENTS"}"#).mode().unwrap(), TerminalMode::ScanComponents);
+}
+
+#[test]
 fn an_autoconfigure_request_opens_an_autoconfigure_terminal() {
     assert_eq!(parsed(r#"{"mode":"AUTOCONFIGURE"}"#).mode().unwrap(), TerminalMode::Autoconfigure);
 }

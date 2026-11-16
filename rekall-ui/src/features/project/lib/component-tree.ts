@@ -49,9 +49,9 @@ export function componentBranches(components: readonly ProjectComponent[], root:
   return [...branches].map(([folder, leaves]) => ({ folder, leaves }))
 }
 
-/** Whether a component's name, folder or description holds the query, ignoring case. A blank query matches all. */
+/** Whether a component's name, folder or summary holds the query, ignoring case. A blank query matches all. */
 export function componentMatches(component: ProjectComponent, query: string): boolean {
   const wanted = query.trim().toLowerCase()
   if (wanted === '') return true
-  return [component.name, component.folder, component.description].some((text) => text.toLowerCase().includes(wanted))
+  return [component.name, component.folder, component.summary].some((text) => text.toLowerCase().includes(wanted))
 }

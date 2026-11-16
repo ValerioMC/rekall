@@ -9,7 +9,8 @@ use crate::constraints::Violations;
 
 pub const NAME_MAX_CHARACTERS: usize = 200;
 pub const FOLDER_MAX_CHARACTERS: usize = 1_000;
-pub const DESCRIPTION_MAX_CHARACTERS: usize = 10_000;
+pub const SUMMARY_MAX_CHARACTERS: usize = 500;
+pub const DESCRIPTION_MAX_CHARACTERS: usize = 40_000;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "project_component")]
@@ -19,6 +20,9 @@ pub struct Model {
     pub project_id: Id,
     pub name: String,
     pub folder: String,
+    /// What every context carries: a few sentences saying what the component is for.
+    pub summary: String,
+    /// The structured document a session reads on demand: markdown with tables and diagrams.
     pub description: String,
     /// Zero-based place in the project's list; a new component takes the next one.
     pub position: i32,
@@ -47,6 +51,7 @@ impl Model {
             .max_length("name", Some(&self.name), NAME_MAX_CHARACTERS)
             .not_blank("folder", Some(&self.folder))
             .max_length("folder", Some(&self.folder), FOLDER_MAX_CHARACTERS)
+            .max_length("summary", Some(&self.summary), SUMMARY_MAX_CHARACTERS)
             .max_length("description", Some(&self.description), DESCRIPTION_MAX_CHARACTERS)
             .finish()
     }

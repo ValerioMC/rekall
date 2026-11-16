@@ -106,7 +106,7 @@ is found by opening one folder per crate:
 | Domain | Holds |
 |---|---|
 | `catalog` | companies and projects with their logos and icons; in `rekall-console`, `rekall-http` and the UI also the tasks |
-| `component`, `section` | a project's components and its titled pages; a project's folder is scanned for git repositories, each made a component described by its manifest or README, or one component per application folder when the repository's root has no manifest and its folders hold two or more (`ComponentScanService`, `rekall-console` only) |
+| `component`, `section` | a project's components and its titled pages; a component has a short `summary`, which every context carries, and a structured `description`, a markdown page a session reads with `rekall_read_components`; `ProjectComponentService` (`rekall-core`) takes a session's write and a scan is a session (`/rk project:<label> components`, terminal mode `SCAN_COMPONENTS`) that reads the folder and calls `rekall_component` for each part |
 | `adherence` | how closely the work followed the plan: steps accepted at the first pass, steps sent back, deviations and flow visits against their budget, per task and per project; read-only, console and HTTP only |
 | `check` | the commands a person sets to pass before a claim is accepted, for a whole project or one step, and what each run found; the console writes them, no session can |
 | `deviation` | where a task's work departed from its plan, one record per task and step and apart from its notes: a session writes it (`rekall_deviation`, in `rekall-core` and `rekall-mcp`), the console only reads it, and the context carries it in a `<deviations>` block |
@@ -178,7 +178,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `chat` | - | `claude` | `claude` | nothing | - |
 | `claude` | - | `catalog`, `connection`, `flow`, `task` | nothing | `skill` | - |
 | `commit` | `component`, `step`, `task` | `catalog`, `component`, `step`, `task` | - | nothing | nothing |
-| `component` | `catalog` | `connection`, `task` | nothing | nothing | - |
+| `component` | `catalog` | `catalog`, `connection`, `task` | nothing | nothing | nothing |
 | `connection` | `catalog`, `task` | `task`, `tracker` | `catalog`, `commit`, `component`, `section`, `task` | `catalog`, `section` | - |
 | `context` | - | `catalog`, `commit`, `component`, `connection`, `dependency`, `deviation`, `feedback`, `note`, `section`, `step`, `tag`, `task`, `wrapup` | - | nothing | nothing |
 | `dependency` | `task` | `claude` | `queue`, `task` | nothing | - |

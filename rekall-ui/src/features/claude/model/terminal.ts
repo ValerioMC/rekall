@@ -6,10 +6,10 @@ import type { ConnectionId, ProjectId, TaskId, TaskStepId, TerminalId } from '@/
  * `PLAN_FLOW` types `/rk <anchor> plan flow`, `REPLAN` types `/rk <anchor> replan`, `REVISE` types `/rk <anchor> revise`, `REWRITE_FIX` and `REWRITE_RESTRUCTURE` type `/rk <anchor> rewrite fix` and `... rewrite restructure`, `GENERATE` types `/rk <anchor> generate "<request>"`,
  * `INVENTORY` types `/rk <anchor> inventory`, `ASSESS` types `/rk <anchor> assess advisory:<id>`,
  * `ASSESS_ALL` types `/rk <anchor> assess` to judge every advisory not assessed yet, `AUTOCONFIGURE`
- * types `/rk <anchor> autoconfigure` to learn how the project takes a contribution, `MERGE` types
+ * types `/rk <anchor> autoconfigure` to learn how the project takes a contribution, `SCAN_COMPONENTS` types `/rk <anchor> components` to record its parts, `MERGE` types
  * `/rk <anchor> merge` to resolve the conflicts of an accepted task's branch.
  */
-export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'REPLAN' | 'REVISE' | 'REWRITE_FIX' | 'REWRITE_RESTRUCTURE' | 'GENERATE' | 'EXPLAIN' | 'INVENTORY' | 'ASSESS' | 'ASSESS_ALL' | 'AUTOCONFIGURE' | 'MERGE'
+export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'REPLAN' | 'REVISE' | 'REWRITE_FIX' | 'REWRITE_RESTRUCTURE' | 'GENERATE' | 'EXPLAIN' | 'INVENTORY' | 'ASSESS' | 'ASSESS_ALL' | 'AUTOCONFIGURE' | 'SCAN_COMPONENTS' | 'MERGE'
 
 /**
  * A terminal that acts on a task's plan or thread: a checklist of drafts, a flow, drafts joined by
@@ -24,7 +24,7 @@ export type RewriteStyle = 'FIX' | 'RESTRUCTURE'
 /** A terminal that rewrites a task's description and stores it with `rekall_description`. */
 export type RewriteMode = Extract<TerminalMode, `REWRITE_${RewriteStyle}`>
 
-/** What a terminal is opened on: a task, or a project alone, which draws a diagram, inventories, assesses or autoconfigures. */
+/** What a terminal is opened on: a task, or a project alone, which draws a diagram, inventories, assesses, autoconfigures or scans its components. */
 export type TerminalTarget = { readonly taskId: TaskId } | { readonly projectId: ProjectId }
 
 /** How a session runs `claude`: the interactive TUI in a PTY, or headless over stream-json with its own window. */

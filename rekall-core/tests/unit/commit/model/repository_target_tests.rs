@@ -13,7 +13,7 @@ fn project_in(folder: Option<&str>) -> project::Model {
 
 fn component(name: &str, folder: &str, project: &project::Model) -> project_component::Model {
     let now = Instant::now();
-    project_component::Model { id: Id::random(), project_id: project.id, name: name.into(), folder: folder.into(), description: String::new(), position: 0, created_at: now, updated_at: now }
+    project_component::Model { id: Id::random(), project_id: project.id, name: name.into(), folder: folder.into(), summary: String::new(), description: String::new(), position: 0, created_at: now, updated_at: now }
 }
 
 fn task_of(project: &project::Model) -> task::Model {

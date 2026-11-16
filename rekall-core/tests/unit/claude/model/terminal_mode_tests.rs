@@ -95,6 +95,15 @@ fn an_assess_all_terminal_asks_for_every_advisory_of_the_project_without_naming_
 }
 
 #[test]
+fn a_scan_components_terminal_works_on_the_project_and_follows_no_step() {
+    let mode = TerminalMode::ScanComponents;
+    assert_eq!(mode.first_line("project:lightcraft"), "/rk project:lightcraft components");
+    assert!(mode.works_on_a_project());
+    assert!(!mode.follows_steps());
+    assert_eq!(mode.to_string(), "SCAN_COMPONENTS");
+}
+
+#[test]
 fn an_autoconfigure_terminal_works_on_the_project_and_follows_no_step() {
     let mode = TerminalMode::Autoconfigure;
     assert_eq!(mode.first_line("project:lightcraft"), "/rk project:lightcraft autoconfigure");

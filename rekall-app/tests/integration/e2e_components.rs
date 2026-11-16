@@ -78,7 +78,7 @@ async fn the_context_of_the_project_and_of_its_tasks_lists_the_components_and_th
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
     app.a_task(&project_id, "report-builder").await;
     let url = format!("/api/projects/{project_id}/components");
-    app.post(&url, json!({ "name": "API", "folder": "/work/vega/api", "description": "The REST surface." })).await;
+    app.post(&url, json!({ "name": "API", "folder": "/work/vega/api", "summary": "The REST surface.", "description": "## Purpose\nSecret detail." })).await;
     app.post(&url, json!({ "name": "Console", "folder": "/work/vega/ui" })).await;
 
     for anchors in [ANCHORS, "project:vega"] {
@@ -90,22 +90,20 @@ async fn the_context_of_the_project_and_of_its_tasks_lists_the_components_and_th
             "<component name=\"Console\" folder=\"/work/vega/ui\">\n</component>"
         );
         assert_eq!(context.matches("<components").count(), 1, "{anchors}: once, under the project");
+        assert_lacks!(context, "Secret detail");
     }
     let task_only = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
     assert_contains!(task_only, "<component name=\"API\"");
 }
 
 #[tokio::test]
-async fn a_project_without_components_renders_none_and_a_session_cannot_write_one() {
+async fn a_project_without_components_renders_none() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
     app.a_task(&project_id, "report-builder").await;
 
     assert_lacks!(app.call_tool("rekall_context", json!({ "anchors": ANCHORS })).await, "<components");
-    let listed = app.rpc("tools/list", json!({})).await;
-    let tool_names: Vec<&str> = listed["result"]["tools"].as_array().unwrap().iter().filter_map(|tool| tool["name"].as_str()).collect();
-    assert!(tool_names.iter().all(|name| !name.contains("component")), "no tool writes components: {tool_names:?}");
 }
 
 #[tokio::test]
@@ -120,60 +118,70 @@ async fn deleting_a_project_takes_its_components_with_it() {
     assert_eq!(app.count("SELECT COUNT(*) FROM project_component", vec![]).await, 0);
 }
 
-fn a_repository(folder: &std::path::Path, readme: &str) {
-    std::fs::create_dir_all(folder.join(".git")).unwrap();
-    std::fs::write(folder.join("README.md"), readme).unwrap();
-}
+const PAGE: &str = "## Purpose\nIssues invoices.\n\n## Interfaces\n| Route | Does |\n|---|---|\n| POST /invoices | Creates one |";
 
 #[tokio::test]
-async fn scanning_a_projects_folder_makes_a_described_component_of_each_repository_and_leaves_known_ones_alone() {
-    let app = app().await;
-    let acme = app.a_company("Acme").await;
-    let folder = tempfile::tempdir().unwrap();
-    a_repository(&folder.path().join("billing"), "# Billing\n\nIssues invoices.\n");
-    a_repository(&folder.path().join("services/orders"), "Takes orders.\n");
-    std::fs::create_dir_all(folder.path().join("docs")).unwrap();
-    let project_id = app.a_project_in(&acme, "vega", folder.path()).await;
-    let url = format!("/api/projects/{project_id}/components");
-    let billing = folder.path().join("billing").display().to_string();
-    app.post(&url, json!({ "name": "Invoicing", "folder": billing, "description": "Mine." })).await;
-
-    let scanned = app.post_empty(&format!("{url}/scan")).await;
-
-    assert_eq!(scanned.status, 200, "{}", scanned.text);
-    let added: Vec<(String, String)> = scanned.get("added").as_array().unwrap().iter().map(|row| (row["name"].as_str().unwrap().into(), row["description"].as_str().unwrap().into())).collect();
-    assert_eq!(added, [("orders".to_string(), "Takes orders.".to_string())], "only a repository with no component gets one, and docs is no repository");
-    assert_eq!(scanned.get("alreadyKnown"), 1);
-    let kept = app.get(&url).await.list().iter().find(|c| c["name"] == "Invoicing").unwrap().clone();
-    assert_eq!(kept["description"], "Mine.", "a component that exists is not rewritten");
-    assert_eq!(app.post_empty(&format!("{url}/scan")).await.get("added").as_array().unwrap().len(), 0, "a second scan adds nothing");
-}
-
-#[tokio::test]
-async fn scanning_a_repository_of_several_applications_makes_a_component_of_each() {
-    let app = app().await;
-    let acme = app.a_company("Acme").await;
-    let folder = tempfile::tempdir().unwrap();
-    let backend = folder.path().join("backend");
-    a_repository(&backend, "The backend repository.\n");
-    for (service, manifest) in [("orders", "package.json"), ("billing", "pom.xml")] {
-        std::fs::create_dir_all(backend.join(service)).unwrap();
-        std::fs::write(backend.join(service).join(manifest), if manifest == "package.json" { r#"{ "description": "Takes orders." }"# } else { "<project/>" }).unwrap();
-    }
-    let project_id = app.a_project_in(&acme, "vega", folder.path()).await;
-
-    let scanned = app.post_empty(&format!("/api/projects/{project_id}/components/scan")).await;
-
-    assert_eq!(scanned.status, 200, "{}", scanned.text);
-    let added: Vec<(String, String)> = scanned.get("added").as_array().unwrap().iter().map(|row| (row["name"].as_str().unwrap().into(), row["description"].as_str().unwrap().into())).collect();
-    assert_eq!(added, [("billing".to_string(), String::new()), ("orders".to_string(), "Takes orders.".to_string())]);
-}
-
-#[tokio::test]
-async fn a_project_without_a_folder_cannot_be_scanned() {
+async fn a_session_writes_a_component_and_rewrites_it_by_name_or_by_folder_keeping_the_name() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let written = json!({ "anchors": "project:vega", "name": "Billing", "folder": "/work/vega/billing", "summary": "Charges customers.", "description": PAGE });
 
-    assert_eq!(app.post_empty(&format!("/api/projects/{project_id}/components/scan")).await.status, 400);
+    let first = app.call_tool("rekall_component", written.clone()).await;
+    assert_contains!(first, "Component \"Billing\" written on `project:vega`", "1 component");
+
+    let by_name = app.call_tool("rekall_component", json!({ "anchors": "project:vega", "name": "billing", "folder": "/work/vega/billing", "summary": "Invoices and charges.", "description": PAGE })).await;
+    assert_contains!(by_name, "rewritten");
+    let by_folder = app.call_tool("rekall_component", json!({ "anchors": "project:vega", "name": "Invoicing", "folder": "/work/vega/billing/", "summary": "Invoices and charges, again.", "description": PAGE })).await;
+    assert_contains!(by_folder, "Component \"Billing\" on `project:vega` rewritten");
+
+    let rows = app.get(&format!("/api/projects/{project_id}/components")).await.list();
+    assert_eq!(rows.len(), 1);
+    assert_eq!((rows[0]["name"].as_str(), rows[0]["summary"].as_str()), (Some("Billing"), Some("Invoices and charges, again.")));
+}
+
+#[tokio::test]
+async fn a_session_reads_the_components_listed_by_summary_and_one_whole() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    app.a_project(&acme, "vega", "ACTIVE").await;
+    app.call_tool("rekall_component", json!({ "anchors": "project:vega", "name": "Billing", "folder": "/work/vega/billing", "summary": "Charges customers.", "description": PAGE })).await;
+
+    let listed = app.call_tool("rekall_read_components", json!({ "anchors": "project:vega" })).await;
+    assert_contains!(listed, "1 component", "- Billing (`/work/vega/billing`", "Charges customers.");
+    assert_lacks!(listed, "POST /invoices");
+
+    let whole = app.call_tool("rekall_read_components", json!({ "anchors": "project:vega", "name": "billing" })).await;
+    assert_contains!(whole, "Component \"Billing\"", "POST /invoices");
+    assert_contains!(app.call_tool("rekall_read_components", json!({ "anchors": "project:vega", "name": "Ledger" })).await, "no component named 'Ledger'", "has: Billing");
+}
+
+#[tokio::test]
+async fn a_summary_that_is_missing_or_too_long_is_refused_and_nothing_is_written() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let long = "s".repeat(501);
+
+    let too_long = app.call_tool("rekall_component", json!({ "anchors": "project:vega", "name": "Billing", "folder": "/b", "summary": long, "description": PAGE })).await;
+    let missing = app.call_tool("rekall_component", json!({ "anchors": "project:vega", "name": "Billing", "folder": "/b", "summary": "  ", "description": PAGE })).await;
+
+    assert_contains!(too_long, "capped at 500");
+    assert_contains!(missing, "'summary' is required");
+    assert!(names(&app, &project_id).await.is_empty());
+}
+
+#[tokio::test]
+async fn a_task_context_holds_a_components_description_only_when_the_task_names_it() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    app.a_task(&project_id, "report-builder").await;
+    app.call_tool("rekall_component", json!({ "anchors": "project:vega", "name": "Billing", "folder": "/work/vega/billing", "summary": "Charges customers.", "description": PAGE })).await;
+
+    assert_lacks!(app.call_tool("rekall_context", json!({ "anchors": ANCHORS })).await, "POST /invoices");
+
+    app.call_tool("rekall_description", json!({ "anchors": ANCHORS, "body": "Change how [[Billing]] rounds." })).await;
+    let named = app.call_tool("rekall_context", json!({ "anchors": ANCHORS })).await;
+    assert_contains!(named, "**Billing** (component, folder `/work/vega/billing`)", "POST /invoices");
 }

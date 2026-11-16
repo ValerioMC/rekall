@@ -68,7 +68,7 @@ const CORE: LayeredCrate = LayeredCrate {
         ("claude", &["catalog", "connection", "flow", "task"]),
         ("check", &[]),
         ("commit", &["catalog", "component", "step", "task"]),
-        ("component", &["connection", "task"]),
+        ("component", &["catalog", "connection", "task"]),
         ("connection", &["task", "tracker"]),
         ("context", &["catalog", "commit", "component", "connection", "dependency", "deviation", "feedback", "note", "section", "step", "tag", "task", "wrapup"]),
         ("dependency", &["claude"]),
@@ -189,6 +189,7 @@ const MCP: LayeredCrate = LayeredCrate {
     allowed: &[
         ("check", &[]),
         ("commit", &[]),
+        ("component", &[]),
         ("context", &[]),
         ("deviation", &[]),
         ("diagram", &[]),

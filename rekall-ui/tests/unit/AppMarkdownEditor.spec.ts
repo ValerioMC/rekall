@@ -223,7 +223,7 @@ describe('AppMarkdownEditor', () => {
 
   it('draws a [[Name]] as a chip for a component of the project and flags one it does not have', async () => {
     const component = {
-      id: 'c-1', projectId: 'p-1', name: 'Auth Service', folder: 'services/auth', description: 'Issues tokens.',
+      id: 'c-1', projectId: 'p-1', name: 'Auth Service', folder: 'services/auth', summary: 'Issues tokens.', description: '',
       position: 0, createdAt: '', updatedAt: ''
     }
     const wrapper = mount(AppMarkdownEditor, {
@@ -250,7 +250,7 @@ describe('AppMarkdownEditor', () => {
 
   it('draws a [[Name]] in write mode as the component chip, and follows the project’s list', async () => {
     const component = {
-      id: 'c-1', projectId: 'p-1', name: 'Auth Service', folder: 'services/auth', description: 'Issues tokens.',
+      id: 'c-1', projectId: 'p-1', name: 'Auth Service', folder: 'services/auth', summary: 'Issues tokens.', description: '',
       position: 0, createdAt: '', updatedAt: ''
     }
     const wrapper = mount(AppMarkdownEditor, {

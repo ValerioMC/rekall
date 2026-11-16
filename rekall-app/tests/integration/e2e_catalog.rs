@@ -329,6 +329,7 @@ async fn the_mcp_endpoint_exposes_four_ways_to_read_and_ten_writes() {
         names,
         [
             "rekall_assess_vulnerability",
+            "rekall_component",
             "rekall_context",
             "rekall_create_task",
             "rekall_delete_step",
@@ -342,6 +343,7 @@ async fn the_mcp_endpoint_exposes_four_ways_to_read_and_ten_writes() {
             "rekall_project_section",
             "rekall_propose_flow",
             "rekall_propose_step",
+            "rekall_read_components",
             "rekall_read_sections",
             "rekall_record_commit",
             "rekall_replan",

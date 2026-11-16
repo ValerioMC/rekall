@@ -100,7 +100,7 @@ impl RepositoryDiscoveryService {
             Some(binding) => (DiscoveryOutcome::AlreadyBound, binding),
             None => (DiscoveryOutcome::Bound, self.bind_in(tx, run, &connection, &folder, &target).await?),
         };
-        let component = if first_clone { self.components.add_for_folder_in(tx, run.project_id, &folder, "").await?.map(|component| component.name) } else { None };
+        let component = if first_clone { self.components.add_for_folder_in(tx, run.project_id, &folder).await?.map(|component| component.name) } else { None };
         Ok(DiscoveredRepositoryView {
             folder,
             origin: Some(origin.display()),

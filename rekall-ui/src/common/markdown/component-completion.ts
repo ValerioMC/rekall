@@ -29,8 +29,8 @@ export function insertReference(inserted: string): (view: EditorView, completion
   }
 }
 
-function firstLine(description: string): string {
-  const line = description.split('\n').find((candidate) => candidate.trim() !== '')?.trim() ?? ''
+function firstLine(summary: string): string {
+  const line = summary.split('\n').find((candidate) => candidate.trim() !== '')?.trim() ?? ''
   return line.length > DETAIL_MAX ? `${line.slice(0, DETAIL_MAX)}…` : line
 }
 
@@ -41,7 +41,7 @@ export function componentOptions(components: readonly ProjectComponent[], typed:
     .filter((component) => !component.name.includes(']]') && componentNameKey(component.name).includes(wanted))
     .map((component) => ({
       label: component.name,
-      detail: firstLine(component.description),
+      detail: firstLine(component.summary),
       type: referenceCompletionType('component'),
       section: { name: 'Components', rank: 0 },
       apply: insertReference(`${component.name}]]`)

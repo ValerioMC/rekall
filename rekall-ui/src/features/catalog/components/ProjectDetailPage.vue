@@ -24,6 +24,7 @@ import { useProjectSectionsStore } from '@/features/project/store/projectSection
 import { useProjectComponentsStore } from '@/features/project/store/projectComponents.store'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
 import { useConnectionStream } from '@/features/connection/composables/useConnectionStream'
+import { useProjectComponentStream } from '@/features/project/composables/useProjectComponentStream'
 import { useProjectSectionStream } from '@/features/project/composables/useProjectSectionStream'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useRecentProjectsStore } from '@/features/catalog/store/recentProjects.store'
@@ -32,7 +33,7 @@ import { useWorkStore } from '@/features/work/store/work.store'
 import type { ScopeTarget } from '@/features/catalog/model/scope-target'
 import { asProjectId } from '@/model/branded'
 import { PROJECT_TABS, PROJECT_TAB_LABEL, projectTabOf, type ProjectTab } from '@/features/project/model/project-page'
-import type { DeploymentGraphId, ProjectSectionId } from '@/model/branded'
+import type { DeploymentGraphId, ProjectComponentId, ProjectSectionId } from '@/model/branded'
 
 const props = defineProps<{ id: string; tab?: string }>()
 
@@ -59,6 +60,7 @@ const sections = computed(() => sectionsStore.sectionsOf(projectId.value))
 const graphs = computed(() => graphsStore.graphsOf(projectId.value))
 const bindings = computed(() => connectionsStore.projectConnectionsOf(projectId.value))
 const sectionId = ref<ProjectSectionId | null>(null)
+const componentId = ref<ProjectComponentId | null>(null)
 const graphId = ref<DeploymentGraphId | null>(null)
 const settingUpGraph = ref(false)
 
@@ -81,6 +83,7 @@ const tabItems = computed<SubNavItem<ProjectTab>[]>(() => {
 })
 
 useProjectSectionStream((event) => void sectionsStore.applyEvent(event.projectId))
+useProjectComponentStream((event) => void componentsStore.applyEvent(event.projectId))
 useConnectionStream((event) => {
   if (project.value && event.companyIds.includes(project.value.companyId)) void loadConnections()
 })
@@ -93,6 +96,10 @@ async function loadConnections(): Promise<void> {
 
 function openSection(id: ProjectSectionId | null): void {
   sectionId.value = id
+}
+
+function openComponent(id: ProjectComponentId | null): void {
+  componentId.value = id
 }
 
 function openGraph(id: DeploymentGraphId | null): void {
@@ -113,6 +120,7 @@ watch(
   () => {
     work.focusProject(project.value?.id ?? null)
     sectionId.value = null
+    componentId.value = null
     graphId.value = null
     settingUpGraph.value = false
     if (!project.value) return
@@ -127,6 +135,15 @@ watch(
 )
 
 onBeforeUnmount(() => work.focusProject(null))
+
+watch(
+  [() => componentsStore.componentsOf(projectId.value), tab],
+  ([components]) => {
+    if (tab.value !== 'components') return
+    if (!components.some((component) => component.id === componentId.value)) componentId.value = components[0]?.id ?? null
+  },
+  { immediate: true }
+)
 
 watch(
   [sections, tab],
@@ -187,9 +204,9 @@ watch([graphs, tab], () => {
             <ProjectComponentsPage
               v-else-if="tab === 'components'"
               key="components"
-              :project-id="project.id"
-              :project-title="project.title"
-              :repo-folder="project.repoFolder"
+              :project="project"
+              :selected-id="componentId"
+              @open="openComponent"
             />
             <ProjectDiagramsTab v-else-if="tab === 'diagrams'" key="diagrams" :project="project" />
             <ProjectGraphsPage

@@ -1,6 +1,6 @@
 import { apiClient, request } from '../../../api/client'
-import { ComponentScanSchema, ProjectComponentListSchema, ProjectComponentSchema } from './schemas/project-component.schema'
-import type { ComponentScan, ProjectComponent, ProjectComponentInput } from '@/features/project/model/project-component'
+import { ProjectComponentListSchema, ProjectComponentSchema } from './schemas/project-component.schema'
+import type { ProjectComponent, ProjectComponentInput } from '@/features/project/model/project-component'
 import type { ProjectComponentId, ProjectId } from '@/model/branded'
 
 export async function fetchProjectComponents(projectId: ProjectId): Promise<ProjectComponent[]> {
@@ -47,10 +47,4 @@ export async function reorderProjectComponents(
 
 export async function deleteProjectComponent(id: ProjectComponentId): Promise<void> {
   await request(() => apiClient(`/api/project-components/${id}`, { method: 'DELETE' }))
-}
-
-export async function scanProjectComponents(projectId: ProjectId): Promise<ComponentScan> {
-  return request(async () =>
-    ComponentScanSchema.parse(await apiClient(`/api/projects/${projectId}/components/scan`, { method: 'POST' }))
-  )
 }

@@ -1,4 +1,5 @@
-//! The project's components: the folder a session opens to find each part.
+//! The project's components: the folder a session opens to find each part, and what it is for in a
+//! few sentences. The full description is read with `rekall_read_components`.
 
 use rekall_kernel::jstr;
 
@@ -8,7 +9,7 @@ use super::super::model::context_renderer::ContextRenderer;
 use super::text::{attribute, truncate, MAX_DOCUMENT_CHARACTERS};
 
 impl ContextRenderer {
-    /// The project's parts: each folder a session can open to find that part, with what it is.
+    /// The project's parts: each folder a session can open to find that part, with what it is for.
     pub fn render_components(&self, components: &[ProjectComponentView]) -> String {
         if components.is_empty() {
             return String::new();
@@ -20,8 +21,8 @@ impl ContextRenderer {
                 attribute(&component.name),
                 attribute(&component.folder)
             ));
-            if !jstr::is_blank(&component.description) {
-                out.push_str(&truncate(Some(&component.description), MAX_DOCUMENT_CHARACTERS));
+            if !jstr::is_blank(&component.summary) {
+                out.push_str(&truncate(Some(&component.summary), MAX_DOCUMENT_CHARACTERS));
                 out.push('\n');
             }
             out.push_str("</component>\n");

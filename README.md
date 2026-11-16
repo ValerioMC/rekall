@@ -126,6 +126,8 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_deviation` | write | Record where the work departed from the plan, on one task and for one step; kept apart from the notes |
 | `rekall_project_section` | write | Write a titled markdown section on a task's project, or rewrite one by title with `replace` |
 | `rekall_read_sections` | read | List a project's sections by title, or read one whole with `title` |
+| `rekall_component` | write | Record a folder of a project as a component: a name, a folder, a summary every context carries and a structured markdown description; the component with that name or folder is rewritten |
+| `rekall_read_components` | read | List a project's components with their summaries, or read one whole with `name` |
 | `rekall_search` | read | Find a phrase in descriptions, steps, wrapups and notes, optionally in one project; returns anchors and excerpts to load with `rekall_context` |
 | `rekall_diagram` | write | Store Mermaid sheets generated for a project or one of its tasks, or replace a diagram by id |
 | `rekall_inventory` | write | Replace a project's dependency inventory whole |

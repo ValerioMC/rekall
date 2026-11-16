@@ -176,7 +176,8 @@ describe('DescriptionPane component completion', () => {
       projectId: rekall,
       name: 'auth-service',
       folder: '/work/auth',
-      description: 'Sessions',
+      summary: 'Sessions',
+      description: '',
       position: 0,
       createdAt: '2026-10-08T10:00:00Z',
       updatedAt: '2026-10-08T10:00:00Z'

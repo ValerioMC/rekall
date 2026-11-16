@@ -6,8 +6,9 @@ use crate::component::ProjectComponentView;
 use crate::connection::ConnectionView;
 use crate::task::TaskReferenceView;
 
-/// How much of a component's description travels with its first reference.
-pub const COMPONENT_REFERENCE_MAX: usize = 1_000;
+/// How much of a component's description travels with its first reference; a longer one is cut and
+/// points at `rekall_read_components`.
+pub const COMPONENT_REFERENCE_MAX: usize = 8_000;
 
 /// What opens a reference to one of the project's connection bindings: `[[connection:label]]`.
 const CONNECTION_REFERENCE_PREFIX: &str = "connection:";
@@ -18,7 +19,8 @@ const TASK_REFERENCE_PREFIX: &str = "task:";
 /// Expands `[[Name]]`, `[[connection:label]]` and `[[task:label]]` in the text a session reads, from
 /// one project's components, connection bindings and tasks.
 ///
-/// The first reference to a component carries its description, later ones only name and folder.
+/// The first reference to a component carries its summary and its description, later ones only name and
+/// folder: a task's context holds a component's description only when the task names the component.
 /// Code spans and fenced blocks are left alone. A name that matches nothing is flagged, never dropped.
 pub struct ComponentReferences<'a> {
     components: Option<&'a [ProjectComponentView]>,
@@ -88,10 +90,18 @@ impl<'a> ComponentReferences<'a> {
             format!("component, folder `{}`", component.folder)
         };
         let head = format!("**{}** ({place})", component.name);
-        if !self.described.insert(component.id) || jstr::is_blank(&component.description) {
+        if !self.described.insert(component.id) {
             return head;
         }
-        format!("{head}: {}", jstr::prefix(jstr::strip(&component.description), COMPONENT_REFERENCE_MAX))
+        let summary = jstr::strip(&component.summary);
+        let description = jstr::strip(&component.description);
+        if description.is_empty() {
+            return if summary.is_empty() { head } else { format!("{head}: {summary}") };
+        }
+        let shown = jstr::prefix(description, COMPONENT_REFERENCE_MAX);
+        let cut = if shown.len() < description.len() { "\n\n(Cut here: read the rest with `rekall_read_components`.)" } else { "" };
+        let lead = if summary.is_empty() || summary == description { String::new() } else { format!("{summary}\n\n") };
+        format!("{head}:\n\n{lead}{shown}{cut}")
     }
 }
 
