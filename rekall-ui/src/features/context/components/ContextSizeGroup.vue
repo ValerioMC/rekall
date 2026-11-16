@@ -40,7 +40,7 @@ const heaviestNote = computed(
           :style="{ width: `${share.percent}%` }"
         />
       </div>
-      <ul class="mt-2.5 grid gap-1.5" data-testid="context-size-parts">
+      <ul class="mt-2.5 grid grid-cols-[minmax(0,1fr)] gap-1.5" data-testid="context-size-parts">
         <li v-for="(share, index) in shares" :key="share.label" class="flex items-center gap-2 text-caption text-text-muted">
           <span class="size-2 shrink-0 rounded-key" :class="SEGMENT_TONES[index]" aria-hidden="true" />
           <span class="min-w-0 flex-1 truncate" :title="share.label">{{ share.label }}</span>
