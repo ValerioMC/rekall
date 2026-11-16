@@ -82,15 +82,11 @@ const projectTasks = useSelectedProjectTasks()
 </template>
 
 <style scoped>
-/* The page holds a reading measure for its prose; a table or a code block takes the width of the pane. */
+/* The detail fills the pane: prose, tables, diagrams and code all take its width. */
 .step-reading :deep(.md-editor-preview) {
   max-width: none;
   margin-inline: 0 !important;
   padding: 0 0 8px !important;
-}
-
-.step-reading :deep(.md-editor-preview) > :where(p, ul, ol, blockquote, h1, h2, h3, h4) {
-  max-width: 100ch;
 }
 
 .step-detail :deep(.md-editor-preview) h1,

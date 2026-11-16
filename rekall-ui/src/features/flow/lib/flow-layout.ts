@@ -11,6 +11,14 @@ const LABEL_FONT_SIZE = 11
 const MARGIN = 32
 /** How far a loop leaves the side of a dragged step before it turns back. */
 const LOOP_REACH = 44
+/** A flow of more ranks than this wraps into columns, so it fits a window instead of scrolling a tall strip. */
+const MAX_RANKS_UNWRAPPED = 6
+const MAX_RANKS_PER_COLUMN = 5
+const COLUMN_GAP = 160
+/** Boxes this close side by side are joined by a route that crosses between them. */
+const SIDE_GAP = 40
+/** How far before a turn an across route leaves its line, so the spline rounds the corner without overshooting. */
+const CORNER = 64
 
 const START = 'flow:start'
 const END = 'flow:end'
@@ -54,11 +62,13 @@ export interface FlowLayout<StepId extends string = TaskStepId, LinkId extends s
  * Where each step, Start, End and route sits, top to bottom. dagre breaks the loops itself and is
  * deterministic, so the drawing holds still while the work moves. Start leads to the first step;
  * End collects the routes that finish the flow and, on a flow, the steps that have none. A step in
- * `extraHeight` is taller by that much, so routes still attach to the edges of its box.
+ * `extraHeight` is taller by that much, so routes still attach to the edges of its box. With
+ * `wrap`, a long flow reads down one column and on into the next instead of down one tall strip.
  */
 export function layoutFlow<StepId extends string, LinkId extends string>(
   steps: readonly FlowShapeStep<StepId, LinkId>[],
-  extraHeight: ReadonlyMap<StepId, number> = new Map()
+  extraHeight: ReadonlyMap<StepId, number> = new Map(),
+  wrap = false
 ): FlowLayout<StepId, LinkId> {
   const heightOf = (id: StepId): number => NODE_HEIGHT + (extraHeight.get(id) ?? 0)
   type Endpoint = StepId | typeof START | typeof END
@@ -113,13 +123,74 @@ export function layoutFlow<StepId extends string, LinkId extends string>(
     return { ...route, points, labelAt: { x: at.x ?? points[0]?.x ?? 0, y: at.y ?? points[0]?.y ?? 0 } }
   })
   const size = graph.graph()
-  return {
+  const laid: FlowLayout<StepId, LinkId> = {
     nodes,
     start: boxAt(graph.node(START), TERMINAL_WIDTH, TERMINAL_HEIGHT),
     end: boxAt(graph.node(END), TERMINAL_WIDTH, TERMINAL_HEIGHT),
     routes,
     width: size.width ?? 0,
     height: size.height ?? 0
+  }
+  return wrap ? wrapIntoColumns(laid) : laid
+}
+
+/** The layout cut by rank into columns of equal height. Routes that cross columns are redrawn between their boxes. */
+function wrapIntoColumns<StepId extends string, LinkId extends string>(
+  layout: FlowLayout<StepId, LinkId>
+): FlowLayout<StepId, LinkId> {
+  type Endpoint = StepId | typeof START | typeof END
+  const boxes: Array<[Endpoint, Box]> = [
+    [START, layout.start],
+    [END, layout.end],
+    ...[...layout.nodes].map(([id, box]): [Endpoint, Box] => [id, box])
+  ]
+  const centres = [...new Set(boxes.map(([, box]) => Math.round(box.y + box.height / 2)))].sort((a, b) => a - b)
+  if (centres.length <= MAX_RANKS_UNWRAPPED) return layout
+  const columnCount = Math.ceil(centres.length / MAX_RANKS_PER_COLUMN)
+  const ranksPerColumn = Math.ceil(centres.length / columnCount)
+  const columnOf = (box: Box): number => Math.floor(centres.indexOf(Math.round(box.y + box.height / 2)) / ranksPerColumn)
+
+  const columns = Array.from({ length: columnCount }, (_, index) => boxes.filter(([, box]) => columnOf(box) === index).map(([, box]) => box))
+  const firstTop = Math.min(...columns[0]!.map((box) => box.y))
+  const shifts: Point[] = []
+  let left = Math.min(...columns[0]!.map((box) => box.x))
+  for (const column of columns) {
+    const columnLeft = Math.min(...column.map((box) => box.x))
+    const columnRight = Math.max(...column.map((box) => box.x + box.width))
+    shifts.push({ x: left - columnLeft, y: firstTop - Math.min(...column.map((box) => box.y)) })
+    left += columnRight - columnLeft + COLUMN_GAP
+  }
+  const moved = (box: Box): Box => {
+    const shift = shifts[columnOf(box)]!
+    return { ...box, x: box.x + shift.x, y: box.y + shift.y }
+  }
+
+  const nodes = new Map([...layout.nodes].map(([id, box]) => [id, moved(box)]))
+  const start = moved(layout.start)
+  const end = moved(layout.end)
+  const originalBox = (endpoint: Endpoint): Box =>
+    endpoint === START ? layout.start : endpoint === END ? layout.end : layout.nodes.get(endpoint)!
+  const placedBox = (endpoint: Endpoint): Box => (endpoint === START ? start : endpoint === END ? end : nodes.get(endpoint)!)
+  const routes = layout.routes.map((route) => {
+    const fromColumn = columnOf(originalBox(route.from))
+    if (fromColumn !== columnOf(originalBox(route.to))) {
+      const points = routeBetween(placedBox(route.from), placedBox(route.to))
+      return { ...route, points, labelAt: midpoint(points) }
+    }
+    const shift = shifts[fromColumn]!
+    const translate = (point: Point): Point => ({ x: point.x + shift.x, y: point.y + shift.y })
+    return { ...route, points: route.points.map(translate), labelAt: translate(route.labelAt) }
+  })
+
+  const placed = [...nodes.values(), start, end]
+  const reached = routes.flatMap((route) => route.points)
+  return {
+    nodes,
+    start,
+    end,
+    routes,
+    width: Math.max(...placed.map((box) => box.x + box.width), ...reached.map((point) => point.x)) + MARGIN,
+    height: Math.max(...placed.map((box) => box.y + box.height), ...reached.map((point) => point.y)) + MARGIN
   }
 }
 
@@ -166,8 +237,18 @@ export function placeSteps<StepId extends string, LinkId extends string>(
   }
 }
 
-/** A route between two boxes: down when the target lies below, out of the right sides when it does not. */
+/**
+ * A route between two boxes: across when the target stands clear to one side, down when it lies
+ * below, out of the right sides when it does not.
+ */
 export function routeBetween(from: Box, to: Box): Point[] {
+  const clearRight = to.x >= from.x + from.width + SIDE_GAP
+  const clearLeft = to.x + to.width + SIDE_GAP <= from.x
+  if (clearRight || clearLeft) {
+    const start = { x: clearRight ? from.x + from.width : from.x, y: from.y + from.height / 2 }
+    const end = { x: clearRight ? to.x : to.x + to.width, y: to.y + to.height / 2 }
+    return acrossRoute(start, end, clearRight ? 1 : -1)
+  }
   if (to.y >= from.y + from.height) {
     const start = { x: from.x + from.width / 2, y: from.y + from.height }
     const end = { x: to.x + to.width / 2, y: to.y }
@@ -178,6 +259,22 @@ export function routeBetween(from: Box, to: Box): Point[] {
   const end = { x: to.x + to.width, y: to.y + to.height / 2 }
   const reach = Math.max(start.x, end.x) + LOOP_REACH
   return [start, { x: reach, y: start.y }, { x: reach, y: end.y }, end]
+}
+
+function acrossRoute(start: Point, end: Point, direction: 1 | -1): Point[] {
+  const rise = end.y - start.y
+  if (rise === 0) return [start, end]
+  const middle = (start.x + end.x) / 2
+  const turn = Math.min(CORNER, Math.abs(rise) / 2, Math.abs(end.x - start.x) / 2.5)
+  const vertical = Math.sign(rise)
+  return [
+    start,
+    { x: middle - direction * turn, y: start.y },
+    { x: middle, y: start.y + vertical * turn },
+    { x: middle, y: end.y - vertical * turn },
+    { x: middle + direction * turn, y: end.y },
+    end
+  ]
 }
 
 function midpoint(points: readonly Point[]): Point {

@@ -12,10 +12,10 @@ import type { TaskStep } from '@/features/steps/model/task-step'
 import type { StepLinkId, TaskStepId } from '@/model/branded'
 import FlowCanvas from './FlowCanvas.vue'
 import FlowInspector from './FlowInspector.vue'
-import FlowTrail from './FlowTrail.vue'
+import FlowMoves from './FlowMoves.vue'
 
 /**
- * A task's steps as a flow: the trail of moves on top, the graph beside the picked step's
+ * A task's steps as a flow: the graph with the count of moves on it, beside the picked step's
  * routes and visits. Everything is read from the steps, so a session's move redraws it live.
  */
 const props = defineProps<{
@@ -101,13 +101,6 @@ async function reset(): Promise<void> {
 
 <template>
   <div class="@container flex min-h-0 min-w-0 flex-1 flex-col" data-testid="step-flow-view">
-    <FlowTrail
-      :trail="flow.trail"
-      :selected-id="selectedId"
-      @select="(id) => (selectedId = id)"
-      @reset="confirmingReset = true"
-    />
-
     <p
       v-if="!flow.isFlow"
       class="shrink-0 border-b border-border bg-anchor-soft px-5 py-2 text-caption text-anchor-strong"
@@ -117,14 +110,23 @@ async function reset(): Promise<void> {
     </p>
 
     <div class="flex min-h-0 flex-1 flex-col @3xl:flex-row">
-      <FlowCanvas
-        :flow="flow"
-        :selected-id="selectedId"
-        @select="(id) => (selectedId = id)"
-        @place="placeStep"
-        @connect="drawRoute"
-        @tidy="tidy"
-      />
+      <div class="relative flex min-h-0 min-w-0 flex-1">
+        <FlowCanvas
+          :flow="flow"
+          :selected-id="selectedId"
+          @select="(id) => (selectedId = id)"
+          @place="placeStep"
+          @connect="drawRoute"
+          @tidy="tidy"
+        />
+        <FlowMoves
+          class="absolute left-3 top-3 z-20"
+          :trail="flow.trail"
+          :selected-id="selectedId"
+          @select="(id) => (selectedId = id)"
+          @reset="confirmingReset = true"
+        />
+      </div>
       <FlowInspector
         v-if="selected"
         class="max-h-[48%] shrink-0 border-t border-border bg-surface @3xl:max-h-none @3xl:w-[340px] @3xl:border-t-0 @3xl:border-l"

@@ -354,17 +354,15 @@ describe('TaskPlanTab', () => {
     expect(tab.get('[data-testid="decision-title"]').text()).toBe('Step s1')
   })
 
-  it('shows the progress and the adherence in one band that stays whatever is selected', async () => {
+  it('keeps the progress and the keys in one row that stays whatever is selected', async () => {
     seed([makeStep('s1', 0, 'OPEN'), makeStep('s2', 1, 'OPEN')])
     const tab = render()
-    const band = tab.get('[data-testid="plan-band"]')
 
-    expect(band.find('[data-testid="plan-progress"]').exists()).toBe(true)
-    expect(band.find('[data-testid="plan-adherence"]').exists()).toBe(true)
+    expect(tab.get('[data-testid="plan-bar"]').find('[data-testid="plan-tube"]').exists()).toBe(true)
 
     await tab.findAll('[data-testid="plan-step-title"]')[0]!.trigger('click')
 
-    expect(tab.get('[data-testid="plan-band"]').find('[data-testid="plan-adherence"]').exists()).toBe(true)
+    expect(tab.get('[data-testid="plan-bar"]').find('[data-testid="plan-tube"]').exists()).toBe(true)
   })
 
   function commitOn(stepId: string): CommitReference {
@@ -458,6 +456,6 @@ describe('TaskPlanTab', () => {
 
     expect(tab.find('[data-testid="write-first-step"]').exists()).toBe(true)
     expect(tab.find('[data-testid="decision-panel"]').exists()).toBe(false)
-    expect(tab.find('[data-testid="plan-band"]').exists()).toBe(false)
+    expect(tab.find('[data-testid="plan-bar"]').exists()).toBe(false)
   })
 })

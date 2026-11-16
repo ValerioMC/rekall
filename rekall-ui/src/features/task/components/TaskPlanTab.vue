@@ -2,12 +2,10 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
-import PlanAdherencePanel from '@/features/adherence/components/PlanAdherencePanel.vue'
 import StepFlowView from '@/features/flow/components/StepFlowView.vue'
 import GraphAttachPanel from '@/features/graph/components/GraphAttachPanel.vue'
-import PlanListHeader from '@/features/steps/components/PlanListHeader.vue'
+import PlanBar from '@/features/steps/components/PlanBar.vue'
 import PlanOverview from '@/features/steps/components/PlanOverview.vue'
-import PlanProgress from '@/features/steps/components/PlanProgress.vue'
 import PlanStepRow from '@/features/steps/components/PlanStepRow.vue'
 import StepAddForm from '@/features/steps/components/StepAddForm.vue'
 import StepDecisionPanel from '@/features/steps/components/StepDecisionPanel.vue'
@@ -24,8 +22,8 @@ import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TaskStepId } from '@/model/branded'
 
 /**
- * The Plan tab: the task's steps as a list of fixed width with the tube above it, and beside it the
- * decision panel of the selected step, which takes the rest and can take all of it. J and K step
+ * The Plan tab: one row over the plan, then the task's steps as a list of fixed width with, beside
+ * it, the decision panel of the selected step, which takes the rest and can take all of it. J and K step
  * through the list. Drafts sit under their own heading until they are promoted.
  */
 const props = defineProps<{ task: Task }>()
@@ -175,37 +173,27 @@ function canChooseSession(step: TaskStep): boolean {
 
 <template>
   <div class="@container flex min-h-0 flex-1 flex-col" data-testid="plan-tab">
-    <section
+    <PlanBar
       v-if="hasChecklist"
-      class="mx-6 mb-4 mt-4 grid shrink-0 grid-cols-1 rounded-card border border-border bg-surface shadow-raised @min-[56rem]:grid-cols-[minmax(18rem,4fr)_9fr]"
-      aria-label="Plan progress and adherence"
-      data-testid="plan-band"
-    >
-      <PlanProgress
-        class="border-b border-border @min-[56rem]:border-b-0 @min-[56rem]:border-r"
-        v-bind="counts"
-        :running-number="runningNumber"
-        :draft-count="draftSteps.length"
-        @show-drafts="showDrafts"
-      />
-      <PlanAdherencePanel embedded :task-id="task.id" :steps="allSteps" />
-    </section>
+      v-model:hide-done="hideDone"
+      v-model:view="view"
+      v-bind="counts"
+      :task-id="task.id"
+      :steps="allSteps"
+      :running-number="runningNumber"
+      :draft-count="draftSteps.length"
+      :can-show-flow="isFlow"
+      :list-keys="view === 'list'"
+      @show-drafts="showDrafts"
+      @review-next="reviewNext"
+    />
 
-    <div class="flex min-h-0 flex-1" :class="hasChecklist && 'border-t border-border'">
+    <div class="flex min-h-0 flex-1">
       <section
         class="flex min-h-0 min-w-0 flex-col"
         :class="[showsPanel ? 'w-105 shrink-0 border-r border-border' : 'flex-1', listHidden && 'hidden']"
         aria-label="Steps"
       >
-        <PlanListHeader
-          v-if="hasChecklist"
-          v-model:hide-done="hideDone"
-          v-model:view="view"
-          v-bind="counts"
-          :can-show-flow="isFlow"
-          @review-next="reviewNext"
-        />
-
         <StepFlowView v-if="view === 'flow' && hasChecklist" :task="task" :steps="checklistSteps" @open-detail="openFromFlow" />
 
         <div v-else ref="listEl" class="min-h-0 min-w-0 flex-1 overflow-y-auto pb-6 pt-1" :class="showsPanel ? 'px-3' : 'px-6 pt-4'">

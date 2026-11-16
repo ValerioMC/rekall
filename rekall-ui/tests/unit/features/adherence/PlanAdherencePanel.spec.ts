@@ -62,14 +62,12 @@ describe('the plan adherence panel of a task', () => {
     expect(wrapper.find('[data-testid="adherence-step"]').exists()).toBe(false)
   })
 
-  it('drops its card when it shares one with the plan progress', async () => {
+  it('sits on a card of its own', async () => {
     vi.mocked(api.fetchTaskAdherence).mockResolvedValue(adherence())
 
-    const card = mount(PlanAdherencePanel, { props: { taskId: TASK, steps: [step(1, 'DONE')] } })
-    const shared = mount(PlanAdherencePanel, { props: { taskId: TASK, steps: [step(1, 'DONE')], embedded: true } })
+    const wrapper = await render([step(1, 'DONE')])
 
-    expect(card.classes()).toContain('border')
-    expect(shared.classes()).not.toContain('border')
+    expect(wrapper.classes()).toContain('border')
   })
 
   it('lists the visits of a flow against their budget and names the spent one in words', async () => {
@@ -89,9 +87,8 @@ describe('the plan adherence panel of a task', () => {
     expect(rows[0]?.find('[data-testid="adherence-budget-spent"]').exists()).toBe(false)
     expect(rows[1]?.text()).toContain('3 of 3')
     expect(rows[1]?.get('[data-testid="adherence-budget-spent"]').text()).toBe('budget spent')
-    expect(wrapper.get('[data-testid="adherence-visits"] summary').text()).toContain('2 steps, 4 visits')
+    expect(wrapper.get('[data-testid="adherence-visits"]').text()).toContain('2 steps, 4 visits')
     expect(wrapper.get('[data-testid="adherence-budgets-spent"]').text()).toBe('1 budget spent')
-    expect(wrapper.get('[data-testid="adherence-visits"]').attributes('open')).toBeUndefined()
   })
 
   it('reads again when a step changes state', async () => {

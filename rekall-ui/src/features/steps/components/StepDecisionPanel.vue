@@ -287,7 +287,7 @@ const FACT_BUTTON =
 
     <template #drawer="{ railed }">
       <div v-if="evidenceOpen && !railed && hasEvidence" class="border-b border-border bg-canvas" data-testid="step-evidence">
-        <div class="mx-auto grid w-full max-w-[76rem] grid-cols-[repeat(auto-fit,minmax(22rem,1fr))] items-start gap-x-10 gap-y-4 px-7 pb-2 pt-4">
+        <div class="grid w-full grid-cols-[repeat(auto-fit,minmax(22rem,1fr))] items-start gap-x-10 gap-y-4 px-7 pb-2 pt-4">
           <StepEvidence :step="step" />
         </div>
       </div>

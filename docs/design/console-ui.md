@@ -160,26 +160,37 @@ then Labels (tag, skills, dependencies), Context (what `/rk` hands a session, as
 its heaviest parts, with the tokens the task generated) and Git (the branch and the commits, shown
 only while there is one). The Description tab keeps one strip: its views, Fix wording and Write/Read.
 
-**Plan** is a band over a workspace of two zones. The band spans the tab and never folds: on the
-left the plan tube with a line that says who has to act (and the drafts still to promote), on the
-right **Plan adherence** at full size, its three figures (accepted first time, sent back,
-deviations) side by side with the help line beside the title. A flow adds its visits against each
-budget as a folded line that names the budgets spent. The band stays whatever is selected.
+**Plan** is one row over a workspace. The row (`PlanBar`) spans the tab, never folds and stays
+whatever is selected or whichever view is open: the plan tube with the line that says who has to
+act (and the drafts still to promote), the adherence figures as one line (accepted first time, sent
+back, deviations, and the budgets spent when a flow has spent any), then Hide done (the list view
+only), Review next and List or Flow (when the steps have routes). The line of figures opens
+**Plan adherence** as a panel over the workspace, at full size: its three figures with the help
+line, and a flow's visits against each budget. It takes no height while it is closed and closes on
+Escape or a press outside.
 
-Under it the left zone is the step list, a column of 420px that keeps its width whether or not a
-step is selected. Its head names the list and holds Hide done, Review next and List or Flow (when
-the steps have routes). A row is the step's seal, its number and its title (two lines before it is
-cut), and under the title where the step stands (claimed or done and when, working now, open) with
-one bar for each pass at it: yellow for a pass sent back, green for the one accepted, indigo for the
-one a session has in hand. The hover keys (Accept or Done, New session, To draft, move, delete) lie
-over the end of the row instead of taking a column. Under the rows come the drafts with Promote and
-the line, docked at the foot, that adds a draft (a new step is a draft).
+Under it, with the list view, the left zone is the step list, a column of 420px that keeps its
+width whether or not a step is selected. A row is the step's seal, its number and its title (two
+lines before it is cut), and under the title where the step stands (claimed or done and when,
+working now, open) with one bar for each pass at it: yellow for a pass sent back, green for the one
+accepted, indigo for the one a session has in hand. The hover keys (Accept or Done, New session, To
+draft, move, delete) lie over the end of the row instead of taking a column. Under the rows come
+the drafts with Promote and the line, docked at the foot, that adds a draft (a new step is a draft).
+
+With the flow view the graph owns the whole workspace beside the picked step's routes and visits (a
+column of 340px). It opens fitted to the canvas; a flow of more than six ranks wraps into columns of
+equal height, read down and on to the right, with the routes that cross columns drawn out of the
+sides that face each other. Over the canvas, at the top left, the count of moves opens the list of
+them (each step the work entered with its move number and the outcome it left by, the open one
+last, and Reset moves at its foot); at the top right are Tidy layout (once a step was moved), zoom
+out and in with the level between, and Fit. Zooming holds until Fit is pressed.
 
 The right zone is one frame with two fillings, so nothing moves when a step is chosen. Its header
 holds a lead mark, a title, the keys for the previous and next step (the J and K keys do the same,
 except while typing) and for hiding the list so the step has the whole tab, and under it one line
-of facts. Its body is as wide as the pane up to a page width of 76rem, and a dock at the foot holds
-the keys of a decision still to be made. Pinned, the header and dock stay while the body scrolls.
+of facts. A step's body, header and dock are as wide as the pane, so hiding the list gives the detail
+the whole tab; the overview alone is held to a page width of 76rem. A dock at the foot holds the keys
+of a decision still to be made. Pinned, the header and dock stay while the body scrolls.
 
 With no step selected, which is how the tab opens, the frame holds the **overview**: its title says
 what waits for you ("1 step waits for you"). Under it a line of notices shows the drafts to
@@ -195,8 +206,8 @@ it last moved, the pass, and the checks and commits as buttons that open the evi
 and, while a session runs or after it claimed, Log commit follow. At its end sit the Write and Read
 switch, Reopen on a done step (which asks twice) and Overview (Esc does the same). The body is the
 sealed passes hung on one line like a history, then the detail, or the feedback for the next pass
-once the step was sent back, taking the whole width; prose in Read holds a measure of 100
-characters, and a table or a code block takes the width of the pane. Under the detail come the
+once the step was sent back, taking the whole width: prose, tables, diagrams and code blocks all
+fill the pane. Under the detail come the
 skills the step runs with and the checks it has to pass, side by side, which a finished step shows
 only if it carries checks. The evidence (the last run of each check, the commits) is a drawer under
 the header, open on a claim and on a failed check and folded otherwise, so no column is kept for

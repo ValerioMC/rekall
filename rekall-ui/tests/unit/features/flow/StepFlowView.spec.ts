@@ -86,24 +86,42 @@ describe('the flow view', () => {
     expect(pane.get('[data-step-id="ship"] [data-testid="flow-node-visits"]').text()).toBe('not reached')
   })
 
-  it('shows the moves in order with the outcome each one left by', () => {
+  it('counts the moves on the canvas and lists them in order, with the outcome each one left by, once opened', async () => {
     seed(releaseFlow())
     const pane = render()
 
     expect(pane.get('[data-testid="flow-move-count"]').text()).toContain('5')
+    expect(pane.find('[data-testid="flow-move"]').exists()).toBe(false)
+
+    await pane.get('[data-testid="flow-move-count"]').trigger('click')
+
     const moves = pane.findAll('[data-testid="flow-move"]')
-    expect(moves.map((move) => move.text())).toEqual(['1Build', '2Deploy', '3Test', '4Fix', '5Deploy'])
+    ;['Build', 'Deploy', 'Test', 'Fix', 'Deploy'].forEach((title, index) => {
+      expect(moves[index]!.text()).toMatch(new RegExp(`^${index + 1}\\s*${title}`))
+    })
     expect(moves[4]!.attributes('aria-current')).toBe('step')
     expect(pane.get('[data-testid="flow-trail"]').text()).toContain('app-error ›')
   })
 
-  it('shows on the trail what a move reported when it left its step', () => {
+  it('picks the step of a move from the list and closes it', async () => {
+    seed(releaseFlow())
+    const pane = render()
+    await pane.get('[data-testid="flow-move-count"]').trigger('click')
+
+    await pane.findAll('[data-testid="flow-move"]')[0]!.trigger('click')
+
+    expect(pane.find('[data-testid="flow-trail"]').exists()).toBe(false)
+    expect(pane.get('[data-testid="flow-inspector"]').text()).toContain('Build')
+  })
+
+  it('shows on the list of moves what a move reported when it left its step', async () => {
     seed(
       releaseFlow().map((step) =>
         step.id === 'test' ? { ...step, visits: [visit('test', 3, 'app-error', false, 'GET /health answers 500')] } : step
       )
     )
     const pane = render()
+    await pane.get('[data-testid="flow-move-count"]').trigger('click')
 
     const outcomes = pane.findAll('[data-testid="flow-move-outcome"]')
     expect(outcomes[2]!.attributes('title')).toBe('GET /health answers 500')
@@ -151,7 +169,7 @@ describe('the flow view', () => {
     await flushPromises()
 
     expect(pane.get('[data-current="true"]').attributes('data-step-id')).toBe('test')
-    expect(pane.findAll('[data-testid="flow-move"]')).toHaveLength(6)
+    expect(pane.get('[data-testid="flow-move-count"]').text()).toContain('6')
   })
 
   it('adds a route from the picked step through the store', async () => {
@@ -174,6 +192,7 @@ describe('the flow view', () => {
     await pane.get('[data-step-id="test"]').trigger('click')
 
     await pane.get('[data-testid="flow-route-row"] button').trigger('click')
+    await pane.get('[data-testid="flow-move-count"]').trigger('click')
     await pane.get('[data-testid="flow-reset"]').trigger('click')
     await pane.get('[data-testid="confirm-yes"]').trigger('click')
     await flushPromises()

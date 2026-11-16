@@ -56,7 +56,7 @@ const ICON_BUTTON =
 </script>
 
 <template>
-  <DossierFrame pinned aria-label="Plan overview" data-testid="plan-overview">
+  <DossierFrame pinned bounded aria-label="Plan overview" data-testid="plan-overview">
     <template #lead>
       <span class="grid size-full place-items-center rounded-full border border-border-strong text-text-muted">
         <svg class="size-3.5" viewBox="0 0 16 16" fill="none">
