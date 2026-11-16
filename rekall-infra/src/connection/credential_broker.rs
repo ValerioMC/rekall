@@ -7,12 +7,12 @@ use async_trait::async_trait;
 use rekall_kernel::{cleanup, Id, InternalFailure, RekallError, Result};
 use rekall_store::ConnectionKind;
 use rekall_core::claude::{TerminalConnection, TerminalLaunch};
-use rekall_core::connection::{ConnectionAccessService, CredentialDesk, GrafanaCredential, JiraCredential, KubeAccess, Secret, SecretStore};
+use rekall_core::connection::{ConnectionAccessService, CredentialDesk, GrafanaCredential, AtlassianCredential, KubeAccess, Secret, SecretStore};
 use tracing::{info, warn};
 
 use super::credential_session::CredentialSession;
 use super::guard_rails::settings_document;
-use super::helper_scripts::{api_wrapper, git_helper, kube_plugin, GITHUB_API, GITLAB_API, GIT_HELPER, GRAFANA_API, JIRA_API, KUBE_PLUGIN};
+use super::helper_scripts::{api_wrapper, git_helper, kube_plugin, CONFLUENCE_API, GITHUB_API, GITLAB_API, GIT_HELPER, GRAFANA_API, JIRA_API, KUBE_PLUGIN};
 use super::session_kubeconfig::{exec_credential, session_kubeconfig, SessionCluster};
 use super::{CredentialPurpose, HandOut, Refusal, SessionEnvironment};
 
@@ -133,8 +133,8 @@ impl CredentialBroker {
                 let credential = GrafanaCredential::from_stored(&stored).map_err(|failure| (Refusal::Failed, failure.message().to_string()))?;
                 Ok(Secret::new(format!("Authorization: {}\n", credential.authorization().expose())))
             }
-            CredentialPurpose::Jira => {
-                let credential = JiraCredential::from_stored(&stored).map_err(|failure| (Refusal::Failed, failure.message().to_string()))?;
+            CredentialPurpose::Jira | CredentialPurpose::Confluence => {
+                let credential = AtlassianCredential::from_stored(&stored).map_err(|failure| (Refusal::Failed, failure.message().to_string()))?;
                 Ok(Secret::new(format!("Authorization: {}\n", credential.authorization().expose())))
             }
         }
@@ -179,6 +179,10 @@ impl CredentialBroker {
         let jiras: Vec<&TerminalConnection> = connections.iter().filter(|connection| connection.kind == ConnectionKind::Jira).collect();
         if !jiras.is_empty() {
             write_script(&folder.join(JIRA_API.name), &api_wrapper(&JIRA_API, &endpoint, &jiras))?;
+        }
+        let confluences: Vec<&TerminalConnection> = connections.iter().filter(|connection| connection.kind == ConnectionKind::Confluence).collect();
+        if !confluences.is_empty() {
+            write_script(&folder.join(CONFLUENCE_API.name), &api_wrapper(&CONFLUENCE_API, &endpoint, &confluences))?;
         }
         let grafanas: Vec<&TerminalConnection> = connections.iter().filter(|connection| connection.kind == ConnectionKind::Grafana).collect();
         if !grafanas.is_empty() {

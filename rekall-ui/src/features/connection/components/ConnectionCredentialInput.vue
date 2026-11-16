@@ -7,7 +7,7 @@ const props = defineProps<{ modelValue: CredentialDraft; id?: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: CredentialDraft] }>()
 
 const JIRA_DEPLOYMENTS: readonly { value: JiraDeployment; label: string }[] = [
-  { value: 'CLOUD', label: 'Jira Cloud' },
+  { value: 'CLOUD', label: 'Atlassian Cloud' },
   { value: 'DATA_CENTER', label: 'Data Center' }
 ]
 
@@ -23,7 +23,7 @@ const TOKEN_PLACEHOLDER: Readonly<Record<'GITLAB' | 'GITHUB', string>> = {
 
 function setToken(token: string): void {
   if (props.modelValue.kind === 'GITLAB' || props.modelValue.kind === 'GITHUB') emit('update:modelValue', { kind: props.modelValue.kind, token })
-  if (props.modelValue.kind === 'JIRA' || props.modelValue.kind === 'GRAFANA') emit('update:modelValue', { ...props.modelValue, token })
+  if (props.modelValue.kind === 'JIRA' || props.modelValue.kind === 'CONFLUENCE' || props.modelValue.kind === 'GRAFANA') emit('update:modelValue', { ...props.modelValue, token })
 }
 
 function setGrafanaUser(user: string): void {
@@ -35,11 +35,11 @@ function setGrafanaAuthentication(authentication: GrafanaAuthentication): void {
 }
 
 function setEmail(email: string): void {
-  if (props.modelValue.kind === 'JIRA') emit('update:modelValue', { ...props.modelValue, email })
+  if (props.modelValue.kind === 'JIRA' || props.modelValue.kind === 'CONFLUENCE') emit('update:modelValue', { ...props.modelValue, email })
 }
 
 function setDeployment(deployment: JiraDeployment): void {
-  if (props.modelValue.kind === 'JIRA') emit('update:modelValue', { ...props.modelValue, deployment })
+  if (props.modelValue.kind === 'JIRA' || props.modelValue.kind === 'CONFLUENCE') emit('update:modelValue', { ...props.modelValue, deployment })
 }
 </script>
 
@@ -97,8 +97,8 @@ function setDeployment(deployment: JiraDeployment): void {
       @input="setToken(($event.target as HTMLInputElement).value)"
     />
   </div>
-  <div v-else-if="modelValue.kind === 'JIRA'" class="flex flex-col gap-2">
-    <div class="flex gap-0.5 self-start rounded-control bg-surface p-0.5" role="group" aria-label="Jira deployment">
+  <div v-else-if="modelValue.kind === 'JIRA' || modelValue.kind === 'CONFLUENCE'" class="flex flex-col gap-2">
+    <div class="flex gap-0.5 self-start rounded-control bg-surface p-0.5" role="group" aria-label="Atlassian deployment">
       <button
         v-for="option in JIRA_DEPLOYMENTS"
         :key="option.value"
@@ -139,7 +139,7 @@ function setDeployment(deployment: JiraDeployment): void {
     />
   </div>
   <KubeconfigImport
-    v-else
+    v-else-if="modelValue.kind === 'KUBERNETES'"
     :model-value="modelValue"
     @update:model-value="emit('update:modelValue', $event)"
   />

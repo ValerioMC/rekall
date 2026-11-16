@@ -22,6 +22,7 @@ const GLYPH: Readonly<Record<ReferenceIcon, Glyph>> = {
   GITHUB: { path: CONNECTION_KIND_PATH.GITHUB, outline: false },
   KUBERNETES: { path: CONNECTION_KIND_PATH.KUBERNETES, outline: false },
   JIRA: { path: CONNECTION_KIND_PATH.JIRA, outline: false },
+  CONFLUENCE: { path: CONNECTION_KIND_PATH.CONFLUENCE, outline: false },
   GRAFANA: { path: CONNECTION_KIND_PATH.GRAFANA, outline: false }
 }
 

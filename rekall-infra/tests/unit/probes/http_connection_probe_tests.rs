@@ -118,14 +118,14 @@ fn jira_site() -> Router {
     )
 }
 
-fn direct(url: String) -> JiraSite {
-    JiraSite { url, proxy_url: None }
+fn direct(url: String) -> AtlassianSite {
+    AtlassianSite { url, proxy_url: None }
 }
 
 #[tokio::test]
 async fn a_good_jira_credential_is_accepted_and_names_its_account() {
     let site = direct(serve(jira_site()).await);
-    let credential = JiraCredential::cloud("ada@example.com", Secret::new("atl-good")).unwrap();
+    let credential = AtlassianCredential::cloud("ada@example.com", Secret::new("atl-good")).unwrap();
     let outcome = HttpConnectionProbe::new().jira(&site, &credential).await;
     assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("Ada Lovelace".into()), version: None });
 }
@@ -133,14 +133,14 @@ async fn a_good_jira_credential_is_accepted_and_names_its_account() {
 #[tokio::test]
 async fn a_bad_jira_credential_is_rejected() {
     let site = direct(serve(jira_site()).await);
-    let credential = JiraCredential::cloud("ada@example.com", Secret::new("atl-bad")).unwrap();
+    let credential = AtlassianCredential::cloud("ada@example.com", Secret::new("atl-bad")).unwrap();
     assert_eq!(HttpConnectionProbe::new().jira(&site, &credential).await, ProbeOutcome::Rejected { status: 401 });
 }
 
 #[tokio::test]
 async fn a_jira_site_behind_a_proxy_is_asked_through_it() {
-    let site = JiraSite { url: "http://jira.invalid".into(), proxy_url: Some(serve(jira_site()).await) };
-    let credential = JiraCredential::cloud("ada@example.com", Secret::new("atl-good")).unwrap();
+    let site = AtlassianSite { url: "http://jira.invalid".into(), proxy_url: Some(serve(jira_site()).await) };
+    let credential = AtlassianCredential::cloud("ada@example.com", Secret::new("atl-good")).unwrap();
     let outcome = HttpConnectionProbe::new().jira(&site, &credential).await;
     assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("Ada Lovelace".into()), version: None });
 }
@@ -157,7 +157,7 @@ async fn a_data_center_personal_access_token_is_checked_through_v2_and_names_its
         ))
         .await,
     );
-    let credential = JiraCredential::data_center(Secret::new("NjQ0Mj")).unwrap();
+    let credential = AtlassianCredential::data_center(Secret::new("NjQ0Mj")).unwrap();
     let outcome = HttpConnectionProbe::new().jira(&site, &credential).await;
     assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("vcasale".into()), version: None });
 }
@@ -260,4 +260,23 @@ async fn a_grafana_instance_with_a_self_signed_certificate_is_unreachable_until_
     let trusting = GrafanaInstance { accept_self_signed: true, ..instance(&base) };
     let accepted = HttpConnectionProbe::new().grafana(&trusting, &service_account("glsa-good")).await;
     assert_eq!(accepted, ProbeOutcome::Accepted { identity: Some("sa-rekall".into()), version: None });
+}
+
+/// Confluence Data Center serves `/rest/api/user/current` and names a user by display name.
+#[tokio::test]
+async fn a_confluence_personal_access_token_is_checked_and_names_its_user_and_a_wrong_one_is_rejected() {
+    let site = direct(
+        serve(Router::new().route(
+            "/rest/api/user/current",
+            get(|headers: HeaderMap| async move {
+                if bearer(&headers) == Some("Bearer NjQ0Mj".to_string()) { Ok(Json(json!({ "displayName": "Ada Lovelace", "username": "ada" }))) } else { Err(AxumStatus::UNAUTHORIZED) }
+            }),
+        ))
+        .await,
+    );
+    let accepted = AtlassianCredential::data_center(Secret::new("NjQ0Mj")).unwrap();
+    let wrong = AtlassianCredential::data_center(Secret::new("wrong")).unwrap();
+
+    assert_eq!(HttpConnectionProbe::new().confluence(&site, &accepted).await, ProbeOutcome::Accepted { identity: Some("Ada Lovelace".into()), version: None });
+    assert_eq!(HttpConnectionProbe::new().confluence(&site, &wrong).await, ProbeOutcome::Rejected { status: 401 });
 }

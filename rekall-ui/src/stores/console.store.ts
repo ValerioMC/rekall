@@ -7,6 +7,7 @@ import { useGraphAttach } from '../features/graph/store/useGraphAttach'
 import { useConsoleNavigation } from './console/useConsoleNavigation'
 import { useConsoleRefreshes } from './console/useConsoleRefreshes'
 import { useConsoleView } from './console/useConsoleView'
+import { useConfluenceImport } from '../features/connection/store/useConfluenceImport'
 import { useJiraImport } from '../features/connection/store/useJiraImport'
 import { useNoteWrites } from '../features/notes/store/useNoteWrites'
 import { useProjectWrites } from '../features/catalog/store/useProjectWrites'
@@ -47,6 +48,7 @@ export const useConsoleStore = defineStore('console', () => {
   const commitReferences = useCommitReferences(state)
   const skills = useSkillAssignments(state)
   const jiraImport = useJiraImport(state, refreshes)
+  const confluenceImport = useConfluenceImport(refreshes)
   const vulnerabilityFix = useVulnerabilityFix(state, refreshes)
 
   return {
@@ -82,6 +84,7 @@ export const useConsoleStore = defineStore('console', () => {
     ...commitReferences,
     ...skills,
     ...jiraImport,
+    ...confluenceImport,
     ...vulnerabilityFix
   }
 })

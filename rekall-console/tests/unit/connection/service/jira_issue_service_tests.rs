@@ -7,24 +7,34 @@ use rekall_core::connection::{InMemorySecretStore, Secret};
 use rekall_core::{EventBus, Services};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
+use rekall_core::connection::{AtlassianCredential, AtlassianFailure, AtlassianSite, JiraProject};
+
 use super::*;
 
 /// Answers every search with the issues it holds, and remembers the queries it was asked.
 struct FakeJira {
     issues: Vec<JiraIssue>,
-    failure: Option<JiraFailure>,
+    failure: Option<AtlassianFailure>,
     asked: Mutex<Vec<String>>,
 }
 
 #[async_trait]
 impl JiraIssues for FakeJira {
-    async fn search(&self, _site: &JiraSite, credential: &JiraCredential, jql: &str, _limit: u16) -> std::result::Result<Vec<JiraIssue>, JiraFailure> {
+    async fn search(&self, _site: &AtlassianSite, credential: &AtlassianCredential, jql: &str, _limit: u16) -> std::result::Result<Vec<JiraIssue>, AtlassianFailure> {
         assert_eq!(credential.email(), Some("ada@example.com"));
         self.asked.lock().unwrap().push(jql.to_string());
         match &self.failure {
             Some(failure) => Err(failure.clone()),
             None => Ok(self.issues.clone()),
         }
+    }
+
+    async fn projects(&self, _site: &AtlassianSite, _credential: &AtlassianCredential, _query: &str, _limit: u16) -> std::result::Result<Vec<JiraProject>, AtlassianFailure> {
+        Ok(Vec::new())
+    }
+
+    async fn project(&self, _site: &AtlassianSite, _credential: &AtlassianCredential, _key: &str) -> std::result::Result<Option<JiraProject>, AtlassianFailure> {
+        Ok(None)
     }
 }
 
@@ -39,7 +49,7 @@ fn issue(key: &str, summary: &str) -> JiraIssue {
     JiraIssue { key: key.into(), summary: summary.into(), status: Some("To Do".into()), issue_type: Some("Story".into()), description: None }
 }
 
-async fn world(kind: ConnectionKind, target: Option<&str>, failure: Option<JiraFailure>) -> World {
+async fn world(kind: ConnectionKind, target: Option<&str>, failure: Option<AtlassianFailure>) -> World {
     let database = rekall_store::open_in_memory().await.unwrap();
     let ctx = Ctx::new(database.conn.clone(), EventBus::new());
     let now = Instant::now();
@@ -116,7 +126,7 @@ async fn a_binding_without_a_project_key_or_of_another_kind_is_refused_before_ji
 
 #[tokio::test]
 async fn a_credential_jira_rejects_is_answered_as_a_conflict_and_nothing_is_created() {
-    let world = world(ConnectionKind::Jira, Some("ENG"), Some(JiraFailure::Rejected { status: 401 })).await;
+    let world = world(ConnectionKind::Jira, Some("ENG"), Some(AtlassianFailure::Rejected { status: 401 })).await;
 
     let error = world.service.import(world.project_id, world.binding_id, keys(&["ENG-1"])).await.unwrap_err();
 

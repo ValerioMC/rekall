@@ -12,6 +12,7 @@ import type {
   ConnectionRemoved,
   CredentialDraft,
   JiraIssue,
+  TargetSuggestion,
   KubeContextOption,
   ProjectConnection,
   ProjectConnectionInput,
@@ -148,6 +149,11 @@ export const useConnectionsStore = defineStore('connections', () => {
   /** The open issues a project's Jira binding reaches; read fresh each time, never kept. */
   async function jiraIssues(projectId: ProjectId, bindingId: ProjectConnectionId): Promise<JiraIssue[]> {
     return await api.fetchJiraIssues(projectId, bindingId)
+  }
+
+  /** The projects or spaces of the site whose key or name holds the query; read fresh each time, never kept. */
+  async function targetSuggestions(id: ConnectionId, query: string): Promise<TargetSuggestion[]> {
+    return await api.fetchTargetSuggestions(id, query)
   }
 
   async function check(id: ConnectionId): Promise<ConnectionCheck> {
@@ -302,6 +308,7 @@ export const useConnectionsStore = defineStore('connections', () => {
     remove,
     check,
     jiraIssues,
+    targetSuggestions,
     loadAccess,
     loadMoreAccess,
     previewKubeconfig,

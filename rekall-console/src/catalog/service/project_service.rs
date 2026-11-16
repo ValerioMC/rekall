@@ -10,7 +10,7 @@ use rekall_core::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use crate::catalog::Snapshot;
-use crate::catalog::{ProjectRepositoryView, ProjectCommand, ProjectView};
+use crate::catalog::{ProjectRepositoryView, ProjectCommand, ProjectTextsWritten, ProjectView};
 
 const DEFAULT_ICON: &str = "folder";
 
@@ -95,6 +95,17 @@ impl ProjectService {
         })
     }
 
+    /// Sets the description and the blueprint of an imported source. A text a person already wrote
+    /// stays unless `replace`; a text the source has none of leaves the project's as it is.
+    pub async fn fill_texts_in(&self, tx: &Tx, id: Id, description: Option<String>, blueprint: Option<String>, replace: bool) -> Result<ProjectTextsWritten> {
+        let before = repo::project::require(tx.db(), id).await?;
+        let mut project = before.clone();
+        let description_written = take_text(&mut project.description, description, replace);
+        let blueprint_written = take_text(&mut project.blueprint_markdown, blueprint, replace);
+        repo::update_if_changed(tx.db(), &before, project, self.ctx.now()).await?;
+        Ok(ProjectTextsWritten { description: description_written, blueprint: blueprint_written })
+    }
+
     /// The folder as git sees it, plus whether the project auto-commits there.
     pub async fn repository(&self, id: Id) -> Result<ProjectRepositoryView> {
         in_read!(&self.ctx, |tx| {
@@ -149,6 +160,17 @@ impl ProjectService {
     /// Auto-commit only means something in a git repository: asked for anywhere else, it stays off.
     async fn auto_commit_allowed(&self, requested: Option<bool>, repo_folder: Option<&str>) -> bool {
         requested == Some(true) && self.repositories.is_repository(repo_folder).await
+    }
+}
+
+fn take_text(current: &mut Option<String>, offered: Option<String>, replace: bool) -> bool {
+    let has_text = current.as_deref().is_some_and(|text| !jstr::is_blank(text));
+    match offered {
+        Some(text) if replace || !has_text => {
+            *current = Some(text);
+            true
+        }
+        _ => false,
     }
 }
 

@@ -3,7 +3,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use reqwest::header::{HeaderName, HeaderValue, ACCEPT, AUTHORIZATION, USER_AGENT};
 use reqwest::{Method, Response, StatusCode};
-use rekall_core::connection::{github_api_root, JiraCredential, JiraDeployment, TaskTracker, TrackerEndpoint, TrackerFailure, TrackerIssue, TrackerLink};
+use rekall_core::connection::{github_api_root, AtlassianCredential, AtlassianDeployment, TaskTracker, TrackerEndpoint, TrackerFailure, TrackerIssue, TrackerLink};
 use rekall_store::ConnectionKind;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -187,7 +187,7 @@ fn create_call(endpoint: &TrackerEndpoint, issue: &TrackerIssue, assignee: Optio
             }
             Ok(Call { method: Method::POST, url: format!("{}/repos/{}/issues", github_api_root(site), endpoint.location), body, signature })
         }
-        ConnectionKind::Kubernetes | ConnectionKind::Grafana => Err(not_a_task_manager()),
+        ConnectionKind::Kubernetes | ConnectionKind::Grafana | ConnectionKind::Confluence => Err(not_a_task_manager()),
     }
 }
 
@@ -198,7 +198,7 @@ fn current_user_call(endpoint: &TrackerEndpoint) -> Result<Call, TrackerFailure>
         ConnectionKind::Jira => format!("{site}{}/myself", jira_api(jira_deployment(endpoint)?)),
         ConnectionKind::Gitlab => format!("{site}/api/v4/user"),
         ConnectionKind::Github => format!("{}/user", github_api_root(site)),
-        ConnectionKind::Kubernetes | ConnectionKind::Grafana => return Err(not_a_task_manager()),
+        ConnectionKind::Kubernetes | ConnectionKind::Grafana | ConnectionKind::Confluence => return Err(not_a_task_manager()),
     };
     Ok(Call { method: Method::GET, url, body: Value::Null, signature })
 }
@@ -209,10 +209,10 @@ fn assignee_in(endpoint: &TrackerEndpoint, user: &Value) -> Option<Value> {
         ConnectionKind::Github => user.get("login").map(|login| json!([login])),
         ConnectionKind::Gitlab => user.get("id").map(|id| json!([id])),
         ConnectionKind::Jira => match jira_deployment(endpoint).ok()? {
-            JiraDeployment::Cloud => user.get("accountId").map(|account| json!({ "accountId": account })),
-            JiraDeployment::DataCenter => user.get("name").map(|name| json!({ "name": name })),
+            AtlassianDeployment::Cloud => user.get("accountId").map(|account| json!({ "accountId": account })),
+            AtlassianDeployment::DataCenter => user.get("name").map(|name| json!({ "name": name })),
         },
-        ConnectionKind::Kubernetes | ConnectionKind::Grafana => None,
+        ConnectionKind::Kubernetes | ConnectionKind::Grafana | ConnectionKind::Confluence => None,
     }
 }
 
@@ -222,7 +222,7 @@ fn delete_call(endpoint: &TrackerEndpoint, key: &str) -> Result<Call, TrackerFai
     let url = match endpoint.kind {
         ConnectionKind::Jira => format!("{site}{}/issue/{key}?deleteSubtasks=true", jira_api(jira_deployment(endpoint)?)),
         ConnectionKind::Gitlab => format!("{site}/api/v4/projects/{}/issues/{key}", gitlab_project(&endpoint.location)),
-        ConnectionKind::Github | ConnectionKind::Kubernetes | ConnectionKind::Grafana => return Err(not_a_task_manager()),
+        ConnectionKind::Github | ConnectionKind::Kubernetes | ConnectionKind::Grafana | ConnectionKind::Confluence => return Err(not_a_task_manager()),
     };
     Ok(Call { method: Method::DELETE, url, body: Value::Null, signature })
 }
@@ -256,7 +256,7 @@ fn update_call(endpoint: &TrackerEndpoint, key: &str, issue: &TrackerIssue) -> R
             body: json!({ "title": issue.title, "body": issue.description }),
             signature,
         }),
-        ConnectionKind::Kubernetes | ConnectionKind::Grafana => Err(not_a_task_manager()),
+        ConnectionKind::Kubernetes | ConnectionKind::Grafana | ConnectionKind::Confluence => Err(not_a_task_manager()),
     }
 }
 
@@ -270,7 +270,7 @@ async fn link_of(endpoint: &TrackerEndpoint, response: Response) -> Result<Track
         }
         ConnectionKind::Gitlab => response.json::<GitlabIssue>().await.map(|issue| TrackerLink { key: issue.iid.to_string(), url: issue.web_url }).map_err(unreadable),
         ConnectionKind::Github => response.json::<GithubIssue>().await.map(|issue| TrackerLink { key: issue.number.to_string(), url: issue.html_url }).map_err(unreadable),
-        ConnectionKind::Kubernetes | ConnectionKind::Grafana => Err(not_a_task_manager()),
+        ConnectionKind::Kubernetes | ConnectionKind::Grafana | ConnectionKind::Confluence => Err(not_a_task_manager()),
     }
 }
 
@@ -279,34 +279,34 @@ pub(super) fn signature_of(endpoint: &TrackerEndpoint) -> Result<(HeaderName, He
         ConnectionKind::Gitlab => (HeaderName::from_static("private-token"), endpoint.credential.expose().to_string()),
         ConnectionKind::Github => (AUTHORIZATION, format!("Bearer {}", endpoint.credential.expose())),
         ConnectionKind::Jira => (AUTHORIZATION, jira_credential(endpoint)?.authorization().expose().to_string()),
-        ConnectionKind::Kubernetes | ConnectionKind::Grafana => return Err(not_a_task_manager()),
+        ConnectionKind::Kubernetes | ConnectionKind::Grafana | ConnectionKind::Confluence => return Err(not_a_task_manager()),
     };
     let mut value = HeaderValue::from_str(&text).map_err(|_| TrackerFailure::Failed { reason: "the stored credential holds characters a header cannot carry".into() })?;
     value.set_sensitive(true);
     Ok((name, value))
 }
 
-fn jira_credential(endpoint: &TrackerEndpoint) -> Result<JiraCredential, TrackerFailure> {
-    JiraCredential::from_stored(&endpoint.credential).map_err(|failure| TrackerFailure::Failed { reason: failure.message().to_string() })
+fn jira_credential(endpoint: &TrackerEndpoint) -> Result<AtlassianCredential, TrackerFailure> {
+    AtlassianCredential::from_stored(&endpoint.credential).map_err(|failure| TrackerFailure::Failed { reason: failure.message().to_string() })
 }
 
-fn jira_deployment(endpoint: &TrackerEndpoint) -> Result<JiraDeployment, TrackerFailure> {
+fn jira_deployment(endpoint: &TrackerEndpoint) -> Result<AtlassianDeployment, TrackerFailure> {
     jira_credential(endpoint).map(|credential| credential.deployment())
 }
 
-fn jira_api(deployment: JiraDeployment) -> &'static str {
+fn jira_api(deployment: AtlassianDeployment) -> &'static str {
     match deployment {
-        JiraDeployment::Cloud => "/rest/api/3",
-        JiraDeployment::DataCenter => "/rest/api/2",
+        AtlassianDeployment::Cloud => "/rest/api/3",
+        AtlassianDeployment::DataCenter => "/rest/api/2",
     }
 }
 
 /// Cloud's v3 API takes a description as Atlassian's document tree, one paragraph per block of
 /// text; Data Center's v2 takes the text as it is.
-fn jira_description(deployment: JiraDeployment, markdown: &str) -> Value {
+fn jira_description(deployment: AtlassianDeployment, markdown: &str) -> Value {
     match deployment {
-        JiraDeployment::DataCenter => Value::String(markdown.to_string()),
-        JiraDeployment::Cloud => {
+        AtlassianDeployment::DataCenter => Value::String(markdown.to_string()),
+        AtlassianDeployment::Cloud => {
             let paragraphs: Vec<Value> = markdown
                 .split("\n\n")
                 .map(str::trim)

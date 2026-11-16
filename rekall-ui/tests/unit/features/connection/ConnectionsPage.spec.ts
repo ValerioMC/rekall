@@ -141,7 +141,7 @@ describe('the Connections hub', () => {
     expect(page.get('[data-testid="connection-not-found"]').text()).toContain('no longer exists')
   })
 
-  it('starts an empty workspace with the five kinds, and opens the sheet on the one picked', async () => {
+  it('starts an empty workspace with the six kinds, and opens the sheet on the one picked', async () => {
     vi.mocked(api.fetchConnections).mockResolvedValue([])
     const page = await render()
 
@@ -150,6 +150,7 @@ describe('the Connections hub', () => {
       'start-GITLAB',
       'start-GITHUB',
       'start-JIRA',
+      'start-CONFLUENCE',
       'start-GRAFANA'
     ])
     await page.get('[data-testid="start-GITHUB"]').trigger('click')

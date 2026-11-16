@@ -54,6 +54,7 @@ describe('ConnectionSheet', () => {
       'kind-GITLAB',
       'kind-GITHUB',
       'kind-JIRA',
+      'kind-CONFLUENCE',
       'kind-GRAFANA'
     ])
     wrapper.unmount()

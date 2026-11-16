@@ -28,7 +28,7 @@ use tracing::warn;
 
 use crate::config::AppConfig;
 
-use super::instance_parts::{advisory_feed_of, assemble_router, check_runner_of, connection_probe_of, jira_issues_of, open_sessions, release_feed_of, secrets_of, start_queue, task_tracker_of, usage_of, Sessions};
+use super::instance_parts::{advisory_feed_of, assemble_router, check_runner_of, confluence_spaces_of, connection_probe_of, jira_issues_of, open_sessions, release_feed_of, secrets_of, start_queue, task_tracker_of, usage_of, Sessions};
 use super::StartOptions;
 
 /// How often open timers are checked against [`IDLE_AFTER`].
@@ -111,6 +111,7 @@ impl Instance {
         let ports = ApiPorts {
             secrets: secrets.clone(),
             jira: jira_issues_of(options),
+            confluence: confluence_spaces_of(options),
             terminals: hosts,
             terminal_pipe: pty_terminals,
             chat_pipe: chats.clone(),

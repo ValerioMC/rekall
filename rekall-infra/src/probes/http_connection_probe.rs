@@ -5,10 +5,11 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use reqwest::header::{HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, RequestBuilder, Response, StatusCode};
-use rekall_core::connection::{github_api_root, GrafanaCredential, GrafanaInstance, JiraCredential, JiraDeployment, JiraSite, KubeAccess, KubeCredential, Secret};
+use rekall_core::connection::{github_api_root, GrafanaCredential, GrafanaInstance, AtlassianCredential, AtlassianDeployment, AtlassianSite, KubeAccess, KubeCredential, Secret};
 use serde::Deserialize;
 use serde_json::json;
 
+use crate::confluence::rest_root;
 use crate::jira::{authorization, jira_client};
 use rekall_core::connection::{ConnectionProbe, ProbeOutcome};
 
@@ -43,6 +44,16 @@ struct JiraUser {
 }
 
 #[derive(Deserialize)]
+struct ConfluenceUser {
+    #[serde(rename = "displayName")]
+    display_name: Option<String>,
+    #[serde(rename = "publicName")]
+    public_name: Option<String>,
+    /// Data Center only.
+    username: Option<String>,
+}
+
+#[derive(Deserialize)]
 struct KubeVersion {
     #[serde(rename = "gitVersion")]
     git_version: Option<String>,
@@ -66,7 +77,7 @@ struct UserInfo {
 
 /// The probe over HTTPS with `reqwest`. A cluster is trusted through the CA its kubeconfig names,
 /// reached through its `proxy-url` when it has one, and a client certificate is the TLS identity. A
-/// Jira site or a Grafana instance is reached through the connection's proxy when it names one.
+/// Jira or Confluence site or a Grafana instance is reached through the connection's proxy when it names one.
 pub struct HttpConnectionProbe {
     timeout: Duration,
 }
@@ -120,7 +131,7 @@ impl ConnectionProbe for HttpConnectionProbe {
         }
     }
 
-    async fn jira(&self, site: &JiraSite, credential: &JiraCredential) -> ProbeOutcome {
+    async fn jira(&self, site: &AtlassianSite, credential: &AtlassianCredential) -> ProbeOutcome {
         let client = match jira_client(site, self.timeout) {
             Ok(client) => client,
             Err(reason) => return ProbeOutcome::Unreachable { reason },
@@ -134,6 +145,25 @@ impl ConnectionProbe for HttpConnectionProbe {
             Ok(response) => {
                 let user = response.json::<JiraUser>().await.ok();
                 ProbeOutcome::Accepted { identity: user.and_then(|user| user.display_name.or(user.email_address).or(user.name)), version: None }
+            }
+            Err(outcome) => outcome,
+        }
+    }
+
+    async fn confluence(&self, site: &AtlassianSite, credential: &AtlassianCredential) -> ProbeOutcome {
+        let client = match jira_client(site, self.timeout) {
+            Ok(client) => client,
+            Err(reason) => return ProbeOutcome::Unreachable { reason },
+        };
+        let header = match authorization(credential) {
+            Ok(header) => header,
+            Err(_) => return ProbeOutcome::Unreachable { reason: "the stored credential holds characters a header cannot carry".into() },
+        };
+        let answer = client.get(format!("{}/user/current", rest_root(site, credential.deployment()))).header(AUTHORIZATION, header).send().await;
+        match accepted(answer).await {
+            Ok(response) => {
+                let user = response.json::<ConfluenceUser>().await.ok();
+                ProbeOutcome::Accepted { identity: user.and_then(|user| user.display_name.or(user.public_name).or(user.username)), version: None }
             }
             Err(outcome) => outcome,
         }
@@ -172,10 +202,10 @@ impl ConnectionProbe for HttpConnectionProbe {
     }
 }
 
-fn jira_myself(deployment: JiraDeployment) -> &'static str {
+fn jira_myself(deployment: AtlassianDeployment) -> &'static str {
     match deployment {
-        JiraDeployment::Cloud => JIRA_CLOUD_MYSELF,
-        JiraDeployment::DataCenter => JIRA_DATA_CENTER_MYSELF,
+        AtlassianDeployment::Cloud => JIRA_CLOUD_MYSELF,
+        AtlassianDeployment::DataCenter => JIRA_DATA_CENTER_MYSELF,
     }
 }
 

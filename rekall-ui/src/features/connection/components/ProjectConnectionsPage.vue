@@ -6,6 +6,7 @@ import ConnectionKindIcon from '@/features/connection/components/ConnectionKindI
 import ConnectionOption from '@/features/connection/components/ConnectionOption.vue'
 import ConnectionSheet from '@/features/connection/components/ConnectionSheet.vue'
 import ConnectionTrunk from '@/features/connection/components/ConnectionTrunk.vue'
+import ConfluenceImportDialog from '@/features/connection/components/ConfluenceImportDialog.vue'
 import JiraImportDialog from '@/features/connection/components/JiraImportDialog.vue'
 import RepositoryDiscoveryResult from '@/features/connection/components/RepositoryDiscoveryResult.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
@@ -46,6 +47,7 @@ const discovery = ref<RepositoryDiscovery | null>(null)
 const query = ref('')
 const creating = ref(false)
 const importing = ref<ProjectConnection | null>(null)
+const filling = ref<ProjectConnection | null>(null)
 const returnTo = computed(() => `/projects/${props.project.id}`)
 const companies = computed(() => consoleStore.companies.map((company) => ({ id: company.id, name: company.name })))
 const hubQuery = computed(() => ({ company: props.project.companyId, returnTo: returnTo.value }))
@@ -177,6 +179,7 @@ watch(
               @save="save"
               @unbind="unbind"
               @import-issues="importing = $event"
+              @fill-project="filling = $event"
             />
           </div>
         </section>
@@ -203,7 +206,7 @@ watch(
         </div>
       </div>
       <p v-else class="max-w-[60ch] text-small leading-relaxed text-text-subtle" data-testid="connections-empty">
-        No connection used yet. A session on this project reaches only the clusters, GitLab instances, GitHub servers, Jira sites and Grafana instances
+        No connection used yet. A session on this project reaches only the clusters, GitLab instances, GitHub servers, Jira and Confluence sites and Grafana instances
         bound here.
       </p>
 
@@ -239,6 +242,9 @@ watch(
     </Transition>
     <Transition name="dialog">
       <JiraImportDialog v-if="importing" :binding="importing" @close="importing = null" />
+    </Transition>
+    <Transition name="dialog">
+      <ConfluenceImportDialog v-if="filling" :binding="filling" @close="filling = null" />
     </Transition>
   </section>
 </template>

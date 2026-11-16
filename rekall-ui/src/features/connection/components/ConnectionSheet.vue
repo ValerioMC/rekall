@@ -205,7 +205,7 @@ onMounted(async () => {
         v-if="takesProxy"
         v-slot="{ fieldId, describedBy }"
         label="Proxy URL"
-        hint="Optional. Check, the terminal helper and, on Jira, the issue import all reach the site through it."
+        hint="Optional. Check, the terminal helper and, on Jira, the issue import and, on Confluence, the project import all reach the site through it."
       >
         <AppInput
           :id="fieldId"

@@ -20,7 +20,7 @@ impl ConnectionPullRequestHost {
         match endpoint.kind {
             ConnectionKind::Github => Ok(&self.github),
             ConnectionKind::Gitlab => Ok(&self.gitlab),
-            ConnectionKind::Jira | ConnectionKind::Kubernetes | ConnectionKind::Grafana => {
+            ConnectionKind::Jira | ConnectionKind::Kubernetes | ConnectionKind::Grafana | ConnectionKind::Confluence => {
                 Err(TrackerFailure::Failed { reason: "only a GitHub or GitLab connection takes pull requests".into() })
             }
         }

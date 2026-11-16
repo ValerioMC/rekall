@@ -11,6 +11,7 @@ const BRAND: Readonly<Record<ConnectionKind, string>> = {
   GITHUB: 'text-text',
   KUBERNETES: 'text-brand-kubernetes',
   JIRA: 'text-brand-jira',
+  CONFLUENCE: 'text-brand-confluence',
   GRAFANA: 'text-brand-grafana'
 }
 

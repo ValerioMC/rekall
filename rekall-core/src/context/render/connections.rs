@@ -63,6 +63,15 @@ fn connection_usage(connection: &ConnectionView) -> String {
                 connection.label
             )
         }
+        ConnectionKind::Confluence => {
+            let site = connection.instance_url.as_deref().unwrap_or("its Confluence site");
+            let space = connection.target.as_deref().map_or_else(String::new, |key| format!(", space `{key}` (`:project` in an API path)"));
+            format!(
+                "Confluence at {site}{space}. Read its pages with `rekall-confluence --connection {} <METHOD> <path> [curl options]`, \
+                 a path under `/rest/api` such as `GET /content?spaceKey=:project&expand=body.storage` or `GET /space/:project`",
+                connection.label
+            )
+        }
         ConnectionKind::Grafana => {
             let instance = connection.instance_url.as_deref().unwrap_or("its Grafana instance");
             let folder = connection.target.as_deref().map_or_else(String::new, |uid| format!(", folder `{uid}` (`:project` in an API path)"));

@@ -1,5 +1,6 @@
 import { apiClient, request } from '../../../api/client'
 import {
+  ConfluenceImportSchema,
   ConnectionAccessListSchema,
   ConnectionCheckSchema,
   ConnectionDetailSchema,
@@ -11,10 +12,12 @@ import {
   ProjectConnectionListSchema,
   ProjectConnectionSchema,
   RepositoryDiscoverySchema,
-  RevealedCredentialSchema
+  RevealedCredentialSchema,
+  TargetSuggestionListSchema
 } from './schemas/connection.schema'
 import type {
   Connection,
+  ConfluenceImport,
   ConnectionAccess,
   ConnectionCheck,
   ConnectionDetail,
@@ -26,7 +29,8 @@ import type {
   ProjectConnection,
   ProjectConnectionInput,
   RepositoryDiscovery,
-  RevealedCredential
+  RevealedCredential,
+  TargetSuggestion
 } from '@/features/connection/model/connection'
 import { TaskListSchema } from '@/features/catalog/api/schemas/catalog.schema'
 import type { Task } from '@/features/catalog/model/catalog'
@@ -86,6 +90,7 @@ function credentialBody(draft: CredentialDraft): Record<string, string | null> {
     case 'KUBERNETES':
       return { kubeconfig: draft.kubeconfig, context: draft.context }
     case 'JIRA':
+    case 'CONFLUENCE':
       return draft.deployment === 'CLOUD' ? { email: draft.email.trim(), token: draft.token } : { token: draft.token }
   }
 }
@@ -203,6 +208,32 @@ export async function importJiraIssues(
       await apiClient(`/api/projects/${projectId}/connections/${bindingId}/jira-issues/import`, {
         method: 'POST',
         body: { keys },
+        retry: 0
+      })
+    )
+  )
+}
+
+/** The Jira projects or Confluence spaces of the connection's site whose key or name holds the query. */
+export async function fetchTargetSuggestions(connectionId: ConnectionId, query: string): Promise<TargetSuggestion[]> {
+  return request(async () =>
+    TargetSuggestionListSchema.parse(
+      await apiClient(`/api/connections/${connectionId}/target-suggestions`, { query: { query }, retry: 0 })
+    )
+  )
+}
+
+/** Fills the project's description, blueprint and sections from the Confluence space the binding names. */
+export async function importConfluenceSpace(
+  projectId: ProjectId,
+  bindingId: ProjectConnectionId,
+  replace: boolean
+): Promise<ConfluenceImport> {
+  return request(async () =>
+    ConfluenceImportSchema.parse(
+      await apiClient(`/api/projects/${projectId}/connections/${bindingId}/confluence/import`, {
+        method: 'POST',
+        body: { replace },
         retry: 0
       })
     )

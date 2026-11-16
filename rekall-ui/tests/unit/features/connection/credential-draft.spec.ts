@@ -31,6 +31,17 @@ describe('a Jira credential draft', () => {
   })
 })
 
+describe('a Confluence credential draft', () => {
+  it('is an Atlassian one: Cloud takes an email and a token, Data Center a token alone', () => {
+    expect(emptyDraft('CONFLUENCE')).toEqual({ kind: 'CONFLUENCE', deployment: 'CLOUD', email: '', token: '' })
+    expect(isComplete({ kind: 'CONFLUENCE', deployment: 'CLOUD', email: 'ada@example.com', token: 'atl' })).toBe(true)
+    expect(isComplete({ kind: 'CONFLUENCE', deployment: 'CLOUD', email: '', token: 'atl' })).toBe(false)
+    expect(isComplete({ kind: 'CONFLUENCE', deployment: 'DATA_CENTER', email: '', token: 'NjQ0Mj' })).toBe(true)
+    expect(isStarted({ kind: 'CONFLUENCE', deployment: 'CLOUD', email: 'a', token: '' })).toBe(true)
+    expect(credentialNoun('CONFLUENCE')).toBe('token')
+  })
+})
+
 describe('a GitHub credential draft', () => {
   it('is a token, complete once one is typed', () => {
     expect(emptyDraft('GITHUB')).toEqual({ kind: 'GITHUB', token: '' })

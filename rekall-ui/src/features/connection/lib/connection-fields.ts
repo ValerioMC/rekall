@@ -13,15 +13,17 @@ export const URL_FIELD: Readonly<Record<ConnectionKind, UrlField | null>> = {
   GITHUB: { title: 'Server URL', label: 'GitHub server URL', placeholder: 'https://github.com' },
   KUBERNETES: null,
   JIRA: { title: 'Site URL', label: 'Jira site URL', placeholder: 'https://example.atlassian.net' },
+  CONFLUENCE: { title: 'Site URL', label: 'Confluence site URL', placeholder: 'https://example.atlassian.net/wiki' },
   GRAFANA: { title: 'Instance URL', label: 'Grafana instance URL', placeholder: 'https://grafana.example.com' }
 }
 
-/** Only a Jira site or a Grafana instance is reached through a proxy typed in; a cluster's comes from its kubeconfig. */
+/** Only a Jira or Confluence site or a Grafana instance is reached through a proxy typed in; a cluster's comes from its kubeconfig. */
 export const TAKES_PROXY: Readonly<Record<ConnectionKind, boolean>> = {
   GITLAB: false,
   GITHUB: false,
   KUBERNETES: false,
   JIRA: true,
+  CONFLUENCE: true,
   GRAFANA: true
 }
 
@@ -31,6 +33,7 @@ export const TAKES_SELF_SIGNED: Readonly<Record<ConnectionKind, boolean>> = {
   GITHUB: false,
   KUBERNETES: false,
   JIRA: false,
+  CONFLUENCE: false,
   GRAFANA: true
 }
 
@@ -63,6 +66,11 @@ export const CREDENTIAL_FIELD: Readonly<Record<ConnectionKind, CredentialField>>
     hint: "Optional now. Jira Cloud takes the account's email and an API token, Data Center a personal access token; stored in this machine's credential store.",
     incomplete: 'Type the email and the API token, or the personal access token, or leave them empty to set them later.'
   },
+  CONFLUENCE: {
+    title: 'Sign-in',
+    hint: "Optional now. Confluence Cloud takes the account's email and an API token, Data Center a personal access token; stored in this machine's credential store.",
+    incomplete: 'Type the email and the API token, or the personal access token, or leave them empty to set them later.'
+  },
   GRAFANA: {
     title: 'Sign-in',
     hint: "Optional now. A token of a Grafana service account with the role the sessions need, or the user and password of an account; stored in this machine's credential store.",
@@ -76,6 +84,7 @@ export const ADDRESS_TERM: Readonly<Record<ConnectionKind, string>> = {
   GITHUB: 'Server',
   KUBERNETES: 'Server',
   JIRA: 'Site',
+  CONFLUENCE: 'Site',
   GRAFANA: 'Instance'
 }
 
@@ -91,6 +100,7 @@ export const TARGET_FIELD: Readonly<Record<ConnectionKind, TargetField>> = {
   GITHUB: { name: 'GitHub repository', placeholder: 'owner/repository' },
   KUBERNETES: { name: 'Namespace', placeholder: 'namespace' },
   JIRA: { name: 'Jira project key', placeholder: 'project key, such as ENG' },
+  CONFLUENCE: { name: 'Confluence space key', placeholder: 'space key, such as ENG' },
   GRAFANA: { name: 'Grafana folder UID', placeholder: 'folder UID' }
 }
 
@@ -114,5 +124,6 @@ export const ROOT_PATH_FIELD: Readonly<Record<ConnectionKind, RootPathField | nu
   },
   KUBERNETES: null,
   JIRA: null,
+  CONFLUENCE: null,
   GRAFANA: null
 }

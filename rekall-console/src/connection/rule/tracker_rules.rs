@@ -12,7 +12,7 @@ pub(in crate::connection) fn tracker_location_of(kind: ConnectionKind, target: O
         ConnectionKind::Jira => project_key_of(target),
         ConnectionKind::Gitlab => path_of(target, "GitLab", "group/project"),
         ConnectionKind::Github => path_of(target, "GitHub", "owner/repo").and_then(require_two_segments),
-        ConnectionKind::Kubernetes | ConnectionKind::Grafana => {
+        ConnectionKind::Kubernetes | ConnectionKind::Grafana | ConnectionKind::Confluence => {
             Err(RekallError::illegal("Only a GitLab, GitHub or Jira connection can be a project's task manager."))
         }
     }
