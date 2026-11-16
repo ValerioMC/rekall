@@ -4,6 +4,7 @@ import DiagramViewport from '@/features/diagram/components/canvas/DiagramViewpor
 import GraphDrawing from '@/features/diagram/components/graph/GraphDrawing.vue'
 import NativeDrawing from '@/features/diagram/components/native/NativeDrawing.vue'
 import SequenceDrawing from '@/features/diagram/components/sequence/SequenceDrawing.vue'
+import CodeModal from '@/features/diagram/components/walkthrough/CodeModal.vue'
 import WalkthroughBar from '@/features/diagram/components/walkthrough/WalkthroughBar.vue'
 import WalkthroughCard from '@/features/diagram/components/walkthrough/WalkthroughCard.vue'
 import WalkthroughPulse from '@/features/diagram/components/walkthrough/WalkthroughPulse.vue'
@@ -30,7 +31,8 @@ import type { DiagramId } from '@/model/branded'
 /**
  * One diagram, full bleed: the open sheet on the canvas, the controls floating over its edges,
  * and the picked element's code and calls in a panel that appears only while something is picked.
- * A sequence can also play as a walkthrough, its current step's card in place of that panel.
+ * A sequence can also play as a walkthrough, its current step's card in place of that panel and
+ * the step's implementation in a sheet beside the diagram.
  */
 const props = defineProps<{ diagram: Diagram; siblings: readonly DiagramSummary[]; projectAnchor: string | null; taskAnchor: string | null }>()
 
@@ -40,6 +42,10 @@ const emit = defineEmits<{ back: []; open: [id: DiagramId]; remove: [] }>()
 const PANEL_ROOM = 432
 /** Room the walkthrough's bar takes at the foot of the canvas. */
 const BAR_ROOM = 104
+/** Room the code sheet takes on the right, kept clear while it is open. */
+const CODE_ROOM = 972
+/** The code sheet is the one dialog that lets the walkthrough's keys through. */
+const CODE_SHEET_GATE = 1
 
 const shared = provideDiagramCamera()
 const { isModalOpen } = useModalGate()
@@ -47,6 +53,7 @@ const toolbar = ref<InstanceType<typeof DiagramToolbar> | null>(null)
 const sheetIndex = ref(0)
 const selected = ref<string | null>(null)
 const query = ref('')
+const codeOpen = ref(false)
 
 const sheet = computed(() => props.diagram.sheets[sheetIndex.value] ?? null)
 const { drawing, failure, loading } = useSheetDrawing(sheet)
@@ -71,6 +78,15 @@ const placedBeat = computed(() => {
 function sheetLabel(index: number): string {
   const named = props.diagram.sheets[index]
   return named ? named.title ?? KIND_INFO[named.kind].label : `Sheet ${index + 1}`
+}
+
+function openCode(): void {
+  if (walking.value && walk.beat.value) codeOpen.value = true
+}
+
+function toggleCode(): void {
+  if (codeOpen.value) codeOpen.value = false
+  else openCode()
 }
 
 function changeMode(next: ViewMode): void {
@@ -110,6 +126,15 @@ watch(
   }
 )
 watch(sheetIndex, clearSelection)
+watch(walking, (now) => {
+  if (!now) codeOpen.value = false
+})
+watch(codeOpen, async () => {
+  const key = walk.beat.value?.key
+  if (!key) return
+  await nextTick()
+  reveal(key)
+})
 
 function clearSelection(): void {
   selected.value = null
@@ -163,12 +188,12 @@ watch(
   }
 )
 
-/** Brings an element into the part of the canvas the panel leaves clear. */
+/** Brings an element into the part of the canvas the panel or the code sheet leaves clear. */
 function reveal(key: string): void {
   const box = drawing.value ? elementBoxOf(drawing.value, key) : null
   if (!box) return
   const viewport = shared.viewport.value
-  const clear = { width: Math.max(240, viewport.width - PANEL_ROOM), height: Math.max(200, viewport.height - (walking.value ? BAR_ROOM : 0)) }
+  const clear = { width: Math.max(240, viewport.width - (codeOpen.value ? CODE_ROOM : PANEL_ROOM)), height: Math.max(200, viewport.height - (walking.value ? BAR_ROOM : 0)) }
   if (isInView(shared.camera.value, box, clear, 72)) return
   shared.animateTo(centreOn(shared.camera.value, centre(box), clear))
 }
@@ -183,6 +208,7 @@ function walkthroughAction(event: KeyboardEvent): (() => void) | null {
     ArrowLeft: walk.previous,
     ' ': walk.toggle,
     Enter: walk.stepInto,
+    c: toggleCode,
     Home: walk.restart,
     End: () => walk.goTo(walk.beats.value.length - 1),
     Escape: nested ? walk.stepOut : () => (walk.playing.value = false)
@@ -191,7 +217,7 @@ function walkthroughAction(event: KeyboardEvent): (() => void) | null {
 }
 
 function onKeydown(event: KeyboardEvent): void {
-  if (isModalOpen.value > 0) return
+  if (isModalOpen.value > (codeOpen.value ? CODE_SHEET_GATE : 0)) return
   const target = event.target as HTMLElement | null
   if (target && (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable)) return
   if (event.metaKey || event.ctrlKey || event.altKey) return
@@ -201,6 +227,7 @@ function onKeydown(event: KeyboardEvent): void {
     walked()
     return
   }
+  if (codeOpen.value) return
   const sheets = props.diagram.sheets.length
   const actions: Record<string, () => void> = {
     f: () => fit(true),
@@ -280,13 +307,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       </div>
     </div>
 
-    <div class="pointer-events-none absolute bottom-4 right-4 top-[76px] flex flex-col items-end justify-end gap-3">
+    <div class="pointer-events-none absolute bottom-4 right-4 top-[76px] flex flex-col items-end justify-end gap-3" :inert="codeOpen || undefined">
       <Transition name="pane" mode="out-in">
         <WalkthroughCard
           v-if="walking && walk.beat.value"
           :key="`${sheetIndex}:${walk.beat.value.key}`"
           class="min-h-0 flex-1"
-          :diagram-id="diagram.id"
           :beat="walk.beat.value"
           :position="walk.position.value"
           :count="walk.beats.value.length"
@@ -295,6 +321,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
           :sources="links[walk.beat.value.key] ?? []"
           :opens-title="opensTitle"
           @step-into="walk.stepInto"
+          @open-code="openCode"
         />
         <ElementPanel
           v-else-if="detail"
@@ -312,7 +339,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         />
       </Transition>
     </div>
-    <div v-if="walking" class="pointer-events-none absolute bottom-4 left-4 right-[452px] flex justify-center max-[900px]:right-4">
+    <div v-if="walking" class="pointer-events-none absolute bottom-4 left-4 right-[452px] flex justify-center max-[900px]:right-4" :inert="codeOpen || undefined">
       <WalkthroughBar
         :beats="walk.beats.value"
         :position="walk.position.value"
@@ -331,5 +358,19 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     <div v-else-if="!detail && drawing && drawing.drawing !== 'native'" class="pointer-events-auto absolute bottom-4 right-4">
       <DiagramMinimap :bounds="drawing.bounds" :boxes="minimap" />
     </div>
+
+    <Transition name="slide-over">
+      <CodeModal
+        v-if="codeOpen && walking && walk.beat.value"
+        :diagram-id="diagram.id"
+        :beats="walk.beats.value"
+        :position="walk.position.value"
+        :links="links"
+        :labels="labels"
+        :external="walk.external.value"
+        @close="codeOpen = false"
+        @walk="walk.goTo"
+      />
+    </Transition>
   </div>
 </template>

@@ -655,6 +655,10 @@ async fn a_diagram_goes_in_whole_is_listed_read_back_shows_its_code_and_is_delet
     assert_eq!(excerpt.status, 200, "{}", excerpt.text);
     assert_eq!(excerpt.get("highlightStart"), &json!(3));
     assert_eq!(excerpt.get("language"), &json!("rust"));
+    let whole = app.get(&format!("/api/diagrams/{diagram}/source?file=src/order.rs&start=3&whole=true")).await;
+    assert_eq!(whole.status, 200, "{}", whole.text);
+    assert_eq!(whole.get("highlightStart"), &json!(3));
+    assert_eq!(whole.body.pointer("/lines/0/number"), Some(&json!(1)));
     let escaping = app.get(&format!("/api/diagrams/{diagram}/source?file=../../etc/hosts")).await;
     assert!(escaping.status == 400 || escaping.status == 404, "{}", escaping.text);
 

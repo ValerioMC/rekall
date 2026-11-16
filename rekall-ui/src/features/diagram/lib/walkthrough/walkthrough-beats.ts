@@ -11,6 +11,8 @@ import type { Walkthrough } from '@/features/diagram/model/diagram'
 
 export type BeatMotion = 'call' | 'reply' | 'self'
 
+export const MOTION_LABEL: Readonly<Record<BeatMotion, string>> = { call: 'Call', reply: 'Returns', self: 'Inside' }
+
 export interface WalkthroughBeat {
   readonly key: string
   readonly message: SequenceMessage

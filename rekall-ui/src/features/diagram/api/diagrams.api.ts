@@ -33,3 +33,9 @@ export async function fetchSourceExcerpt(id: DiagramId, source: SourceLocation):
     SourceExcerptSchema.parse(await apiClient(`/api/diagrams/${id}/source`, { query }))
   )
 }
+
+export async function fetchSourceFile(id: DiagramId, file: string): Promise<SourceExcerpt> {
+  return request(async () =>
+    SourceExcerptSchema.parse(await apiClient(`/api/diagrams/${id}/source`, { query: { file, whole: 'true' } }))
+  )
+}
