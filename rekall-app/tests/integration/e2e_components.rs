@@ -150,6 +150,26 @@ async fn scanning_a_projects_folder_makes_a_described_component_of_each_reposito
 }
 
 #[tokio::test]
+async fn scanning_a_repository_of_several_applications_makes_a_component_of_each() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let folder = tempfile::tempdir().unwrap();
+    let backend = folder.path().join("backend");
+    a_repository(&backend, "The backend repository.\n");
+    for (service, manifest) in [("orders", "package.json"), ("billing", "pom.xml")] {
+        std::fs::create_dir_all(backend.join(service)).unwrap();
+        std::fs::write(backend.join(service).join(manifest), if manifest == "package.json" { r#"{ "description": "Takes orders." }"# } else { "<project/>" }).unwrap();
+    }
+    let project_id = app.a_project_in(&acme, "vega", folder.path()).await;
+
+    let scanned = app.post_empty(&format!("/api/projects/{project_id}/components/scan")).await;
+
+    assert_eq!(scanned.status, 200, "{}", scanned.text);
+    let added: Vec<(String, String)> = scanned.get("added").as_array().unwrap().iter().map(|row| (row["name"].as_str().unwrap().into(), row["description"].as_str().unwrap().into())).collect();
+    assert_eq!(added, [("billing".to_string(), String::new()), ("orders".to_string(), "Takes orders.".to_string())]);
+}
+
+#[tokio::test]
 async fn a_project_without_a_folder_cannot_be_scanned() {
     let app = app().await;
     let acme = app.a_company("Acme").await;

@@ -44,7 +44,7 @@ fn collect(folder: &Path, depth: usize, found: &mut Vec<PathBuf>) {
 
 /// The folders to walk into, by name: hidden ones, dependency caches and symbolic links are passed
 /// over. An unreadable folder is logged and walked no further.
-fn subfolders(folder: &Path) -> Vec<PathBuf> {
+pub(super) fn subfolders(folder: &Path) -> Vec<PathBuf> {
     let entries = match std::fs::read_dir(folder) {
         Ok(entries) => entries,
         Err(failure) => {

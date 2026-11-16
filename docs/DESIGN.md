@@ -106,7 +106,7 @@ is found by opening one folder per crate:
 | Domain | Holds |
 |---|---|
 | `catalog` | companies and projects with their logos and icons; in `rekall-console`, `rekall-http` and the UI also the tasks |
-| `component`, `section` | a project's components and its titled pages; a project's folder is scanned for git repositories, each made a component described by its manifest or README (`ComponentScanService`, `rekall-console` only) |
+| `component`, `section` | a project's components and its titled pages; a project's folder is scanned for git repositories, each made a component described by its manifest or README, or one component per application folder when the repository's root has no manifest and its folders hold two or more (`ComponentScanService`, `rekall-console` only) |
 | `adherence` | how closely the work followed the plan: steps accepted at the first pass, steps sent back, deviations and flow visits against their budget, per task and per project; read-only, console and HTTP only |
 | `check` | the commands a person sets to pass before a claim is accepted, for a whole project or one step, and what each run found; the console writes them, no session can |
 | `deviation` | where a task's work departed from its plan, one record per task and step and apart from its notes: a session writes it (`rekall_deviation`, in `rekall-core` and `rekall-mcp`), the console only reads it, and the context carries it in a `<deviations>` block |
