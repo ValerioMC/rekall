@@ -93,6 +93,14 @@ describe('the session kind on a terminal', () => {
     expect(parsed.awaitingPermission).toBe(false)
   })
 
+  it('reads a Confluence connection attached to the terminal', () => {
+    const connection = { connectionId: 'cccccccc-0000-4000-8000-000000000001', label: 'wiki', kind: 'CONFLUENCE', credentialSet: true }
+
+    const parsed = TerminalSchema.parse({ ...view, connections: [connection] })
+
+    expect(parsed.connections[0]!.kind).toBe('CONFLUENCE')
+  })
+
   it('reads a chat session waiting for approval', () => {
     const parsed = TerminalSchema.parse({ ...view, kind: 'CHAT', awaitingPermission: true })
 

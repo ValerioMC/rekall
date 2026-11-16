@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ConnectionKindSchema } from '@/features/connection/api/schemas/connection.schema'
 import { asConnectionId, asProjectId, asTaskId, asTaskStepId, asTerminalId } from '@/model/branded'
 
 export const TerminalSchema = z.object({
@@ -25,7 +26,7 @@ export const TerminalSchema = z.object({
       z.object({
         connectionId: z.string().uuid().transform(asConnectionId),
         label: z.string(),
-        kind: z.enum(['GITLAB', 'GITHUB', 'KUBERNETES', 'JIRA', 'GRAFANA']),
+        kind: ConnectionKindSchema,
         credentialSet: z.boolean()
       })
     )

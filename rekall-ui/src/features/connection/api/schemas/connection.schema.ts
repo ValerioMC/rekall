@@ -1,12 +1,12 @@
 import { z } from 'zod'
 import { asCompanyId, asConnectionId, asProjectConnectionId, asProjectId, asTaskId, asTerminalId } from '@/model/branded'
 
-const KindSchema = z.enum(['GITLAB', 'GITHUB', 'KUBERNETES', 'JIRA', 'CONFLUENCE', 'GRAFANA'])
+export const ConnectionKindSchema = z.enum(['GITLAB', 'GITHUB', 'KUBERNETES', 'JIRA', 'CONFLUENCE', 'GRAFANA'])
 
 export const ConnectionSchema = z.object({
   id: z.string().uuid().transform(asConnectionId),
   companyIds: z.array(z.string().uuid().transform(asCompanyId)),
-  kind: KindSchema,
+  kind: ConnectionKindSchema,
   label: z.string(),
   title: z.string(),
   baseUrl: z.string().nullable(),
@@ -102,7 +102,7 @@ export const ProjectConnectionSchema = z.object({
   id: z.string().uuid().transform(asProjectConnectionId),
   connectionId: z.string().uuid().transform(asConnectionId),
   projectId: z.string().uuid().transform(asProjectId),
-  kind: KindSchema,
+  kind: ConnectionKindSchema,
   label: z.string(),
   title: z.string(),
   baseUrl: z.string().nullable(),
