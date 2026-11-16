@@ -11,7 +11,7 @@ const layout = useWorkLayout()
     <WorkScopeBar />
     <TasksSection chooses-layout />
   </div>
-  <div v-else class="min-h-0 flex-1 overflow-y-auto scroll-gutter-stable" data-testid="work-page">
+  <div v-else class="min-h-0 flex-1 page-scroll" data-testid="work-page">
     <div class="page-column pb-16">
       <WorkScopeBar />
       <TasksSection chooses-layout />

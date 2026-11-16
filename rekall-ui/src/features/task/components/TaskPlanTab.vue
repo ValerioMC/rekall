@@ -306,7 +306,7 @@ function canChooseSession(step: TaskStep): boolean {
           @open-deviation="openDeviation"
           @attached="showAttachedGraph"
         />
-        <div v-else class="min-h-0 flex-1 overflow-y-auto px-8 py-6">
+        <div v-else class="min-h-0 flex-1 page-scroll px-8 py-6">
           <TaskHandedInPanel :task="task" />
         </div>
       </aside>

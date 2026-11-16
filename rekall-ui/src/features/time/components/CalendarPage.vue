@@ -83,7 +83,7 @@ const WEEKDAY_LABELS = weekdayLabels()
 </script>
 
 <template>
-  <div class="min-h-0 flex-1 overflow-y-auto bg-canvas">
+  <div class="min-h-0 flex-1 page-scroll bg-canvas">
     <AppCatalogHeader title="Time" />
 
     <div class="page-column pb-6 pt-4">

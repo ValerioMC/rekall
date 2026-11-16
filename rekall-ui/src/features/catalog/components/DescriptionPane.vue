@@ -102,11 +102,11 @@ defineExpose({ toggleMode })
         @show-revisions="view = 'revisions'"
       />
 
-      <div v-if="view === 'revisions'" class="min-h-0 flex-1 overflow-y-auto p-4" data-testid="revisions-view">
+      <div v-if="view === 'revisions'" class="min-h-0 flex-1 page-scroll p-4" data-testid="revisions-view">
         <RevisionsPanel :entries="selectedTaskFeedback" @discard="discardRevision" />
       </div>
 
-      <div v-else class="min-h-0 flex-1 overflow-y-auto p-4">
+      <div v-else class="min-h-0 flex-1 page-scroll p-4">
         <div class="mx-auto h-full" :style="editorStyle" data-testid="description-editor-column">
           <Transition name="fade-quick" mode="out-in">
             <AppMarkdownEditor

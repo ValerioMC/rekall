@@ -4,6 +4,7 @@ import { loadWorkPreferences, saveWorkPreferences } from '@/common/config/work-p
 import { toggledSet } from '@/common/config/persisted-set'
 import { groupByProject, isInView, matchesQuery, rowsOfView, sortRows, viewCounts } from '@/features/work/lib/work-view-rules'
 import { workLanes } from '@/features/work/lib/work-lanes'
+import { pageOf } from '@/features/work/lib/work-pagination'
 import { workRows } from '@/features/work/lib/work-rows'
 import type { WorkDensity, WorkSort, WorkView } from '@/features/work/model/work-view'
 import { useConsoleStore } from '@/stores/console.store'
@@ -32,6 +33,7 @@ export const useWorkStore = defineStore('work', () => {
   const lingering = ref<ReadonlySet<TaskId>>(new Set())
   const sheetTaskId = ref<TaskId | null>(null)
   const focusedProjectId = ref<ProjectId | null>(null)
+  const page = ref(1)
 
   const tasksInFocus = computed(() =>
     focusedProjectId.value === null
@@ -54,13 +56,19 @@ export const useWorkStore = defineStore('work', () => {
   const finished = computed(() =>
     view.value === 'filed' ? [] : sortRows(rowsOfView(searchedRows.value, 'filed'), sort.value)
   )
+  const paging = computed(() => pageOf(shown.value, page.value))
   const groups = computed(() =>
-    groupByProject(shown.value, finished.value, consoleStore.projects, consoleStore.scopeCompany === null)
+    groupByProject(paging.value.rows, finished.value, consoleStore.projects, consoleStore.scopeCompany === null)
   )
 
   /** Narrows the ledger to one project while its page shows it, whatever the Work scope is; null lets the scope rule again. */
   function focusProject(projectId: ProjectId | null): void {
     focusedProjectId.value = projectId
+    peekedTaskId.value = null
+  }
+
+  function goToPage(requested: number): void {
+    page.value = requested
     peekedTaskId.value = null
   }
 
@@ -104,6 +112,8 @@ export const useWorkStore = defineStore('work', () => {
 
   restoreScope()
 
+  watch([view, query, sort, projectInView, () => consoleStore.scopeCompany], () => (page.value = 1))
+
   watch(
     () => consoleStore.isLoading,
     (loading) => {
@@ -121,5 +131,5 @@ export const useWorkStore = defineStore('work', () => {
     })
   )
 
-  return { view, density, sort, query, unfoldedFiled, foldedEpics, peekedTaskId, sheetTaskId, projectInView, rows, lanes, counts, shown, groups, focusProject, toggleFiled, toggleEpic, togglePeek, openSheet, closeSheet, linger }
+  return { view, density, sort, query, unfoldedFiled, foldedEpics, peekedTaskId, sheetTaskId, projectInView, rows, lanes, counts, shown, paging, groups, focusProject, goToPage, toggleFiled, toggleEpic, togglePeek, openSheet, closeSheet, linger }
 })

@@ -110,7 +110,7 @@ async function copyAnchor(taskAnchor: string): Promise<void> {
 </script>
 
 <template>
-  <div class="flex-1 min-h-0 overflow-y-auto bg-canvas" data-testid="report-scroller">
+  <div class="flex-1 min-h-0 page-scroll bg-canvas" data-testid="report-scroller">
     <AppCatalogHeader title="Time">
       <template #actions>
         <SegmentedControl v-model="period" :options="PERIOD_OPTIONS" label="Period" size="sm" />

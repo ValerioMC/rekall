@@ -214,7 +214,7 @@ async function sendWrapupHere(message: string): Promise<void> {
         @restored="adoptRestoredWrapup"
       />
 
-      <div v-else-if="!selectedWrapup && !isDrafting" class="min-h-0 flex-1 overflow-y-auto">
+      <div v-else-if="!selectedWrapup && !isDrafting" class="min-h-0 flex-1 page-scroll">
         <div class="max-w-[560px] px-9 py-12">
           <p class="eyebrow">
             Wrapup
@@ -250,7 +250,7 @@ async function sendWrapupHere(message: string): Promise<void> {
         >
           This saves itself. Describe the state, not the session.
         </p>
-        <div class="min-h-0 flex-1 overflow-y-auto p-4">
+        <div class="min-h-0 flex-1 page-scroll p-4">
           <Transition name="fade-quick" mode="out-in">
             <AppMarkdownEditor
               v-if="mode === 'write'"

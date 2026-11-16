@@ -219,3 +219,63 @@ describe('WorkPage composer', () => {
     expect(wrapper.find('[data-testid="project-adherence"]').exists()).toBe(true)
   })
 })
+
+describe('WorkPage pages', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'localStorage', { configurable: true, value: undefined })
+  })
+
+  function seedMany(count: number) {
+    const { store, work } = seed()
+    store.tasks = Array.from({ length: count }, (_, index) => task(`PR-${index + 1}`, { title: `Task number ${index + 1}`, updatedAt: `2026-09-${String(10 + (index % 20)).padStart(2, '0')}T10:00:00Z` }))
+    store.steps = []
+    work.view = 'open'
+    return work
+  }
+
+  it('lists one page of the tasks and says which ones out of how many', async () => {
+    seedMany(60)
+
+    const wrapper = await mountWork()
+
+    expect(titles(wrapper)).toHaveLength(25)
+    expect(wrapper.get('[data-testid="work-pager-range"]').text()).toBe('1–25 of 60 tasks')
+    expect(wrapper.get('[data-testid="work-pager-previous"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('moves to the next page and back', async () => {
+    const work = seedMany(60)
+    const wrapper = await mountWork()
+    const firstPage = titles(wrapper)
+
+    await wrapper.get('[data-testid="work-pager-next"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="work-pager-range"]').text()).toBe('26–50 of 60 tasks')
+    expect(titles(wrapper).some((title) => firstPage.includes(title))).toBe(false)
+    expect(work.paging.page).toBe(2)
+
+    await wrapper.get('[data-testid="work-pager-previous"]').trigger('click')
+
+    expect(titles(wrapper)).toEqual(firstPage)
+  })
+
+  it('goes back to the first page when the filter changes', async () => {
+    seedMany(60)
+    const wrapper = await mountWork()
+    await wrapper.get('[data-testid="work-pager-next"]').trigger('click')
+
+    await wrapper.get('[data-testid="work-filter"]').setValue('Task number 1')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="work-pager"]').exists()).toBe(false)
+    expect(titles(wrapper).length).toBeGreaterThan(0)
+  })
+
+  it('shows no pager when everything fits on one page', async () => {
+    seedMany(10)
+
+    const wrapper = await mountWork()
+
+    expect(wrapper.find('[data-testid="work-pager"]').exists()).toBe(false)
+  })
+})

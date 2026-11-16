@@ -198,7 +198,7 @@ describe('ReportPage', () => {
   it('scrolls its own content when it is taller than the window', async () => {
     const wrapper = await mountReport()
 
-    expect(wrapper.get('[data-testid="report-scroller"]').classes()).toContain('overflow-y-auto')
+    expect(wrapper.get('[data-testid="report-scroller"]').classes()).toContain('page-scroll')
   })
 
   it('narrows to the companies picked, and back to all of them', async () => {

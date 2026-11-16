@@ -144,7 +144,7 @@ watch([graphs, tab], () => {
 </script>
 
 <template>
-  <div class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-canvas scroll-gutter-stable">
+  <div class="flex min-h-0 flex-1 flex-col page-scroll bg-canvas">
     <template v-if="!store.isLoading && !project">
       <ConsoleHeader />
       <div class="page-column py-6">

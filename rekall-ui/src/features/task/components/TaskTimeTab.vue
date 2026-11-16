@@ -43,7 +43,7 @@ function sessionSeconds(startedAt: string, stoppedAt: string | null): number {
 </script>
 
 <template>
-  <div class="min-h-0 flex-1 overflow-y-auto" data-testid="time-tab">
+  <div class="min-h-0 flex-1 page-scroll" data-testid="time-tab">
     <div class="flex w-full flex-col gap-5 px-6 py-5">
       <div class="grid grid-cols-3 gap-3">
         <div class="rounded-card border border-border bg-surface px-4 py-3" data-testid="time-stat-tracked">

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
 import WorkProjectGroup from '@/features/work/components/WorkProjectGroup.vue'
+import WorkPager from '@/features/work/components/WorkPager.vue'
 import WorkSortKey from '@/features/work/components/WorkSortKey.vue'
 import { useNow } from '@/composables/useNow'
 import { useConsoleStore } from '@/stores/console.store'
@@ -13,15 +14,23 @@ const MINUTE_MS = 60_000
 const store = useConsoleStore()
 const work = useWorkStore()
 const { projects } = storeToRefs(store)
-const { view, density, sort, groups, unfoldedFiled, foldedEpics, projectInView } = storeToRefs(work)
+const { view, density, sort, groups, unfoldedFiled, foldedEpics, projectInView, paging } = storeToRefs(work)
+const ledger = ref<HTMLElement | null>(null)
 const now = useNow(MINUTE_MS)
 
 const nothingWaits = computed(() => view.value === 'needs' && work.query.trim() === '')
 const noProject = computed(() => projects.value.length === 0)
+
+async function showFirstRows(): Promise<void> {
+  await nextTick()
+  ledger.value?.scrollIntoView?.({ block: 'start' })
+}
+
+watch(() => paging.value.page, showFirstRows)
 </script>
 
 <template>
-  <div data-testid="work-ledger">
+  <div ref="ledger" data-testid="work-ledger">
     <div
       class="ledger-columns sticky top-0 z-(--z-sticky) h-9 border-b border-border bg-canvas text-caption text-text-subtle"
       role="row"
@@ -50,6 +59,8 @@ const noProject = computed(() => projects.value.length === 0)
       @toggle-filed="work.toggleFiled(group.projectId)"
       @toggle-epic="work.toggleEpic"
     />
+
+    <WorkPager :paging="paging" @go="work.goToPage" />
 
     <div
       v-if="groups.length === 0 && noProject"

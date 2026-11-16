@@ -351,8 +351,13 @@
   padding-inline: calc(var(--spacing) * 8);
 }
 
-/* Keeps the scrollbar's lane reserved, so a short page and a long one share one left edge. */
-@utility scroll-gutter-stable {
+/*
+ * A page or a pane that swaps its content (a tab, a view) scrolls always, so its scrollbar's lane is
+ * there before the content needs it and a short view and a long one share one left edge. `scroll`
+ * rather than `auto` plus `scrollbar-gutter`, which the desktop's web view does not always honour.
+ */
+@utility page-scroll {
+  overflow-y: scroll;
   scrollbar-gutter: stable;
 }
 
@@ -1085,7 +1090,8 @@
  * one composited bitmap without touching it, so its scrollbar has nothing to flash for.
  */
 .overflow-y-auto,
-.overflow-auto {
+.overflow-auto,
+.page-scroll {
   will-change: transform;
 }
 
@@ -1096,7 +1102,8 @@
  * reachable by scrolling past it. Drop the containing block while a fullscreen editor is open.
  */
 .overflow-y-auto:has(.md-editor-fullscreen),
-.overflow-auto:has(.md-editor-fullscreen) {
+.overflow-auto:has(.md-editor-fullscreen),
+.page-scroll:has(.md-editor-fullscreen) {
   will-change: auto;
 }
 

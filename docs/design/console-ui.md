@@ -112,7 +112,9 @@ New task dialog with the text as its title, as does `T`. With no folder the key 
 and planning still works. The views are sub-navigation tabs with counts,
 and at their right end the filter on title and anchor, the Ledger or Board layout toggle and a **View**
 menu (`WorkViewMenu`) with the density (Comfortable or Compact) and whether quick tasks show; the
-toggle and the filter stay on the board, whose tabs are lanes: **Needs me** (the default), Running, Open and Filed. A
+toggle and the filter stay on the board, whose tabs are lanes: **Needs me** (the default), Running, Open and Filed. The ledger lists 25 tasks a page (`lib/work-pagination.ts`, `WorkPager`): the pager under it says which
+tasks the page holds out of how many and goes back to the first page when the view, the filter, the sort or
+the scope changes. A
 finished task never fills the table: each project folds its `DONE` tasks into one `N filed` line
 that opens in place. The rules for which tasks a tab shows, the counts, the sort and the fold are
 pure functions in `features/work/lib/work-view-rules.ts`, over the rows `work-rows.ts` builds. Scope,
@@ -442,3 +444,11 @@ interrupt and the session keeps answering.
 `Y` allows and `N` denies the pending call, `Enter` sends, `Shift+Enter` breaks the line, and `Esc`
 returns focus to the note pane. The dock's divider resizes with the arrow keys (16 px, 64 px with
 Shift).
+
+## Scroll lanes
+
+A page, or a pane that swaps its content for another (a tab, a view), scrolls with `page-scroll`
+(`overflow-y: scroll` and a stable gutter) instead of `overflow-y-auto`, so its scrollbar's lane is there
+before the content needs it. With `auto`, a short tab and a long one differ by the lane's width and the
+centred column shifts sideways when the scrollbar comes or goes; the desktop's web view does not always
+honour `scrollbar-gutter` alone, which is why the utility also forces the scrollbar.

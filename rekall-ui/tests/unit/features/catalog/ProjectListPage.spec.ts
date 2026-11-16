@@ -65,6 +65,6 @@ describe('the project list', () => {
   it('scrolls on its own when the projects do not fit the screen', async () => {
     const page = await render(null)
 
-    expect(page.find('.bg-canvas.overflow-y-auto').exists()).toBe(true)
+    expect(page.find('.bg-canvas.page-scroll').exists()).toBe(true)
   })
 })

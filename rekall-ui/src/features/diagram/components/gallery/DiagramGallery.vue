@@ -49,7 +49,7 @@ function anchorsOf(generation: PendingGeneration): string {
 </script>
 
 <template>
-  <div class="min-h-0 flex-1 overflow-y-auto" data-testid="diagram-gallery">
+  <div class="min-h-0 flex-1 page-scroll" data-testid="diagram-gallery">
     <div class="page-column flex flex-col gap-8 pb-16 pt-6">
       <section v-if="drawing.length > 0" aria-labelledby="gallery-drawing">
         <h2 id="gallery-drawing" class="section-label mb-3">Being drawn</h2>

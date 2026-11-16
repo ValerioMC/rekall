@@ -32,7 +32,7 @@ onUnmounted(() => void claudeConnection.load().catch(() => undefined))
 </script>
 
 <template>
-  <div class="min-h-0 flex-1 overflow-y-auto bg-canvas" data-testid="settings-page">
+  <div class="min-h-0 flex-1 page-scroll bg-canvas" data-testid="settings-page">
     <AppCatalogHeader title="Settings" />
     <div class="mx-auto grid max-w-[1100px] gap-8 px-8 py-6 min-[860px]:grid-cols-[220px_minmax(0,1fr)]">
       <SettingsRail :section="section" :topic="helpTopic" />

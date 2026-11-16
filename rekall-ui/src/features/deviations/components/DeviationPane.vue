@@ -125,7 +125,7 @@ defineExpose({ step: go })
         </button>
       </nav>
 
-      <div v-if="current" class="min-h-0 flex-1 overflow-y-auto">
+      <div v-if="current" class="min-h-0 flex-1 page-scroll">
         <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-5 pb-1 pt-4">
           <h3 class="min-w-0 text-heading font-semibold tracking-[-0.015em] text-text" data-testid="deviation-heading">
             Step {{ current.stepNumber }}<template v-if="current.stepTitle">: {{ current.stepTitle }}</template>
@@ -151,7 +151,7 @@ defineExpose({ step: go })
         </div>
       </div>
 
-      <div v-else-if="isLoaded" class="min-h-0 flex-1 overflow-y-auto">
+      <div v-else-if="isLoaded" class="min-h-0 flex-1 page-scroll">
         <div class="max-w-[560px] px-9 py-12">
           <h2 class="mb-1.5 text-display font-semibold leading-tight tracking-[-0.025em] text-text">
             <template v-if="deviations.length">No deviation on step {{ selectedDeviationStep }}</template>
