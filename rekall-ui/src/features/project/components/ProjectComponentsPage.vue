@@ -147,7 +147,8 @@ watch(
         >
           A project that is one folder needs none. When it holds several modules or repositories, add each folder so a
           session can tell which one you mean. <span class="text-text-muted">Scan folder</span> adds one for every git
-          repository under the project's folder, described by its manifest or README.
+          repository under the project's folder, or for every application in it when a repository holds several,
+          described by its manifest or README.
         </div>
 
         <template v-else>
