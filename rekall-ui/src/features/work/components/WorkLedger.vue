@@ -38,6 +38,7 @@ watch(() => paging.value.page, showFirstRows)
       <span />
       <span />
       <WorkSortKey label="Task" :active="sort === 'task'" @sort="sort = 'task'" />
+      <span>Title</span>
       <span>Status</span>
       <span>Plan</span>
       <WorkSortKey label="Needs you" :active="sort === 'needs'" @sort="sort = 'needs'" />

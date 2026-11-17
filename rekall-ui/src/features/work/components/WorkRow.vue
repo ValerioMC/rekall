@@ -95,9 +95,11 @@ const memberSummary = computed(() => {
       <TaskMark :state="mark.state" :status="task.status" :accepted="mark.accepted" />
     </span>
 
+    <span class="truncate font-mono text-caption" :class="filed ? 'text-filed' : 'text-anchor'" data-testid="work-row-code">{{ task.code }}</span>
+
     <span class="flex min-w-0 items-center gap-2" :class="[filed ? 'font-normal' : 'font-medium text-text', nested && 'pl-3']">
       <EpicGlyph v-if="epic" :size="15" />
-      <span class="min-w-0 truncate" :class="[filed && 'text-text-muted', epic && 'font-semibold']" data-testid="work-row-title">{{ codedTitle(task) }}</span>
+      <span class="min-w-0 truncate" :class="[filed && 'text-text-muted', epic && 'font-semibold']" data-testid="work-row-title">{{ task.title }}</span>
       <span
         v-if="epicTitle"
         class="inline-flex min-w-0 max-w-[40%] shrink items-center gap-1 rounded-key bg-epic-soft px-1.5 py-px text-caption text-epic"

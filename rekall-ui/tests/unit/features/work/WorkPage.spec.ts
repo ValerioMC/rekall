@@ -35,7 +35,9 @@ async function mountWork() {
 }
 
 const titles = (wrapper: Awaited<ReturnType<typeof mountWork>>): string[] =>
-  wrapper.findAll('[data-testid="work-row-title"]').map((title) => title.text())
+  wrapper
+    .findAll('[data-testid="work-row"]')
+    .map((row) => `[${row.get('[data-testid="work-row-code"]').text()}] ${row.get('[data-testid="work-row-title"]').text()}`)
 
 describe('WorkPage', () => {
   beforeEach(() => {
@@ -48,6 +50,16 @@ describe('WorkPage', () => {
     const wrapper = await mountWork()
 
     expect(titles(wrapper).sort()).toEqual(['[PR-1] Plan the launch', '[PR-5] Fix the login'])
+  })
+
+  it('shows a task code in a column of its own, apart from the title', async () => {
+    seed()
+
+    const wrapper = await mountWork()
+    const row = wrapper.findAll('[data-testid="work-row"]').find((candidate) => candidate.text().includes('Plan the launch'))!
+
+    expect(row.get('[data-testid="work-row-code"]').text()).toBe('PR-1')
+    expect(row.get('[data-testid="work-row-title"]').text()).toBe('Plan the launch')
   })
 
   it('counts on the Needs me tab what the review queue counts', async () => {
