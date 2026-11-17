@@ -40,6 +40,8 @@ const props = withDefaults(
     compact?: boolean
     /** Read as a message in a log: `compact`, and also without the indent that the section ticks hang into. */
     bare?: boolean
+    /** The read view takes the width of whatever holds it, centred or not as that decides, instead of its own reading column. */
+    fitColumn?: boolean
     /** Offers the `Aa` key for the reading column's width; off where the pane sets the page width itself. */
     readSettings?: boolean
     /** Whether the toolbar offers the page full screen, for text whose pane already gives it the room it needs. */
@@ -68,6 +70,7 @@ const props = withDefaults(
     placeholder: '# Contesto',
     compact: false,
     bare: false,
+    fitColumn: false,
     readSettings: true,
     pageFullscreen: true,
     pathRoot: null,
@@ -179,6 +182,7 @@ const toolbars = computed(() => (props.pageFullscreen ? TOOLBARS : TOOLBARS.filt
     :class="{
       'rekall-md--readonly': readonly,
       'rekall-md--compact': readonly && flush,
+      'rekall-md--fit': readonly && fitColumn,
       'rekall-md--bare': readonly && bare
     }"
     :style="readonly && !flush ? readStyle : undefined"

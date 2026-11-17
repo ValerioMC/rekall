@@ -12,7 +12,7 @@ import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import TasksSection from '@/features/work/components/TasksSection.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
-import ProjectBlueprintPane from '@/features/project/components/ProjectBlueprintPane.vue'
+import ProjectBlueprintPage from '@/features/project/components/ProjectBlueprintPage.vue'
 import ProjectComponentsPage from '@/features/project/components/ProjectComponentsPage.vue'
 import ProjectSectionsPage from '@/features/project/components/ProjectSectionsPage.vue'
 import ProjectSettingsPage from '@/features/project/components/ProjectSettingsPage.vue'
@@ -182,7 +182,7 @@ watch([graphs, tab], () => {
     <template v-else>
       <ConsoleHeader :anchor="project.anchor" />
 
-      <div class="page-column flex min-h-[540px] flex-1 basis-0 flex-col" data-testid="project-workspace">
+      <div class="page-fluid flex min-h-[540px] flex-1 basis-0 flex-col" data-testid="project-workspace">
         <ScopeBar>
           <template #switcher>
             <ScopeSwitcher mode="project" :company-id="project.companyId" :project-id="project.id" @select="openProject" />
@@ -193,7 +193,7 @@ watch([graphs, tab], () => {
         <div class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] py-4">
           <Transition name="fade-quick" mode="out-in">
             <TasksSection v-if="tab === 'tasks'" key="tasks" :chooses-layout="false" />
-            <ProjectBlueprintPane v-else-if="tab === 'blueprint'" key="blueprint" :project="project" />
+            <ProjectBlueprintPage v-else-if="tab === 'blueprint'" key="blueprint" :project="project" />
             <ProjectSectionsPage
               v-else-if="tab === 'pages'"
               key="pages"

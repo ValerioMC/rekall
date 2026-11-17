@@ -49,8 +49,8 @@ export const useProjectSectionsStore = defineStore('projectSections', () => {
     }
   }
 
-  async function create(projectId: ProjectId, title: string): Promise<ProjectSection> {
-    const created = await createProjectSection(projectId, { title, bodyMarkdown: '' })
+  async function create(projectId: ProjectId, title: string, bodyMarkdown = ''): Promise<ProjectSection> {
+    const created = await createProjectSection(projectId, { title, bodyMarkdown })
     put(projectId, [...sectionsOf(projectId), created])
     return created
   }

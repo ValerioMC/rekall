@@ -19,7 +19,7 @@ export function useMermaidFences(root: Ref<HTMLElement | null>): { paint: () => 
   async function draw(frame: HTMLElement, lifetime: AbortController): Promise<void> {
     try {
       const { showStaticDiagram } = await import('@/features/diagram/lib/static-diagram')
-      await showStaticDiagram(frame, sourceOfMermaidFrame(frame), lifetime.signal)
+      await showStaticDiagram(frame, sourceOfMermaidFrame(frame), lifetime.signal, true)
     } catch (failure: unknown) {
       frame.classList.add(MERMAID_FENCE_FAILED_CLASS)
       frame.textContent = describeMermaidFailure(failure)

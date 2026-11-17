@@ -3,6 +3,9 @@ import { onUnmounted, ref, watch } from 'vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import ProjectPaneFrame from '@/features/project/components/ProjectPaneFrame.vue'
+import ProjectReadingColumn from '@/features/project/components/ProjectReadingColumn.vue'
+import TaskWidthMenu from '@/features/task/components/TaskWidthMenu.vue'
+import { usePreferencesStore } from '@/features/settings/store/preferences.store'
 import { identityHue } from '@/common/identity'
 import { useConsoleStore } from '@/stores/console.store'
 import { useEditorMode } from '@/composables/useEditorMode'
@@ -13,6 +16,7 @@ const SAVE_DELAY_MS = 700
 const props = defineProps<{ project: Project }>()
 
 const store = useConsoleStore()
+const preferences = usePreferencesStore()
 const draft = ref('')
 const { mode, openFor } = useEditorMode('read')
 let timer: ReturnType<typeof setTimeout> | null = null
@@ -60,23 +64,26 @@ onUnmounted(flush)
             What <code class="text-anchor/80">/rk {{ project.anchor }}</code> hands to Claude
           </p>
         </div>
+        <TaskWidthMenu v-model="preferences.taskWidth" />
         <AppModeToggle v-model="mode" testid-prefix="blueprint-mode" />
       </div>
     </template>
     <template #default="{ editorHeight }">
       <Transition name="fade-quick" mode="out-in">
-        <AppMarkdownEditor
-          v-if="mode === 'write'"
-          key="write"
-          v-model="draft"
-          :height="editorHeight"
-          :path-root="project.repoFolder"
-          placeholder="# What this is
+        <ProjectReadingColumn v-if="mode === 'write'" key="write">
+          <AppMarkdownEditor
+            v-model="draft"
+            :height="editorHeight"
+            :path-root="project.repoFolder"
+            placeholder="# What this is
 
 How it's built, how it's organised, the conventions to follow while working in it."
-          @update:model-value="schedule"
-        />
-        <AppMarkdownEditor v-else key="read" :model-value="draft" readonly />
+            @update:model-value="schedule"
+          />
+        </ProjectReadingColumn>
+        <ProjectReadingColumn v-else key="read">
+          <AppMarkdownEditor :model-value="draft" readonly fit-column :read-settings="false" />
+        </ProjectReadingColumn>
       </Transition>
     </template>
   </ProjectPaneFrame>

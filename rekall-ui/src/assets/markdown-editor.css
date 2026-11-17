@@ -423,6 +423,11 @@
   transition: max-width 0.12s ease-out;
 }
 
+.rekall-md--readonly.rekall-md--fit .md-editor-preview {
+  max-width: none;
+  margin-inline: 0;
+}
+
 .rekall-md--readonly[data-align='left'] .md-editor-preview {
   margin-inline: 0;
   margin-left: clamp(16px, 4vw, 56px);
@@ -465,6 +470,46 @@
   background: var(--color-canvas);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
+}
+
+.rekall-md .md-editor-preview .rk-mermaid-fence {
+  position: relative;
+}
+
+.rekall-md .md-editor-preview .rk-mermaid-zoomable {
+  cursor: zoom-in;
+}
+
+.rekall-md .md-editor-preview .rk-mermaid-expand {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  opacity: 0;
+  transition: opacity 0.12s ease-out, color 0.12s ease-out;
+}
+
+.rekall-md .md-editor-preview .rk-mermaid-fence:hover .rk-mermaid-expand,
+.rekall-md .md-editor-preview .rk-mermaid-expand:focus-visible {
+  opacity: 1;
+}
+
+.rekall-md .md-editor-preview .rk-mermaid-expand:hover {
+  color: var(--color-text);
+}
+
+@media (hover: none) {
+  .rekall-md .md-editor-preview .rk-mermaid-expand {
+    opacity: 1;
+  }
 }
 
 .rekall-md .md-editor-preview .rk-mermaid-fence > svg {

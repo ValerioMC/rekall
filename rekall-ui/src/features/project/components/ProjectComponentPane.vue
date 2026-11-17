@@ -6,10 +6,14 @@ import AppModeToggle from '@/components/ui/AppModeToggle.vue'
 import FolderPickerButton from '@/features/project/components/FolderPickerButton.vue'
 import ProjectComponentOutline from '@/features/project/components/ProjectComponentOutline.vue'
 import ProjectPaneFrame from '@/features/project/components/ProjectPaneFrame.vue'
+import ProjectReadingColumn from '@/features/project/components/ProjectReadingColumn.vue'
+import TaskWidthMenu from '@/features/task/components/TaskWidthMenu.vue'
+import { usePreferencesStore } from '@/features/settings/store/preferences.store'
 import { relativeTime } from '@/common/format/relative-time'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useEditorMode } from '@/composables/useEditorMode'
 import { relativeToRoot } from '@/features/project/lib/component-tree'
+import { jumpToHeading } from '@/features/project/lib/heading-jump'
 import { outlineOf } from '@/features/project/lib/markdown-outline'
 import { useProjectComponentsStore } from '@/features/project/store/projectComponents.store'
 import type { Direction } from '@/features/project/lib/section-order'
@@ -33,6 +37,7 @@ const SAVE_DELAY_MS = 700
 const SUMMARY_MAX_CHARACTERS = 500
 
 const store = useProjectComponentsStore()
+const preferences = usePreferencesStore()
 const { run } = useAsyncAction()
 
 const nameDraft = ref('')
@@ -82,12 +87,6 @@ async function save(): Promise<void> {
 function folderChosen(chosen: string): void {
   folderDraft.value = chosen
   schedule()
-}
-
-function jumpTo(text: string): void {
-  const target = [...(article.value?.querySelectorAll('h2, h3') ?? [])].find((heading) => heading.textContent?.trim() === text)
-  const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  target?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' })
 }
 
 // A component is its own pane instance, so it is read once; later changes from a session land only while nothing is being typed.
@@ -184,13 +183,14 @@ onUnmounted(() => {
           </AppButton>
           <AppButton variant="danger-quiet" size="sm" data-testid="component-delete" @click="emit('delete')">Delete</AppButton>
         </div>
+        <TaskWidthMenu v-model="preferences.taskWidth" />
         <AppModeToggle v-model="mode" testid-prefix="component-mode" />
       </div>
     </template>
 
     <template #default="{ editorHeight }">
       <Transition name="fade-quick" mode="out-in">
-        <div v-if="mode === 'write'" key="write" class="flex flex-col gap-3">
+        <ProjectReadingColumn v-if="mode === 'write'" key="write" class="flex flex-col gap-3">
           <div>
             <div class="mb-1 flex items-baseline justify-between gap-3">
               <label class="text-caption text-text-muted" :for="`component-summary-${component.id}`">Summary</label>
@@ -222,29 +222,31 @@ onUnmounted(() => {
               @update:model-value="schedule"
             />
           </div>
-        </div>
+        </ProjectReadingColumn>
 
         <div v-else key="read" class="@container">
           <div class="grid gap-x-10 @4xl:grid-cols-[minmax(0,1fr)_184px]">
             <article ref="article" class="min-w-0" data-testid="component-page">
-              <p v-if="summaryDraft" class="mb-5 max-w-[68ch] text-title font-normal leading-relaxed text-text" data-testid="component-summary-read">
-                {{ summaryDraft }}
-              </p>
-              <AppMarkdownEditor v-if="hasDescription" :model-value="descriptionDraft" readonly :path-root="repoFolder" />
-              <div
-                v-else
-                class="max-w-[56ch] rounded-card border border-dashed border-border px-5 py-5 text-small leading-relaxed text-text-subtle"
-                data-testid="component-no-description"
-              >
-                Nothing is written about this component beyond its summary. <span class="text-text-muted">Scan folder</span> has a
-                session read it and write the page, or switch to Write and describe it yourself.
-              </div>
+              <ProjectReadingColumn>
+                <p v-if="summaryDraft" class="mb-5 text-title font-normal leading-relaxed text-text" data-testid="component-summary-read">
+                  {{ summaryDraft }}
+                </p>
+                <AppMarkdownEditor v-if="hasDescription" :model-value="descriptionDraft" readonly fit-column :read-settings="false" :path-root="repoFolder" />
+                <div
+                  v-else
+                  class="max-w-[56ch] rounded-card border border-dashed border-border px-5 py-5 text-small leading-relaxed text-text-subtle"
+                  data-testid="component-no-description"
+                >
+                  Nothing is written about this component beyond its summary. <span class="text-text-muted">Scan folder</span> has a
+                  session read it and write the page, or switch to Write and describe it yourself.
+                </div>
+              </ProjectReadingColumn>
             </article>
             <ProjectComponentOutline
               v-if="headings.length > 1"
               class="hidden @4xl:flex"
               :headings="headings"
-              @jump="jumpTo"
+              @jump="jumpToHeading(article, $event)"
             />
           </div>
         </div>

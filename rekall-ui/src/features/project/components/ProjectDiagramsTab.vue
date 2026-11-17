@@ -36,7 +36,7 @@ function open(id: DiagramId): void {
 
 <template>
   <div data-testid="project-diagrams">
-    <div v-if="ofProject.length" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div v-if="ofProject.length" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
       <DiagramCard
         v-for="summary in ofProject"
         :key="summary.id"

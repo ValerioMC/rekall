@@ -1,7 +1,7 @@
 export type ReadAlign = 'left' | 'center'
 
 export const READ_WIDTH_MIN = 480
-export const READ_WIDTH_MAX = 920
+export const READ_WIDTH_MAX = 1280
 export const READ_WIDTH_DEFAULT = 680
 
 const WIDTH_KEY = 'rekall.read.width'

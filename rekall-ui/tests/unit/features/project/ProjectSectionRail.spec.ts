@@ -33,6 +33,16 @@ describe('ProjectSectionRail', () => {
     wrapper.unmount()
   })
 
+  it('shows how big a section is and asks to import a file', async () => {
+    const wrapper = rail({ sections: [section('s1', 'Reference', 'x'.repeat(62_410))] })
+
+    expect(wrapper.find('[data-testid="rail-section-s1"]').text()).toContain('62k')
+    await wrapper.find('[data-testid="rail-import"]').trigger('click')
+
+    expect(wrapper.emitted('import')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
   it('asks for an autoconfiguration, and not again while one is starting', async () => {
     const wrapper = rail()
 

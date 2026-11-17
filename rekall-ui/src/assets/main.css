@@ -352,6 +352,12 @@
   padding-inline: calc(var(--spacing) * 8);
 }
 
+/* A page that uses the whole window: the project's tabs, where a list or a document wants the room. */
+@utility page-fluid {
+  width: 100%;
+  padding-inline: calc(var(--spacing) * 8);
+}
+
 /*
  * A page or a pane that swaps its content (a tab, a view) scrolls always, so its scrollbar's lane is
  * there before the content needs it and a short view and a long one share one left edge. `scroll`
