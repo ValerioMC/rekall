@@ -423,16 +423,6 @@
   transition: max-width 0.12s ease-out;
 }
 
-.rekall-md--readonly.rekall-md--fit .md-editor-preview {
-  max-width: none;
-  margin-inline: 0;
-}
-
-.rekall-md--readonly[data-align='left'] .md-editor-preview {
-  margin-inline: 0;
-  margin-left: clamp(16px, 4vw, 56px);
-}
-
 .rekall-md--readonly .md-editor-previewOnly {
   background: transparent;
   border: none;

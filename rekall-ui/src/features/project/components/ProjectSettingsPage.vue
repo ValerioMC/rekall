@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import FormPanel from '@/components/ui/FormPanel.vue'
 import ProjectChecksEditor from '@/features/check/components/ProjectChecksEditor.vue'
 import ProjectGeneralPane from '@/features/project/components/ProjectGeneralPane.vue'
 import ProjectRepositoryGroup from '@/features/project/components/ProjectRepositoryGroup.vue'
@@ -24,13 +25,15 @@ const pane = ref<SettingsPane>('general')
   >
     <ProjectSettingsRail :selected="pane" @select="pane = $event" />
 
-    <section class="min-h-0 overflow-y-auto rounded-card border border-border bg-surface shadow-[var(--shadow-raised)]">
+    <section class="min-h-0 overflow-y-auto">
       <Transition name="fade-quick" mode="out-in">
-        <div :key="pane" class="mx-auto w-full max-w-[600px] px-4 py-6">
+        <div :key="pane">
           <ProjectGeneralPane v-if="pane === 'general'" :project="project" @deleted="emit('deleted')" />
-          <ProjectRepositoryGroup v-else-if="pane === 'repository'" :project="project" />
-          <ProjectTaskManagerPane v-else-if="pane === 'taskManager'" :project="project" />
-          <ProjectChecksEditor v-else :project="project" />
+          <div v-else class="form-grid">
+            <FormPanel v-if="pane === 'repository'"><ProjectRepositoryGroup :project="project" /></FormPanel>
+            <FormPanel v-else-if="pane === 'taskManager'"><ProjectTaskManagerPane :project="project" /></FormPanel>
+            <FormPanel v-else class="col-span-full"><ProjectChecksEditor :project="project" /></FormPanel>
+          </div>
         </div>
       </Transition>
     </section>

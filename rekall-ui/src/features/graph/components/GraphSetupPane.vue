@@ -58,7 +58,7 @@ async function create(): Promise<void> {
     aria-label="New deployment graph"
     data-testid="graph-setup"
   >
-    <div class="mx-auto w-full max-w-[640px]">
+    <div class="w-full">
       <p class="eyebrow">New deployment graph</p>
       <h2 class="mt-1 text-heading font-semibold tracking-[-0.02em] text-text">Release this project the same way every time</h2>
       <p class="mt-2 text-body leading-relaxed text-text-muted">

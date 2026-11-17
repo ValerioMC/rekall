@@ -1,5 +1,6 @@
+import { createPinia, setActivePinia } from 'pinia'
 import MarkdownIt from 'markdown-it'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { markMermaidFences, sourceOfMermaidFrame } from '@/common/markdown/mermaid-fence'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
@@ -12,6 +13,7 @@ const PAGE = 'Intro\n\n```mermaid\nsequenceDiagram\n  A->>B: "hi" <ok>\n```\n\n`
 afterEach(() => vi.mocked(showStaticDiagram).mockReset())
 
 describe('markMermaidFences', () => {
+  beforeEach(() => setActivePinia(createPinia()))
   function render(markdown: string): string {
     const md = new MarkdownIt({ html: true })
     markMermaidFences(md as never)

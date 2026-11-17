@@ -182,7 +182,7 @@ watch([graphs, tab], () => {
     <template v-else>
       <ConsoleHeader :anchor="project.anchor" />
 
-      <div class="page-fluid flex min-h-[540px] flex-1 basis-0 flex-col" data-testid="project-workspace">
+      <div class="page-column flex min-h-[540px] flex-1 basis-0 flex-col" data-testid="project-workspace">
         <ScopeBar>
           <template #switcher>
             <ScopeSwitcher mode="project" :company-id="project.companyId" :project-id="project.id" @select="openProject" />

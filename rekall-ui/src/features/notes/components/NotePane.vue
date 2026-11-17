@@ -159,7 +159,7 @@ async function confirmDelete(): Promise<void> {
               :path-root="notePathRoot"
               @update:model-value="scheduleSave"
             />
-            <AppMarkdownEditor v-else key="read" :model-value="draft.bodyMarkdown" readonly />
+            <AppMarkdownEditor v-else key="read" :model-value="draft.bodyMarkdown" readonly :read-settings="false" />
           </Transition>
         </div>
       </div>

@@ -121,7 +121,7 @@ defineExpose({ toggleMode })
               :tasks="projectTasks"
               @update:model-value="scheduleSave"
             />
-            <AppMarkdownEditor v-else key="read" :model-value="draft" :components="projectComponents" :connections="projectConnections" :tasks="projectTasks" readonly />
+            <AppMarkdownEditor v-else key="read" :model-value="draft" :components="projectComponents" :connections="projectConnections" :tasks="projectTasks" readonly :read-settings="false" />
           </Transition>
         </div>
       </div>

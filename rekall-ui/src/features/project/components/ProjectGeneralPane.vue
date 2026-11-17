@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
+import FormPanel from '@/components/ui/FormPanel.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
@@ -100,8 +101,8 @@ watch(() => props.project.id, () => startFrom(props.project))
 
 <template>
   <section class="relative flex flex-col" aria-label="General" data-testid="settings-general">
-    <div class="flex flex-col gap-7">
-      <div>
+    <div class="form-grid">
+      <FormPanel>
         <RecordIdentityFields
           v-model:title="form.title"
           v-model:label="form.label"
@@ -112,8 +113,9 @@ watch(() => props.project.id, () => startFrom(props.project))
           :title-error="titleError"
           :label-error="labelError"
         />
-      </div>
+      </FormPanel>
 
+      <FormPanel><div class="flex flex-col gap-6">
       <div>
         <label for="project-company" class="mb-1.5 block eyebrow text-caption">Company</label>
         <AppSelect id="project-company" v-model="form.companyId" data-testid="project-company" :options="companyOptions" />
@@ -145,7 +147,9 @@ watch(() => props.project.id, () => startFrom(props.project))
       <div>
         <ProjectIconField :key="iconKey" ref="iconField" v-model="form.icon" :project-id="project.id" />
       </div>
+      </div></FormPanel>
 
+      <FormPanel>
       <div>
         <label for="project-description" class="mb-1.5 block eyebrow text-caption">Description</label>
         <textarea
@@ -159,7 +163,10 @@ watch(() => props.project.id, () => startFrom(props.project))
         <p class="mt-1.5 text-caption text-text-subtle">It travels into every context that loads the project.</p>
       </div>
 
-      <div class="border-t border-border pt-5">
+      </FormPanel>
+
+      <FormPanel>
+      <div>
         <h3 class="text-body font-semibold text-text">Delete project</h3>
         <p class="mb-3 mt-0.5 text-small text-text-subtle">
           Its tasks and the notes it owns go with it. This is not recoverable.
@@ -168,6 +175,7 @@ watch(() => props.project.id, () => startFrom(props.project))
           Delete project
         </AppButton>
       </div>
+      </FormPanel>
     </div>
 
     <Transition name="fade-quick">

@@ -450,12 +450,12 @@ describe('TaskPlanTab', () => {
     expect(tab.get('[data-testid="decision-title"]').text()).toBe('Step s1')
   })
 
-  it('holds a step to the page width the reader picked, and offers no Aa key beside it', async () => {
+  it('holds a step to the page width the reader picked, and offers no second width menu beside it', async () => {
     seed([makeStep('s1', 0, 'OPEN')])
     const tab = render()
     await tab.findAll('[data-testid="plan-step-title"]')[0]!.trigger('click')
 
-    expect(tab.find('[data-testid="read-settings-toggle"]').exists()).toBe(false)
+    expect(tab.findAll('[data-testid="task-width"]')).toHaveLength(1)
     expect(tab.get('[data-testid="decision-panel"] header > div').attributes('style')).toContain('max-width: 1360px')
 
     await tab.get('[data-testid="task-width"]').trigger('click')

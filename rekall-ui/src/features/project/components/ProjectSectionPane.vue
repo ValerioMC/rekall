@@ -170,9 +170,7 @@ onUnmounted(() => {
         <div v-else key="read" class="@container">
           <div class="grid gap-x-10 @4xl:grid-cols-[minmax(0,1fr)_184px]">
             <article ref="article" class="min-w-0" data-testid="section-page">
-              <ProjectReadingColumn>
-                <AppMarkdownEditor :model-value="bodyDraft" readonly fit-column :read-settings="false" :path-root="repoFolder" />
-              </ProjectReadingColumn>
+              <AppMarkdownEditor :model-value="bodyDraft" readonly :read-settings="false" :path-root="repoFolder" />
             </article>
             <ProjectComponentOutline
               v-if="headings.length > 1"

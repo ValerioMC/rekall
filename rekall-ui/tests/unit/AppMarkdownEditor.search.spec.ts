@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
@@ -34,6 +35,7 @@ afterEach(() => {
 })
 
 describe('AppMarkdownEditor find in read mode', () => {
+  beforeEach(() => setActivePinia(createPinia()))
   it('opens the find bar on cmd+F and takes the shortcut from the browser', async () => {
     const view = await mountReadView()
 

@@ -81,9 +81,7 @@ How it's built, how it's organised, the conventions to follow while working in i
             @update:model-value="schedule"
           />
         </ProjectReadingColumn>
-        <ProjectReadingColumn v-else key="read">
-          <AppMarkdownEditor :model-value="draft" readonly fit-column :read-settings="false" />
-        </ProjectReadingColumn>
+        <AppMarkdownEditor v-else key="read" :model-value="draft" readonly :read-settings="false" />
       </Transition>
     </template>
   </ProjectPaneFrame>

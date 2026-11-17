@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
+import FormPanel from '@/components/ui/FormPanel.vue'
+import FormRow from '@/components/ui/FormRow.vue'
 import SegmentedControl, { type SegmentOption } from '@/components/ui/SegmentedControl.vue'
 import { usePreferencesStore } from '@/features/settings/store/preferences.store'
 import { useWorkStore } from '@/features/work/store/work.store'
-import { SCALES, type Motion } from '@/common/config/ui-preferences'
+import { SCALES, TASK_WIDTHS, type Motion, type TaskWidth } from '@/common/config/ui-preferences'
+import { TASK_WIDTH_LABEL } from '@/features/task/model/task-width'
 import type { WorkDensity } from '@/features/work/model/work-view'
 
 const preferences = usePreferencesStore()
 const work = useWorkStore()
-const { motion, scale } = storeToRefs(preferences)
+const { motion, scale, taskWidth } = storeToRefs(preferences)
 const { density } = storeToRefs(work)
 
 const DENSITY: readonly SegmentOption<WorkDensity>[] = [
@@ -19,6 +22,7 @@ const MOTION: readonly SegmentOption<Motion>[] = [
   { value: 'full', label: 'Full' },
   { value: 'reduced', label: 'Reduced' }
 ]
+const WIDTH_OPTIONS: readonly SegmentOption<TaskWidth>[] = TASK_WIDTHS.map((value) => ({ value, label: TASK_WIDTH_LABEL[value] }))
 const SCALE_OPTIONS: readonly SegmentOption<string>[] = SCALES.map((value) => ({ value: String(value), label: `${value}%` }))
 
 function chooseScale(value: string): void {
@@ -27,25 +31,18 @@ function chooseScale(value: string): void {
 </script>
 
 <template>
-  <section class="flex flex-col gap-6" aria-label="Appearance" data-testid="appearance-section">
-    <h2 class="text-heading font-medium text-text">Appearance</h2>
-
-    <div class="flex flex-col gap-2">
-      <p class="text-body font-medium text-text">Density</p>
-      <p class="text-small text-text-muted">How tall a row of the Work ledger is.</p>
+  <FormPanel title="Appearance" aria-label="Appearance" data-testid="appearance-section">
+    <FormRow label="Density" hint="How tall a row of the Work ledger is.">
       <SegmentedControl v-model="density" :options="DENSITY" label="Density" />
-    </div>
-
-    <div class="flex flex-col gap-2">
-      <p class="text-body font-medium text-text">Motion</p>
-      <p class="text-small text-text-muted">Reduced stops the loops, the running comet, the tube sheen and the session pulse. Every state change still shows.</p>
+    </FormRow>
+    <FormRow label="Motion" hint="Reduced stops the loops, the running comet, the tube sheen and the session pulse. Every state change still shows.">
       <SegmentedControl v-model="motion" :options="MOTION" label="Motion" />
-    </div>
-
-    <div class="flex flex-col gap-2">
-      <p class="text-body font-medium text-text">Text scale</p>
-      <p class="text-small text-text-muted">Scales every size in the console.</p>
+    </FormRow>
+    <FormRow label="Text scale" hint="Scales every size in the console.">
       <SegmentedControl :model-value="String(scale)" :options="SCALE_OPTIONS" label="Text scale" @update:model-value="chooseScale" />
-    </div>
-  </section>
+    </FormRow>
+    <FormRow label="Page width" hint="How wide a document reads. One choice for every document.">
+      <SegmentedControl v-model="taskWidth" :options="WIDTH_OPTIONS" label="Page width" />
+    </FormRow>
+  </FormPanel>
 </template>

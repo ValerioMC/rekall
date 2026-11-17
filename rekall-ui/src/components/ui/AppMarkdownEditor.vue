@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, useId, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, useId } from 'vue'
 import { MdEditor, MdPreview, NormalToolbar, type ExposeParam, type ToolbarNames } from 'md-editor-v3'
 import '@/common/config/markdown-editor'
 import PathPicker from '@/components/ui/PathPicker.vue'
-import ReadModeSettings from '@/components/ui/ReadModeSettings.vue'
+import TaskWidthMenu from '@/features/task/components/TaskWidthMenu.vue'
+import { usePreferencesStore } from '@/features/settings/store/preferences.store'
+import { columnMaxWidth } from '@/features/task/model/task-width'
 import ReadSearchBar from '@/components/ui/ReadSearchBar.vue'
 import TableContextMenu from '@/components/ui/TableContextMenu.vue'
 import { componentCompletion } from '@/common/markdown/component-completion'
@@ -22,7 +24,6 @@ import { useTableContextMenu } from '@/composables/useTableContextMenu'
 import type { ProjectComponent } from '@/features/project/model/project-component'
 import type { ProjectConnection } from '@/features/connection/model/connection'
 import type { Task } from '@/features/catalog/model/catalog'
-import { readModeAlign, readModeWidth, setReadModeAlign, setReadModeWidth } from '@/common/config/read-mode'
 
 const props = withDefaults(
   defineProps<{
@@ -40,8 +41,6 @@ const props = withDefaults(
     compact?: boolean
     /** Read as a message in a log: `compact`, and also without the indent that the section ticks hang into. */
     bare?: boolean
-    /** The read view takes the width of whatever holds it, centred or not as that decides, instead of its own reading column. */
-    fitColumn?: boolean
     /** Offers the `Aa` key for the reading column's width; off where the pane sets the page width itself. */
     readSettings?: boolean
     /** Whether the toolbar offers the page full screen, for text whose pane already gives it the room it needs. */
@@ -70,7 +69,6 @@ const props = withDefaults(
     placeholder: '# Contesto',
     compact: false,
     bare: false,
-    fitColumn: false,
     readSettings: true,
     pageFullscreen: true,
     pathRoot: null,
@@ -141,11 +139,8 @@ const search = useReadModeSearch(root, { enabled: () => props.readonly && !flush
 const editorId = `rekall-md-${useId()}`
 
 // The reading column's width and alignment, shared across every Read-mode pane via localStorage.
-const readWidth = ref(readModeWidth())
-const readAlign = ref(readModeAlign())
-watch(readWidth, (value) => setReadModeWidth(value))
-watch(readAlign, (value) => setReadModeAlign(value))
-const readStyle = computed(() => ({ '--rk-read-width': `${readWidth.value}px` }))
+const preferences = usePreferencesStore()
+const readStyle = computed(() => ({ '--rk-read-width': columnMaxWidth(preferences.taskWidth) }))
 
 const TOOLBARS: ToolbarNames[] = [
   'bold',
@@ -182,11 +177,9 @@ const toolbars = computed(() => (props.pageFullscreen ? TOOLBARS : TOOLBARS.filt
     :class="{
       'rekall-md--readonly': readonly,
       'rekall-md--compact': readonly && flush,
-      'rekall-md--fit': readonly && fitColumn,
       'rekall-md--bare': readonly && bare
     }"
     :style="readonly && !flush ? readStyle : undefined"
-    :data-align="readonly && !flush ? readAlign : undefined"
     @keydown.capture="onEditorKeydown"
     @rk-table-menu="tableMenu.open"
   >
@@ -202,7 +195,7 @@ const toolbars = computed(() => (props.pageFullscreen ? TOOLBARS : TOOLBARS.filt
           @previous="search.previous"
           @close="search.close"
         />
-        <ReadModeSettings v-if="readSettings" v-model:width="readWidth" v-model:align="readAlign" />
+        <TaskWidthMenu v-if="readSettings" v-model="preferences.taskWidth" />
       </div>
     </div>
     <MdPreview

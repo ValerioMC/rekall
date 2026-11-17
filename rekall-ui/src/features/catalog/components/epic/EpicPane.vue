@@ -113,7 +113,7 @@ defineExpose({ toggleMode })
     </div>
 
     <div class="min-h-0 flex-1 page-scroll">
-      <div class="mx-auto flex w-full max-w-[1100px] flex-col gap-4 px-5 py-5">
+      <div class="flex w-full flex-col gap-4 px-5 py-5">
         <EpicProgressPanel :progress="progress" :children="children" />
         <EpicTaskList
           :epic="selectedTask"

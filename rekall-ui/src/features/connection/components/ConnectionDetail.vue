@@ -42,7 +42,7 @@ defineExpose({
 </script>
 
 <template>
-  <section class="flex max-w-[760px] flex-col gap-4 p-5" :aria-label="connection.title" data-testid="connection-detail">
+  <section class="flex flex-col gap-4 p-5" :aria-label="connection.title" data-testid="connection-detail">
     <button
       type="button"
       class="focus-ring -ml-1 inline-flex min-h-11 w-fit items-center gap-1.5 rounded-key px-1 text-small text-text-muted hover:text-text min-[960px]:hidden"
@@ -104,6 +104,7 @@ defineExpose({
       </p>
     </header>
 
+    <div class="grid items-start gap-4 min-[1280px]:grid-cols-2">
     <AppCard>
       <ConnectionCredentialPanel ref="credentialPanel" :connection="connection" />
     </AppCard>
@@ -112,7 +113,7 @@ defineExpose({
       <ConnectionSharingPanel :detail="detail" @edit-companies="emit('editCompanies')" />
     </AppCard>
 
-    <AppCard :padded="false">
+    <AppCard :padded="false" class="min-[1280px]:col-span-2">
       <details class="group" @toggle="logOpened = true">
         <summary
           class="focus-ring flex cursor-pointer list-none items-center gap-2 rounded-card px-5 py-3.5 text-body font-semibold text-text hover:bg-surface-hover/40 [&::-webkit-details-marker]:hidden"
@@ -127,5 +128,6 @@ defineExpose({
         </div>
       </details>
     </AppCard>
+    </div>
   </section>
 </template>

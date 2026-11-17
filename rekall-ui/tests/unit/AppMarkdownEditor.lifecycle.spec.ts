@@ -1,3 +1,4 @@
+import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
@@ -35,6 +36,7 @@ function watchListeners(): { added: Registration[]; removed: Registration[]; res
 }
 
 describe('AppMarkdownEditor lifecycle', () => {
+  beforeEach(() => setActivePinia(createPinia()))
   let watched: ReturnType<typeof watchListeners>
 
   beforeEach(() => {

@@ -147,7 +147,7 @@ defineExpose({ step: go })
           Recorded {{ relativeTime(current.createdAt) }}<template v-if="wasRewritten"> &middot; rewritten {{ relativeTime(current.updatedAt) }}</template>
         </p>
         <div class="p-4">
-          <AppMarkdownEditor :model-value="current.bodyMarkdown" readonly />
+          <AppMarkdownEditor :model-value="current.bodyMarkdown" readonly :read-settings="false" />
         </div>
       </div>
 

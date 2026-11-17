@@ -43,6 +43,10 @@ in-memory demo data. Its simulated session, which claims a step after a few seco
 in the build by the terminal, session, run queue and usage stores. A number the mockup invents
 (the filed total, lane totals, adherence counts) comes from the real source or is left out.
 
+### Page frame
+
+Every screen is a page header, optional tabs and a body, and the body is always as wide as the window: no screen is held to a centred column. A body is a ledger (a table whose title column takes what the others leave), a workbench (an index beside the main area, with an optional inspector), a grid of cards that adds columns as the window grows, or a form grid (`form-grid`: `FormPanel` cards side by side, each setting a `FormRow` with its name and hint on the left and its control on the right). Only prose is centred, and only inside a document pane that itself fills: the page-width menu (Narrow, Standard, Wide or Full, one choice for every document) sets the width of the text, and the editor's read view takes it from there. Form fields are never stretched across a wide window.
+
 ### Screen map
 
 | Mockup route | Real route | Screen |
@@ -203,7 +207,7 @@ except while typing) and for hiding the list so the step has the whole tab, and 
 of facts. A step's header, body and dock follow the page width (Narrow, Standard, Wide or Full),
 centred in the pane; the key for it sits among the header's keys as well as at the right of the tab
 strip, and Full gives the detail the whole pane, so hiding the list widens it. The detail has no
-`Aa` key, since the page width is the one setting for it. The overview alone is held to 76rem. A dock at the foot holds the keys
+second width menu, since the page width is the one setting for it. The overview alone is held to 76rem. A dock at the foot holds the keys
 of a decision still to be made. Pinned, the header and dock stay while the body scrolls.
 
 With no step selected, which is how the tab opens, the frame holds the **overview**: its title says

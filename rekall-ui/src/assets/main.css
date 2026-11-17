@@ -168,10 +168,6 @@
   --spacing-control: 32px;
   --spacing-header: 48px;
 
-  /* The one column every page sits in, so a screen keeps its left edge when you switch to its
-     neighbour. Work and Review are the exceptions that use the width they have. */
-  --spacing-page: 1320px;
-
   /* The rail of a two-pane screen: Security's projects. */
   --spacing-nav: 304px;
   /* The diagram screen's inspector: wide enough for a code excerpt at 80 columns of 11px mono. */
@@ -346,16 +342,16 @@
 
 /* The single focus treatment, so every control agrees on what focus looks like. */
 @utility page-column {
-  margin-inline: auto;
   width: 100%;
-  max-width: var(--spacing-page);
   padding-inline: calc(var(--spacing) * 8);
 }
 
-/* A page that uses the whole window: the project's tabs, where a list or a document wants the room. */
-@utility page-fluid {
-  width: 100%;
-  padding-inline: calc(var(--spacing) * 8);
+/* Panels of a form side by side: as many columns as the window holds at a readable width. */
+@utility form-grid {
+  display: grid;
+  align-items: start;
+  gap: calc(var(--spacing) * 4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr));
 }
 
 /*

@@ -260,7 +260,7 @@ async function sendWrapupHere(message: string): Promise<void> {
               :path-root="selectedTask?.projectRepoFolder"
               @update:model-value="scheduleSave"
             />
-            <AppMarkdownEditor v-else key="read" :model-value="draft" readonly />
+            <AppMarkdownEditor v-else key="read" :model-value="draft" readonly :read-settings="!embedded" />
           </Transition>
         </div>
       </div>

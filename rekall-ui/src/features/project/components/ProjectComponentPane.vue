@@ -231,7 +231,7 @@ onUnmounted(() => {
                 <p v-if="summaryDraft" class="mb-5 text-title font-normal leading-relaxed text-text" data-testid="component-summary-read">
                   {{ summaryDraft }}
                 </p>
-                <AppMarkdownEditor v-if="hasDescription" :model-value="descriptionDraft" readonly fit-column :read-settings="false" :path-root="repoFolder" />
+                <AppMarkdownEditor v-if="hasDescription" :model-value="descriptionDraft" readonly :read-settings="false" :path-root="repoFolder" />
                 <div
                   v-else
                   class="max-w-[56ch] rounded-card border border-dashed border-border px-5 py-5 text-small leading-relaxed text-text-subtle"
