@@ -48,15 +48,16 @@ impl Assets {
     }
 }
 
-const FORWARDED: [&str; 15] = [
-    "/", "/projects", "/companies", "/connections", "/tasks", "/search", "/calendar", "/report", "/diagrams", "/security", "/claude", "/projects/",
-    "/companies/", "/connections/", "/tasks/",
+/// The paths of `rekall-ui/src/router/index.ts`, plus the ones older links may still name.
+const CLIENT_ROUTES: &[&str] = &[
+    "/", "/work", "/work/board", "/task/{*rest}", "/review", "/review/{*rest}", "/console", "/projects", "/projects/", "/projects/{*rest}", "/companies",
+    "/companies/", "/companies/{*rest}", "/connections", "/connections/", "/connections/{*rest}", "/tasks", "/tasks/", "/tasks/{*rest}", "/search",
+    "/calendar", "/report", "/diagrams", "/security", "/claude", "/settings", "/settings/{*rest}",
 ];
-const FORWARDED_TREES: [&str; 4] = ["/projects/{*rest}", "/companies/{*rest}", "/connections/{*rest}", "/tasks/{*rest}"];
 
 pub fn routes(assets: Assets) -> Router {
     let mut router = Router::new();
-    for path in FORWARDED.into_iter().chain(FORWARDED_TREES) {
+    for path in CLIENT_ROUTES {
         router = router.route(path, get(index));
     }
     router.fallback(resource).with_state(assets)
@@ -114,3 +115,6 @@ fn percent_decode(text: &str) -> Result<String, ()> {
     String::from_utf8(out).map_err(|_| ())
 }
 
+#[cfg(test)]
+#[path = "../tests/unit/spa_tests.rs"]
+mod tests;

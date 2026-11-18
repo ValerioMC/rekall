@@ -264,8 +264,7 @@ The other tabs hold the panes the console had, with the title row left to the pa
 keeps its author and age, the freshness tag, Versions, Wrapup here and the editor. Notes is a list
 of the task's notes (a ring marks one loaded on request, Add information, Delete) beside the note
 pane. Description keeps the review bar, Fix wording and the revisions; on a task that belongs to an
-epic a card names the epic, and an epic's page has no Plan and opens on its tasks and shared
-description. Time shows tracked time, sessions and tokens with the timer and the log of sessions.
+epic a card names the epic, and an epic's page has no Plan and opens on its shared description with its tasks, oldest first and each with its status, in a column beside it. A task's page offers **Convert to epic**, which lists what is carried over and what is deleted before it converts. Time shows tracked time, sessions and tokens with the timer and the log of sessions.
 Deviations opens on the first and walks them by step. A task selected elsewhere (search, the review
 queue) is followed to its page, on the tab that shows the pane it asked for.
 

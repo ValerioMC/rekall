@@ -103,16 +103,19 @@ epic after it, in full, marked `inherited`, with its description and notes as pa
 
 - The navigator keeps a project's epics on a shelf above its tasks that starts closed, each with the
   status mix of its tasks, and opens it when an epic is selected elsewhere; a task in an epic wears the epic's name next to its anchor, and the card above its dossier opens the epic.
-- Selecting an epic opens it in the console: how far its tasks are, the tasks themselves and its
-  description, written in place. **Add existing task** files a task of the project under it (one in
+- Selecting an epic opens it in the console: its description, written in place, takes the main
+  column; beside it are how far its tasks are and the tasks themselves, oldest first, each with its
+  status and how far its steps are. **Add existing task** files a task of the project under it (one in
   another epic moves here), **New task** creates one already filed, and a row's cross takes a task
   out, with an Undo. In its dossier one **Epic tasks** card, with how many are done, stands where a
   task has its description and steps; its notes are listed below as on any task.
 - A session creates one with `rekall_create_task` and `kind: "epic"`, creates tasks under it with
   `epic`, and files an existing task under it with `rekall_join_epic`.
 - An epic belongs to no epic, takes no step, has no flow, is never run (no terminal, no Claude
-  Code launch, no run queue) and is never laid on a deployment graph. A task with steps cannot
-  become one, and an epic with tasks cannot turn back into a task or move to another project.
+  Code launch, no run queue) and is never laid on a deployment graph. A task with steps becomes one only through **Convert to epic** on its page, which
+  keeps the title, code, status, description, notes, label, issue and time and deletes what an epic
+  cannot hold (its steps and flow, wrapup, logged commits, deviations, dependencies, skills, pull request link and its own epic),
+  naming each before it converts; a task on the run queue is not converted. An epic with tasks cannot turn back into a task or move to another project.
   Deleting an epic leaves its tasks on their own.
 
 ## Dependencies

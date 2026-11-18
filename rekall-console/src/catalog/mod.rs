@@ -21,5 +21,7 @@ pub use support::snapshot::Snapshot;
 pub use command::task_command::TaskCommand;
 pub use support::task_graph::TaskGraph;
 pub use view::task_ref_view::TaskRefView;
+pub use service::task_epic_conversion_service::TaskEpicConversionService;
 pub use service::task_service::TaskService;
+pub use view::epic_conversion_view::EpicConversionView;
 pub use view::task_view::TaskView;

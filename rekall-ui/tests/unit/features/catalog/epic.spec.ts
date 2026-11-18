@@ -11,15 +11,15 @@ function task(id: string, over: Partial<Task> = {}): Task {
 }
 
 describe('the tasks of an epic', () => {
-  it('lists only the tasks that name it, live work first, then by title', () => {
+  it('lists only the tasks that name it, from the oldest to the newest by the number in their code', () => {
     const tasks = [
-      task('b', { epicId: EPIC, title: 'B', status: 'DONE' }),
-      task('c', { epicId: EPIC, title: 'C', status: 'IN_PROGRESS' }),
-      task('a', { epicId: EPIC, title: 'A', status: 'IN_PROGRESS' }),
-      task('x', { title: 'X' })
+      task('b', { epicId: EPIC, code: 'RK-12', status: 'IN_PROGRESS' }),
+      task('c', { epicId: EPIC, code: 'RK-9', status: 'DONE' }),
+      task('a', { epicId: EPIC, code: 'RK-101', status: 'TODO' }),
+      task('x', { code: 'RK-1' })
     ]
 
-    expect(tasksOfEpic(EPIC, tasks).map((entry) => entry.id)).toEqual(['a', 'c', 'b'])
+    expect(tasksOfEpic(EPIC, tasks).map((entry) => entry.id)).toEqual(['c', 'b', 'a'])
   })
 })
 

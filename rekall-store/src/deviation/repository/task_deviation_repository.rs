@@ -10,3 +10,8 @@ pub async fn list_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<
 pub async fn find_of_step(db: &impl ConnectionTrait, task_id: Id, step_number: i32) -> Result<Option<Model>, RekallError> {
     Ok(Entity::find().filter(Column::TaskId.eq(task_id)).filter(Column::StepNumber.eq(step_number)).one(db).await?)
 }
+
+/// Deletes every deviation recorded on the task.
+pub async fn delete_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<u64, RekallError> {
+    Ok(Entity::delete_many().filter(Column::TaskId.eq(task_id)).exec(db).await?.rows_affected)
+}

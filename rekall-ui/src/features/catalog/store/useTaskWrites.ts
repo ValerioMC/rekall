@@ -7,6 +7,7 @@ import {
   updateTask as apiUpdateTask
 } from '@/features/catalog/api/catalog.api'
 import type { TaskInput } from '@/features/catalog/api/catalog.api'
+import { convertTaskToEpic as apiConvertTaskToEpic } from '@/features/catalog/api/epic-conversion.api'
 import { createQuickTask as apiCreateQuickTask } from '@/features/catalog/api/quick-task.api'
 import type { QuickTaskInput, QuickTaskStarted } from '@/features/catalog/api/quick-task.api'
 import type { Task } from '@/features/catalog/model/catalog'
@@ -120,6 +121,14 @@ export function useTaskWrites(
     storeTask(await apiUpdateTask(id, taskInput(task, { epicId })))
   }
 
+  /** The server deletes what an epic cannot hold, so the plan, wrapup and the rest are read again. */
+  async function convertTaskToEpic(id: TaskId): Promise<void> {
+    storeTask(await apiConvertTaskToEpic(id))
+    steps.value = steps.value.filter((step) => step.taskId !== id)
+    wrapups.value = wrapups.value.filter((wrapup) => wrapup.taskId !== id)
+    await refreshes.refreshEverything()
+  }
+
   async function saveTaskDescription(id: TaskId, description: string): Promise<void> {
     const task = tasks.value.find((candidate) => candidate.id === id)
     if (!task) return
@@ -186,6 +195,7 @@ export function useTaskWrites(
     setTaskStatus,
     setTaskTag,
     setTaskEpic,
+    convertTaskToEpic,
     saveTaskDescription,
     reloadTask,
     syncTaskTracker,

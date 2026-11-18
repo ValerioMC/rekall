@@ -13,6 +13,11 @@ export function newestFirst(a: Pick<Task, 'code'>, b: Pick<Task, 'code'>): numbe
   return codeNumber(b.code) - codeNumber(a.code)
 }
 
+/** Oldest first: the lower a task's number, the earlier it is listed. */
+export function oldestFirst(a: Pick<Task, 'code'>, b: Pick<Task, 'code'>): number {
+  return codeNumber(a.code) - codeNumber(b.code)
+}
+
 function nextNumber(projectId: ProjectId, tasks: readonly Task[]): number {
   const numbers = tasks.filter((task) => task.projectId === projectId).map((task) => codeNumber(task.code))
   return Math.max(0, ...numbers) + 1

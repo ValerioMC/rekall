@@ -21,6 +21,11 @@ pub async fn save(db: &impl ConnectionTrait, pull_request: Model) -> Result<(), 
     Ok(())
 }
 
+/// Deletes the link to the task's pull request; the request itself stays on the task manager.
+pub async fn delete_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<u64, RekallError> {
+    Ok(Entity::delete_many().filter(Column::TaskId.eq(task_id)).exec(db).await?.rows_affected)
+}
+
 #[cfg(test)]
 #[path = "../../../tests/unit/tracker/repository/task_pull_request_repository_tests.rs"]
 mod tests;

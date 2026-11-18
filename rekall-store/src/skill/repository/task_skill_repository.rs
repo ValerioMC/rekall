@@ -29,6 +29,11 @@ pub async fn replace(
     Ok(())
 }
 
+/// Deletes the skills assigned to the task and to its steps.
+pub async fn delete_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<u64, RekallError> {
+    Ok(Entity::delete_many().filter(Column::TaskId.eq(task_id)).exec(db).await?.rows_affected)
+}
+
 #[cfg(test)]
 #[path = "../../../tests/unit/skill/repository/task_skill_repository_tests.rs"]
 mod tests;

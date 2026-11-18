@@ -1,21 +1,38 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import AppCard from '@/components/ui/AppCard.vue'
+import { computed, ref } from 'vue'
+import AppButton from '@/components/ui/AppButton.vue'
+import StatusPill, { type StatusPillTone } from '@/components/ui/StatusPill.vue'
 import TagBadge from '@/components/ui/TagBadge.vue'
 import TaskMark from '@/features/catalog/components/TaskMark.vue'
 import EpicTaskPicker from '@/features/catalog/components/epic/EpicTaskPicker.vue'
-import { TASK_STATUS_LABEL } from '@/features/catalog/model/task-status'
+import { TASK_STATUS_LABEL, type TaskStatus } from '@/features/catalog/model/task-status'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { TaskStep } from '@/features/steps/model/task-step'
 import { taskMark } from '@/features/catalog/model/task-mark'
 import type { TaskId } from '@/model/branded'
 
-/** The tasks that belong to the epic, live work first. A row opens its task; its end takes it out of the epic. */
-defineProps<{ epic: Task; children: readonly Task[]; steps: readonly TaskStep[]; runningTaskIds: ReadonlySet<TaskId> }>()
+/** The tasks of the epic, oldest first, each with its status and how far its steps are. A row opens its task; its end takes it out of the epic. */
+const props = defineProps<{ epic: Task; children: readonly Task[]; steps: readonly TaskStep[]; runningTaskIds: ReadonlySet<TaskId> }>()
 
 const emit = defineEmits<{ open: [id: TaskId]; attach: [id: TaskId]; create: []; remove: [task: Task] }>()
 
+const STATUS_TONE: Readonly<Record<TaskStatus, StatusPillTone>> = {
+  IN_PROGRESS: 'progress',
+  TODO: 'neutral',
+  BLOCKED: 'danger',
+  BACKLOG: 'neutral',
+  DONE: 'done'
+}
+
 const isAttaching = ref(false)
+
+const rows = computed(() =>
+  props.children.map((task) => {
+    const mark = taskMark(task, props.steps, props.runningTaskIds.has(task.id))
+    const waitsOnYou = mark.state === 'CLAIMED' || mark.state === 'LIVE_CLAIMED'
+    return { task, mark, waitsOnYou }
+  })
+)
 
 function attach(id: TaskId): void {
   isAttaching.value = false
@@ -24,31 +41,20 @@ function attach(id: TaskId): void {
 </script>
 
 <template>
-  <AppCard :padded="false" data-testid="epic-task-list">
-    <header class="flex items-center gap-2 border-b border-border px-5 py-3">
-      <span class="eyebrow text-caption">Tasks</span>
-      <span class="rounded-key bg-surface px-1.5 py-px font-mono text-micro tabular-nums text-text-subtle">{{ children.length }}</span>
-      <span class="ml-auto flex items-center gap-1.5">
-        <button
-          type="button"
-          class="add-row focus-ring w-auto px-2.5 py-1"
-          :class="isAttaching && 'add-row-open'"
-          :aria-expanded="isAttaching"
-          data-testid="epic-attach-task"
-          @click="isAttaching = !isAttaching"
-        >
-          <svg class="size-3 shrink-0 text-accent" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-            <path d="M5 7l2-2M4.2 5.6L3 6.8a2 2 0 0 0 2.8 2.8L7 8.4M7.8 6.4L9 5.2A2 2 0 0 0 6.2 2.4L5 3.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
-          </svg>
-          Add existing task
-        </button>
-        <button type="button" class="add-row focus-ring w-auto px-2.5 py-1" data-testid="epic-create-task" @click="emit('create')">
-          <span class="text-accent" aria-hidden="true">+</span> New task
-        </button>
+  <section class="flex min-h-0 flex-1 flex-col" aria-label="Tasks of this epic" data-testid="epic-task-list">
+    <header class="flex h-11 shrink-0 items-center gap-2 border-b border-border pl-5 pr-3">
+      <h2 class="eyebrow text-caption">Tasks</h2>
+      <span class="rounded-key bg-canvas px-1.5 py-px font-mono text-micro tabular-nums text-text-subtle">{{ children.length }}</span>
+      <span class="text-micro text-text-subtle">oldest first</span>
+      <span class="ml-auto flex items-center gap-1">
+        <AppButton variant="quiet" size="sm" :pressed="isAttaching || undefined" :aria-expanded="isAttaching" data-testid="epic-attach-task" @click="isAttaching = !isAttaching">
+          Add existing
+        </AppButton>
+        <AppButton size="sm" data-testid="epic-create-task" @click="emit('create')"><span class="text-accent" aria-hidden="true">+</span> New task</AppButton>
       </span>
     </header>
 
-    <div v-if="isAttaching" class="border-b border-border px-5 py-3">
+    <div v-if="isAttaching" class="shrink-0 border-b border-border px-5 py-3">
       <EpicTaskPicker :epic="epic" @pick="attach" @close="isAttaching = false" />
     </div>
 
@@ -56,54 +62,47 @@ function attach(id: TaskId): void {
       No task belongs to this epic yet. Add one that exists, or create a new one here.
     </p>
 
-    <ul v-else class="divide-y divide-border">
-      <li v-for="task in children" :key="task.id" class="group/row flex items-center" :class="task.status === 'DONE' && 'filed-row'">
+    <ul v-else class="page-scroll min-h-0 flex-1 divide-y divide-border">
+      <li v-for="{ task, mark, waitsOnYou } in rows" :key="task.id" class="group/row flex items-start" :class="task.status === 'DONE' && 'filed-row'">
         <button
-          class="focus-ring flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-5 pr-2 text-left transition-colors hover:bg-surface-hover"
+          class="focus-ring grid min-w-0 flex-1 grid-cols-[14px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1.5 py-2.5 pl-5 pr-2 text-left transition-colors hover:bg-surface-hover"
           data-testid="epic-task-row"
           @click="emit('open', task.id)"
         >
-          <span class="relative grid size-3.5 shrink-0 place-items-center">
-            <TaskMark
-              :state="taskMark(task, steps, runningTaskIds.has(task.id)).state"
-              :status="task.status"
-              :accepted="taskMark(task, steps, runningTaskIds.has(task.id)).accepted"
-              :selected="false"
+          <span class="relative grid size-3.5 place-items-center">
+            <TaskMark :state="mark.state" :status="task.status" :accepted="mark.accepted" :selected="false" />
+          </span>
+          <span class="flex min-w-0 items-center gap-2">
+            <span class="min-w-0 truncate text-body font-medium text-text">{{ task.title }}</span>
+            <TagBadge
+              v-if="task.tagId && task.tagName && task.tagIcon && task.tagColor"
+              class="shrink-0"
+              :name="task.tagName"
+              :icon="task.tagIcon"
+              :color="task.tagColor"
             />
           </span>
-          <span class="min-w-0 flex-1">
-            <span class="flex items-center gap-2">
-              <span class="min-w-0 truncate text-body font-medium text-text">{{ task.title }}</span>
-              <TagBadge
-                v-if="task.tagId && task.tagName && task.tagIcon && task.tagColor"
-                class="shrink-0"
-                :name="task.tagName"
-                :icon="task.tagIcon"
-                :color="task.tagColor"
-              />
-            </span>
-            <span class="anchor-chip mt-0.5 inline-block max-w-full truncate px-1.5 py-px text-micro leading-[15px]">{{ task.code }}</span>
-          </span>
-          <span class="hidden w-28 shrink-0 sm:block" :title="`${task.stepsDone} of ${task.stepCount} steps done`">
+          <StatusPill :tone="STATUS_TONE[task.status]" data-testid="epic-task-status">{{ TASK_STATUS_LABEL[task.status] }}</StatusPill>
+
+          <span class="col-start-2 col-end-4 flex min-w-0 items-center gap-2.5">
+            <span class="anchor-chip shrink-0 px-1.5 py-px text-micro leading-[15px]">{{ task.code }}</span>
             <template v-if="task.stepCount > 0">
-              <span class="trough flex h-[6px] p-[1px]">
+              <span class="trough flex h-[6px] w-20 shrink-0 p-[1px]" :title="`${task.stepsDone} of ${task.stepCount} steps done`">
                 <span
                   class="tube-gold h-full rounded-full"
                   :class="task.stepsDone === task.stepCount && 'tube-safe'"
                   :style="{ width: `${(task.stepsDone / task.stepCount) * 100}%` }"
                 />
               </span>
-              <span class="mt-1 block text-right font-mono text-micro tabular-nums text-text-subtle">
-                {{ task.stepsDone }}/{{ task.stepCount }} steps
-              </span>
+              <span class="shrink-0 font-mono text-micro tabular-nums text-text-subtle">{{ task.stepsDone }}/{{ task.stepCount }}</span>
             </template>
-            <span v-else class="block text-right text-micro text-text-subtle">No checklist</span>
+            <span v-else class="shrink-0 text-micro text-text-subtle">No checklist</span>
+            <span v-if="waitsOnYou" class="shrink-0 text-micro text-session-strong" data-testid="epic-task-claimed">claimed</span>
           </span>
-          <span class="w-24 shrink-0 text-right text-caption text-text-muted">{{ TASK_STATUS_LABEL[task.status] }}</span>
         </button>
         <button
           type="button"
-          class="focus-ring mr-3 grid size-7 shrink-0 place-items-center rounded-control text-text-subtle opacity-0 transition-[opacity,color,background-color] duration-(--motion-quick) hover:bg-danger-soft hover:text-danger focus-visible:opacity-100 group-hover/row:opacity-100 group-focus-within/row:opacity-100"
+          class="focus-ring mr-3 mt-2 grid size-7 shrink-0 place-items-center rounded-control text-text-subtle opacity-0 transition-[opacity,color,background-color] duration-(--motion-quick) hover:bg-danger-soft hover:text-danger focus-visible:opacity-100 group-hover/row:opacity-100 group-focus-within/row:opacity-100"
           :title="`Take ${task.title} out of the epic`"
           :aria-label="`Take ${task.title} out of the epic`"
           data-testid="epic-remove-task"
@@ -115,5 +114,5 @@ function attach(id: TaskId): void {
         </button>
       </li>
     </ul>
-  </AppCard>
+  </section>
 </template>

@@ -25,3 +25,8 @@ pub async fn search(db: &impl ConnectionTrait, term: &str, limit: usize) -> Resu
         .take(limit)
         .collect())
 }
+
+/// Deletes the task's wrapup and its versions.
+pub async fn delete_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<u64, RekallError> {
+    Ok(Entity::delete_many().filter(Column::TaskId.eq(task_id)).exec(db).await?.rows_affected)
+}

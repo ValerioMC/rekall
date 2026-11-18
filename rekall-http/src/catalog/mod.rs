@@ -7,6 +7,7 @@ mod routes;
 
 pub use request::company_request::CompanyRequest;
 pub use response::company_response::CompanyResponse;
+pub use response::epic_conversion_response::EpicConversionResponse;
 pub use request::image_size_query::ImageSizeQuery;
 pub use response::project_repository_response::ProjectRepositoryResponse;
 pub use request::project_request::ProjectRequest;
