@@ -75,6 +75,8 @@ Choose **Claude Code** or **Codex** under **Settings > Sessions and run queue > 
 
 When both CLIs are installed, the arrow beside **Run here** or **Start quick task** lets you choose the provider for that run. The main button uses your default provider.
 
+On macOS and Linux, either provider can use the project’s saved connections from a terminal opened with **Run here**.
+
 ### Claude Code
 
 **Settings > Sessions and run queue** in the app registers the MCP server for every folder and installs the `/rk` command in one click, with its mode files in `~/.claude/rk/`. It also repairs a registration that points at the wrong port, carries an older command or a missing or older mode file, or is shadowed in one folder by a registration made without `--scope user`. While a registration is out of date, a warning triangle sits on the Settings key in the top bar until Repair is run.

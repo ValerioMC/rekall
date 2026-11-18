@@ -11,6 +11,7 @@ pub struct SessionOptions {
     pub model: Option<String>,
     pub effort: Option<String>,
     pub settings: Option<PathBuf>,
+    pub(crate) codex_credential_session: bool,
 }
 
 impl SessionOptions {
@@ -29,12 +30,15 @@ impl SessionOptions {
             skip_permissions,
             model: codex_choice(model, "model")?,
             effort: codex_choice(effort, "reasoning effort")?,
-            settings: None,
+            ..Self::default()
         })
     }
 
     pub fn arguments(&self) -> Vec<OsString> {
         let mut arguments = Vec::new();
+        if self.codex_credential_session {
+            arguments.push("--no-daemon".into());
+        }
         if self.skip_permissions {
             arguments.push(match self.provider {
                 SessionProvider::Claude => "--dangerously-skip-permissions",

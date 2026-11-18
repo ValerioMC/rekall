@@ -121,7 +121,7 @@ impl PtyTerminalManager {
             SessionProvider::Claude => SessionOptions::chosen(skip_permissions, model.as_deref(), effort.as_deref()),
             SessionProvider::Codex => SessionOptions::codex(skip_permissions, model.as_deref(), effort.as_deref())?,
         };
-        let binary = self.launcher.require_terminal_cli(provider, &launch).await?;
+        let binary = self.launcher.require_terminal_cli(provider).await?;
         let id = Id::random();
         let environment = self.launcher.environment(id, &launch, &mut options).await?;
         let command = terminal_command(&binary, &options, &prompt, environment, directory);

@@ -22,10 +22,15 @@ Hover or focus either meter to see its available usage windows and reset times. 
 percentage in **Settings > Time and usage** applies to both rings. Codex limits require a ChatGPT
 login that reports account limits.
 
-Chat, unattended queue runs, Rekall’s installed guard hooks, saved connection credentials and
-per-task token attribution use Claude Code.
+Chat, unattended queue runs, Rekall’s installed guard hooks and per-task token attribution use
+Claude Code.
 
 ## Terminal in Rekall
+
+On macOS and Linux, both providers can use the project’s saved connections through the
+[connection helpers](projects.md#project-page). Rekall starts Codex with its own app server
+(`--no-daemon`) so the helpers use that terminal’s environment. Codex’s sandbox and approval
+settings govern the network calls.
 
 **Run here**, next to **Open in terminal** on the description and steps panes, or `c` from any task, runs a real terminal inside the app. The backend starts the selected CLI in a pseudo-terminal in the project’s folder and opens the task with `/rk` for Claude Code or the `$rekall` skill for Codex; the pane renders it with `xterm.js` and the bytes travel both ways over one WebSocket at `/api/terminal/{id}/io`. It is the same binary run the same way as in your own terminal, so its own screens, `/context` read-outs and permission prompts are the ones you know. The [Chat view](#chat-view) is the alternative. Works in a plain browser, not only the desktop app.
 

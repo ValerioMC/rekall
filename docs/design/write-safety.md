@@ -209,7 +209,13 @@ answer (`ok`, a sentence naming the identity, the rejection status or why the se
 asked, with the underlying cause such as a timeout) is shown and never stored, and a connection with no credential is answered without asking
 anyone.
 
-A terminal with a credential session also starts `claude` with `--settings` pointing at the
+Both terminal providers use `CredentialBroker` to install helpers for the project's bindings, log
+each request and revoke the session token when the terminal closes. With Codex, the helpers read
+the session token from a mode 0600 header file in the private session folder. The CLI runs with
+`--no-daemon` so its shell commands inherit the terminal's helper paths and Git configuration.
+Codex's sandbox and approval settings apply to those commands.
+
+A Claude Code terminal with a credential session also starts `claude` with `--settings` pointing at the
 session's `claude-settings.json`, whose `permissions.deny` (`rekall-infra/src/connection/guard_rails.rs`)
 closes the session folder to the file tools (`Read`/`Edit` with an absolute `//` rule on the folder's
 real path) and denies dumping the environment (`env`, `printenv`, `export -p`, `set`), `git

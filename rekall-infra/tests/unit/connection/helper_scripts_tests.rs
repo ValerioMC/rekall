@@ -5,6 +5,8 @@ use super::*;
 
 const ENDPOINT: &str = "http://127.0.0.1:47355/api/terminal/t1/credentials";
 
+const REQUEST: CredentialRequest<'_> = CredentialRequest { endpoint: ENDPOINT, header_file: None };
+
 fn gitlab(label: &str, target: Option<&str>) -> TerminalConnection {
     TerminalConnection {
         connection_id: Id::random(),
@@ -30,7 +32,7 @@ fn jira() -> TerminalConnection {
 
 #[test]
 fn every_helper_sends_the_token_on_stdin_never_as_an_argument() {
-    for script in [kube_plugin(ENDPOINT), git_helper(ENDPOINT), api_wrapper(&GITLAB_API, ENDPOINT, &[&gitlab("gitlab", None)]), api_wrapper(&JIRA_API, ENDPOINT, &[&jira()])] {
+    for script in [kube_plugin(&REQUEST), git_helper(&REQUEST), api_wrapper(&GITLAB_API, &REQUEST, &[&gitlab("gitlab", None)]), api_wrapper(&JIRA_API, &REQUEST, &[&jira()])] {
         assert!(script.starts_with("#!/bin/sh\n"));
         assert!(script.contains("printf 'X-Rekall-Credential-Token: %s\\n' \"$REKALL_CREDENTIAL_TOKEN\" |"));
         assert!(script.contains("-H @-"));
@@ -39,32 +41,32 @@ fn every_helper_sends_the_token_on_stdin_never_as_an_argument() {
 
 #[test]
 fn the_kube_plugin_asks_for_its_label_as_kubectl() {
-    assert!(kube_plugin(ENDPOINT).contains("rekall_fetch 'http://127.0.0.1:47355/api/terminal/t1/credentials/'\"$1?for=kubectl\""));
+    assert!(kube_plugin(&REQUEST).contains("rekall_fetch 'http://127.0.0.1:47355/api/terminal/t1/credentials/'\"$1?for=kubectl\""));
 }
 
 #[test]
 fn the_git_helper_answers_get_only() {
-    let script = git_helper(ENDPOINT);
+    let script = git_helper(&REQUEST);
     assert!(script.contains("[ \"$2\" = get ] || exit 0"));
     assert!(script.contains("\"$1?for=git\""));
 }
 
 #[test]
 fn the_gitlab_wrapper_knows_each_instance_and_project_path() {
-    let script = api_wrapper(&GITLAB_API, ENDPOINT, &[&gitlab("gitlab", Some("acme/vega app"))]);
+    let script = api_wrapper(&GITLAB_API, &REQUEST, &[&gitlab("gitlab", Some("acme/vega app"))]);
     assert!(script.contains("  'gitlab') base='https://gitlab.example.com/api/v4'; project='acme%2Fvega%20app'; proxy=''; insecure='' ;;"));
     assert!(script.contains("\"$label?for=gitlab\""));
 }
 
 #[test]
 fn the_gitlab_wrapper_sends_only_the_token_header() {
-    let script = api_wrapper(&GITLAB_API, ENDPOINT, &[&gitlab("gitlab", None)]);
+    let script = api_wrapper(&GITLAB_API, &REQUEST, &[&gitlab("gitlab", None)]);
     assert!(script.contains("curl --silent --show-error -X \"$method\" -H @- \"$base$path\" \"$@\""));
 }
 
 #[test]
 fn the_jira_wrapper_calls_the_rest_api_of_each_site_with_json_both_ways() {
-    let script = api_wrapper(&JIRA_API, ENDPOINT, &[&jira()]);
+    let script = api_wrapper(&JIRA_API, &REQUEST, &[&jira()]);
     assert!(script.contains("usage: rekall-jira --connection <label> <METHOD> <path> [curl options]"));
     assert!(script.contains("  'jira') base='https://example.atlassian.net/rest/api/2'; project='ENG'; proxy=''; insecure='' ;;"));
     assert!(script.contains("\"$label?for=jira\""));
@@ -76,7 +78,7 @@ fn the_jira_wrapper_calls_the_rest_api_of_each_site_with_json_both_ways() {
 fn the_confluence_wrapper_calls_the_rest_api_of_each_site_with_the_space_key_for_the_project() {
     let wiki = TerminalConnection { kind: ConnectionKind::Confluence, label: "wiki".into(), target: Some("DOCS".into()), instance_url: Some("https://example.atlassian.net/wiki/".into()), ..jira() };
 
-    let script = api_wrapper(&CONFLUENCE_API, ENDPOINT, &[&wiki]);
+    let script = api_wrapper(&CONFLUENCE_API, &REQUEST, &[&wiki]);
 
     assert!(script.contains("usage: rekall-confluence --connection <label> <METHOD> <path> [curl options]"));
     assert!(script.contains("  'wiki') base='https://example.atlassian.net/wiki/rest/api'; project='DOCS'; proxy=''; insecure='' ;;"));
@@ -87,7 +89,7 @@ fn the_confluence_wrapper_calls_the_rest_api_of_each_site_with_the_space_key_for
 #[test]
 fn the_jira_wrapper_sends_its_calls_through_the_connections_proxy() {
     let behind = TerminalConnection { proxy_url: Some("http://proxy.example.com:8080".into()), ..jira() };
-    let script = api_wrapper(&JIRA_API, ENDPOINT, &[&behind]);
+    let script = api_wrapper(&JIRA_API, &REQUEST, &[&behind]);
     assert!(script.contains("project='ENG'; proxy='http://proxy.example.com:8080'; insecure='' ;;"));
     assert!(script.contains("[ -n \"$proxy\" ] && set -- --proxy \"$proxy\" \"$@\""));
 }
@@ -100,7 +102,7 @@ fn a_quote_in_a_value_cannot_end_its_shell_word() {
 #[test]
 fn the_github_wrapper_calls_the_api_host_and_keeps_the_repository_as_two_segments() {
     let github = TerminalConnection { kind: ConnectionKind::Github, instance_url: Some("https://github.com".into()), ..gitlab("lightcraft", Some("storytold/lightcraft")) };
-    let script = api_wrapper(&GITHUB_API, ENDPOINT, &[&github]);
+    let script = api_wrapper(&GITHUB_API, &REQUEST, &[&github]);
     assert!(script.contains("  'lightcraft') base='https://api.github.com'; project='storytold/lightcraft'; proxy=''; insecure='' ;;"));
     assert!(script.contains("\"$label?for=github\""));
     assert!(script.contains("-H 'X-GitHub-Api-Version: 2022-11-28' "));
@@ -109,7 +111,7 @@ fn the_github_wrapper_calls_the_api_host_and_keeps_the_repository_as_two_segment
 #[test]
 fn the_grafana_wrapper_calls_the_api_of_each_instance_with_json_both_ways() {
     let grafana = TerminalConnection { kind: ConnectionKind::Grafana, instance_url: Some("https://grafana.example.com/".into()), ..gitlab("grafana", None) };
-    let script = api_wrapper(&GRAFANA_API, ENDPOINT, &[&grafana]);
+    let script = api_wrapper(&GRAFANA_API, &REQUEST, &[&grafana]);
     assert!(script.contains("usage: rekall-grafana --connection <label> <METHOD> <path> [curl options]"));
     assert!(script.contains("  'grafana') base='https://grafana.example.com/api'; project=''; proxy=''; insecure='' ;;"));
     assert!(script.contains("\"$label?for=grafana\""));
@@ -125,7 +127,7 @@ fn the_grafana_wrapper_sends_its_calls_through_the_connections_proxy() {
         proxy_url: Some("http://10.250.0.1:33128".into()),
         ..gitlab("grafana", None)
     };
-    let script = api_wrapper(&GRAFANA_API, ENDPOINT, &[&behind]);
+    let script = api_wrapper(&GRAFANA_API, &REQUEST, &[&behind]);
     assert!(script.contains("project=''; proxy='http://10.250.0.1:33128'; insecure='' ;;"));
 }
 
@@ -137,7 +139,7 @@ fn the_grafana_wrapper_does_not_verify_the_certificate_of_an_instance_that_accep
         accept_self_signed: true,
         ..gitlab("grafana", None)
     };
-    let script = api_wrapper(&GRAFANA_API, ENDPOINT, &[&trusting]);
+    let script = api_wrapper(&GRAFANA_API, &REQUEST, &[&trusting]);
     assert!(script.contains("project=''; proxy=''; insecure='yes' ;;"));
     assert!(script.contains("[ -n \"$insecure\" ] && set -- --insecure \"$@\""));
 }

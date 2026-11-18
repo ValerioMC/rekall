@@ -94,7 +94,7 @@ async fn a_project_with_no_stored_credential_gets_no_session() {
     let terminal_id = Id::random();
     let only_empty = launch_with(world.launch.connections.iter().filter(|c| !c.credential_set).cloned().collect());
 
-    assert_eq!(world.broker.open(terminal_id, &only_empty).await.unwrap(), None);
+    assert_eq!(world.broker.open(terminal_id, &only_empty, SessionProvider::Claude).await.unwrap(), None);
     assert!(!world.broker.has_session(terminal_id));
 }
 
@@ -103,7 +103,7 @@ async fn a_session_writes_private_helpers_that_hold_no_credential() {
     let world = world().await;
     let terminal_id = Id::random();
 
-    let environment = world.broker.open(terminal_id, &world.launch).await.unwrap().unwrap();
+    let environment = world.broker.open(terminal_id, &world.launch, SessionProvider::Claude).await.unwrap().unwrap();
 
     let folder = environment.path_prefix.clone().unwrap();
     assert_eq!(std::fs::metadata(&folder).unwrap().permissions().mode() & 0o777, 0o700);
@@ -119,6 +119,29 @@ async fn a_session_writes_private_helpers_that_hold_no_credential() {
 }
 
 #[tokio::test]
+async fn codex_keeps_only_its_broker_token_in_a_private_header_file() {
+    let world = world().await;
+    let terminal_id = Id::random();
+    let environment = world.broker.open(terminal_id, &world.launch, SessionProvider::Codex).await.unwrap().unwrap();
+    let folder = environment.path_prefix.unwrap();
+    let header = folder.join(CREDENTIAL_HEADER_FILE);
+
+    assert_eq!(std::fs::metadata(&header).unwrap().permissions().mode() & 0o777, 0o600);
+    let contents = std::fs::read_to_string(&header).unwrap();
+    let (_, token) = contents.trim_end().split_once(": ").unwrap();
+    assert_eq!(token.len(), 64);
+    assert!(every_file_in(&folder).iter().all(|(_, text)|
+        !["glpat-secret", "sa-token-123", "atl-secret"].iter().any(|credential| text.contains(credential))));
+    assert_eq!(environment.token, None);
+    assert_eq!(environment.claude_settings, None);
+
+    world.broker.close(terminal_id);
+    assert!(!header.exists());
+    let after_close = world.broker.hand_out(terminal_id, Some(token), "gitlab", CredentialPurpose::Gitlab).await;
+    assert!(matches!(after_close, HandOut::Refused { refusal: Refusal::Missing, .. }));
+}
+
+#[tokio::test]
 async fn two_bindings_of_one_gitlab_reach_its_token_by_either_label_through_one_git_helper() {
     let world = world().await;
     let gitlab = world.launch.connections.iter().find(|c| c.kind == ConnectionKind::Gitlab).cloned().unwrap();
@@ -126,7 +149,7 @@ async fn two_bindings_of_one_gitlab_reach_its_token_by_either_label_through_one_
     let orders = TerminalConnection { label: "orders".into(), target: Some("acme/orders".into()), ..gitlab };
     let terminal_id = Id::random();
 
-    let environment = world.broker.open(terminal_id, &launch_with(vec![billing, orders])).await.unwrap().unwrap();
+    let environment = world.broker.open(terminal_id, &launch_with(vec![billing, orders]), SessionProvider::Claude).await.unwrap().unwrap();
     let token = environment.token.clone().unwrap();
 
     let helpers: Vec<&(String, String)> = environment.git_config.iter().filter(|(key, _)| key == "credential.https://gitlab.example.com.helper").collect();
@@ -141,7 +164,7 @@ async fn two_bindings_of_one_gitlab_reach_its_token_by_either_label_through_one_
 async fn the_terminals_token_gets_the_credential_in_the_shape_each_helper_reads_and_each_is_logged() {
     let world = world().await;
     let terminal_id = Id::random();
-    let token = world.broker.open(terminal_id, &world.launch).await.unwrap().unwrap().token.unwrap();
+    let token = world.broker.open(terminal_id, &world.launch, SessionProvider::Claude).await.unwrap().unwrap().token.unwrap();
 
     let git = world.broker.hand_out(terminal_id, Some(&token), "gitlab", CredentialPurpose::Git).await;
     let api = world.broker.hand_out(terminal_id, Some(&token), "gitlab", CredentialPurpose::Gitlab).await;
@@ -159,7 +182,7 @@ async fn the_terminals_token_gets_the_credential_in_the_shape_each_helper_reads_
 async fn a_wrong_token_or_a_wrong_shape_is_refused_and_logged() {
     let world = world().await;
     let terminal_id = Id::random();
-    let token = world.broker.open(terminal_id, &world.launch).await.unwrap().unwrap().token.unwrap();
+    let token = world.broker.open(terminal_id, &world.launch, SessionProvider::Claude).await.unwrap().unwrap().token.unwrap();
 
     let guessed = world.broker.hand_out(terminal_id, Some("0123"), "gitlab", CredentialPurpose::Git).await;
     let missing = world.broker.hand_out(terminal_id, None, "gitlab", CredentialPurpose::Git).await;
@@ -179,7 +202,7 @@ async fn a_wrong_token_or_a_wrong_shape_is_refused_and_logged() {
 async fn a_closed_session_answers_nothing_and_leaves_no_folder() {
     let world = world().await;
     let terminal_id = Id::random();
-    let environment = world.broker.open(terminal_id, &world.launch).await.unwrap().unwrap();
+    let environment = world.broker.open(terminal_id, &world.launch, SessionProvider::Claude).await.unwrap().unwrap();
     let token = environment.token.clone().unwrap();
 
     world.broker.close(terminal_id);
@@ -194,7 +217,7 @@ async fn a_closed_session_answers_nothing_and_leaves_no_folder() {
 async fn a_label_the_project_does_not_bind_is_missing() {
     let world = world().await;
     let terminal_id = Id::random();
-    let token = world.broker.open(terminal_id, &world.launch).await.unwrap().unwrap().token.unwrap();
+    let token = world.broker.open(terminal_id, &world.launch, SessionProvider::Claude).await.unwrap().unwrap().token.unwrap();
     let answer = world.broker.hand_out(terminal_id, Some(&token), "other", CredentialPurpose::Git).await;
     assert!(matches!(answer, HandOut::Refused { refusal: Refusal::Missing, .. }));
 }
@@ -216,7 +239,7 @@ async fn every_logged_request_is_announced_without_its_credential() {
     let world = world().await;
     let mut events = world.ctx.events.subscribe();
     let terminal_id = Id::random();
-    let token = world.broker.open(terminal_id, &world.launch).await.unwrap().unwrap().token.unwrap();
+    let token = world.broker.open(terminal_id, &world.launch, SessionProvider::Claude).await.unwrap().unwrap().token.unwrap();
 
     world.broker.hand_out(terminal_id, Some(&token), "gitlab", CredentialPurpose::Git).await;
     world.broker.hand_out(terminal_id, Some("guess"), "gitlab", CredentialPurpose::Git).await;
@@ -242,7 +265,7 @@ async fn a_github_binding_gets_the_git_helper_for_its_host_and_a_bearer_header_f
     let broker = CredentialBroker::new(secrets, ConnectionAccessService::new(world.ctx.clone()), "http://127.0.0.1:47355".into(), world.root.path().join("github"));
     let terminal_id = Id::random();
 
-    let environment = broker.open(terminal_id, &launch_with(vec![github])).await.unwrap().unwrap();
+    let environment = broker.open(terminal_id, &launch_with(vec![github]), SessionProvider::Claude).await.unwrap().unwrap();
     let token = environment.token.clone().unwrap();
 
     assert!(environment.path_prefix.unwrap().join("rekall-github").is_file());
@@ -263,7 +286,7 @@ async fn a_grafana_connection_gets_its_wrapper_and_its_token_as_a_bearer_header(
     let broker = CredentialBroker::new(secrets, ConnectionAccessService::new(world.ctx.clone()), "http://127.0.0.1:47355".into(), world.root.path().join("grafana-sessions"));
     let terminal_id = Id::random();
 
-    let environment = broker.open(terminal_id, &launch_with(vec![terminal(&grafana, None)])).await.unwrap().unwrap();
+    let environment = broker.open(terminal_id, &launch_with(vec![terminal(&grafana, None)]), SessionProvider::Claude).await.unwrap().unwrap();
     let token = environment.token.clone().unwrap();
 
     assert!(environment.path_prefix.unwrap().join("rekall-grafana").exists());
@@ -279,7 +302,7 @@ async fn a_grafana_user_and_password_are_handed_out_as_a_basic_header() {
     let broker = CredentialBroker::new(secrets, ConnectionAccessService::new(world.ctx.clone()), "http://127.0.0.1:47355".into(), world.root.path().join("grafana-password-sessions"));
     let terminal_id = Id::random();
 
-    let environment = broker.open(terminal_id, &launch_with(vec![terminal(&grafana, None)])).await.unwrap().unwrap();
+    let environment = broker.open(terminal_id, &launch_with(vec![terminal(&grafana, None)]), SessionProvider::Claude).await.unwrap().unwrap();
     let token = environment.token.clone().unwrap();
 
     let header = broker.hand_out(terminal_id, Some(&token), "grafana", CredentialPurpose::Grafana).await;

@@ -507,9 +507,10 @@ is its URL and `owner/repo`, pushed to the same way and called through `rekall-g
 URL and project key, called through `rekall-jira --connection <label>` under `/rest/api/2`, which Jira Cloud
 and Data Center both serve, its search named for each; a Grafana instance is its URL and, when the binding names one, its folder UID, called through `rekall-grafana --connection <label>` under `/api`. A connection with no credential
 says so, so the session reports it. `ConnectionView` carries no field that could hold a credential,
-the keychain account, a cluster's server or its CA, and the block says these work only in a terminal
-Rekall opened and forbids handling a credential directly; `/rk` repeats that rule. A step laid from a
-deployment graph names the connection it works through on a `Connection:` line by the labels of the
+the keychain account, a cluster's server or its CA. The helpers work in local Claude Code and Codex
+terminals opened by Rekall. The context and the provider's Rekall command both direct the session to
+use the helpers. A step laid from a deployment graph names the connection it works through on a
+`Connection:` line by the labels of the
 project's bindings of it (`a` or `b` when it binds it twice; see 4.4 in [design/workflow.md](design/workflow.md)), and says to report one the
 project no longer binds.
 
