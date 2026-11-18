@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
+import { defineComponent, h, nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { usePreferencesStore } from '@/features/settings/store/preferences.store'
 import { installStorage } from '../../support/memoryStorage'
@@ -12,7 +12,17 @@ vi.mock('@/features/claude/api/claude.api', () => ({
   fetchClaudeUsage: (refresh?: boolean) => fetchClaudeUsage(refresh)
 }))
 
-import ClaudeUsageMeter from '@/features/claude/components/ClaudeUsageMeter.vue'
+import AccountUsageMeter from '@/components/console/AccountUsageMeter.vue'
+import { useAccountUsageReading } from '@/composables/useAccountUsageReading'
+import { useNow } from '@/composables/useNow'
+import { fetchClaudeAccountUsage } from '@/features/claude/lib/claude-account-usage'
+
+const ClaudeUsageMeter = defineComponent({
+  setup() {
+    const reading = useAccountUsageReading(useNow(15_000), fetchClaudeAccountUsage)
+    return () => h(AccountUsageMeter, { provider: 'CLAUDE', reading })
+  }
+})
 
 const OK: ClaudeUsage = {
   status: 'OK',

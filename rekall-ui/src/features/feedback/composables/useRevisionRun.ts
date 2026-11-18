@@ -4,7 +4,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { preferredEffort, preferredLaunchKind, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
+import { launchChoices } from '@/common/config/session-launch'
 import type { TaskId } from '@/model/branded'
 
 /**
@@ -79,7 +79,7 @@ export function useRevisionRun(taskId: () => TaskId, anchor: () => string, folde
     }
     launchPhase.value = 'launching'
     const starting = run(async () => {
-      const input = { skipPermissions: skipsPermissions(), model: preferredModel(), effort: preferredEffort(), kind: preferredLaunchKind() }
+      const input = launchChoices()
       await terminals.planForTask(taskId(), anchor(), input, 'REVISE')
       await store.startPass(taskId())
     })

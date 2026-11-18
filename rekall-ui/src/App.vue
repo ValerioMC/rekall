@@ -13,6 +13,7 @@ import ChatReopenTag from '@/features/chat/components/ChatReopenTag.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useDeviationsStore } from '@/features/deviations/store/deviations.store'
 import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
+import { useCodexStore } from '@/features/codex/store/codex.store'
 import { useChatDockArea } from '@/features/chat/composables/useChatDockArea'
 import { useChatWindowShown } from '@/features/chat/composables/useChatWindowShown'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
@@ -62,6 +63,7 @@ useClaimNotifications(reviewQueue, isLoading)
 useConsoleLocation()
 
 const claudeConnection = useClaudeConnectionStore()
+const codex = useCodexStore()
 const router = useRouter()
 
 /** `/console` hosts the terminal and nothing else: a task shown on any other pane is on its page. */
@@ -112,6 +114,7 @@ onMounted(() => {
   // The beacon needs the queue from the first paint; the SSE feed only carries changes.
   void runQueue.load().catch(() => undefined)
   void refreshClaudeConnection()
+  void codex.loadSetup().catch(() => undefined)
 })
 onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>

@@ -6,6 +6,11 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
+import { setPreferredEffort, setPreferredModel, setPreferredSessionKind, setSkipsPermissions } from '@/common/config/claude-launch'
+import { preferredProvider, setCodexEffort, setCodexModel, setPreferredProvider } from '@/common/config/session-launch'
+import { useCodexStore } from '@/features/codex/store/codex.store'
+import { installStorage } from '../../support/memoryStorage'
+import { installBothSessionProviders } from '../../support/sessionProviders'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { TaskStep } from '@/features/steps/model/task-step'
 import type { Terminal } from '@/features/claude/model/terminal'
@@ -54,6 +59,7 @@ function terminal(): Terminal {
     taskCode: 'report-builder',
     taskTitle: 'Report builder',
     mode: 'WORK',
+    provider: 'CLAUDE',
     skipPermissions: true,
     model: null,
     effort: null,
@@ -105,6 +111,7 @@ function mountButton(folder: string | null = '/code/vega', stepId: TaskStepId | 
 
 describe('the Run here button', () => {
   beforeEach(() => {
+    installStorage()
     setActivePinia(createPinia())
     openTerminal.mockReset()
     releaseOnRun.mockReset().mockResolvedValue(null)
@@ -278,6 +285,8 @@ describe('the Run here button', () => {
   })
 
   it('opens a menu from the arrow with Run in queue and Plan here, each a name with no description', async () => {
+    installBothSessionProviders()
+    useCodexStore().setup = { status: 'CLI_MISSING' }
     const wrapper = mountButton()
 
     await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
@@ -286,6 +295,31 @@ describe('the Run here button', () => {
     expect(menuLabels()).toEqual(['Run in queue', 'Plan here', 'Plan a flow'])
     expect(menu?.querySelectorAll('[role="menuitem"] svg')).toHaveLength(3)
     expect(wrapper.get('[data-testid="run-menu-arrow"]').attributes('aria-haspopup')).toBe('menu')
+    wrapper.unmount()
+  })
+
+  it.each([
+    { defaultProvider: 'CODEX', provider: 'CLAUDE', model: 'sonnet', effort: 'low', kind: 'CHAT', skipPermissions: true },
+    { defaultProvider: 'CLAUDE', provider: 'CODEX', model: 'gpt-test', effort: 'xhigh', kind: 'TERMINAL', skipPermissions: false }
+  ] as const)('runs once with $provider from the arrow menu', async ({ defaultProvider, ...choices }) => {
+    installBothSessionProviders()
+    setPreferredProvider(defaultProvider)
+    setPreferredModel('sonnet')
+    setPreferredEffort('low')
+    setPreferredSessionKind('chat')
+    setSkipsPermissions(true)
+    setCodexModel('gpt-test')
+    setCodexEffort('xhigh')
+    openTerminal.mockResolvedValue({ ...terminal(), provider: choices.provider, kind: choices.kind })
+    const wrapper = mountButton()
+
+    await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
+    expect(menuLabels().slice(0, 2)).toEqual(['Run with Claude Code', 'Run with Codex'])
+    document.body.querySelector<HTMLButtonElement>(`[data-testid="run-with-${choices.provider}"]`)!.click()
+    await flushPromises()
+
+    expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining(choices))
+    expect(preferredProvider()).toBe(defaultProvider)
     wrapper.unmount()
   })
 

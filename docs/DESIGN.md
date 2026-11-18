@@ -5,9 +5,11 @@ wrapup per task, written by Claude and corrected by hand; a step checklist a ses
 and a person ticks done, optionally routed into a flow
 
 Rekall stores the structure and the working context of the projects and tasks you work on, and
-hands them to Claude Code over MCP. Claude reads all of it and writes two things: the wrapup of
+hands them to the chosen session provider over MCP. A session can write the wrapup of
 a task, which is what that task's implementation currently looks like, and the state of a step,
 which it can move from open to running to claimed. The last tick, done, is a person's.
+The console uses the saved provider by default and lets a person override it for a single task
+launch when both CLIs are installed. The launch uses the chosen provider's saved options.
 
 ---
 
@@ -121,6 +123,7 @@ is found by opening one folder per crate:
 | `commit`, `diagram`, `token`, `search`, `context` | logged commits and what they and the working tree changed, stored diagrams, token usage, search, context assembly and its size |
 | `quick` | the quick task: a task started from one line of text with its session opened at once, accepted without a review when Claude's wrapup lands; console and HTTP only, the acceptance itself is in `review` and `wrapup` |
 | `skill`, `tag`, `queue`, `claude` | skill assignments, tags, the run queue, what a session launch needs |
+| `codex` | the Codex CLI port for the model catalog, account limits and Rekall setup. The console calls it through its service and HTTP routes. Infrastructure runs the CLI and its App Server. The header draws both provider readings with the same account usage meter. |
 | `chat` | the chat view of a session: its events (`ChatEvent`) and the ports a client reaches it through (`ChatPipe`, `ChatListener`), in `rekall-core`, next to `TerminalHost`, the lifecycle port, widened so that a session is no longer taken to be a PTY; in `rekall-infra` the stream parser, the headless `claude` process, `ChatSessionManager` and `SessionHosts`, which routes each call to the terminal or chat host; in `rekall-console` and `rekall-http` the service and the routes that follow and talk to one (opening, listing and closing stay with `terminal`) |
 | `backup`, `settings`, `version` | the backups of the open database and restoring one, the registered database folders and the restart onto another, the update check; no table behind them, so no folder in `rekall-store` |
 | `guard` | the rules a Claude Code hook applies before a tool runs and before a session stops: which commands and reads are refused, and when a session may not end; decisions over data, no I/O |
@@ -177,6 +180,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `check` | `catalog`, `step`, `task` | nothing | `catalog`, `step`, `task` | nothing | - |
 | `chat` | - | `claude` | `claude` | nothing | - |
 | `claude` | - | `catalog`, `connection`, `flow`, `task` | nothing | `skill` | - |
+| `codex` | - | nothing | nothing | nothing | - |
 | `commit` | `component`, `step`, `task` | `catalog`, `component`, `step`, `task` | - | nothing | nothing |
 | `component` | `catalog` | `catalog`, `connection`, `task` | nothing | nothing | nothing |
 | `connection` | `catalog`, `task` | `task`, `tracker` | `catalog`, `commit`, `component`, `section`, `task` | `catalog`, `section` | - |

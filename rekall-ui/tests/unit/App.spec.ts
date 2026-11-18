@@ -7,6 +7,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useWorkStore } from '@/features/work/store/work.store'
 import { mountWithHeaderChrome } from './support/mountWithHeaderChrome'
 import type { Company, Project, Task } from '@/features/catalog/model/catalog'
+import type * as CodexApi from '@/features/codex/api/codex.api'
 import { useTaskEditor } from '@/features/catalog/composables/useTaskEditor'
 import type { RekallDocument } from '@/features/notes/model/document'
 import type { TaskStep } from '@/features/steps/model/task-step'
@@ -147,6 +148,15 @@ vi.mock('@/features/claude/api/claude.api', async (importOriginal) => {
       fetchedAt: '',
       retryAt: null
     }))
+  }
+})
+
+vi.mock('@/features/codex/api/codex.api', async (importOriginal) => {
+  const actual = await importOriginal<typeof CodexApi>()
+  return {
+    ...actual,
+    fetchCodexSetup: vi.fn(async () => ({ status: 'CLI_MISSING' })),
+    fetchCodexUsage: vi.fn(async () => ({ status: 'CLI_MISSING' }))
   }
 })
 

@@ -17,7 +17,7 @@ const { workdayGoalHours, usageWarningPercent } = storeToRefs(preferences)
         <AppInput id="workday-goal" type="number" mono :model-value="workdayGoalHours" @update:model-value="preferences.setWorkdayGoal(Number($event))" />
       </div>
     </FormRow>
-    <FormRow label="Warn when Claude usage reaches, in percent" label-for="usage-warning" :hint="`The usage meter in the header turns amber from this point. From ${USAGE_WARNING_RANGE.min} to ${USAGE_WARNING_RANGE.max}.`">
+    <FormRow label="Warn when account usage reaches, in percent" label-for="usage-warning" :hint="`The account usage meters in the header turn amber from this point. From ${USAGE_WARNING_RANGE.min} to ${USAGE_WARNING_RANGE.max}.`">
       <div class="w-24">
         <AppInput id="usage-warning" type="number" mono :model-value="usageWarningPercent" @update:model-value="preferences.setUsageWarning(Number($event))" />
       </div>

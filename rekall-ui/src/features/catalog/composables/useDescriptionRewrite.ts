@@ -3,7 +3,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { preferredEffort, preferredLaunchKind, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
+import { launchChoices } from '@/common/config/session-launch'
 import type { RewriteMode, RewriteStyle } from '@/features/claude/model/terminal'
 import type { TaskId } from '@/model/branded'
 
@@ -83,7 +83,7 @@ export function useDescriptionRewrite(taskId: () => TaskId, anchor: () => string
   }
 
   async function launchSession(style: RewriteStyle): Promise<boolean> {
-    const input = { skipPermissions: skipsPermissions(), model: preferredModel(), effort: preferredEffort(), kind: preferredLaunchKind() }
+    const input = launchChoices()
     const started = await run(async () => {
       await terminals.planForTask(taskId(), anchor(), input, MODE_OF_STYLE[style])
       return true

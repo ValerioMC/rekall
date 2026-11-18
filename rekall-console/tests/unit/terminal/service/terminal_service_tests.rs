@@ -76,6 +76,7 @@ fn view_on(target: &TerminalTarget) -> TerminalView {
         task_code: None,
         task_title: None,
         mode: TerminalMode::Work,
+        provider: Default::default(),
         skip_permissions: false,
         model: None,
         effort: None,
@@ -89,7 +90,7 @@ fn view_on(target: &TerminalTarget) -> TerminalView {
 }
 
 fn command(target: TerminalTarget, mode: TerminalMode) -> OpenTerminalCommand {
-    OpenTerminalCommand { target, step_id: None, skip_permissions: true, model: Some("sonnet".into()), effort: None, mode, kind: SessionKind::Terminal }
+    OpenTerminalCommand { target, step_id: None, provider: Default::default(), skip_permissions: true, model: Some("sonnet".into()), effort: None, mode, kind: SessionKind::Terminal }
 }
 
 struct Seed {

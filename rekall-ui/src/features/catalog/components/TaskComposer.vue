@@ -4,6 +4,8 @@ import AppSplitButton, { type SplitButtonOption } from '@/components/ui/AppSplit
 import PopoverMenu, { type PopoverMenuEntry } from '@/components/ui/PopoverMenu.vue'
 import { useQuickTask } from '@/features/catalog/composables/useQuickTask'
 import { QUICK_TASK_HELP, folderTail } from '@/features/catalog/lib/quick-task'
+import { useSessionProviderChoice } from '@/features/claude/composables/useSessionProviderChoice'
+import { RUN_WITH_PROVIDER_LABEL, SESSION_PROVIDERS, type SessionProvider } from '@/features/claude/model/session-provider'
 import type { Project } from '@/features/catalog/model/catalog'
 import type { ProjectId } from '@/model/branded'
 
@@ -17,12 +19,18 @@ const emit = defineEmits<{ plan: [title: string]; choose: [projectId: ProjectId]
 
 const MAX_ROWS = 6
 
-const PLAN_OPTIONS: readonly SplitButtonOption<'plan'>[] = [
-  { id: 'plan', label: 'Plan a task…', hint: 'Title, description, steps, epic, tags and skills.' }
-]
+type ComposerAction = 'plan' | SessionProvider
+
+const PLAN_OPTION: SplitButtonOption<'plan'> = {
+  id: 'plan', label: 'Plan a task…', hint: 'Title, description, steps, epic, tags and skills.'
+}
+const PROVIDER_OPTIONS: readonly SplitButtonOption<SessionProvider>[] = SESSION_PROVIDERS.map(
+  (id) => ({ id, label: RUN_WITH_PROVIDER_LABEL[id] })
+)
 
 const projectId = computed(() => props.project.id)
 const quick = useQuickTask(projectId)
+const canChooseProvider = useSessionProviderChoice()
 
 const text = ref('')
 const isFocused = ref(false)
@@ -34,18 +42,23 @@ const reason = computed(() =>
 const canStart = computed(() => hasText.value && reason.value === null && !quick.busy.value)
 const isExpanded = computed(() => isFocused.value || hasText.value)
 const rows = computed(() => Math.min(MAX_ROWS, text.value.split('\n').length))
+const menuOptions = computed<readonly SplitButtonOption<ComposerAction>[]>(() => [
+  ...(canStart.value && canChooseProvider.value ? PROVIDER_OPTIONS : []),
+  PLAN_OPTION
+])
 const projectEntries = computed<readonly PopoverMenuEntry[]>(() =>
   props.choices.map((choice) => ({ kind: 'item', id: choice.id, label: choice.title, current: choice.id === props.project.id }))
 )
 
-async function start(): Promise<void> {
+async function start(provider?: SessionProvider): Promise<void> {
   if (!canStart.value) return
   const sent = text.value
-  if (await quick.start(sent)) text.value = ''
+  if (await quick.start(sent, provider)) text.value = ''
 }
 
-function plan(): void {
-  emit('plan', text.value.trim())
+function chooseFromMenu(action: ComposerAction): void {
+  if (action === 'plan') emit('plan', text.value.trim())
+  else void start(action)
 }
 
 function onEnter(event: KeyboardEvent): void {
@@ -70,7 +83,7 @@ function chooseProject(id: string): void {
         class="min-w-0 flex-1 resize-none bg-transparent py-1.5 font-sans text-body leading-5 text-text outline-none placeholder:text-text-subtle"
         :rows="rows"
         :aria-describedby="`quick-task-help-${project.id}`"
-        aria-label="What should Claude do?"
+        aria-label="What should the session do?"
         placeholder="Describe a change, or a task to plan"
         data-testid="quick-task-input"
         @keydown.enter="onEnter"
@@ -113,12 +126,12 @@ function chooseProject(id: string): void {
         :variant="canStart ? 'primary' : 'secondary'"
         menu-label="More ways to create"
         keeps-arrow
-        :options="PLAN_OPTIONS"
+        :options="menuOptions"
         :disabled="!canStart"
         :loading="quick.busy.value"
         data-testid="quick-task-start"
-        @click="start"
-        @choose="plan"
+        @click="start()"
+        @choose="chooseFromMenu"
       >
         Start quick task
       </AppSplitButton>

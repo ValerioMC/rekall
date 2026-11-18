@@ -41,6 +41,7 @@ function terminal(): Terminal {
     taskCode: 'report-builder',
     taskTitle: 'Report builder',
     mode: 'WORK',
+    provider: 'CLAUDE',
     skipPermissions: true,
     model: null,
     effort: null,

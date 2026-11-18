@@ -14,6 +14,7 @@ use rekall_infra::backup::{DatabaseBackupService, DatabaseLocation, DatabaseRest
 use rekall_infra::bootstrap::registry::DatabaseRegistryStore;
 use rekall_infra::bootstrap::DatabaseFolderRegistry;
 use rekall_infra::chat::ChatSessionManager;
+use rekall_infra::codex::{CodexCli, CodexIntegration};
 use rekall_infra::installer::{ClaudeCodeInstaller, GuardHookInstaller};
 use rekall_infra::login_shell::LoginShellEnvironment;
 use rekall_infra::pty::PtyTerminalManager;
@@ -117,6 +118,10 @@ impl Instance {
             chat_pipe: chats.clone(),
             queue_runner: Arc::new(queue.runner.clone()),
             usage: usage.clone(),
+            codex: Arc::new(CodexIntegration::new(
+                CodexCli::new(config.user_home.clone(), Arc::new(login_shell.clone())),
+                config.mcp_endpoint(served_port),
+            )),
             claude_folder: Arc::new(ClaudeResourceService::new(claude_config.claude_home.clone())),
             claude_setup: Arc::new(ClaudeCodeInstaller::new(config.user_home.clone(), config.mcp_endpoint(served_port))),
             guard_installer: Arc::new(GuardHookInstaller::new(&config.user_home, guard_program())),

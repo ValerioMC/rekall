@@ -6,4 +6,5 @@ mod claude_cli;
 mod environment_source;
 
 pub use claude_cli::ClaudeCli;
+pub(crate) use claude_cli::search_path;
 pub use environment_source::EnvironmentSource;

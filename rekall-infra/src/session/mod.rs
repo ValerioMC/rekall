@@ -2,14 +2,15 @@
 //! it works a task, the bus that announces every end, the loop that sweeps idle sessions, and what
 //! starting one takes from the machine.
 
-mod claude_options;
+mod session_options;
 mod ended_bus;
 mod idle_sweep;
 mod session_hosts;
 mod session_launcher;
 mod work_marker;
 
-pub use claude_options::ClaudeOptions;
+pub use rekall_core::claude::SessionProvider;
+pub use session_options::SessionOptions;
 pub use ended_bus::EndedBus;
 pub use idle_sweep::spawn_idle_sweep;
 pub use session_hosts::SessionHosts;

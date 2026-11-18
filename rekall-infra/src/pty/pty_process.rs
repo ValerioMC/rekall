@@ -15,7 +15,7 @@ use tracing::{debug, warn};
 use super::scrollback::Scrollback;
 use super::terminal::Terminal;
 use rekall_core::claude::TerminalListener as Listener;
-use crate::session::ClaudeOptions;
+use crate::session::SessionOptions;
 
 const DEFAULT_COLUMNS: u16 = 80;
 const DEFAULT_ROWS: u16 = 24;
@@ -32,7 +32,7 @@ pub(super) fn spawn_terminal(
     launch: TerminalLaunch,
     step_id: Option<Id>,
     mode: TerminalMode,
-    options: ClaudeOptions,
+    options: SessionOptions,
     command: CommandBuilder,
     scrollback_bytes: usize,
     on_exit: impl FnOnce() + Send + 'static,
@@ -55,6 +55,7 @@ pub(super) fn spawn_terminal(
         step_id: Mutex::new(step_id),
         size: Mutex::new((DEFAULT_COLUMNS, DEFAULT_ROWS)),
         mode,
+        provider: options.provider,
         skip_permissions: options.skip_permissions,
         model: options.model,
         effort: options.effort,

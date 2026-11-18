@@ -8,7 +8,7 @@ import {
   updateProjectComponent
 } from '@/features/project/api/project-components.api'
 import { movedOne, type Direction } from '@/features/project/lib/section-order'
-import { launchChoices } from '@/common/config/claude-launch'
+import { launchChoices } from '@/common/config/session-launch'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import type { Terminal } from '@/features/claude/model/terminal'
 import type { ProjectComponent, ProjectComponentInput } from '@/features/project/model/project-component'

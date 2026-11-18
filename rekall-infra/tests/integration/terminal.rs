@@ -3,6 +3,8 @@
 
 mod support;
 
+use rekall_core::claude::{SessionKind, SessionProvider, TerminalOpening};
+
 use std::sync::Arc;
 
 use rekall_kernel::RekallError;
@@ -13,6 +15,19 @@ use rekall_core::claude::TerminalTarget;
 use rekall_core::telemetry::TelemetryChange;
 use support::{eventually, world, Recorder};
 
+fn opening_on(target: TerminalTarget) -> TerminalOpening {
+    TerminalOpening {
+        target,
+        step_id: None,
+        provider: SessionProvider::Claude,
+        skip_permissions: false,
+        model: None,
+        effort: None,
+        mode: TerminalMode::Work,
+        kind: SessionKind::Terminal,
+    }
+}
+
 #[tokio::test]
 async fn a_terminal_starts_claude_in_the_project_folder_with_rk_typed_and_echoes_input() {
     let world = world().await;
@@ -22,7 +37,7 @@ async fn a_terminal_starts_claude_in_the_project_folder_with_rk_typed_and_echoes
     let terminals = world.terminals(8);
     let mut ended = terminals.subscribe_ended();
 
-    let view = terminals.open(TerminalTarget::Task(task.id), Some(step.id), true, Some("opus"), Some("bogus"), TerminalMode::Work).await.unwrap();
+    let view = terminals.open(TerminalOpening { step_id: Some(step.id), skip_permissions: true, model: Some("opus".into()), effort: Some("bogus".into()), ..opening_on(TerminalTarget::Task(task.id)) }).await.unwrap();
     assert_eq!(view.task_id, Some(task.id));
     assert_eq!(view.project_id, project.id);
     assert_eq!(view.step_id, Some(step.id));
@@ -44,7 +59,7 @@ async fn a_terminal_starts_claude_in_the_project_folder_with_rk_typed_and_echoes
     eventually("the echoed line", || async { recorder.text().contains("GOT:hello") }).await;
 
     // A second open on the same task is routed to the live terminal, with its `/rk` line typed in.
-    let again = terminals.open(TerminalTarget::Task(task.id), None, false, None, None, TerminalMode::Work).await.unwrap();
+    let again = terminals.open(opening_on(TerminalTarget::Task(task.id))).await.unwrap();
     assert_eq!(again.id, view.id);
     assert_eq!(terminals.live_count(), 1);
     eventually("the typed work line", || async { recorder.text().contains("GOT:/rk task:AL-1") }).await;
@@ -70,7 +85,7 @@ async fn a_plan_terminal_opens_on_the_task_with_the_plan_line_and_a_plan_on_a_li
     let step = world.step(&task, "First", 0, TaskStepState::Open).await;
     let terminals = world.terminals(8);
 
-    let view = terminals.open(TerminalTarget::Task(task.id), Some(step.id), false, None, None, TerminalMode::Plan).await.unwrap();
+    let view = terminals.open(TerminalOpening { step_id: Some(step.id), mode: TerminalMode::Plan, ..opening_on(TerminalTarget::Task(task.id)) }).await.unwrap();
     assert_eq!(view.step_id, None, "a plan is on the task, never on a step");
     assert_eq!(world.step_state(&task, &step).await, TaskStepState::Open);
 
@@ -80,12 +95,12 @@ async fn a_plan_terminal_opens_on_the_task_with_the_plan_line_and_a_plan_on_a_li
     terminals.detach(view.id, token);
     terminals.close(view.id, "done").await;
 
-    let working = terminals.open(TerminalTarget::Task(task.id), None, false, None, None, TerminalMode::Work).await.unwrap();
+    let working = terminals.open(opening_on(TerminalTarget::Task(task.id))).await.unwrap();
     let recorder = Arc::new(Recorder::default());
     let (_, token) = terminals.attach(working.id, recorder.clone()).unwrap();
     eventually("the work line", || async { recorder.text().contains("ARGS:/rk task:AL-1") }).await;
 
-    let planned = terminals.open(TerminalTarget::Task(task.id), Some(step.id), false, None, None, TerminalMode::Plan).await.unwrap();
+    let planned = terminals.open(TerminalOpening { step_id: Some(step.id), mode: TerminalMode::Plan, ..opening_on(TerminalTarget::Task(task.id)) }).await.unwrap();
     assert_eq!(planned.id, working.id, "a plan on a task with a live session reuses it");
     assert_eq!(planned.step_id, None);
     eventually("the typed plan line", || async { recorder.text().contains("GOT:/rk task:AL-1 plan") }).await;
@@ -102,7 +117,7 @@ async fn a_generate_terminal_on_a_project_alone_carries_no_task_and_marks_nothin
     let terminals = world.terminals(8);
     let mode = TerminalMode::Generate { request: "the order flow".into(), kinds: vec![DiagramKind::Sequence, DiagramKind::State] };
 
-    let view = terminals.open(TerminalTarget::Project(project.id), None, false, None, None, mode).await.unwrap();
+    let view = terminals.open(TerminalOpening { mode: mode, ..opening_on(TerminalTarget::Project(project.id)) }).await.unwrap();
     assert_eq!((view.project_id, view.task_id, view.task_code.clone()), (project.id, None, None));
     assert_eq!(view.anchors, "project:alpha");
     assert!(!terminals.has_live_terminal_for(task.id), "a project terminal is not on any task");
@@ -124,7 +139,7 @@ async fn an_explain_terminal_on_a_project_alone_asks_for_a_walkthrough() {
     let terminals = world.terminals(8);
     let mode = TerminalMode::Explain { request: "how an order is placed".into() };
 
-    let view = terminals.open(TerminalTarget::Project(project.id), None, false, None, None, mode).await.unwrap();
+    let view = terminals.open(TerminalOpening { mode: mode, ..opening_on(TerminalTarget::Project(project.id)) }).await.unwrap();
     assert_eq!((view.task_id, view.anchors.as_str()), (None, "project:alpha"));
 
     let recorder = Arc::new(Recorder::default());
@@ -142,7 +157,7 @@ async fn closing_a_terminal_kills_it_announces_the_end_and_releases_the_task() {
     let terminals = world.terminals(8);
     let mut ended = terminals.subscribe_ended();
 
-    let view = terminals.open(TerminalTarget::Task(task.id), None, false, None, None, TerminalMode::Work).await.unwrap();
+    let view = terminals.open(opening_on(TerminalTarget::Task(task.id))).await.unwrap();
     let recorder = Arc::new(Recorder::default());
     terminals.attach(view.id, recorder.clone()).unwrap();
     assert!(terminals.has_live_terminal_for(task.id));
@@ -162,7 +177,7 @@ async fn a_late_pane_is_repainted_from_the_scrollback() {
     let project = world.project("alpha", Some(world.folder.path())).await;
     let task = world.task(&project, "one").await;
     let terminals = world.terminals(8);
-    let view = terminals.open(TerminalTarget::Task(task.id), None, false, None, None, TerminalMode::Work).await.unwrap();
+    let view = terminals.open(opening_on(TerminalTarget::Task(task.id))).await.unwrap();
 
     let first = Arc::new(Recorder::default());
     terminals.attach(view.id, first.clone()).unwrap();
@@ -184,7 +199,7 @@ async fn a_late_pane_holds_the_repaint_kick_long_enough_for_the_process_to_see_i
     let project = world.project("alpha", Some(world.folder.path())).await;
     let task = world.task(&project, "one").await;
     let terminals = world.terminals(8);
-    let view = terminals.open(TerminalTarget::Task(task.id), None, false, None, None, TerminalMode::Work).await.unwrap();
+    let view = terminals.open(opening_on(TerminalTarget::Task(task.id))).await.unwrap();
     let first = Arc::new(Recorder::default());
     terminals.attach(view.id, first.clone()).unwrap();
     terminals.resize(view.id, 100, 30);
@@ -208,7 +223,7 @@ async fn a_resize_during_the_repaint_kick_outlives_its_restore() {
     let project = world.project("alpha", Some(world.folder.path())).await;
     let task = world.task(&project, "one").await;
     let terminals = world.terminals(8);
-    let view = terminals.open(TerminalTarget::Task(task.id), None, false, None, None, TerminalMode::Work).await.unwrap();
+    let view = terminals.open(opening_on(TerminalTarget::Task(task.id))).await.unwrap();
     let first = Arc::new(Recorder::default());
     terminals.attach(view.id, first.clone()).unwrap();
     eventually("the launch arguments", || async { first.text().contains("ARGS:") }).await;
@@ -228,19 +243,19 @@ async fn opens_past_the_cap_a_missing_folder_or_a_missing_cli_are_refused() {
     let one = world.task(&project, "one").await;
     let two = world.task(&project, "two").await;
     let terminals = world.terminals(1);
-    terminals.open(TerminalTarget::Task(one.id), None, false, None, None, TerminalMode::Work).await.unwrap();
-    let refused = terminals.open(TerminalTarget::Task(two.id), None, false, None, None, TerminalMode::Work).await.unwrap_err();
+    terminals.open(opening_on(TerminalTarget::Task(one.id))).await.unwrap();
+    let refused = terminals.open(opening_on(TerminalTarget::Task(two.id))).await.unwrap_err();
     assert_eq!(refused.message(), "Rekall is already running 1 terminals. Close one before opening another.");
     terminals.shutdown().await;
 
     let gone = world.project("beta", Some(&world.folder.path().join("missing"))).await;
     let task = world.task(&gone, "one").await;
-    let refused = world.terminals(8).open(TerminalTarget::Task(task.id), None, false, None, None, TerminalMode::Work).await.unwrap_err();
+    let refused = world.terminals(8).open(opening_on(TerminalTarget::Task(task.id))).await.unwrap_err();
     assert!(matches!(refused, RekallError::Conflict(_)));
     assert!(refused.message().ends_with("is not there. Set it again on the project page."), "{}", refused.message());
 
     std::fs::remove_file(&world.claude).unwrap();
-    let refused = world.terminals(8).open(TerminalTarget::Task(two.id), None, false, None, None, TerminalMode::Work).await.unwrap_err();
+    let refused = world.terminals(8).open(opening_on(TerminalTarget::Task(two.id))).await.unwrap_err();
     assert_eq!(
         refused.message(),
         "Claude Code's command line tool isn't on this machine. Install it, then try again."
@@ -262,7 +277,7 @@ async fn a_terminal_starts_claude_with_the_trace_variables_while_tracing_is_on()
     world.telemetry().change(change).await.unwrap();
     let terminals = world.terminals(8);
 
-    let view = terminals.open(TerminalTarget::Task(task.id), None, false, None, None, TerminalMode::Work).await.unwrap();
+    let view = terminals.open(opening_on(TerminalTarget::Task(task.id))).await.unwrap();
 
     let recorder = Arc::new(Recorder::default());
     terminals.attach(view.id, recorder.clone()).unwrap();
@@ -279,7 +294,7 @@ async fn a_terminal_starts_claude_without_trace_variables_until_tracing_is_set_u
     let task = world.task(&project, "one").await;
     let terminals = world.terminals(8);
 
-    let view = terminals.open(TerminalTarget::Task(task.id), None, false, None, None, TerminalMode::Work).await.unwrap();
+    let view = terminals.open(opening_on(TerminalTarget::Task(task.id))).await.unwrap();
 
     let recorder = Arc::new(Recorder::default());
     terminals.attach(view.id, recorder.clone()).unwrap();
@@ -357,4 +372,42 @@ async fn a_session_on_a_step_leaves_the_running_entries_of_the_thread_alone() {
 
     let kept = rekall_store::repository::task_feedback::find_by_seq(world.db(), task.id, 1).await.unwrap().unwrap();
     assert_eq!((kept.state, kept.pass), (FeedbackState::Running, Some(1)));
+}
+
+#[tokio::test]
+async fn codex_runs_the_rekall_skill_and_keeps_its_choices_on_renewal() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let world = world().await;
+    let home_bin = world.home.path().join(".local/bin");
+    std::fs::create_dir_all(&home_bin).unwrap();
+    let codex = home_bin.join("codex");
+    std::fs::write(&codex, support::STUB_CLAUDE).unwrap();
+    std::fs::set_permissions(&codex, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let terminals = world.terminals(8);
+    let opening = TerminalOpening {
+        provider: SessionProvider::Codex,
+        skip_permissions: true,
+        model: Some("gpt-test".into()),
+        effort: Some("high".into()),
+        ..opening_on(TerminalTarget::Task(task.id))
+    };
+    let first = terminals.open(opening.clone()).await.unwrap();
+    let recorder = Arc::new(Recorder::default());
+    terminals.attach(first.id, recorder.clone()).unwrap();
+    eventually("Codex arguments", || async {
+        recorder.text().contains("ARGS:--dangerously-bypass-approvals-and-sandbox --model gpt-test -c model_reasoning_effort=\"high\" Use the $rekall skill with this exact argument line: task:AL-1")
+    }).await;
+
+    let refusal = terminals.open(TerminalOpening { provider: SessionProvider::Claude, ..opening }).await.unwrap_err();
+    assert!(matches!(refusal, RekallError::Conflict(_)));
+    let next = terminals.renew_session(first.id).await.unwrap();
+    assert_ne!(next.id, first.id);
+    assert_eq!(next.provider, SessionProvider::Codex);
+    assert_eq!(next.model, first.model);
+    assert_eq!(next.effort, first.effort);
+    assert_eq!(next.skip_permissions, first.skip_permissions);
+    terminals.close(next.id, "done").await;
 }

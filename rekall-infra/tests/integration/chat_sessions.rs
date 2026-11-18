@@ -107,6 +107,7 @@ fn work_on(task: &task::Model, step: Option<&task_step::Model>) -> TerminalOpeni
     TerminalOpening {
         target: TerminalTarget::Task(task.id),
         step_id: step.map(|step| step.id),
+        provider: Default::default(),
         skip_permissions: true,
         model: Some("opus".into()),
         effort: None,

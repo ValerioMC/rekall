@@ -21,6 +21,7 @@ pub struct ApiPorts {
     pub chat_pipe: Arc<dyn ChatPipe>,
     pub queue_runner: Arc<dyn QueueRunner>,
     pub usage: Arc<dyn UsageReader>,
+    pub codex: Arc<dyn rekall_core::codex::CodexClient>,
     pub claude_folder: Arc<dyn ClaudeResources>,
     pub claude_setup: Arc<dyn ClaudeCodeSetup>,
     pub guard_installer: Arc<dyn GuardInstaller>,

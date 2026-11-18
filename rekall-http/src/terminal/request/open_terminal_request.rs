@@ -1,5 +1,5 @@
 use rekall_console::terminal::OpenTerminalCommand;
-use rekall_core::claude::{RewriteStyle, SessionKind, TerminalMode, TerminalTarget};
+use rekall_core::claude::{RewriteStyle, SessionKind, SessionProvider, TerminalMode, TerminalTarget};
 use rekall_core::vulnerability::rule::rules;
 use rekall_diagram::DiagramKind;
 use rekall_kernel::{jstr, Id, RekallError};
@@ -18,6 +18,7 @@ use crate::terminal::TerminalModeName;
 #[serde(rename_all = "camelCase", default)]
 pub struct OpenTerminalRequest {
     pub step_id: Option<Id>,
+    pub provider: SessionProvider,
     pub skip_permissions: Option<bool>,
     pub model: Option<String>,
     pub effort: Option<String>,
@@ -35,6 +36,7 @@ impl OpenTerminalRequest {
         Ok(OpenTerminalCommand {
             target,
             step_id: self.step_id,
+            provider: self.provider,
             skip_permissions: self.skip_permissions.unwrap_or(false),
             model: self.model,
             effort: self.effort,

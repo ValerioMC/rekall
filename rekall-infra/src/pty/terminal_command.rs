@@ -1,36 +1,23 @@
-//! The `claude` command a terminal runs: the flags a session starts with, and the environment of
-//! the person's own shell around it.
+//! The command a terminal runs in the person’s login shell environment.
 
 use std::collections::HashMap;
 use std::path::Path;
 
 use portable_pty::CommandBuilder;
 
-use crate::session::ClaudeOptions;
+use crate::session::SessionOptions;
 
 /// `binary` with the options and the `/rk` line, in `directory`, with nothing of Rekall's own
 /// environment: only `environment`, which is the person's shell plus what a TUI needs.
-pub(super) fn claude_command(
+pub(super) fn terminal_command(
     binary: &Path,
-    options: &ClaudeOptions,
+    options: &SessionOptions,
     first_line: &str,
     mut environment: HashMap<String, String>,
     directory: &Path,
 ) -> CommandBuilder {
     let mut command = CommandBuilder::new(binary);
-    if options.skip_permissions {
-        command.arg("--dangerously-skip-permissions");
-    }
-    if let Some(model) = &options.model {
-        command.args(["--model", model]);
-    }
-    if let Some(effort) = &options.effort {
-        command.args(["--effort", effort]);
-    }
-    if let Some(settings) = &options.settings {
-        command.arg("--settings");
-        command.arg(settings);
-    }
+    command.args(options.arguments());
     command.arg(first_line);
     command.env_clear();
     environment.insert("TERM".into(), "xterm-256color".into());
@@ -43,5 +30,5 @@ pub(super) fn claude_command(
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/pty/claude_command_tests.rs"]
+#[path = "../../tests/unit/pty/terminal_command_tests.rs"]
 mod tests;

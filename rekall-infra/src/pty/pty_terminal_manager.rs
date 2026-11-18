@@ -1,6 +1,6 @@
 //! Every live terminal: opened on a task or a project, attached to by panes, written to, resized, closed, and
 //! swept when idle. The process inside each is `pty_process`'s; the command it runs is
-//! `claude_command`'s.
+//! `terminal_command`'s.
 
 use std::collections::HashMap;
 use std::io::Write;
@@ -11,7 +11,7 @@ use std::time::Duration;
 use chrono::TimeDelta;
 use portable_pty::CommandBuilder;
 use rekall_kernel::{Id, Instant, RekallError, Result};
-use rekall_core::claude::{TerminalLaunch, TerminalLaunchService, TerminalTarget};
+use rekall_core::claude::{TerminalLaunch, TerminalLaunchService, SessionProvider, TerminalOpening, TerminalTarget};
 use rekall_core::telemetry::TelemetrySettingsService;
 use tokio::sync::broadcast;
 use tracing::info;
@@ -20,11 +20,11 @@ use crate::cli::ClaudeCli;
 use crate::connection::CredentialBroker;
 use crate::config::ClaudeConfig;
 
-use super::claude_command::claude_command;
+use super::terminal_command::terminal_command;
 use super::pty_process::{kick_resize, spawn_terminal};
 use super::terminal::Terminal;
 use rekall_core::claude::{TerminalEnded, TerminalListener as Listener, TerminalMode, TerminalView};
-use crate::session::{require_folder, spawn_idle_sweep, ClaudeOptions, EndedBus, SessionLauncher, WorkMarker};
+use crate::session::{require_folder, spawn_idle_sweep, SessionOptions, EndedBus, SessionLauncher, WorkMarker};
 
 const MAX_DIMENSION: i64 = 1000;
 
@@ -96,31 +96,35 @@ impl PtyTerminalManager {
     /// never on a step, so every mode but [`TerminalMode::Work`] drops the step id. A second open
     /// on a target that already has a terminal reuses it: a work open is retargeted, and every
     /// mode has its line typed into that session so it reloads what it is on as it stands.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn open(
-        self: &Arc<Self>,
-        target: TerminalTarget,
-        step_id: Option<Id>,
-        skip_permissions: bool,
-        model: Option<&str>,
-        effort: Option<&str>,
-        mode: TerminalMode,
-    ) -> Result<TerminalView> {
+    pub async fn open(self: &Arc<Self>, opening: TerminalOpening) -> Result<TerminalView> {
+        let TerminalOpening { target, step_id, provider, skip_permissions, model, effort, mode, .. } = opening;
         let launch = self.launch_service.resolve(target).await?;
         let step_id = if mode.follows_steps() { step_id } else { None };
 
+        let _gate = self.spawn_gate.lock().await;
+        let prompt = provider.command_prompt(&mode.first_line(&launch.anchors));
         if let Some(existing) = self.live_terminal_on(target) {
+            if existing.provider != provider {
+                return Err(RekallError::conflict(format!(
+                    "This {} session is already open. Close it before opening one in {}.",
+                    existing.provider.label(),
+                    provider.label(),
+                )));
+            }
             let view = if mode.follows_steps() { self.retarget(&existing, step_id).await } else { existing.view() };
-            self.write(existing.id, format!("{}\r", mode.first_line(&launch.anchors)).as_bytes())?;
+            self.write(existing.id, format!("{prompt}\r").as_bytes())?;
             return Ok(view);
         }
 
         let directory = require_folder(&launch)?;
-        let binary = self.launcher.require_cli().await?;
-        let mut options = ClaudeOptions::chosen(skip_permissions, model, effort);
+        let mut options = match provider {
+            SessionProvider::Claude => SessionOptions::chosen(skip_permissions, model.as_deref(), effort.as_deref()),
+            SessionProvider::Codex => SessionOptions::codex(skip_permissions, model.as_deref(), effort.as_deref())?,
+        };
+        let binary = self.launcher.require_terminal_cli(provider, &launch).await?;
         let id = Id::random();
         let environment = self.launcher.environment(id, &launch, &mut options).await?;
-        let command = claude_command(&binary, &options, &mode.first_line(&launch.anchors), environment, directory);
+        let command = terminal_command(&binary, &options, &prompt, environment, directory);
 
         let terminal = match self.register(id, launch.clone(), step_id, mode.clone(), options, command).await {
             Ok(terminal) => terminal,
@@ -135,18 +139,16 @@ impl PtyTerminalManager {
         Ok(terminal.view())
     }
 
-    /// Starts the process and records it as live, under the cap. The check and the record are
-    /// one step behind `spawn_gate`, so two fast opens cannot both slip past the cap.
+    /// Starts and records a process while the caller holds the spawn gate.
     async fn register(
         self: &Arc<Self>,
         id: Id,
         launch: TerminalLaunch,
         step_id: Option<Id>,
         mode: TerminalMode,
-        options: ClaudeOptions,
+        options: SessionOptions,
         command: CommandBuilder,
     ) -> Result<Arc<Terminal>> {
-        let _gate = self.spawn_gate.lock().await;
         if self.live_map().len() >= self.max_live {
             return Err(RekallError::conflict(format!(
                 "Rekall is already running {} terminals. Close one before opening another.",
@@ -160,8 +162,9 @@ impl PtyTerminalManager {
                 runtime.spawn(async move { manager.on_exit(id).await });
             }
         };
+        let provider = options.provider;
         let terminal = spawn_terminal(id, launch, step_id, mode, options, command, self.scrollback_bytes, on_exit)
-            .map_err(|failed| RekallError::conflict(format!("Could not start claude: {failed}")))?;
+            .map_err(|failed| RekallError::conflict(format!("Could not start {}: {failed}", provider.label())))?;
         self.live_map().insert(id, terminal.clone());
         Ok(terminal)
     }
@@ -190,14 +193,16 @@ impl PtyTerminalManager {
         }
         let view = terminal.view();
         self.close(id, "The next step opens a new session.").await;
-        self.open(
-            terminal.launch.target(),
-            None,
-            view.skip_permissions,
-            view.model.as_deref(),
-            view.effort.as_deref(),
-            TerminalMode::Work,
-        )
+        self.open(TerminalOpening {
+            target: terminal.launch.target(),
+            step_id: None,
+            provider: view.provider,
+            skip_permissions: view.skip_permissions,
+            model: view.model,
+            effort: view.effort,
+            mode: TerminalMode::Work,
+            kind: view.kind,
+        })
         .await
     }
 
@@ -320,9 +325,18 @@ impl PtyTerminalManager {
     // ---------------------------------------------------------------- helpers
 
     async fn on_exit(&self, id: Id) {
+        let _gate = self.spawn_gate.lock().await;
         let Some(terminal) = self.live_map().remove(&id) else { return };
         let code = terminal.safe_exit_value();
-        let detail = if code == 0 { "The terminal ended.".to_string() } else { format!("claude exited with code {code}") };
+        let detail = if code == 0 {
+            "The terminal ended.".to_string()
+        } else {
+            let executable = match terminal.provider {
+                SessionProvider::Claude => "claude",
+                SessionProvider::Codex => "codex",
+            };
+            format!("{executable} exited with code {code}")
+        };
         terminal.notify_ended(code, &detail);
         self.launcher.release(id);
         self.marker.release_running(terminal.launch.task_id, terminal.step_id()).await;

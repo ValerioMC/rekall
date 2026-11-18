@@ -41,6 +41,7 @@ impl Worker {
             .open(TerminalOpening {
                 target: TerminalTarget::Task(item.task_id),
                 step_id: None,
+                provider: Default::default(),
                 skip_permissions: snapshot.skip_permissions,
                 model: snapshot.model.clone(),
                 effort: snapshot.effort.clone(),

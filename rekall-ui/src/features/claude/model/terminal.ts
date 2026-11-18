@@ -1,3 +1,4 @@
+import type { SessionProvider } from '@/features/claude/model/session-provider'
 import type { ConnectionKind } from '@/features/connection/model/connection'
 import type { ConnectionId, ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
@@ -45,6 +46,7 @@ export interface Terminal {
   readonly taskCode: string | null
   readonly taskTitle: string | null
   readonly mode: TerminalMode
+  readonly provider: SessionProvider
   readonly skipPermissions: boolean
   readonly model: string | null
   readonly effort: string | null

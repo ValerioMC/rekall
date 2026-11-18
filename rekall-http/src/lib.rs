@@ -7,6 +7,7 @@ mod api_ports;
 mod api_state;
 mod router;
 
+pub mod codex;
 pub mod shared;
 
 pub mod adherence;

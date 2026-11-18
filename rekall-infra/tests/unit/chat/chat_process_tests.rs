@@ -7,7 +7,7 @@ use tempfile::TempDir;
 use super::super::chat_command::chat_command;
 use super::super::stream_parser::StreamParser;
 use super::*;
-use crate::session::ClaudeOptions;
+use crate::session::SessionOptions;
 
 const FAKE_CLAUDE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/fake_claude.sh");
 const PLAIN_REPLY: &str = include_str!("../../fixtures/chat/plain_reply.jsonl");
@@ -31,7 +31,7 @@ fn start(first_message: &str, behaviour: &[(&str, &str)]) -> Fake {
         ("FAKE_CLAUDE_RECEIVED".to_string(), received.to_string_lossy().into_owned()),
     ]);
     environment.extend(behaviour.iter().map(|(key, value)| (key.to_string(), value.to_string())));
-    let command = chat_command(Path::new(FAKE_CLAUDE), &ClaudeOptions::chosen(true, None, None), environment, folder.path());
+    let command = chat_command(Path::new(FAKE_CLAUDE), &SessionOptions::chosen(true, None, None), environment, folder.path());
     let (process, events) = spawn_chat_process(Id::random(), command, first_message).expect("the fake claude starts");
     Fake { process, events, received, _folder: folder }
 }
@@ -171,7 +171,7 @@ async fn output_that_stops_mid_line_becomes_a_warning_and_the_stream_still_ends(
 
 #[tokio::test]
 async fn a_binary_that_is_not_there_is_a_conflict() {
-    let command = chat_command(Path::new("/nonexistent/claude"), &ClaudeOptions::default(), HashMap::new(), Path::new("/tmp"));
+    let command = chat_command(Path::new("/nonexistent/claude"), &SessionOptions::default(), HashMap::new(), Path::new("/tmp"));
 
     let refused = spawn_chat_process(Id::random(), command, "hello").err().expect("nothing to start");
 

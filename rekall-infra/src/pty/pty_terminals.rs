@@ -20,9 +20,7 @@ impl PtyTerminals {
 #[async_trait]
 impl TerminalHost for PtyTerminals {
     async fn open(&self, opening: TerminalOpening) -> Result<TerminalView> {
-        self.0
-            .open(opening.target, opening.step_id, opening.skip_permissions, opening.model.as_deref(), opening.effort.as_deref(), opening.mode)
-            .await
+        self.0.open(opening).await
     }
 
     fn list(&self) -> Vec<TerminalView> {

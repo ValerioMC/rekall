@@ -6,6 +6,9 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
 import { QUICK_TASK_HELP } from '@/features/catalog/lib/quick-task'
+import { preferredProvider, setCodexEffort, setCodexModel } from '@/common/config/session-launch'
+import { installStorage } from '../../support/memoryStorage'
+import { installBothSessionProviders } from '../../support/sessionProviders'
 import { taskFixture } from '../../support/taskFixture'
 import type { QuickTaskStarted } from '@/features/catalog/api/quick-task.api'
 import type { Project } from '@/features/catalog/model/catalog'
@@ -33,6 +36,7 @@ const field = (wrapper: ReturnType<typeof mountComposer>) => wrapper.get('[data-
 
 describe('TaskComposer', () => {
   beforeEach(() => {
+    installStorage()
     setActivePinia(createPinia())
     openSession.mockReset()
     document.body.replaceChildren()
@@ -70,6 +74,26 @@ describe('TaskComposer', () => {
     await wrapper.get('[data-testid="quick-task-input"]').trigger('keydown.enter', { shiftKey: true })
 
     expect(create).not.toHaveBeenCalled()
+  })
+
+  it('starts a quick task with Codex from the arrow menu', async () => {
+    installBothSessionProviders()
+    setCodexModel('gpt-test')
+    setCodexEffort('high')
+    const create = vi.spyOn(useConsoleStore(), 'createQuickTask').mockResolvedValue(STARTED)
+    const wrapper = mountComposer()
+
+    await type(wrapper, 'Fix the typo')
+    await wrapper.get('[data-testid="split-button-arrow"]').trigger('click')
+    document.body.querySelector<HTMLButtonElement>('[data-testid="split-button-option-CODEX"]')!.click()
+    await flushPromises()
+
+    expect(create).toHaveBeenCalledWith(PROJECT.id, expect.objectContaining({
+      text: 'Fix the typo', provider: 'CODEX', model: 'gpt-test', effort: 'high'
+    }))
+    expect(preferredProvider()).toBe('CLAUDE')
+    expect(field(wrapper).value).toBe('')
+    wrapper.unmount()
   })
 
   it('starts nothing from blank text', async () => {

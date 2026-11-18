@@ -15,11 +15,11 @@ fn an_anchor_is_letters_digits_and_the_few_marks_an_anchor_uses() {
 #[test]
 fn the_script_changes_into_the_folder_and_execs_claude_on_the_anchor() {
     assert_eq!(
-        script("/Users/me/Projects/it's here", "project:vega task:x ", true, "/Users/me/.local/bin/claude"),
+        script("/Users/me/Projects/it's here", "project:vega task:x ", &SessionOptions::chosen(true, None, None), "/Users/me/.local/bin/claude"),
         "#!/bin/sh\nrm -f \"$0\"\ncd '/Users/me/Projects/it'\\''s here' || exit 1\n\
-         exec '/Users/me/.local/bin/claude' --dangerously-skip-permissions '/rk project:vega task:x'\n"
+         exec '/Users/me/.local/bin/claude' '--dangerously-skip-permissions' '/rk project:vega task:x'\n"
     );
-    assert!(!script("/p", "task:x", false, "claude").contains("--dangerously-skip-permissions"));
+    assert!(!script("/p", "task:x", &SessionOptions::default(), "claude").contains("--dangerously-skip-permissions"));
 }
 
 #[test]
@@ -41,4 +41,13 @@ fn tempfile_home() -> PathBuf {
     let home = std::env::temp_dir().join(format!("rekall-desktop-test-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&home).unwrap();
     home
+}
+
+
+#[test]
+fn the_desktop_script_quotes_codex_arguments_and_the_skill_prompt() {
+    let options = SessionOptions::codex(true, Some("gpt-6.2-sol"), Some("high")).unwrap();
+    let script = script("/p", "task:x", &options, "/opt/homebrew/bin/codex");
+    assert!(script.contains("'--dangerously-bypass-approvals-and-sandbox' '--model' 'gpt-6.2-sol' '-c' 'model_reasoning_effort=\"high\"'"));
+    assert!(script.ends_with("'Use the $rekall skill with this exact argument line: task:x'\n"));
 }

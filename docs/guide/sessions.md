@@ -1,8 +1,33 @@
 # Terminals, the run queue and token usage
 
+## Provider settings
+
+**Settings > Sessions and run queue > Provider** selects **Claude Code** or **Codex** for new
+interactive sessions. Rekall remembers each provider’s model, reasoning effort and permission
+settings separately. Existing sessions and automatic renewals keep the provider and options they
+started with.
+
+When both CLIs are installed, open the arrow beside **Run here** on a task or **Start quick task**
+after entering a description. Choose **Run with Claude Code** or **Run with Codex**. The choice
+applies to that launch and uses the provider's saved model, reasoning effort and permissions.
+Close any open session on the task before switching its provider.
+
+For Codex, install the CLI, sign in, and choose **Connect Codex** to register Rekall’s MCP endpoint
+and install the `$rekall` skill. **Model** and **Reasoning effort** use the CLI’s model catalog.
+**Bypass approvals and sandbox** starts off and adds
+`--dangerously-bypass-approvals-and-sandbox` when enabled.
+
+The console shows separate **Claude** and **Codex** account usage rings when the Codex CLI is detected.
+Hover or focus either meter to see its available usage windows and reset times. The warning
+percentage in **Settings > Time and usage** applies to both rings. Codex limits require a ChatGPT
+login that reports account limits.
+
+Chat, unattended queue runs, Rekall’s installed guard hooks, saved connection credentials and
+per-task token attribution use Claude Code.
+
 ## Terminal in Rekall
 
-**Run here**, next to **Open in terminal** on the description and steps panes, or `c` from any task, runs a real terminal inside the app. The backend starts the interactive `claude` in a pseudo-terminal (`portable-pty`) in the project's folder, types `/rk <anchors>` as the first line, and hands it to you; the pane renders it with `xterm.js` and the bytes travel both ways over one WebSocket at `/api/terminal/{id}/io`. It is the same binary run the same way as in your own terminal, so its own screens, `/context` read-outs and permission prompts are the ones you know. The [Chat view](#chat-view) is the alternative. Works in a plain browser, not only the desktop app.
+**Run here**, next to **Open in terminal** on the description and steps panes, or `c` from any task, runs a real terminal inside the app. The backend starts the selected CLI in a pseudo-terminal in the project’s folder and opens the task with `/rk` for Claude Code or the `$rekall` skill for Codex; the pane renders it with `xterm.js` and the bytes travel both ways over one WebSocket at `/api/terminal/{id}/io`. It is the same binary run the same way as in your own terminal, so its own screens, `/context` read-outs and permission prompts are the ones you know. The [Chat view](#chat-view) is the alternative. Works in a plain browser, not only the desktop app.
 
 The terminal gets the environment a new window of your own terminal would: Rekall asks your login shell (`$SHELL -i -l -c`) for its variables once it starts, so whatever your profile adds to `PATH` (`~/.cargo/bin`, nvm, pyenv, sdkman) and exports is there, along with `SSH_AUTH_SOCK`. The answer is cached and refreshed in the background every time a terminal opens, so a tool installed while Rekall runs reaches the next terminal but one. A shell that prints nothing usable within the timeout leaves the last good answer in place, or Rekall's own environment when there is none. Only a terminal opened before the first attempt has finished waits for it; after that a terminal never waits, so a profile that takes longer than the timeout costs the `PATH` it adds, not a delay on Run here. The shell runs with `REKALL_RESOLVING_ENVIRONMENT=1`, so a slow profile can skip work with `[[ -n $REKALL_RESOLVING_ENVIRONMENT ]] && return`.
 

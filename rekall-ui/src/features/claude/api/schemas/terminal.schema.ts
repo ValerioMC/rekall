@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SESSION_PROVIDERS } from '@/features/claude/model/session-provider'
 import { ConnectionKindSchema } from '@/features/connection/api/schemas/connection.schema'
 import { asConnectionId, asProjectId, asTaskId, asTaskStepId, asTerminalId } from '@/model/branded'
 
@@ -13,6 +14,7 @@ export const TerminalSchema = z.object({
   taskCode: z.string().nullable(),
   taskTitle: z.string().nullable(),
   mode: z.enum(['WORK', 'PLAN', 'PLAN_FLOW', 'REPLAN', 'REVISE', 'REWRITE_FIX', 'REWRITE_RESTRUCTURE', 'GENERATE', 'EXPLAIN', 'INVENTORY', 'ASSESS', 'ASSESS_ALL', 'AUTOCONFIGURE', 'SCAN_COMPONENTS', 'MERGE']),
+  provider: z.enum(SESSION_PROVIDERS).default('CLAUDE'),
   skipPermissions: z.boolean(),
   model: z.string().nullable(),
   effort: z.string().nullable(),

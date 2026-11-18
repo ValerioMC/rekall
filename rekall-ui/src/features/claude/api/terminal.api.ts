@@ -3,14 +3,15 @@ import { TerminalListSchema, TerminalSchema } from './schemas/terminal.schema'
 import { env } from '@/common/config/env'
 import type { SessionKind, Terminal, TerminalMode, TerminalTarget } from '@/features/claude/model/terminal'
 import type { DiagramKind } from '@/features/diagram/model/diagram'
-import type { ClaudeEffortChoice, ClaudeModelChoice } from '@/features/claude/model/claude'
+import type { SessionProvider } from '@/features/claude/model/session-provider'
 import type { TaskStepId, TerminalId } from '@/model/branded'
 
 export interface OpenTerminalInput {
   stepId?: TaskStepId | null
   skipPermissions: boolean
-  model?: ClaudeModelChoice
-  effort?: ClaudeEffortChoice
+  provider?: SessionProvider
+  model?: string
+  effort?: string
   mode?: TerminalMode
   kind?: SessionKind
   /** What a `GENERATE` terminal asks the session to draw, and as which diagram types. */
@@ -35,6 +36,7 @@ export async function openTerminal(target: TerminalTarget, input: OpenTerminalIn
         method: 'POST',
         body: {
           stepId: input.stepId ?? null,
+          ...(input.provider ? { provider: input.provider } : {}),
           skipPermissions: input.skipPermissions,
           model: input.model && input.model !== 'default' ? input.model : null,
           effort: input.effort && input.effort !== 'default' ? input.effort : null,

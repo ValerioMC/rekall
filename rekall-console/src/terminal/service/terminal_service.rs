@@ -61,6 +61,7 @@ fn opening_of(command: OpenTerminalCommand) -> TerminalOpening {
     TerminalOpening {
         target: command.target,
         step_id: command.step_id,
+        provider: command.provider,
         skip_permissions: command.skip_permissions,
         model: command.model,
         effort: command.effort,

@@ -35,6 +35,7 @@ pub use model::resource_path::ResourcePath;
 pub use model::resource_save::ResourceSave;
 pub use model::resource_summary::ResourceSummary;
 pub use rekall_store::SessionKind;
+pub use model::session_provider::SessionProvider;
 pub use model::severity::Severity;
 pub use model::skill_source::{SkillSource, SkillSourceKind};
 pub use crate::flow::{StepProgress, StepProgressState};

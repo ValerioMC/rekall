@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useAnchoredMenu } from '@/composables/useAnchoredMenu'
 import RunMenuGlyph from '@/features/claude/components/RunMenuGlyph.vue'
+import { RUN_WITH_PROVIDER_LABEL } from '@/features/claude/model/session-provider'
 import type { RunMenuAction } from '@/features/claude/model/runMenu'
 
 /**
@@ -15,6 +16,8 @@ const emit = defineEmits<{ choose: [action: RunMenuAction] }>()
 const MENU_WIDTH = 200
 
 const ENTRIES: Record<RunMenuAction, { label: string; testid: string }> = {
+  CLAUDE: { label: RUN_WITH_PROVIDER_LABEL.CLAUDE, testid: 'run-with-CLAUDE' },
+  CODEX: { label: RUN_WITH_PROVIDER_LABEL.CODEX, testid: 'run-with-CODEX' },
   RUN_IN_QUEUE: { label: 'Run in queue', testid: 'run-in-queue' },
   PLAN: { label: 'Plan here', testid: 'plan-here' },
   PLAN_FLOW: { label: 'Plan a flow', testid: 'plan-flow' },

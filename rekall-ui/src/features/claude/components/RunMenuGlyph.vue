@@ -7,7 +7,8 @@ defineProps<{ action: RunMenuAction }>()
 <template>
   <svg class="size-4 shrink-0 text-text-subtle" viewBox="0 0 16 16" fill="none" aria-hidden="true">
     <g stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-      <template v-if="action === 'RUN_IN_QUEUE'">
+      <path v-if="action === 'CLAUDE' || action === 'CODEX'" d="m6 3.5 6 4.5-6 4.5Z" />
+      <template v-else-if="action === 'RUN_IN_QUEUE'">
         <path d="M2.5 4h7M2.5 8h5M2.5 12h5" />
         <path d="m10.5 8.2 3 1.8-3 1.8Z" />
       </template>

@@ -2,7 +2,7 @@ import { computed, ref, type Ref } from 'vue'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { preferredEffort, preferredLaunchKind, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
+import { launchChoices } from '@/common/config/session-launch'
 import type { PlanMode } from '@/features/claude/model/terminal'
 import type { TaskId } from '@/model/branded'
 
@@ -62,7 +62,7 @@ export function usePlanTask(
         terminals.planForTask(
           taskId(),
           anchor(),
-          { skipPermissions: skipsPermissions(), model: preferredModel(), effort: preferredEffort(), kind: preferredLaunchKind() },
+          launchChoices(),
           mode,
           message
         ),

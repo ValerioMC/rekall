@@ -111,9 +111,10 @@ project headers from the ledger. Only Work chooses the layout, since the layout 
 
 The composer (`TaskComposer`) is the one way to start work: one line that grows with the text, the
 project's folder (or, across projects, a picker that defaults to the project worked on last) and a
-split key. The key starts a quick task and opens its session; its menu, **Plan a task…**, opens the
-New task dialog with the text as its title, as does `T`. With no folder the key is inert and says why,
-and planning still works. The views are sub-navigation tabs with counts,
+split key. The key starts a quick task with the saved provider. Its menu offers a provider for
+this run when both CLIs are installed. **Plan a task…** opens the New task dialog with the text
+as its title, as does `T`. With no folder the key is inert and says why, and planning still works.
+The views are sub-navigation tabs with counts,
 and at their right end the filter on title and anchor, the Ledger or Board layout toggle and a **View**
 menu (`WorkViewMenu`) with the density (Comfortable or Compact) and whether quick tasks show; the
 toggle and the filter stay on the board, whose tabs are lanes: **Needs me** (the default), Running, Open and Filed. The ledger lists 25 tasks a page (`lib/work-pagination.ts`, `WorkPager`): the pager under it says which
@@ -168,7 +169,8 @@ then company and project) with the task's actions at its right (Log commit, Open
 Run here, each offered once), and the title alone beneath. The tab strip is Description, Plan,
 Changes, Wrapup, Notes, Time and Deviations, with counts where a count means something (steps,
 logged commits, notes, deviations) and an amber one on Plan while a step waits for review; at its
-right is the width key.
+right is the width key. The **Run here** menu offers both providers for a single run when both
+CLIs are installed.
 Beside every tab sits the properties bar (`TaskRail`), 272px wide, folding to an icon bar that the
 browser remembers. Plan keeps its own choice and starts folded, so the steps and the step being read
 have the width; the other tabs start open. Open, it holds: the status pill that changes the status and the copyable `/rk` anchor on top,

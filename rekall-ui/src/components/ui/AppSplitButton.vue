@@ -7,7 +7,7 @@ import AppButton from './AppButton.vue'
 export interface SplitButtonOption<OptionId extends string> {
   readonly id: OptionId
   readonly label: string
-  readonly hint: string
+  readonly hint?: string
 }
 
 /**
@@ -116,7 +116,7 @@ function choose(id: Id): void {
         @click="choose(option.id)"
       >
         <span class="text-small font-medium text-text">{{ option.label }}</span>
-        <span class="text-caption leading-snug text-text-muted">{{ option.hint }}</span>
+        <span v-if="option.hint" class="text-caption leading-snug text-text-muted">{{ option.hint }}</span>
       </button>
     </div>
   </Teleport>

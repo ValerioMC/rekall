@@ -8,7 +8,8 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
-import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
+import { launchChoices, preferredProvider } from '@/common/config/session-launch'
+import { SESSION_PROVIDER_LABEL, SESSION_WORKFLOW_LABEL } from '@/features/claude/model/session-provider'
 import type { Terminal, TerminalEndedFrame } from '@/features/claude/model/terminal'
 
 const store = useConsoleStore()
@@ -17,6 +18,7 @@ const { selectedTask } = storeToRefs(store)
 const { terminals: allTerminals, activeTerminal, activeTerminalId } = storeToRefs(terminals)
 const { run, isRunning } = useAsyncAction()
 
+const launchProvider = preferredProvider()
 const connected = ref(false)
 const ended = ref<{ exitCode: number; detail: string } | null>(null)
 const switcherOpen = ref(false)
@@ -70,9 +72,8 @@ async function openHere(): Promise<void> {
   await run(
     () =>
       terminals.openForTask(task.id, {
-        skipPermissions: skipsPermissions(),
-        model: preferredModel(),
-        effort: preferredEffort()
+        ...launchChoices(),
+        kind: 'TERMINAL'
       }),
     'Terminal opened'
   )
@@ -85,9 +86,8 @@ async function restart(): Promise<void> {
   await run(async () => {
     await terminals.close(current)
     await terminals.openForTask(task.id, {
-      skipPermissions: skipsPermissions(),
-      model: preferredModel(),
-      effort: preferredEffort()
+      ...launchChoices(),
+      kind: 'TERMINAL'
     })
   }, 'Terminal restarted')
 }
@@ -254,7 +254,7 @@ watch(
         </header>
         <div class="relative flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border bg-surface px-5 py-2">
           <span v-if="activeTerminal" class="truncate font-mono text-micro text-text-subtle">
-            {{ activeTerminal.workingDir }}
+            {{ SESSION_PROVIDER_LABEL[activeTerminal.provider] }} · {{ activeTerminal.workingDir }}
           </span>
           <span
             v-if="activeTerminal"
@@ -264,9 +264,7 @@ watch(
             {{ activeTerminal.skipPermissions ? 'permissions skipped' : 'permissions on' }}
           </span>
           <span v-else class="text-[11.5px] text-text-muted">
-            A real terminal running <code class="text-anchor/80">claude</code> in this project's folder. It
-            loads <code class="text-anchor/80">/rk {{ selectedTask.anchor }}</code> first. Caching and
-            context behave exactly as they do in your own terminal.
+            Opens a terminal in this project’s folder and loads <code class="text-anchor/80">{{ selectedTask.anchor }}</code>.
           </span>
         </div>
       </div>
@@ -297,10 +295,10 @@ watch(
               No terminal open on this task
             </h3>
             <p class="mt-2 text-[12.5px] leading-relaxed text-text-muted">
-              Opening one starts <code class="text-anchor/80">claude</code> in a pseudo-terminal in
+              Opening one starts <code class="text-anchor/80">{{ launchProvider.toLowerCase() }}</code> in a pseudo-terminal in
               <span v-if="folder" class="font-mono text-[11.5px] text-text">{{ folder }}</span>
               <template v-else>this project's folder</template>, loads the task context with
-              <code class="text-anchor/80">/rk</code>, and hands it to you.
+              <code class="text-anchor/80">{{ SESSION_WORKFLOW_LABEL[launchProvider] }}</code>, and hands it to you.
             </p>
             <RouterLink
               v-if="!folder"

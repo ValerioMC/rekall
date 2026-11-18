@@ -1,5 +1,20 @@
 # Terminals and credential sessions
 
+## Provider selection
+
+The console stores the provider and each provider’s launch settings on the machine. A terminal
+opening carries the provider through the HTTP request, the console command and the
+`TerminalOpening` port value. The PTY stores it alongside the model and effort for session renewal.
+Opening a target held by a terminal of another provider asks the user to close that session first.
+
+Codex receives the same anchors and mode arguments as a Claude terminal, through the installed
+`$rekall` skill. The installer packages the shared workflow and mode files and registers the same
+streamable HTTP endpoint. The desktop launcher uses the same option validation and argument
+builder as the PTY.
+
+Codex model choices and ChatGPT account limits come from the local CLI’s App Server. The account
+reading is independent of the selected provider and of Claude’s run-queue ceiling.
+
 ## Opening a session from a button
 
 **Open in terminal**, on a task, hands the session to your own terminal app in that

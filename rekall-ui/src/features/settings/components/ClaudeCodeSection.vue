@@ -3,10 +3,11 @@ import { computed, onMounted, ref } from 'vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import SessionChoiceGroup from '@/features/settings/components/SessionChoiceGroup.vue'
+import SessionPermissionSwitch from '@/features/settings/components/SessionPermissionSwitch.vue'
 import { storeToRefs } from 'pinia'
 import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
 import { useToastStore } from '@/stores/toast.store'
-import { canLaunchClaudeCode } from '@/common/native/desktop'
 import {
   preferredEffort,
   preferredModel,
@@ -106,15 +107,14 @@ async function install(): Promise<void> {
   }
 }
 
-const canLaunch = canLaunchClaudeCode()
 const skipPermissions = ref(skipsPermissions())
 
-function toggleSkipPermissions(): void {
-  skipPermissions.value = !skipPermissions.value
-  setSkipsPermissions(skipPermissions.value)
+function chooseSkipPermissions(value: boolean): void {
+  skipPermissions.value = value
+  setSkipsPermissions(value)
 }
 
-const sessionViews = CLAUDE_SESSION_VIEWS
+const sessionViews = CLAUDE_SESSION_VIEWS.map((value) => ({ value, label: claudeSessionViewLabel(value) }))
 const sessionView = ref<ClaudeSessionView>(preferredSessionKind())
 
 function chooseSessionView(choice: ClaudeSessionView): void {
@@ -122,7 +122,7 @@ function chooseSessionView(choice: ClaudeSessionView): void {
   setPreferredSessionKind(choice)
 }
 
-const modelChoices = CLAUDE_MODEL_CHOICES
+const modelChoices = CLAUDE_MODEL_CHOICES.map((value) => ({ value, label: claudeModelChoiceLabel(value) }))
 const model = ref<ClaudeModelChoice>(preferredModel())
 
 function chooseModel(choice: ClaudeModelChoice): void {
@@ -130,7 +130,7 @@ function chooseModel(choice: ClaudeModelChoice): void {
   setPreferredModel(choice)
 }
 
-const effortChoices = CLAUDE_EFFORT_CHOICES
+const effortChoices = CLAUDE_EFFORT_CHOICES.map((value) => ({ value, label: claudeEffortChoiceLabel(value) }))
 const effort = ref<ClaudeEffortChoice>(preferredEffort())
 
 function chooseEffort(choice: ClaudeEffortChoice): void {
@@ -203,35 +203,17 @@ onMounted(() => void load())
         </AppButton>
       </div>
 
-      <div
-        v-if="canLaunch"
-        class="mt-3 flex items-start gap-3 border-t border-border pt-3"
+      <SessionPermissionSwitch
+        label="Open sessions without permission prompts"
+        :model-value="skipPermissions"
         data-testid="claude-skip-permissions"
+        @update:model-value="chooseSkipPermissions"
       >
-        <div class="min-w-0 flex-1">
-          <p class="text-small text-text">Open sessions without permission prompts</p>
-          <p class="mt-0.5 text-caption leading-relaxed text-text-subtle">
-            Adds <code class="text-anchor/80">--dangerously-skip-permissions</code> to every session Rekall
-            starts, <span class="text-text-muted">Run here</span> or
-            <span class="text-text-muted">Open in terminal</span>. That session edits, runs and deletes
-            without asking first.
-          </p>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          :aria-checked="skipPermissions"
-          aria-label="Open sessions without permission prompts"
-          class="focus-ring mt-0.5 h-5 w-9 shrink-0 rounded-full border transition-colors"
-          :class="skipPermissions ? 'border-danger bg-danger-soft' : 'border-border bg-surface-raised'"
-          @click="toggleSkipPermissions"
-        >
-          <span
-            class="block size-3.5 rounded-full transition-transform"
-            :class="skipPermissions ? 'translate-x-[18px] bg-danger' : 'translate-x-[2px] bg-text-subtle'"
-          />
-        </button>
-      </div>
+        Adds <code class="text-anchor/80">--dangerously-skip-permissions</code> to every session Rekall
+        starts, <span class="text-text-muted">Run here</span> or
+        <span class="text-text-muted">Open in terminal</span>. That session edits, runs and deletes
+        without asking first.
+      </SessionPermissionSwitch>
 
       <div class="mt-3 border-t border-border pt-3" data-testid="claude-session-view">
         <p class="text-small text-text">Session view</p>
@@ -240,25 +222,13 @@ onMounted(() => void load())
           terminal, in a window beside the task. With permission prompts on, it asks for each tool call there.
           <span class="text-text-muted">Terminal</span> stays the default.
         </p>
-        <div class="mt-2 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Session view for a Run here session">
-          <button
-            v-for="choice in sessionViews"
-            :key="choice"
-            type="button"
-            role="radio"
-            :aria-checked="sessionView === choice"
-            class="focus-ring inline-flex items-center rounded-key border px-2.5 py-1 text-caption transition-colors"
-            :class="
-              sessionView === choice
-                ? 'border-accent bg-accent-soft text-accent'
-                : 'border-border text-text-subtle hover:border-border-strong hover:text-text-muted'
-            "
-            :data-testid="`claude-session-view-${choice}`"
-            @click="chooseSessionView(choice)"
-          >
-            {{ claudeSessionViewLabel(choice) }}
-          </button>
-        </div>
+        <SessionChoiceGroup
+          label="Session view for a Run here session"
+          :options="sessionViews"
+          :model-value="sessionView"
+          test-id-prefix="claude-session-view"
+          @update:model-value="chooseSessionView"
+        />
       </div>
 
       <div class="mt-3 border-t border-border pt-3" data-testid="claude-model">
@@ -269,25 +239,13 @@ onMounted(() => void load())
           <span class="text-text-muted">Account default</span> leaves your Claude Code setting alone. A
           session already running keeps the model it started with.
         </p>
-        <div class="mt-2 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Model for a Run here session">
-          <button
-            v-for="choice in modelChoices"
-            :key="choice"
-            type="button"
-            role="radio"
-            :aria-checked="model === choice"
-            class="focus-ring inline-flex items-center rounded-key border px-2.5 py-1 text-caption transition-colors"
-            :class="
-              model === choice
-                ? 'border-accent bg-accent-soft text-accent'
-                : 'border-border text-text-subtle hover:border-border-strong hover:text-text-muted'
-            "
-            :data-testid="`claude-model-${choice}`"
-            @click="chooseModel(choice)"
-          >
-            {{ claudeModelChoiceLabel(choice) }}
-          </button>
-        </div>
+        <SessionChoiceGroup
+          label="Model for a Run here session"
+          :options="modelChoices"
+          :model-value="model"
+          test-id-prefix="claude-model"
+          @update:model-value="chooseModel"
+        />
       </div>
 
       <div class="mt-3 border-t border-border pt-3" data-testid="claude-effort">
@@ -297,29 +255,13 @@ onMounted(() => void load())
           think longer on hard problems and spends more; it applies to models that support extended thinking.
           <span class="text-text-muted">Account default</span> leaves it unset.
         </p>
-        <div
-          class="mt-2 flex flex-wrap gap-1.5"
-          role="radiogroup"
-          aria-label="Reasoning effort for a Run here session"
-        >
-          <button
-            v-for="choice in effortChoices"
-            :key="choice"
-            type="button"
-            role="radio"
-            :aria-checked="effort === choice"
-            class="focus-ring inline-flex items-center rounded-key border px-2.5 py-1 text-caption transition-colors"
-            :class="
-              effort === choice
-                ? 'border-accent bg-accent-soft text-accent'
-                : 'border-border text-text-subtle hover:border-border-strong hover:text-text-muted'
-            "
-            :data-testid="`claude-effort-${choice}`"
-            @click="chooseEffort(choice)"
-          >
-            {{ claudeEffortChoiceLabel(choice) }}
-          </button>
-        </div>
+        <SessionChoiceGroup
+          label="Reasoning effort for a Run here session"
+          :options="effortChoices"
+          :model-value="effort"
+          test-id-prefix="claude-effort"
+          @update:model-value="chooseEffort"
+        />
       </div>
 
       <p v-if="installed" class="mt-2 text-small text-text-muted" data-testid="claude-restart-hint">

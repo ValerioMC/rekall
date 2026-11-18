@@ -1,3 +1,4 @@
+import { sessionCommandPrompt } from '@/features/claude/model/session-provider'
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 import {
@@ -150,9 +151,9 @@ export const useTerminalStore = defineStore('terminal', () => {
 
   /** Hand a line to a live session: typed into a terminal's stdin as if pasted there, sent as a message to a chat. */
   async function sendCommand(id: TerminalId, line: string): Promise<void> {
-    const isChat = terminals.value.some((terminal) => terminal.id === id && terminal.kind === 'CHAT')
-    if (isChat) await sendMessage(id, line)
-    else await sendTerminalInput(id, `${line}\r`)
+    const session = terminals.value.find((terminal) => terminal.id === id)
+    if (session?.kind === 'CHAT') await sendMessage(id, line)
+    else await sendTerminalInput(id, `${sessionCommandPrompt(session?.provider ?? 'CLAUDE', line)}\r`)
   }
 
   return {

@@ -175,6 +175,7 @@ fn merge_opening(task_id: Id, mode: TerminalMode) -> TerminalOpening {
     TerminalOpening {
         target: TerminalTarget::Task(task_id),
         step_id: None,
+        provider: Default::default(),
         skip_permissions: false,
         model: None,
         effort: None,

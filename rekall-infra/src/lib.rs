@@ -7,6 +7,7 @@
 //! check a stored credential, the Jira search and the advisory database. It serves no route: each
 //! capability implements a port of `rekall-core`, and `rekall-app` injects it.
 
+pub mod codex;
 pub mod backup;
 pub mod bootstrap;
 pub mod chat;

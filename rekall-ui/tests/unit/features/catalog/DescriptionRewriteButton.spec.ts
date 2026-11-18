@@ -79,6 +79,7 @@ function liveTerminal(): Terminal {
     taskCode: 'report-builder',
     taskTitle: 'Report builder',
     mode: 'REWRITE_FIX',
+    provider: 'CLAUDE',
     skipPermissions: true,
     model: null,
     effort: null,

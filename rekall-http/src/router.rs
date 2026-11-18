@@ -20,6 +20,7 @@ pub fn routes() -> Router<ApiState> {
         .merge(catalog::routes())
         .merge(chat::routes())
         .merge(claude::routes())
+        .merge(crate::codex::routes())
         .merge(commit::routes())
         .merge(check::routes())
         .merge(dependency::routes())

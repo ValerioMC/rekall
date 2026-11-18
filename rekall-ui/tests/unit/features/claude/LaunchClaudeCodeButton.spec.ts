@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import { setPreferredProvider } from '@/common/config/session-launch'
 import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
 import { useToastStore } from '@/stores/toast.store'
 import { useConsoleStore } from '@/stores/console.store'
@@ -125,6 +126,22 @@ describe('LaunchClaudeCodeButton', () => {
     expect(openInClaudeCode).toHaveBeenCalledWith(
       expect.objectContaining({ skipPermissions: true })
     )
+  })
+
+  it('previews the selected provider’s workflow and launches it with the same anchor', async () => {
+    const wrapper = mount(LaunchClaudeCodeButton, {
+      props: { anchors: ANCHORS, folder: FOLDER },
+      global: { stubs: { teleport: true } }
+    })
+    setPreferredProvider('CODEX')
+
+    const button = wrapper.get('[data-testid="launch-claude-code"]')
+    await button.trigger('mouseenter')
+    expect(wrapper.get('[role="tooltip"]').text()).toContain('$rekall')
+
+    await button.trigger('click')
+    await flushPromises()
+    expect(openInClaudeCode).toHaveBeenCalledWith({ directory: FOLDER, anchors: ANCHORS, provider: 'CODEX', skipPermissions: false })
   })
 
   /** Pressable rather than disabled: a disabled button carries no tooltip in this window, so

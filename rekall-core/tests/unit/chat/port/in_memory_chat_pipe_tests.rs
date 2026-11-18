@@ -19,6 +19,7 @@ fn view() -> TerminalView {
         task_code: None,
         task_title: None,
         mode: TerminalMode::Work,
+        provider: Default::default(),
         skip_permissions: false,
         model: None,
         effort: None,

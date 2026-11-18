@@ -5,7 +5,7 @@
 //! it opens and closes, and announces every end, however it came, as a `TerminalEnded` event.
 //! Nothing is persisted; strays are bounded by a cap, an idle sweep, and a shutdown hook.
 
-mod claude_command;
+mod terminal_command;
 mod pty_process;
 mod pty_terminal_manager;
 mod pty_terminals;

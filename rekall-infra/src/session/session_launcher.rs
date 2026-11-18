@@ -2,12 +2,12 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use rekall_core::claude::TerminalLaunch;
+use rekall_core::claude::{SessionProvider, TerminalLaunch};
 use rekall_core::telemetry::TelemetrySettingsService;
 use rekall_kernel::{Id, RekallError, Result};
 use tracing::{info, warn};
 
-use super::ClaudeOptions;
+use super::SessionOptions;
 use crate::cli::ClaudeCli;
 use crate::connection::CredentialBroker;
 
@@ -26,6 +26,16 @@ impl SessionLauncher {
         Self { cli, broker, telemetry }
     }
 
+    pub async fn require_terminal_cli(&self, provider: SessionProvider, launch: &TerminalLaunch) -> Result<PathBuf> {
+        if provider == SessionProvider::Codex {
+            if launch.connections.iter().any(|connection| connection.credential_set) {
+                return Err(RekallError::conflict("This project uses saved connection credentials. Choose Claude Code for its sessions."));
+            }
+            return self.cli.codex().require().await;
+        }
+        self.require_cli().await
+    }
+
     pub async fn require_cli(&self) -> Result<PathBuf> {
         self.cli.locate().await.ok_or_else(|| {
             RekallError::conflict("Claude Code's command line tool isn't on this machine. Install it, then try again.")
@@ -33,7 +43,10 @@ impl SessionLauncher {
     }
 
     /// The environment session `id` runs in. A credential session's settings land in `options`.
-    pub async fn environment(&self, id: Id, launch: &TerminalLaunch, options: &mut ClaudeOptions) -> Result<HashMap<String, String>> {
+    pub async fn environment(&self, id: Id, launch: &TerminalLaunch, options: &mut SessionOptions) -> Result<HashMap<String, String>> {
+        if options.provider == SessionProvider::Codex {
+            return Ok(self.cli.codex().environment().await);
+        }
         let mut environment = self.cli.environment().await;
         if let Some(session) = self.broker.open(id, launch).await? {
             session.apply(&mut environment);

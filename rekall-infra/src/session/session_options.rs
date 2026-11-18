@@ -1,0 +1,80 @@
+use std::ffi::OsString;
+use std::path::PathBuf;
+
+use rekall_core::claude::{SessionProvider, EFFORT_LEVELS, MODEL_ALIASES};
+use rekall_kernel::{jstr, RekallError, Result};
+
+#[derive(Clone, Debug, Default)]
+pub struct SessionOptions {
+    pub provider: SessionProvider,
+    pub skip_permissions: bool,
+    pub model: Option<String>,
+    pub effort: Option<String>,
+    pub settings: Option<PathBuf>,
+}
+
+impl SessionOptions {
+    pub fn chosen(skip_permissions: bool, model: Option<&str>, effort: Option<&str>) -> Self {
+        Self {
+            skip_permissions,
+            model: normalise(model, &MODEL_ALIASES),
+            effort: normalise(effort, &EFFORT_LEVELS),
+            ..Self::default()
+        }
+    }
+
+    pub fn codex(skip_permissions: bool, model: Option<&str>, effort: Option<&str>) -> Result<Self> {
+        Ok(Self {
+            provider: SessionProvider::Codex,
+            skip_permissions,
+            model: codex_choice(model, "model")?,
+            effort: codex_choice(effort, "reasoning effort")?,
+            settings: None,
+        })
+    }
+
+    pub fn arguments(&self) -> Vec<OsString> {
+        let mut arguments = Vec::new();
+        if self.skip_permissions {
+            arguments.push(match self.provider {
+                SessionProvider::Claude => "--dangerously-skip-permissions",
+                SessionProvider::Codex => "--dangerously-bypass-approvals-and-sandbox",
+            }.into());
+        }
+        if let Some(model) = &self.model {
+            arguments.extend(["--model".into(), model.into()]);
+        }
+        if let Some(effort) = &self.effort {
+            match self.provider {
+                SessionProvider::Claude => arguments.extend(["--effort".into(), effort.into()]),
+                SessionProvider::Codex => arguments.extend(["-c".into(), format!("model_reasoning_effort=\"{effort}\"").into()]),
+            }
+        }
+        if let Some(settings) = &self.settings {
+            arguments.extend(["--settings".into(), settings.as_os_str().to_owned()]);
+        }
+        arguments
+    }
+}
+
+fn normalise(value: Option<&str>, allowed: &[&str]) -> Option<String> {
+    let trimmed = jstr::strip(value?).to_lowercase();
+    allowed.contains(&trimmed.as_str()).then_some(trimmed)
+}
+
+fn codex_choice(value: Option<&str>, label: &str) -> Result<Option<String>> {
+    let Some(value) = value.map(jstr::strip).filter(|value| !value.is_empty() && *value != "default") else {
+        return Ok(None);
+    };
+    if value.len() <= 150
+        && value.as_bytes()[0].is_ascii_alphanumeric()
+        && value.bytes().all(|byte| byte.is_ascii_alphanumeric() || b"-_.:/".contains(&byte))
+    {
+        return Ok(Some(value.to_owned()));
+    }
+    Err(RekallError::illegal(format!("This Codex {label} is invalid.")))
+}
+
+#[cfg(test)]
+#[path = "../../tests/unit/session/session_options_tests.rs"]
+mod tests;

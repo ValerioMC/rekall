@@ -1,6 +1,17 @@
 # Rekall
 
-Rekall stores your projects, tasks and markdown notes, and loads one task in full into a Claude Code session on a single command.
+```mermaid
+sequenceDiagram
+    participant Console
+    participant Rekall
+    participant CLI as Claude Code or Codex
+    Console->>Rekall: Open a task session with the chosen provider
+    Rekall->>CLI: Start in the project folder with the task anchor
+    CLI->>Rekall: Load the task over MCP
+    Rekall-->>CLI: Return the context, checklist and notes
+```
+
+Rekall stores your projects, tasks and markdown notes and loads a task into Claude Code or Codex.
 
 Projects, tasks and notes live in a local app. `/rk task:VG-12` loads that task, its project, its checklist and every note on it. `/rk task:VG-12 wrapup` records what the implementation is now, so the next session starts from the current state instead of reading the code back.
 
@@ -32,7 +43,7 @@ make ui      # the frontend alone
 | UI      | `http://localhost:47355`     |
 | MCP     | `http://localhost:47355/mcp` |
 
-Port 47355 is fixed because the MCP endpoint is registered with Claude Code by URL, so a clash breaks the registration rather than moving the app. `SERVER_PORT` overrides it for the server, the desktop app and the tests.
+Port 47355 is fixed because the MCP endpoint is registered with each provider by URL, so a clash breaks the registration rather than moving the app. `SERVER_PORT` overrides it for the server, the desktop app and the tests.
 
 ### This machine only
 
@@ -58,7 +69,13 @@ xattr -dr com.apple.quarantine /Applications/Rekall.app
 
 The app is a Tauri v2 window over the same server `rekall-server` runs, on the same port, config and MCP endpoint. It checks for a newer release when it starts and installs it in place. `make dmg`, `make app` and `make install` build it locally; on Windows, `scripts\windows-installer.ps1` builds a setup `.exe` (see [docs/guide/desktop.md](docs/guide/desktop.md#windows-installer)). The release process, update flow, splash, quit guard and icons are in [docs/guide/desktop.md](docs/guide/desktop.md).
 
-## Connect Claude Code
+## Connect a session provider
+
+Choose **Claude Code** or **Codex** under **Settings > Sessions and run queue > Provider**. Each keeps its own model, reasoning effort and permission settings. **Connect Codex** registers the same MCP endpoint and installs the `$rekall` skill. When both CLIs are installed, the console shows their account usage percentages side by side. [Session settings and limits](docs/guide/sessions.md#provider-settings)
+
+When both CLIs are installed, the arrow beside **Run here** or **Start quick task** lets you choose the provider for that run. The main button uses your default provider.
+
+### Claude Code
 
 **Settings > Sessions and run queue** in the app registers the MCP server for every folder and installs the `/rk` command in one click, with its mode files in `~/.claude/rk/`. It also repairs a registration that points at the wrong port, carries an older command or a missing or older mode file, or is shadowed in one folder by a registration made without `--scope user`. While a registration is out of date, a warning triangle sits on the Settings key in the top bar until Repair is run.
 
@@ -79,7 +96,7 @@ mkdir -p ~/.claude/rk && cp .claude/rk/*.md ~/.claude/rk/
 
 **Fix wording** and **Restructure**, a split button on the description pane beside the Write/Read toggle, have a session rewrite the task's description with `/rk … rewrite fix` or `rewrite restructure` (see the table below). It is disabled while the description is blank or has unsaved changes. When the new text arrives an **Undo** puts the old one back; Rekall keeps no history, so that text is held in the console window only and is gone once you edit, leave the task or close the console.
 
-**Open in terminal**, on a task, hands the session to your own terminal app in the project's folder with `/rk` already running. Set the folder in the **Folder** field of the project page's **Settings** tab, under **Repository**. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Sessions and run queue** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside the desktop app. **Run here** runs a session inside the app instead, as a terminal or, if you pick **Chat** under **Settings > Sessions and run queue > Session view**, as a chat window; see [Terminals](docs/guide/sessions.md) and its [Chat view](docs/guide/sessions.md#chat-view).
+**Open in terminal**, on a task, hands the selected provider to your own terminal app in the project’s folder with the task already loading. Set the folder in the **Folder** field of the project page's **Settings** tab, under **Repository**. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Sessions and run queue** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside the desktop app. **Run here** runs a session inside the app instead, as a terminal or, if you pick **Chat** under **Settings > Sessions and run queue > Session view**, as a chat window; see [Terminals](docs/guide/sessions.md) and its [Chat view](docs/guide/sessions.md#chat-view).
 
 ## Anchor syntax
 

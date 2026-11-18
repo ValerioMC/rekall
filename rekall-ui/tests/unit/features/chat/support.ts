@@ -39,6 +39,7 @@ export function chatSession(over: Partial<Terminal> = {}): Terminal {
     taskCode: 'report-builder',
     taskTitle: 'Report builder',
     mode: 'WORK',
+    provider: 'CLAUDE',
     skipPermissions: false,
     model: null,
     effort: null,

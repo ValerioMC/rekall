@@ -5,7 +5,7 @@ mod claude_code_installer;
 mod guard_hook_installer;
 mod outcome;
 
-pub use claude_code_installer::{SERVER_NAME, CONNECTED, CommandRunner, ClaudeCodeInstaller};
+pub use claude_code_installer::{SERVER_NAME, CONNECTED, CommandRunner, ClaudeCodeInstaller, PACKAGED_COMMAND, PACKAGED_MODES};
 pub use guard_hook_installer::GuardHookInstaller;
 pub use outcome::Outcome;
 

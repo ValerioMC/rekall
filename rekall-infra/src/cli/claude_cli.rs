@@ -24,6 +24,10 @@ impl ClaudeCli {
         Self { override_path: override_path.map(|p| p.trim().to_string()).unwrap_or_default(), home, login_shell }
     }
 
+    pub fn codex(&self) -> crate::codex::CodexCli {
+        crate::codex::CodexCli::new(self.home.clone(), self.login_shell.clone())
+    }
+
     pub async fn locate(&self) -> Option<PathBuf> {
         if !self.override_path.is_empty() {
             let path = PathBuf::from(&self.override_path);
@@ -71,7 +75,7 @@ fn separator() -> &'static str {
 }
 
 /// The directories of `path` in order, then any of the usual install directories it lacks.
-fn search_path(path: Option<&str>) -> Vec<String> {
+pub(crate) fn search_path(path: Option<&str>) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     let declared = path.map(|p| p.split(separator()).map(str::to_string).collect::<Vec<_>>()).unwrap_or_default();
     for part in declared.into_iter().filter(|p| !p.trim().is_empty()).chain(KNOWN_DIRECTORIES.iter().map(|d| d.to_string())) {

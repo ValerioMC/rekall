@@ -1,7 +1,6 @@
 import { computed, onBeforeUnmount, onMounted, ref, type ComputedRef, type Ref } from 'vue'
-import { fetchClaudeUsage } from '@/features/claude/api/claude.api'
 import { formatResetIn } from '@/common/format/countdown'
-import type { ClaudeUsage } from '@/features/claude/model/claude'
+import type { AccountUsage } from '@/model/account-usage'
 
 /** How old a reading may get on screen, and how old it may be when the window comes back. */
 const POLL_MS = 5 * 60_000
@@ -11,28 +10,28 @@ const TICK_MS = 30_000
 
 export type UsageState = 'ok' | 'reading' | 'signed-out' | 'rate-limited' | 'offline'
 
-export interface ClaudeUsageReading {
-  readonly usage: Ref<ClaudeUsage | null>
+export interface AccountUsageReading {
+  readonly now: Ref<number>
+  readonly usage: Ref<AccountUsage | null>
+  readonly available: ComputedRef<boolean>
   readonly lastReadAt: Ref<string | null>
   /** A reading is in flight. */
   readonly reading: Ref<boolean>
   readonly state: ComputedRef<UsageState>
   /** There is no figure to draw: the meter's job is getting one. */
   readonly blank: ComputedRef<boolean>
-  /** Anthropic asked this machine to wait and the wait has not run out. */
+  /** The provider’s retry delay is still active. */
   readonly waiting: ComputedRef<boolean>
   readonly waitLabel: ComputedRef<string>
   load(refresh?: boolean): Promise<void>
 }
 
-/**
- * When the account's Claude usage is read: once when the console opens, every few minutes while
- * it is on screen, when the window returns after a minute away, and whenever asked. Nothing
- * retries faster, because Anthropic rate limits a client that keeps asking; the server says
- * until when, and the reading waits it out.
- */
-export function useClaudeUsageReading(now: Ref<number>): ClaudeUsageReading {
-  const usage = ref<ClaudeUsage | null>(null)
+export function useAccountUsageReading(
+  now: Ref<number>,
+  fetchUsage: (refresh: boolean) => Promise<AccountUsage>
+): AccountUsageReading {
+  const usage = ref<AccountUsage | null>(null)
+  const available = computed(() => usage.value !== null && usage.value.status !== 'CLI_MISSING')
   const reachable = ref(true)
   const reading = ref(false)
   const lastReadAt = ref<string | null>(null)
@@ -42,7 +41,7 @@ export function useClaudeUsageReading(now: Ref<number>): ClaudeUsageReading {
     if (reading.value) return
     reading.value = true
     try {
-      usage.value = await fetchClaudeUsage(refresh)
+      usage.value = await fetchUsage(refresh)
       reachable.value = true
     } catch {
       reachable.value = false
@@ -101,5 +100,5 @@ export function useClaudeUsageReading(now: Ref<number>): ClaudeUsageReading {
     window.removeEventListener('focus', onVisibilityChange)
   })
 
-  return { usage, lastReadAt, reading, state, blank, waiting, waitLabel, load }
+  return { now, usage, available, lastReadAt, reading, state, blank, waiting, waitLabel, load }
 }

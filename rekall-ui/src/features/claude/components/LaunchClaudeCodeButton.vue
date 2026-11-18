@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, useId } from 'vue'
 import { canLaunchClaudeCode, launchClaudeCode } from '@/common/native/desktop'
-import { skipsPermissions } from '@/common/config/claude-launch'
+import { launchChoices, preferredProvider } from '@/common/config/session-launch'
+import { SESSION_PROVIDER_LABEL, SESSION_WORKFLOW_LABEL } from '@/features/claude/model/session-provider'
 import { useToastStore } from '@/stores/toast.store'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
 import { useReleaseOnRun } from '@/features/graph/composables/useReleaseOnRun'
@@ -30,11 +31,13 @@ const nudging = ref(false)
 let settleTimer: ReturnType<typeof setTimeout> | null = null
 let nudgeTimer: ReturnType<typeof setTimeout> | null = null
 
+const previewProvider = ref(preferredProvider())
+
 const missing = computed(() => props.missingHint ?? 'Set this project’s folder to open a session from it')
 
 const detail = computed(() =>
   props.folder
-    ? `Opens ${props.folder} in your terminal app, running /rk ${props.anchors}`
+    ? `Opens ${SESSION_PROVIDER_LABEL[previewProvider.value]} in ${props.folder} and loads ${props.anchors}`
     : missing.value
 )
 
@@ -57,6 +60,7 @@ function positionPreview(): void {
 }
 
 function openPreview(): void {
+  previewProvider.value = preferredProvider()
   positionPreview()
   previewing.value = true
 }
@@ -85,10 +89,14 @@ async function launch(): Promise<void> {
     return
   }
   try {
+    const { provider, model, effort, skipPermissions } = launchChoices()
     const terminal = await launchClaudeCode({
       directory,
       anchors: props.anchors,
-      skipPermissions: skipsPermissions()
+      skipPermissions,
+      ...(provider ? { provider } : {}),
+      ...(model !== 'default' ? { model } : {}),
+      ...(effort !== 'default' ? { effort } : {})
     })
     toast.notify(`Opened in ${terminal}.`)
     phase.value = 'launched'
@@ -170,7 +178,7 @@ async function launch(): Promise<void> {
       <template v-if="folder">
         <p class="mt-2 truncate font-mono text-caption text-text-subtle">{{ folder }}</p>
         <p class="anchor-chip mt-1.5 flex max-w-full items-center gap-1.5 truncate px-2 py-1 font-mono text-caption">
-          <span class="shrink-0 opacity-80">/rk</span>
+          <span class="shrink-0 opacity-80">{{ SESSION_WORKFLOW_LABEL[previewProvider] }}</span>
           <span class="truncate">{{ anchors }}</span>
         </p>
       </template>

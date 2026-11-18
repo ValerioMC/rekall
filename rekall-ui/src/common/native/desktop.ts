@@ -1,7 +1,12 @@
+import type { SessionProvider } from '@/features/claude/model/session-provider'
+
 export interface ClaudeCodeLaunch {
   readonly directory: string
   readonly anchors: string
   readonly skipPermissions: boolean
+  readonly provider?: SessionProvider
+  readonly model?: string
+  readonly effort?: string
 }
 
 /** A system notification the native host posts. */

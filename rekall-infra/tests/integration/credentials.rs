@@ -5,6 +5,8 @@
 
 mod support;
 
+use rekall_core::claude::{SessionKind, SessionProvider, TerminalOpening};
+
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::Path;
@@ -283,7 +285,16 @@ async fn a_terminal_on_a_project_with_connections_has_a_session_exactly_as_long_
     let (broker, terminals) = serve_terminals(&world).await;
     let launch = launch(&world, "https://gitlab.example.com").await;
 
-    let view = terminals.open(TerminalTarget::Project(launch.project_id), None, false, None, None, TerminalMode::Explain { request: "how".into() }).await.unwrap();
+    let view = terminals.open(TerminalOpening {
+        target: TerminalTarget::Project(launch.project_id),
+        step_id: None,
+        provider: SessionProvider::Claude,
+        skip_permissions: false,
+        model: None,
+        effort: None,
+        mode: TerminalMode::Explain { request: "how".into() },
+        kind: SessionKind::Terminal,
+    }).await.unwrap();
     assert!(broker.has_session(view.id));
     let named: Vec<(String, bool)> = view.connections.iter().map(|connection| (connection.label.clone(), connection.credential_set)).collect();
     assert_eq!(named, [("gitlab".to_string(), true), ("prod".to_string(), true)]);

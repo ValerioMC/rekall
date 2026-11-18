@@ -75,6 +75,7 @@ fn view_on(target: &TerminalTarget) -> TerminalView {
         task_code: None,
         task_title: None,
         mode: TerminalMode::Work,
+        provider: Default::default(),
         skip_permissions: false,
         model: None,
         effort: None,
@@ -124,7 +125,7 @@ async fn world(refuse_with: Option<&'static str>) -> World {
 }
 
 fn command(project_id: Id, text: &str) -> QuickTaskCommand {
-    QuickTaskCommand { project_id, text: text.into(), skip_permissions: true, model: Some("sonnet".into()), effort: None, kind: SessionKind::Chat }
+    QuickTaskCommand { project_id, text: text.into(), provider: Default::default(), skip_permissions: true, model: Some("sonnet".into()), effort: None, kind: SessionKind::Chat }
 }
 
 #[tokio::test]

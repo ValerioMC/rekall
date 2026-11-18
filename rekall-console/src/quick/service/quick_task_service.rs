@@ -24,7 +24,7 @@ impl QuickTaskService {
     /// cannot open takes the task away again, so a refused start leaves nothing behind.
     pub async fn create(&self, command: QuickTaskCommand) -> Result<QuickTaskView> {
         if jstr::is_blank(&command.text) {
-            return Err(RekallError::illegal("Say what Claude should do before starting a quick task."));
+            return Err(RekallError::illegal("Describe the work before starting a quick task."));
         }
         let task = self.create_task(&command).await?;
         match self.terminals.open(opening_of(&command, task.id)).await {
@@ -51,6 +51,7 @@ fn opening_of(command: &QuickTaskCommand, task_id: Id) -> OpenTerminalCommand {
     OpenTerminalCommand {
         target: TerminalTarget::Task(task_id),
         step_id: None,
+        provider: command.provider,
         skip_permissions: command.skip_permissions,
         model: command.model.clone(),
         effort: command.effort.clone(),
