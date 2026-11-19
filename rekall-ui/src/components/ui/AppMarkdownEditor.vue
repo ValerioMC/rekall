@@ -39,6 +39,8 @@ const props = withDefaults(
      * width and alignment they set belong to a pane-sized page, not to a card.
      */
     compact?: boolean
+    /** Puts the caret in the writing surface as it opens, for an editor the reader has just asked to write in. */
+    autofocus?: boolean
     /** Read as a message in a log: `compact`, and also without the indent that the section ticks hang into. */
     bare?: boolean
     /** Offers the `Aa` key for the reading column's width; off where the pane sets the page width itself. */
@@ -69,6 +71,7 @@ const props = withDefaults(
     placeholder: '# Contesto',
     compact: false,
     bare: false,
+    autofocus: false,
     readSettings: true,
     pageFullscreen: true,
     pathRoot: null,
@@ -227,6 +230,7 @@ const toolbars = computed(() => (props.pageFullscreen ? TOOLBARS : TOOLBARS.filt
       :footers="['markdownTotal']"
       :style="{ height: editorHeight }"
       :placeholder="placeholder"
+      :auto-focus="autofocus"
       no-katex
       no-mermaid
       no-echarts

@@ -9,6 +9,7 @@ import type { Task } from '@/features/catalog/model/catalog'
 /**
  * What the step runs with and what it has to pass, side by side. A finished step has nothing
  * left to set up, so it shows only checks it already carries and nothing at all when it has none.
+ * A step that has more to set up (a draft's session and routes) adds it in the slot.
  */
 const props = defineProps<{ step: TaskStep; task: Task; stacked?: boolean }>()
 
@@ -27,5 +28,6 @@ const shown = computed(() => !finished.value || checks.stepChecksOf(props.task.p
   >
     <StepSkillsField v-if="!finished" :step="step" :task="task" />
     <StepChecksField :step="step" :task="task" />
+    <slot />
   </section>
 </template>

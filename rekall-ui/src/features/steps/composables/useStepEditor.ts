@@ -14,7 +14,6 @@ export interface StepEditor {
   readonly title: Ref<string>
   readonly body: Ref<string>
   open: (step: TaskStep) => void
-  toggle: (step: TaskStep) => void
   close: () => void
   flush: () => void
   scheduleSave: () => void
@@ -70,20 +69,11 @@ export function provideStepEditor(wiring: StepEditorWiring): StepEditor {
     openFor(step.bodyMarkdown ?? '')
   }
 
-  function toggle(step: TaskStep): void {
-    flush()
-    if (expandedId.value === step.id) {
-      expandedId.value = null
-      return
-    }
-    open(step)
-  }
-
   function close(): void {
     expandedId.value = null
   }
 
-  const editor: StepEditor = { expandedId, mode, title, body, open, toggle, close, flush, scheduleSave }
+  const editor: StepEditor = { expandedId, mode, title, body, open, close, flush, scheduleSave }
   provide(KEY, editor)
   return editor
 }

@@ -206,8 +206,10 @@ keys), and a **⋯** menu with Return to draft and Delete step…, each with a l
 (`PlanStepMenu`). A step that has been started has neither. A moved step joins the session it lands in,
 and a step that opens a session hands the opening to the step behind it when it leaves, so moving,
 returning to draft or deleting never merges two sessions (`planStepMove`, `openerHandover`); returning
-to draft offers an Undo that restores the place and the sessions. Under the rows come the drafts with
-Promote and the line, docked at the foot, that adds a draft (a new step is a draft).
+to draft offers an Undo that restores the place and the sessions. Under the rows come the drafts, each a line that selects it: its title, whether a detail is written,
+its skills, routes (a count) and a new-session tag, with Promote, which waits for a detail. A draft is
+never written in the list. The line docked at the foot, with the skills and new-session keys, adds a
+draft (a new step is a draft) and opens it in the pane with the caret in its detail.
 
 With the flow view the graph owns the whole workspace beside the picked step's routes and visits (a
 column of 340px). It opens fitted to the canvas; a flow of more than six ranks wraps into columns of
@@ -253,6 +255,13 @@ done step has none. A task handed in whole shows its own decision, Accept task o
 the same place. Nothing but a person marks a step done, and Claude moves a step only up to
 claimed. The list and the frame share the step editor, so a title or detail typed in the frame is
 saved as it was in the old checklist.
+
+With a draft selected, the frame holds the **draft** (`StepDraftPanel`), the same frame a step uses.
+The title is a field saved as it is typed; the facts line says Draft, its place among the drafts and
+the Write and Read switch; the keys step to the previous and next draft (J and K). The body is the
+detail, then the setup: skills, the session (Join the session above or New session), the checks and,
+for a draft from a proposed flow, its routes, read-only. The dock holds Delete draft and Promote to the
+plan, which waits for a detail. A task with only drafts has no overview, so its first draft is open.
 
 **Changes** reads what the sessions changed in the application as a code review (`TaskChangesTab`,
 data from `GET /api/tasks/{id}/changes`). A track along the top picks what is compared: **All changes**

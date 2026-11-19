@@ -33,6 +33,8 @@ export interface TaskPlan {
   readonly hideDone: Ref<boolean>
   readonly view: Ref<'list' | 'flow'>
   readonly reopenArmed: Ref<TaskStepId | null>
+  /** The draft just added, whose detail takes the caret as its pane opens; cleared once another step is opened. */
+  readonly justAddedId: Ref<TaskStepId | null>
   readonly promoting: Ref<TaskStepId | null>
   readonly deleting: Ref<TaskStep | null>
   readonly deletingBlast: ComputedRef<string>
@@ -137,6 +139,11 @@ export function useTaskPlan(): TaskPlan {
 
   const reopenArmed = ref<TaskStepId | null>(null)
   watch(editor.expandedId, () => (reopenArmed.value = null))
+
+  const justAddedId = ref<TaskStepId | null>(null)
+  watch(editor.expandedId, (openId) => {
+    if (openId !== justAddedId.value) justAddedId.value = null
+  })
 
   function offerToReopenAccepted(step: TaskStep): void {
     toast.notify(`Accepted ${step.title}`, {
@@ -299,6 +306,7 @@ export function useTaskPlan(): TaskPlan {
     })
     if (!created) return null
     editor.flush()
+    justAddedId.value = created.id
     editor.open(created)
     return created
   }
@@ -323,6 +331,7 @@ export function useTaskPlan(): TaskPlan {
     hideDone,
     view,
     reopenArmed,
+    justAddedId,
     promoting,
     deleting,
     deletingBlast,

@@ -272,6 +272,94 @@ describe('TaskPlanTab', () => {
     expect(store.addStep).toHaveBeenCalledWith(taskId, 'Write the migration')
   })
 
+  describe('drafts', () => {
+    function draft(id: string, position: number, overrides: Partial<TaskStep> = {}): TaskStep {
+      return { ...makeStep(id, position, 'DRAFT'), ...overrides }
+    }
+
+    it('opens a draft in the pane beside the list and keeps its row a line', async () => {
+      seed([makeStep('s1', 0, 'OPEN'), draft('s2', 1)])
+      const tab = render()
+
+      await tab.get('[data-testid="draft-title"]').trigger('click')
+
+      expect(tab.get('[data-testid="draft-title-field"]').element).toHaveProperty('value', 'Step s2')
+      expect(tab.get('[data-testid="draft-panel"]').text()).toContain('Draft 1 of 1')
+      expect(tab.get('[data-testid="drafts"]').find('input').exists()).toBe(false)
+    })
+
+    it('waits for a detail before a draft can be promoted, in the row and in the pane', async () => {
+      const store = seed([makeStep('s1', 0, 'OPEN'), draft('s2', 1), draft('s3', 2, { bodyMarkdown: 'Write the migration.' })])
+      const tab = render()
+      const [empty, written] = tab.findAll('[data-testid="draft-row"]')
+
+      expect(empty!.get('[data-testid="draft-promote"]').attributes('disabled')).toBeDefined()
+      expect(written!.get('[data-testid="draft-promote"]').attributes('disabled')).toBeUndefined()
+
+      await empty!.get('[data-testid="draft-title"]').trigger('click')
+      expect(tab.get('[data-testid="draft-panel"] [data-testid="draft-promote"]').attributes('disabled')).toBeDefined()
+      expect(tab.get('[data-testid="draft-promote-hint"]').text()).toBe('Write the detail to promote it.')
+
+      await written!.get('[data-testid="draft-title"]').trigger('click')
+      await tab.get('[data-testid="draft-panel"] [data-testid="draft-promote"]').trigger('click')
+      await flushPromises()
+      expect(store.promoteStep).toHaveBeenCalledWith('s3')
+    })
+
+    it('chooses the session of a draft in the pane', async () => {
+      const store = seed([makeStep('s1', 0, 'OPEN'), draft('s2', 1, { bodyMarkdown: 'Detail' })])
+      const tab = render()
+      await tab.get('[data-testid="draft-title"]').trigger('click')
+
+      await tab.get('[data-testid="step-session"] [data-testid="segment-new"]').trigger('click')
+      await flushPromises()
+
+      expect(store.beginStepSession).toHaveBeenCalledWith('s2', true)
+    })
+
+    it('shows the routes of a flow draft in the pane and counts them on its row', async () => {
+      const links = [
+        { id: 'l1', fromStepId: 's2', toStepId: 's1', outcome: 'pass', position: 0 },
+        { id: 'l2', fromStepId: 's2', toStepId: null, outcome: 'fail', position: 1 }
+      ] as unknown as TaskStep['links']
+      seed([makeStep('s1', 0, 'OPEN'), draft('s2', 1, { links })])
+      const tab = render()
+
+      expect(tab.get('[data-testid="draft-routes"]').text()).toBe('2 routes')
+      await tab.get('[data-testid="draft-title"]').trigger('click')
+
+      const routes = tab.get('[data-testid="step-routes"]').text()
+      expect(routes).toContain('pass')
+      expect(routes).toContain('Step s1')
+      expect(routes).toContain('end')
+    })
+
+    it('opens a draft just added in the pane', async () => {
+      const store = seed([makeStep('s1', 0, 'OPEN')])
+      store.addStep = vi.fn().mockImplementation(async (_task: TaskId, title: string) => {
+        const created = { ...draft('s9', 1), title }
+        store.steps = [...store.steps, created]
+        return created
+      })
+      const tab = render()
+
+      await tab.get('[data-testid="new-step"]').setValue('Write the migration')
+      await tab.get('form').trigger('submit')
+      await flushPromises()
+
+      expect(tab.get('[data-testid="draft-title-field"]').element).toHaveProperty('value', 'Write the migration')
+    })
+
+    it('opens the first draft of a task that has nothing but drafts', async () => {
+      seed([draft('s1', 0), draft('s2', 1)])
+      const tab = render()
+      await flushPromises()
+
+      expect(tab.get('[data-testid="draft-title-field"]').element).toHaveProperty('value', 'Step s1')
+      expect(tab.find('[data-testid="draft-overview"]').exists()).toBe(false)
+    })
+  })
+
   it('hides the step list while a step is in focus and brings it back', async () => {
     seed([makeStep('s1', 0, 'OPEN'), makeStep('s2', 1, 'CLAIMED')])
     const tab = render()

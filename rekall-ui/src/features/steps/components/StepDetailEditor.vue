@@ -19,6 +19,8 @@ defineProps<{
   stepTitle: string
   /** `step` or `draft`: the prefix of each field's test id. */
   testidPrefix: string
+  /** Puts the caret in the detail as it opens: a step just added is written at once. */
+  autofocus?: boolean
   /** Names the text above it; a bare editor shows no header without one. */
   label?: string
   editorHeight: string
@@ -56,6 +58,7 @@ const projectTasks = useSelectedProjectTasks()
             v-model="body"
             :height="compact ? '100%' : editorHeight"
             :grow="!compact"
+            :autofocus="autofocus"
             :path-root="pathRoot"
             :components="projectComponents"
             :connections="projectConnections"

@@ -9,6 +9,7 @@ import PlanOverview from '@/features/steps/components/PlanOverview.vue'
 import PlanSessionList from '@/features/steps/components/PlanSessionList.vue'
 import StepAddForm from '@/features/steps/components/StepAddForm.vue'
 import StepDecisionPanel from '@/features/steps/components/StepDecisionPanel.vue'
+import StepDraftPanel from '@/features/steps/components/StepDraftPanel.vue'
 import StepDraftShelf from '@/features/steps/components/StepDraftShelf.vue'
 import StepsEmptyState from '@/features/steps/components/StepsEmptyState.vue'
 import TaskHandedInPanel from '@/features/task/components/TaskHandedInPanel.vue'
@@ -50,6 +51,7 @@ const {
   hideDone,
   view,
   reopenArmed,
+  justAddedId,
   promoting,
   deleting,
   deletingBlast,
@@ -74,11 +76,21 @@ const runningNumber = computed(() => {
 const selectedStep = computed(
   () => checklistSteps.value.find((step) => step.id === editor.expandedId.value) ?? null
 )
+const selectedDraft = computed(
+  () => draftSteps.value.find((step) => step.id === editor.expandedId.value) ?? null
+)
 const handedIn = computed(() => handedInWhole(props.task))
 const hasChecklist = computed(() => checklistSteps.value.length > 0)
-const showsPanel = computed(() => view.value === 'list' && (hasChecklist.value || handedIn.value))
+const showsPanel = computed(
+  () => view.value === 'list' && (hasChecklist.value || handedIn.value || draftSteps.value.length > 0)
+)
 const listHidden = computed(() => focused.value && selectedStep.value !== null && view.value === 'list')
-const neighbours = computed(() => neighboursOf(visibleSteps.value, selectedStep.value?.id ?? null))
+const neighbours = computed(() =>
+  selectedDraft.value
+    ? neighboursOf(draftSteps.value, selectedDraft.value.id)
+    : neighboursOf(visibleSteps.value, selectedStep.value?.id ?? null)
+)
+const draftNumber = computed(() => draftSteps.value.findIndex((step) => step.id === selectedDraft.value?.id) + 1)
 const hasNoSteps = computed(() => checklistSteps.value.length === 0 && draftSteps.value.length === 0)
 
 function numberOf(step: TaskStep): number {
@@ -110,7 +122,7 @@ function showOverview(): void {
 function stepThroughWithKeys(event: KeyboardEvent): void {
   if (event.metaKey || event.ctrlKey || event.altKey || isTypingTarget(event.target)) return
   if (!showsPanel.value || deleting.value) return
-  if (event.key === 'Escape' && selectedStep.value) {
+  if (event.key === 'Escape' && hasChecklist.value && (selectedStep.value || selectedDraft.value)) {
     showOverview()
     return
   }
@@ -123,6 +135,15 @@ function stepThroughWithKeys(event: KeyboardEvent): void {
 watch(selectedStep, (step) => {
   if (!step) focused.value = false
 })
+
+// A task with only drafts has no overview to rest on, so its first draft is always open.
+watch(
+  () => [hasChecklist.value, handedIn.value, selectedDraft.value, draftSteps.value[0]] as const,
+  ([checklist, handed, open, first]) => {
+    if (!checklist && !handed && !open && first) select(first)
+  },
+  { immediate: true }
+)
 
 onMounted(() => window.addEventListener('keydown', stepThroughWithKeys))
 onBeforeUnmount(() => window.removeEventListener('keydown', stepThroughWithKeys))
@@ -246,13 +267,13 @@ async function nudge(step: TaskStep, by: number): Promise<void> {
               v-if="draftSteps.length"
               ref="draftsEl"
               :steps="draftSteps"
-              :task-steps="allSteps"
               :task="task"
+              :selected-id="selectedDraft?.id ?? null"
               :promoting="promoting"
+              @select="stepTo"
               @promote="plan.promote"
               @move="plan.move"
               @remove="(step) => (deleting = step)"
-              @session="plan.chooseSession"
             />
           </template>
         </div>
@@ -289,6 +310,27 @@ async function nudge(step: TaskStep, by: number): Promise<void> {
         >
           <template #controls><TaskWidthMenu v-model="preferences.taskWidth" /></template>
         </StepDecisionPanel>
+        <StepDraftPanel
+          v-else-if="selectedDraft"
+          :key="selectedDraft.id"
+          :step="selectedDraft"
+          :task="task"
+          :task-steps="allSteps"
+          :number="draftNumber"
+          :total="draftSteps.length"
+          :neighbours="neighbours"
+          :promoting="promoting === selectedDraft.id"
+          :autofocus="justAddedId === selectedDraft.id"
+          :has-overview="hasChecklist"
+          :max-width="columnMaxWidth(preferences.taskWidth)"
+          @promote="plan.promote(selectedDraft)"
+          @remove="deleting = selectedDraft"
+          @session="(startsSession) => plan.chooseSession(selectedDraft!, startsSession)"
+          @select="stepTo"
+          @overview="showOverview"
+        >
+          <template #controls><TaskWidthMenu v-model="preferences.taskWidth" /></template>
+        </StepDraftPanel>
         <PlanOverview
           v-else-if="hasChecklist"
           :task="task"
@@ -303,7 +345,7 @@ async function nudge(step: TaskStep, by: number): Promise<void> {
           @open-deviation="openDeviation"
           @attached="showAttachedGraph"
         />
-        <div v-else class="min-h-0 flex-1 page-scroll px-8 py-6">
+        <div v-else-if="handedIn" class="min-h-0 flex-1 page-scroll px-8 py-6">
           <TaskHandedInPanel :task="task" />
         </div>
       </aside>
