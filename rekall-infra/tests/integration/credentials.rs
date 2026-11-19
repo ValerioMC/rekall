@@ -5,8 +5,11 @@
 
 mod support;
 
+use rekall_core::claude::{SessionKind, SessionProvider, TerminalOpening};
+
 use std::collections::HashMap;
 use std::io::Write;
+use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 use std::sync::Arc;
@@ -25,7 +28,7 @@ use rekall_core::claude::{TerminalLaunch, TerminalTarget};
 use rekall_core::connection::{CredentialPurpose, HandOut, Refusal, Secret, SecretStore};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 use serde_json::{json, Value};
-use support::{world, World};
+use support::{eventually, world, Recorder, World};
 
 const KUBECONFIG: &str = "
 current-context: prod
@@ -165,7 +168,7 @@ async fn git_fills_the_gitlab_credential_through_the_helper_and_nothing_on_disk_
     let world = world().await;
     let broker = serve(&world).await;
     let launch = launch(&world, "https://gitlab.example.com").await;
-    let session = broker.open(Id::random(), &launch).await.unwrap().unwrap();
+    let session = broker.open(Id::random(), &launch, SessionProvider::Claude).await.unwrap().unwrap();
     let environment = environment_of(&session);
     assert!(environment.values().all(|value| !value.contains("glpat-secret")), "the environment holds the token");
 
@@ -186,7 +189,7 @@ async fn kubectls_plugin_prints_an_exec_credential_for_the_terminal_and_nothing_
     let world = world().await;
     let broker = serve(&world).await;
     let launch = launch(&world, "https://gitlab.example.com").await;
-    let session = broker.open(Id::random(), &launch).await.unwrap().unwrap();
+    let session = broker.open(Id::random(), &launch, SessionProvider::Claude).await.unwrap().unwrap();
     let plugin = session.path_prefix.clone().unwrap().join("rekall-kube-credential").display().to_string();
 
     let granted = run(plugin.clone(), vec!["prod".into()], environment_of(&session), "", world.folder.path()).await;
@@ -208,7 +211,7 @@ async fn rekall_gitlab_calls_the_api_with_the_token_and_the_project_path_in_plac
     let broker = serve(&world).await;
     let gitlab = fake_gitlab().await;
     let launch = launch(&world, &gitlab).await;
-    let session = broker.open(Id::random(), &launch).await.unwrap().unwrap();
+    let session = broker.open(Id::random(), &launch, SessionProvider::Claude).await.unwrap().unwrap();
     let wrapper = session.path_prefix.clone().unwrap().join("rekall-gitlab").display().to_string();
 
     let answer = run(wrapper, ["--connection", "gitlab", "GET", "/projects/:project"].map(String::from).to_vec(), environment_of(&session), "", world.folder.path()).await;
@@ -224,7 +227,7 @@ async fn after_the_session_closes_the_helpers_get_nothing() {
     let broker = serve(&world).await;
     let launch = launch(&world, "https://gitlab.example.com").await;
     let terminal_id = Id::random();
-    let session = broker.open(terminal_id, &launch).await.unwrap().unwrap();
+    let session = broker.open(terminal_id, &launch, SessionProvider::Claude).await.unwrap().unwrap();
     let environment = environment_of(&session);
     let helper = session.path_prefix.clone().unwrap().join("rekall-git-credential");
     let copy = world.home.path().join("kept-helper");
@@ -263,7 +266,7 @@ async fn kubectl_reads_the_session_kubeconfig_and_asks_the_plugin_for_the_creden
     let world = world().await;
     let broker = serve(&world).await;
     let launch = launch_with_cluster(&world, "https://gitlab.example.com", UNREACHABLE_CLUSTER).await;
-    let session = broker.open(Id::random(), &launch).await.unwrap().unwrap();
+    let session = broker.open(Id::random(), &launch, SessionProvider::Claude).await.unwrap().unwrap();
     let mut environment = environment_of(&session);
     environment.insert("PATH".into(), "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin".into());
 
@@ -283,7 +286,16 @@ async fn a_terminal_on_a_project_with_connections_has_a_session_exactly_as_long_
     let (broker, terminals) = serve_terminals(&world).await;
     let launch = launch(&world, "https://gitlab.example.com").await;
 
-    let view = terminals.open(TerminalTarget::Project(launch.project_id), None, false, None, None, TerminalMode::Explain { request: "how".into() }).await.unwrap();
+    let view = terminals.open(TerminalOpening {
+        target: TerminalTarget::Project(launch.project_id),
+        step_id: None,
+        provider: SessionProvider::Claude,
+        skip_permissions: false,
+        model: None,
+        effort: None,
+        mode: TerminalMode::Explain { request: "how".into() },
+        kind: SessionKind::Terminal,
+    }).await.unwrap();
     assert!(broker.has_session(view.id));
     let named: Vec<(String, bool)> = view.connections.iter().map(|connection| (connection.label.clone(), connection.credential_set)).collect();
     assert_eq!(named, [("gitlab".to_string(), true), ("prod".to_string(), true)]);
@@ -291,4 +303,49 @@ async fn a_terminal_on_a_project_with_connections_has_a_session_exactly_as_long_
 
     terminals.close(view.id, "test").await;
     assert!(!broker.has_session(view.id));
+}
+
+#[tokio::test]
+async fn codex_uses_saved_connections_without_a_token_in_its_environment() {
+    let world = world().await;
+    let (broker, terminals) = serve_terminals(&world).await;
+    let launch = launch(&world, &fake_gitlab().await).await;
+    let bin = world.home.path().join(".local/bin");
+    std::fs::create_dir_all(&bin).unwrap();
+    let codex = bin.join("codex");
+    std::fs::write(&codex, r#"#!/bin/sh
+[ "$1" = --no-daemon ] && [ -z "${REKALL_CREDENTIAL_TOKEN+x}" ] && [ -r "$KUBECONFIG" ] || exit 1
+case " $* " in *" --settings "*) exit 1 ;; esac
+rekall-gitlab --connection gitlab GET /projects/:project || exit 1
+while IFS= read -r line; do
+  [ "$line" = "exit" ] && exit 0
+done
+"#).unwrap();
+    std::fs::set_permissions(&codex, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    let view = terminals.open(TerminalOpening {
+        target: TerminalTarget::Project(launch.project_id),
+        step_id: None,
+        provider: SessionProvider::Codex,
+        skip_permissions: false,
+        model: None,
+        effort: None,
+        mode: TerminalMode::Explain { request: "how".into() },
+        kind: SessionKind::Terminal,
+    }).await.unwrap();
+    let recorder = Arc::new(Recorder::default());
+    terminals.attach(view.id, recorder.clone()).unwrap();
+    eventually("Codex's authenticated GitLab response", || async {
+        recorder.text().contains(r#""path_with_namespace":"acme/vega""#)
+    }).await;
+    assert_eq!(view.provider, SessionProvider::Codex);
+    assert!(broker.has_session(view.id));
+    assert!(!recorder.text().contains("glpat-secret"));
+    let terminal_id = view.id.to_string();
+    let log = connection_access::Entity::find().all(world.db()).await.unwrap();
+    assert!(log.iter().any(|access| access.terminal_id == terminal_id && access.granted));
+
+    terminals.close(view.id, "test").await;
+    assert!(!broker.has_session(view.id));
+    assert!(!world.home.path().join("terminal-credentials").join(terminal_id).exists());
 }

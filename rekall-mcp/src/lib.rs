@@ -4,6 +4,7 @@
 
 pub mod check;
 pub mod commit;
+pub mod component;
 pub mod context;
 pub mod controller;
 pub mod deviation;

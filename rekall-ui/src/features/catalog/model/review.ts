@@ -1,5 +1,6 @@
 import type { TaskId, TaskStepId } from '@/model/branded'
-import type { Task, TaskStep } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 
 /**
  * One piece of work a session claimed and nobody has reviewed: a claimed step, or a task with no

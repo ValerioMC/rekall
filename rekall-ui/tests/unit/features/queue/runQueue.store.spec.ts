@@ -59,7 +59,7 @@ describe('the run queue store', () => {
       id: asRunQueueItemId('item-1'),
       taskId: asTaskId('task-1'),
       taskTitle: 'Task',
-      taskLabel: 'task',
+      taskCode: 'task',
       projectLabel: 'vega',
       anchor: 'project:vega task:task',
       position: 0,

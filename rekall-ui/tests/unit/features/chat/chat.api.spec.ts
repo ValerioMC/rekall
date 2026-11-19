@@ -75,7 +75,7 @@ describe('the session kind on a terminal', () => {
     anchors: 'project:vega',
     workingDir: '/code/vega',
     projectLabel: 'vega',
-    taskLabel: null,
+    taskCode: null,
     taskTitle: null,
     mode: 'GENERATE',
     skipPermissions: false,
@@ -91,6 +91,14 @@ describe('the session kind on a terminal', () => {
 
     expect(parsed.kind).toBe('TERMINAL')
     expect(parsed.awaitingPermission).toBe(false)
+  })
+
+  it('reads a Confluence connection attached to the terminal', () => {
+    const connection = { connectionId: 'cccccccc-0000-4000-8000-000000000001', label: 'wiki', kind: 'CONFLUENCE', credentialSet: true }
+
+    const parsed = TerminalSchema.parse({ ...view, connections: [connection] })
+
+    expect(parsed.connections[0]!.kind).toBe('CONFLUENCE')
   })
 
   it('reads a chat session waiting for approval', () => {

@@ -1,6 +1,7 @@
 //! The shell helpers a credential session writes. Each asks Rekall's endpoint for one credential
-//! with the terminal's token, sent on stdin so it never shows in a process listing, and hands the
-//! answer straight to the tool that asked. None holds a credential.
+//! with the terminal's token and hands the answer straight to the tool that asked.
+
+use std::path::Path;
 
 use rekall_core::claude::TerminalConnection;
 use rekall_core::connection::github_api_root;
@@ -9,7 +10,7 @@ pub(super) const KUBE_PLUGIN: &str = "rekall-kube-credential";
 pub(super) const GIT_HELPER: &str = "rekall-git-credential";
 
 /// Fetches `$1` with the token as a header read from stdin; prints the body, or exits non-zero.
-const FETCH: &str = r#"rekall_fetch() {
+const ENVIRONMENT_FETCH: &str = r#"rekall_fetch() {
   printf 'X-Rekall-Credential-Token: %s\n' "$REKALL_CREDENTIAL_TOKEN" |
     curl --silent --show-error --fail-with-body --noproxy '*' -H @- "$1"
 }
@@ -17,19 +18,34 @@ const FETCH: &str = r#"rekall_fetch() {
 
 const HEADER: &str = "#!/bin/sh\n# Written by Rekall for one terminal and removed when it ends. It holds no credential.\n";
 
+pub(super) struct CredentialRequest<'a> {
+    pub(super) endpoint: &'a str,
+    pub(super) header_file: Option<&'a Path>,
+}
+
+impl CredentialRequest<'_> {
+    fn fetch(&self) -> String {
+        let Some(file) = self.header_file else { return ENVIRONMENT_FETCH.into() };
+        let header = quoted(&format!("@{}", file.display()));
+        format!("rekall_fetch() {{\n  curl --silent --show-error --fail-with-body --noproxy '*' -H {header} \"$1\"\n}}\n")
+    }
+}
+
 /// kubectl's exec plugin: `rekall-kube-credential <label>` prints an `ExecCredential`.
-pub(super) fn kube_plugin(endpoint: &str) -> String {
+pub(super) fn kube_plugin(request: &CredentialRequest<'_>) -> String {
     format!(
-        "{HEADER}{FETCH}answer=$(rekall_fetch {}\"$1?for=kubectl\") || {{ printf 'rekall: %s\\n' \"$answer\" >&2; exit 1; }}\nprintf '%s\\n' \"$answer\"\n",
-        quoted(&format!("{endpoint}/"))
+        "{HEADER}{}answer=$(rekall_fetch {}\"$1?for=kubectl\") || {{ printf 'rekall: %s\\n' \"$answer\" >&2; exit 1; }}\nprintf '%s\\n' \"$answer\"\n",
+        request.fetch(),
+        quoted(&format!("{}/", request.endpoint))
     )
 }
 
 /// git's credential helper: answers `get` with the token; `store` and `erase` have nothing to do.
-pub(super) fn git_helper(endpoint: &str) -> String {
+pub(super) fn git_helper(request: &CredentialRequest<'_>) -> String {
     format!(
-        "{HEADER}{FETCH}[ \"$2\" = get ] || exit 0\ncat > /dev/null\nanswer=$(rekall_fetch {}\"$1?for=git\") || {{ printf 'rekall: %s\\n' \"$answer\" >&2; exit 1; }}\nprintf '%s\\n' \"$answer\"\n",
-        quoted(&format!("{endpoint}/"))
+        "{HEADER}{}[ \"$2\" = get ] || exit 0\ncat > /dev/null\nanswer=$(rekall_fetch {}\"$1?for=git\") || {{ printf 'rekall: %s\\n' \"$answer\" >&2; exit 1; }}\nprintf '%s\\n' \"$answer\"\n",
+        request.fetch(),
+        quoted(&format!("{}/", request.endpoint))
     )
 }
 
@@ -73,7 +89,29 @@ pub(super) const JIRA_API: ApiWrapper = ApiWrapper {
     headers: "-H 'Accept: application/json' -H 'Content-Type: application/json' ",
 };
 
-pub(super) fn api_wrapper(wrapper: &ApiWrapper, endpoint: &str, connections: &[&TerminalConnection]) -> String {
+/// Confluence's REST API under `/rest/api` with the credential's header and JSON both ways,
+/// `:project` the space key.
+pub(super) const CONFLUENCE_API: ApiWrapper = ApiWrapper {
+    name: "rekall-confluence",
+    system: "Confluence",
+    api_base: confluence_api_base,
+    escapes_target: true,
+    purpose: "confluence",
+    headers: "-H 'Accept: application/json' -H 'Content-Type: application/json' ",
+};
+
+/// Grafana's HTTP API under `/api` with the credential's header and JSON both ways,
+/// `:project` the folder UID.
+pub(super) const GRAFANA_API: ApiWrapper = ApiWrapper {
+    name: "rekall-grafana",
+    system: "Grafana",
+    api_base: grafana_api_base,
+    escapes_target: true,
+    purpose: "grafana",
+    headers: "-H 'Accept: application/json' -H 'Content-Type: application/json' ",
+};
+
+pub(super) fn api_wrapper(wrapper: &ApiWrapper, request: &CredentialRequest<'_>, connections: &[&TerminalConnection]) -> String {
     let ApiWrapper { name, system, api_base, escapes_target, purpose, headers } = wrapper;
     let mut cases = String::new();
     for connection in connections {
@@ -81,10 +119,19 @@ pub(super) fn api_wrapper(wrapper: &ApiWrapper, endpoint: &str, connections: &[&
         let target = connection.target.as_deref().unwrap_or_default();
         let project = if *escapes_target { percent_encoded(target) } else { target.to_string() };
         let proxy = connection.proxy_url.as_deref().unwrap_or_default();
-        cases.push_str(&format!("  {}) base={}; project={}; proxy={} ;;\n", quoted(&connection.label), quoted(&base), quoted(&project), quoted(proxy)));
+        let insecure = if connection.accept_self_signed { "yes" } else { "" };
+        cases.push_str(&format!(
+            "  {}) base={}; project={}; proxy={}; insecure={} ;;\n",
+            quoted(&connection.label),
+            quoted(&base),
+            quoted(&project),
+            quoted(proxy),
+            quoted(insecure)
+        ));
     }
+    let fetch = request.fetch();
     format!(
-        "{HEADER}{FETCH}usage() {{ echo 'usage: {name} --connection <label> <METHOD> <path> [curl options]' >&2; exit 2; }}
+        "{HEADER}{fetch}usage() {{ echo 'usage: {name} --connection <label> <METHOD> <path> [curl options]' >&2; exit 2; }}
 [ \"$1\" = --connection ] && [ $# -ge 4 ] || usage
 label=$2; method=$3; path=$4; shift 4
 case \"$label\" in
@@ -94,14 +141,23 @@ case \"$path\" in /*) ;; *) path=\"/$path\" ;; esac
 [ -n \"$project\" ] && path=$(printf '%s' \"$path\" | sed \"s|:project|$project|g\")
 header=$(rekall_fetch {}\"$label?for={purpose}\") || {{ printf '{name}: %s\\n' \"$header\" >&2; exit 1; }}
 [ -n \"$proxy\" ] && set -- --proxy \"$proxy\" \"$@\"
+[ -n \"$insecure\" ] && set -- --insecure \"$@\"
 printf '%s\\n' \"$header\" | curl --silent --show-error -X \"$method\" -H @- {headers}\"$base$path\" \"$@\"
 ",
-        quoted(&format!("{endpoint}/"))
+        quoted(&format!("{}/", request.endpoint))
     )
 }
 
 fn gitlab_api_base(instance_url: &str) -> String {
     format!("{}/api/v4", instance_url.trim_end_matches('/'))
+}
+
+fn grafana_api_base(instance_url: &str) -> String {
+    format!("{}/api", instance_url.trim_end_matches('/'))
+}
+
+fn confluence_api_base(site_url: &str) -> String {
+    format!("{}/rest/api", site_url.trim_end_matches('/'))
 }
 
 fn jira_api_base(site_url: &str) -> String {

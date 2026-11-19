@@ -16,6 +16,8 @@ pub struct FeedbackResponse {
     pub reply_markdown: Option<String>,
     pub created_at: Instant,
     pub applied_at: Option<Instant>,
+    pub pass: Option<i32>,
+    pub taken_at: Option<Instant>,
 }
 
 impl From<FeedbackView> for FeedbackResponse {
@@ -31,6 +33,8 @@ impl From<FeedbackView> for FeedbackResponse {
             reply_markdown: view.reply_markdown,
             created_at: view.created_at,
             applied_at: view.applied_at,
+            pass: view.pass,
+            taken_at: view.taken_at,
         }
     }
 }

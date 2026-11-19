@@ -13,8 +13,8 @@ pub fn routes() -> Router<ApiState> {
         .route("/api/guard/uninstall", post(uninstall))
 }
 
-async fn status(State(state): State<ApiState>) -> Json<GuardProtection> {
-    Json(state.guard_protection.status().await)
+async fn status(State(state): State<ApiState>) -> ApiResult<Json<GuardProtection>> {
+    Ok(Json(state.guard_protection.status().await?))
 }
 
 async fn install(State(state): State<ApiState>) -> ApiResult<Json<GuardProtection>> {

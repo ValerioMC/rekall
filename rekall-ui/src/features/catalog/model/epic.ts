@@ -1,4 +1,5 @@
-import { TASK_STATUS_ORDER, isEpic } from './catalog'
+import { isEpic } from './catalog'
+import { oldestFirst } from './task-code'
 import type { Task } from './catalog'
 import type { TaskId } from '../../../model/branded'
 
@@ -12,15 +13,9 @@ export interface EpicProgress {
   readonly awaitingReview: number
 }
 
-/** The tasks that belong to the epic, live work first in the navigator's status order, then by title. */
+/** The tasks that belong to the epic, from the oldest to the newest. */
 export function tasksOfEpic(epicId: TaskId, tasks: readonly Task[]): Task[] {
-  return tasks
-    .filter((task) => task.epicId === epicId)
-    .sort(
-      (left, right) =>
-        TASK_STATUS_ORDER.indexOf(left.status) - TASK_STATUS_ORDER.indexOf(right.status) ||
-        left.title.localeCompare(right.title)
-    )
+  return tasks.filter((task) => task.epicId === epicId).sort(oldestFirst)
 }
 
 export function epicProgress(children: readonly Task[], claimedStepTaskIds: ReadonlySet<TaskId>): EpicProgress {
@@ -45,9 +40,9 @@ export function epicChoices(projectId: string, tasks: readonly Task[], except: T
     .sort((left, right) => left.title.localeCompare(right.title))
 }
 
-/** Every whitespace-separated part of the needle must appear in the epic's title, label or anchor. */
+/** Every whitespace-separated part of the needle must appear in the epic's title, code or anchor. */
 export function matchesEpicQuery(epic: Task, needle: string): boolean {
-  const hay = `${epic.title} ${epic.label} ${epic.anchor}`.toLowerCase()
+  const hay = `${epic.title} ${epic.code} ${epic.anchor}`.toLowerCase()
   return needle
     .trim()
     .toLowerCase()

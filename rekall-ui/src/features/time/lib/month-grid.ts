@@ -1,9 +1,10 @@
+import { APP_LOCALE } from '@/common/format/app-locale'
 /**
  * The grid's column heads, Monday first, in the same locale as the month title above them and
  * every other date on the page. 1 January 2024 was a Monday, so it and the six days after it
  * name the columns in order.
  */
-export function weekdayLabels(locale?: string): string[] {
+export function weekdayLabels(locale: string = APP_LOCALE): string[] {
   return Array.from({ length: 7 }, (_, i) =>
     capitalised(new Date(2024, 0, 1 + i).toLocaleDateString(locale, { weekday: 'short' }), locale)
   )
@@ -14,7 +15,7 @@ export function weekdayLabels(locale?: string): string[] {
  * case (`lun`, `mar`), which reads as a typo at the head of a column; done here rather than with
  * `text-transform` so the string is the same wherever it lands, a label or a tooltip.
  */
-export function capitalised(text: string, locale?: string): string {
+export function capitalised(text: string, locale: string = APP_LOCALE): string {
   return text.charAt(0).toLocaleUpperCase(locale) + text.slice(1)
 }
 

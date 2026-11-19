@@ -2,8 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import TaskTokenChip from '@/features/tokens/components/TaskTokenChip.vue'
-import ProjectTokenChip from '@/features/tokens/components/ProjectTokenChip.vue'
-import { useConsoleStore } from '@/stores/console.store'
 import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 import type { ProjectId, TaskId } from '@/model/branded'
 import type { Task } from '@/features/catalog/model/catalog'
@@ -119,22 +117,6 @@ describe('the token chip', () => {
     await wrapper.get('[data-testid="token-chip"]').trigger('click')
 
     expect(document.body.querySelector('[data-testid="token-trend-empty"]')).not.toBeNull()
-    wrapper.unmount()
-  })
-
-  it('sums every task of a project, and leaves other projects out', async () => {
-    const OTHER = { id: 't2' as TaskId, projectId: 'p1' as ProjectId } as unknown as Task
-    const ELSEWHERE = { id: 't3' as TaskId, projectId: 'p2' as ProjectId } as unknown as Task
-    useConsoleStore().tasks = [TASK, OTHER, ELSEWHERE]
-    const store = useTokenUsageStore()
-    store.tallies = [tally(1_000), { ...tally(2_000), taskId: OTHER.id }, { ...tally(9_000), taskId: ELSEWHERE.id }]
-    store.days = [day('2026-10-11', 1_000), { ...day('2026-10-12', 2_000), taskId: OTHER.id }, { ...day('2026-10-12', 9_000), taskId: ELSEWHERE.id }]
-    const wrapper = mount(ProjectTokenChip, { props: { projectId: 'p1' as ProjectId }, attachTo: document.body })
-
-    await wrapper.get('[data-testid="token-chip"]').trigger('click')
-
-    expect(wrapper.get('[data-testid="token-chip"]').text()).toContain('3k')
-    expect(document.body.querySelector('[data-testid="token-trend-readout"]')?.textContent).toContain('3k')
     wrapper.unmount()
   })
 })

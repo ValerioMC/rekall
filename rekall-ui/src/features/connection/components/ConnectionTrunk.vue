@@ -19,13 +19,16 @@ const emit = defineEmits<{
   save: [binding: ProjectConnection, input: ProjectConnectionInput]
   unbind: [binding: ProjectConnection]
   importIssues: [binding: ProjectConnection]
+  fillProject: [binding: ProjectConnection]
 }>()
 
 const LINE: Readonly<Record<ConnectionKind, string>> = {
   GITLAB: 'color-mix(in srgb, var(--color-brand-gitlab) 55%, transparent)',
   GITHUB: 'color-mix(in srgb, var(--color-text) 40%, transparent)',
   KUBERNETES: 'color-mix(in srgb, var(--color-brand-kubernetes) 70%, transparent)',
-  JIRA: 'color-mix(in srgb, var(--color-brand-jira) 60%, transparent)'
+  JIRA: 'color-mix(in srgb, var(--color-brand-jira) 60%, transparent)',
+  CONFLUENCE: 'color-mix(in srgb, var(--color-brand-confluence) 60%, transparent)',
+  GRAFANA: 'color-mix(in srgb, var(--color-brand-grafana) 60%, transparent)'
 }
 </script>
 
@@ -68,6 +71,7 @@ const LINE: Readonly<Record<ConnectionKind, string>> = {
           @save="emit('save', binding, $event)"
           @unbind="emit('unbind', binding)"
           @import-issues="emit('importIssues', binding)"
+          @fill-project="emit('fillProject', binding)"
         />
       </li>
     </ul>

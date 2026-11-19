@@ -1,4 +1,4 @@
+pub(super) mod atlassian_access;
 pub(super) mod connection_views;
 pub(super) mod credential_keeping;
-pub(super) mod repository_folders;
 pub(super) mod repository_origin;

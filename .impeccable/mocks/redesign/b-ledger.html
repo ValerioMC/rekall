@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rekall redesign B: Ledger</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  .app { height: 100%; display: grid; grid-template-rows: 48px 1fr; }
+  .page { min-height: 0; display: grid; grid-template-rows: auto auto 1fr; padding: 0 32px; }
+  .bar1 { display: flex; align-items: center; gap: 14px; padding: 20px 0 14px; }
+  .bar1 h1 { font-size: var(--t-heading); font-weight: 500; }
+  .scope { height: 32px; padding: 0 10px 0 12px; border: 1px solid var(--border-field); border-radius: var(--r-control); background: var(--surface); display: inline-flex; align-items: center; gap: 10px; font-size: var(--t-body); }
+  .scope .c { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .field { height: 32px; width: 280px; border: 1px solid var(--border-field); border-radius: var(--r-control); background: var(--surface); display: flex; align-items: center; gap: 8px; padding: 0 10px; color: var(--subtle); font-size: var(--t-small); }
+  .field input { flex: 1; background: none; border: 0; color: var(--text); font: inherit; outline: none; min-width: 0; }
+  .sp { flex: 1; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r-control); overflow: hidden; background: var(--surface); }
+  .seg button { height: 30px; padding: 0 11px; font-size: var(--t-small); color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+  .seg button.on { background: var(--raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }
+
+  .views { display: flex; gap: 4px; border-bottom: 1px solid var(--border); }
+  .views button { position: relative; padding: 9px 12px 11px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+  .views button:hover { color: var(--text); }
+  .views button.on { color: var(--text); }
+  .views button.on::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; background: var(--accent); }
+  .views .n { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .views .n.hot { color: var(--accent-ink); background: var(--accent); border-radius: 9px; padding: 0 6px; line-height: 16px; font-weight: 500; }
+
+  .tbl { overflow: auto; min-height: 0; padding-bottom: 40px; }
+  .cols, .row { display: grid; grid-template-columns: 24px minmax(280px, 1fr) 150px 200px 120px 64px 84px 64px; align-items: center; column-gap: 14px; padding: 0 12px; }
+  .cols { position: sticky; top: 0; z-index: 2; height: 36px; background: var(--canvas); border-bottom: 1px solid var(--border); font-size: var(--t-caption); color: var(--subtle); }
+  .cols button { display: inline-flex; align-items: center; gap: 4px; color: var(--subtle); font-size: var(--t-caption); }
+  .cols button:hover { color: var(--text); }
+  .r { text-align: right; justify-content: flex-end; }
+
+  .grp { display: flex; align-items: center; gap: 10px; height: 52px; padding: 14px 12px 0; }
+  .grp b { font-size: var(--t-body); font-weight: 600; }
+  .grp .co { color: var(--muted); font-size: var(--t-small); }
+  .grp .cnt { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .grp .tok { margin-left: auto; font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+
+  .row { height: 44px; border-radius: var(--r-control); cursor: pointer; color: var(--muted); position: relative; }
+  .row:hover { background: var(--surface); color: var(--text); }
+  .row.open { background: var(--raised); color: var(--text); border-bottom-left-radius: 0; border-bottom-right-radius: 0; box-shadow: inset 0 0 0 1px var(--border-strong); }
+  .row .t { color: var(--text); font-weight: 500; font-size: var(--t-body); display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .row .cp { opacity: 0; color: var(--subtle); width: 22px; height: 22px; display: grid; place-items: center; border-radius: var(--r-key); }
+  .row:hover .cp, .row.open .cp { opacity: 1; }
+  .row .cp:hover { color: var(--anchor); background: var(--anchor-soft); }
+  .plan { display: flex; align-items: center; gap: 10px; font: 400 var(--t-caption) var(--font-mono); color: var(--muted); }
+  .plan .segbar { width: 110px; }
+  .need { color: var(--accent-strong); font-size: var(--t-small); font-weight: 500; }
+  .num { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+
+  .inline { margin: 0 0 6px; padding: 6px 12px 14px 50px; background: var(--raised); border-radius: 0 0 var(--r-control) var(--r-control); box-shadow: inset 0 0 0 1px var(--border-strong); border-top: 0; }
+  .inline .anc { display: flex; align-items: center; gap: 10px; padding: 8px 0 10px; font-size: var(--t-small); color: var(--muted); }
+  .irow { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; height: 38px; border-top: 1px solid var(--border); font-size: var(--t-small); color: var(--text); }
+  .irow .w { color: var(--subtle); font-size: var(--t-caption); }
+  .inline .foot { display: flex; gap: 8px; align-items: center; padding-top: 10px; border-top: 1px solid var(--border); }
+  .filedrow { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px 0 12px; color: var(--filed); font-size: var(--t-small); }
+  .filedrow:hover { background: var(--filed-soft); border-radius: var(--r-control); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="top"></div>
+  <div class="page">
+    <div class="bar1">
+      <h1>Work</h1>
+      <button class="scope">All work <span class="c">344 tasks</span><span id="sc"></span></button>
+      <div class="field"><span id="fi"></span><input placeholder="Filter by title or anchor" aria-label="Filter"></div>
+      <span class="sp"></span>
+      <div class="seg" role="group" aria-label="View">
+        <button class="on" aria-pressed="true"><span id="v1"></span>Ledger</button><button aria-pressed="false"><span id="v2"></span>Board</button>
+      </div>
+      <div class="seg" role="group" aria-label="Density"><button class="on">Comfortable</button><button>Compact</button></div>
+      <button class="btn primary"><span id="pl"></span>New task</button>
+    </div>
+    <div class="views" role="tablist">
+      <button role="tab">Needs me <span class="n hot">38</span></button>
+      <button role="tab">Running <span class="n">1</span></button>
+      <button class="on" role="tab">Open <span class="n">75</span></button>
+      <button role="tab">Filed <span class="n">269</span></button>
+    </div>
+    <div class="tbl">
+      <div class="cols" role="row">
+        <span></span>
+        <button>Task <span id="s1"></span></button>
+        <button>Status</button>
+        <button>Plan</button>
+        <button>Needs you</button>
+        <button class="r">Notes</button>
+        <button class="r">Tokens</button>
+        <button class="r">Updated</button>
+      </div>
+      <div id="rows"></div>
+    </div>
+  </div>
+</div>
+<script src="shared.js"></script>
+<script>
+  document.getElementById('top').outerHTML = topbar('Console')
+  ;[['sc', 'chevron', 14], ['fi', 'search', 15], ['v1', 'list', 15], ['v2', 'board', 15], ['pl', 'plus', 14], ['s1', 'sort', 12]].forEach(([id, n, s]) => (document.getElementById(id).innerHTML = icon(n, s)))
+
+  const LABEL = { prog: ['In progress', 'prog'], claimed: ['Awaiting review', 'review'], todo: ['To do', 'todo'], done: ['Done', 'done'] }
+  const FILED = { mal: 42, lig: 9, cos: 61, stv: 157 }
+  const only = TASKS.filter((t) => t.review || t.status === 'prog')
+
+  function planCell(t) {
+    if (!t.steps[1]) return '<span class="num">no steps</span>'
+    return `<span class="plan">${segs(t.steps[0], t.claimed || 0, Math.min(t.steps[1], 24))}${t.steps[0]}/${t.steps[1]}</span>`
+  }
+  function row(t, open) {
+    const [lab, cls] = LABEL[t.status]
+    const need = t.review ? `<span class="need">${t.claimed ? t.claimed + ' to review' : 'Review'}</span>` : '<span class="num">·</span>'
+    const head = `<div class="row ${open ? 'open' : ''}" data-open="${open ? 1 : 0}">
+      ${mk(t.status)}
+      <span class="t"><span class="trunc">${t.title}</span><button class="cp" title="Copy /rk project:… task:${t.label}" aria-label="Copy anchor">${icon('copy', 13)}</button></span>
+      <span><span class="pill ${cls}">${lab}</span></span>
+      ${planCell(t)}
+      ${need}
+      <span class="num r">${t.notes || ''}</span>
+      <span class="num r">${t.tokens === '0' ? '' : t.tokens}</span>
+      <span class="num r">${t.ago}</span>
+    </div>`
+    if (!open) return head
+    const s = STEPS.slice(1, 4)
+    return head + `<div class="inline">
+      <div class="anc"><span class="anchor">/rk project:stvv task:${t.label}</span><span>1 wrapup · 1 deviation · 6 notes</span></div>
+      ${s.map((x, i) => `<div class="irow">${mk('claimed')}<span class="trunc">${x.t}</span><span class="w">${x.ago}</span><span style="display:flex;gap:6px"><button class="btn sm">Send back</button><button class="btn sm primary">Accept</button></span></div>`).join('')}
+      <div class="foot"><button class="btn sm">Open task</button><button class="btn quiet sm">${icon('play', 11)} Resume session</button><span class="sp"></span><span class="num">20 more to review</span></div>
+    </div>`
+  }
+  document.getElementById('rows').innerHTML = PROJECTS.slice().reverse().map((p) => {
+    const rows = only.filter((t) => t.p === p.id)
+    if (!rows.length) return ''
+    return `<div class="grp"><span class="avatar sm" style="background:${p.hue}">${p.initial}</span><b>${p.name}</b><span class="co">${p.company}</span><span class="cnt">${rows.length} open</span><span class="tok">${p.tokens} tokens</span></div>` +
+      rows.map((t) => row(t, !!t.selected)).join('') +
+      `<button class="filedrow">${icon('check', 13)} ${FILED[p.id]} filed ${icon('right', 12)}</button>`
+  }).join('')
+
+  document.getElementById('rows').addEventListener('click', (e) => {
+    const r = e.target.closest('.row'); if (!r || e.target.closest('.cp')) return
+    const nxt = r.nextElementSibling
+    if (r.classList.contains('open')) { r.classList.remove('open'); nxt.hidden = !nxt.hidden }
+  })
+</script>
+</body>
+</html>

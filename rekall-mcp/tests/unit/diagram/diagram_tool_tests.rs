@@ -4,6 +4,7 @@ use super::{diagram_id, sheets_argument, target_of};
 use crate::protocol::ToolError;
 use crate::tool::Anchor;
 use rekall_core::diagram::DiagramTarget;
+use rekall_core::ProjectRef;
 
 fn anchors(raw: &str) -> Vec<Anchor> {
     Anchor::parse_all(Some(raw)).unwrap()
@@ -11,16 +12,24 @@ fn anchors(raw: &str) -> Vec<Anchor> {
 
 #[test]
 fn a_project_alone_is_a_project_target() {
-    assert_eq!(target_of(&anchors("project:vega")).unwrap(), DiagramTarget::Project { label: "vega".into() });
+    assert_eq!(target_of(&anchors("project:vega")).unwrap(), DiagramTarget::Project { project: ProjectRef::bare("vega") });
+}
+
+#[test]
+fn a_company_beside_the_project_qualifies_the_project_target() {
+    assert_eq!(
+        target_of(&anchors("company:Acme project:vega")).unwrap(),
+        DiagramTarget::Project { project: ProjectRef::in_company("Acme", "vega") }
+    );
 }
 
 #[test]
 fn a_task_puts_the_diagram_on_its_project() {
     assert_eq!(
         target_of(&anchors("project:vega task:report")).unwrap(),
-        DiagramTarget::Task { project_label: Some("vega".into()), task_label: "report".into() }
+        DiagramTarget::Task { project_label: Some("vega".into()), task_code: "report".into() }
     );
-    assert_eq!(target_of(&anchors("report")).unwrap(), DiagramTarget::Task { project_label: None, task_label: "report".into() });
+    assert_eq!(target_of(&anchors("report")).unwrap(), DiagramTarget::Task { project_label: None, task_code: "report".into() });
 }
 
 #[test]

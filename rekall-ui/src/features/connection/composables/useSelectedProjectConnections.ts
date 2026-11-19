@@ -14,6 +14,7 @@ export function useSelectedProjectConnections(): ComputedRef<readonly ProjectCon
   const store = useConnectionsStore()
   const toast = useToastStore()
   const projectId = computed(() => selectedTask.value?.projectId ?? null)
+  store.followChanges((caught) => toast.notifyError(caught))
 
   watch(
     projectId,

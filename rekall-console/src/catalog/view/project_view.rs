@@ -6,6 +6,7 @@ use rekall_store::{company, project};
 pub struct ProjectView {
     pub id: Id,
     pub label: String,
+    pub task_key: String,
     pub title: String,
     pub status: ProjectStatus,
     pub icon: String,
@@ -15,6 +16,8 @@ pub struct ProjectView {
     pub blueprint_markdown: Option<String>,
     pub repo_folder: Option<String>,
     pub auto_commit: bool,
+    pub main_branch: Option<String>,
+    pub pull_request_flow: bool,
     pub company_id: Id,
     pub company_name: String,
     pub task_count: usize,
@@ -27,6 +30,7 @@ impl ProjectView {
         Self {
             id: project.id,
             label: project.label.clone(),
+            task_key: project.task_key.clone(),
             title: project.title.clone(),
             status: project.status,
             icon: project.icon.clone(),
@@ -35,6 +39,8 @@ impl ProjectView {
             blueprint_markdown: project.blueprint_markdown.clone(),
             repo_folder: project.repo_folder.clone(),
             auto_commit: project.auto_commit,
+            main_branch: project.main_branch.clone(),
+            pull_request_flow: project.pull_request_flow,
             company_id: company.id,
             company_name: company.name.clone(),
             task_count,

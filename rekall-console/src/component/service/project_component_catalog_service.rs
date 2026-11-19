@@ -1,15 +1,17 @@
 //! What a person does to a project's components: list them, add one, edit it, put them in order,
-//! delete one. Console-only: a session reads the components through the project's context.
+//! delete one. A session writes them through `rekall_component` and reads them through the project's context.
 
 use std::collections::HashSet;
 
 use rekall_kernel::{jstr, Id, RekallError, Result};
 use rekall_store::project_component;
 use rekall_store::repository as repo;
-use rekall_core::component::ProjectComponentView;
+use rekall_core::component::rule::rules;
+use rekall_core::component::{ComponentStreamEvent, ProjectComponentView};
 use rekall_core::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
+use crate::shared::require_by_id;
 use crate::component::{ProjectComponentOrderCommand, ProjectComponentCommand};
 
 #[derive(Clone)]
@@ -33,27 +35,28 @@ impl ProjectComponentCatalogService {
     pub async fn create(&self, project_id: Id, command: ProjectComponentCommand) -> Result<ProjectComponentView> {
         in_write!(&self.ctx, |tx| {
             repo::project::require(tx.db(), project_id).await?;
-            let folder = folder_of(command.folder.as_deref())?;
+            let folder = rules::folder(command.folder.as_deref())?;
             let name = command.name.as_deref().filter(|name| !jstr::is_blank(name)).map_or_else(|| folder_name(&folder), |name| jstr::strip(name).to_string());
             require_name_free(&tx, project_id, &name, None).await?;
+            let summary = command.summary.as_deref().map(|text| jstr::strip(text).to_string()).unwrap_or_default();
             let description = command.description.as_deref().map(|text| jstr::strip(text).to_string()).unwrap_or_default();
-            self.insert_in(&tx, project_id, name, folder, description).await
+            self.insert_in(&mut tx, project_id, name, folder, summary, description).await
         })
     }
 
     /// A component for `folder`, named after it, unless one already has that folder. A name another
     /// component holds takes the first free number.
-    pub async fn add_for_folder_in(&self, tx: &Tx, project_id: Id, folder: &str) -> Result<Option<ProjectComponentView>> {
-        let folder = folder_of(Some(folder))?;
+    pub async fn add_for_folder_in(&self, tx: &mut Tx, project_id: Id, folder: &str) -> Result<Option<ProjectComponentView>> {
+        let folder = rules::folder(Some(folder))?;
         let existing = repo::project_component::list_of_project(tx.db(), project_id).await?;
         if existing.iter().any(|component| component.folder == folder) {
             return Ok(None);
         }
         let name = first_free_name(&folder_name(&folder), &existing);
-        Ok(Some(self.insert_in(tx, project_id, name, folder, String::new()).await?))
+        Ok(Some(self.insert_in(tx, project_id, name, folder, String::new(), String::new()).await?))
     }
 
-    async fn insert_in(&self, tx: &Tx, project_id: Id, name: String, folder: String, description: String) -> Result<ProjectComponentView> {
+    async fn insert_in(&self, tx: &mut Tx, project_id: Id, name: String, folder: String, summary: String, description: String) -> Result<ProjectComponentView> {
         let existing = repo::project_component::list_of_project(tx.db(), project_id).await?;
         let now = self.ctx.now();
         let component = project_component::Model {
@@ -61,6 +64,7 @@ impl ProjectComponentCatalogService {
             project_id,
             name,
             folder,
+            summary,
             description,
             position: existing.iter().map(|component| component.position + 1).max().unwrap_or(0),
             created_at: now,
@@ -68,6 +72,7 @@ impl ProjectComponentCatalogService {
         };
         component.validate()?;
         component.clone().into_active_model().insert(tx.db()).await?;
+        tx.publish(ComponentStreamEvent { project_id });
         Ok(ProjectComponentView::of(&component))
     }
 
@@ -80,12 +85,16 @@ impl ProjectComponentCatalogService {
                 require_name_free(&tx, component.project_id, &component.name, Some(id)).await?;
             }
             if command.folder.is_some() {
-                component.folder = folder_of(command.folder.as_deref())?;
+                component.folder = rules::folder(command.folder.as_deref())?;
+            }
+            if let Some(summary) = command.summary.as_deref() {
+                component.summary = jstr::strip(summary).to_string();
             }
             if let Some(description) = command.description.as_deref() {
                 component.description = jstr::strip(description).to_string();
             }
             let component = repo::update_if_changed(tx.db(), &before, component, self.ctx.now()).await?;
+            tx.publish(ComponentStreamEvent { project_id: component.project_id });
             Ok::<_, RekallError>(ProjectComponentView::of(&component))
         })
     }
@@ -109,7 +118,7 @@ impl ProjectComponentCatalogService {
             let now = self.ctx.now();
             let mut ordered = Vec::with_capacity(components.len());
             for (position, id) in wanted.iter().enumerate() {
-                let mut component = components.iter().find(|component| component.id == *id).cloned().expect("checked against the project's components");
+                let mut component = require_by_id(&components, *id, |component| component.id, "An order was checked against the project's components")?;
                 if component.position != position as i32 {
                     component.position = position as i32;
                     component.updated_at = now;
@@ -117,6 +126,7 @@ impl ProjectComponentCatalogService {
                 }
                 ordered.push(ProjectComponentView::of(&component));
             }
+            tx.publish(ComponentStreamEvent { project_id });
             Ok::<_, RekallError>(ordered)
         })
     }
@@ -125,16 +135,10 @@ impl ProjectComponentCatalogService {
         in_write!(&self.ctx, |tx| {
             let component = repo::project_component::require(tx.db(), id).await?;
             project_component::Entity::delete_by_id(component.id).exec(tx.db()).await?;
+            tx.publish(ComponentStreamEvent { project_id: component.project_id });
             Ok::<_, RekallError>(())
         })
     }
-}
-
-/// The folder as stored: stripped, present, and without a trailing separator.
-fn folder_of(folder: Option<&str>) -> Result<String> {
-    let folder = folder.map(jstr::strip).filter(|folder| !folder.is_empty()).ok_or_else(|| RekallError::illegal("A component needs a folder."))?;
-    let trimmed = folder.trim_end_matches(['/', '\\']);
-    Ok(if trimmed.is_empty() { folder } else { trimmed }.to_string())
 }
 
 /// What the folder is called: its last path segment, the name a component starts with.
@@ -144,11 +148,7 @@ pub(crate) fn folder_name(folder: &str) -> String {
 
 /// `wanted`, or the first of `wanted-2`, `wanted-3`... no component of the project is named, ignoring case.
 fn first_free_name(wanted: &str, components: &[project_component::Model]) -> String {
-    let is_free = |name: &str| !components.iter().any(|component| jstr::equals_ignore_case(&component.name, name));
-    if is_free(wanted) {
-        return wanted.to_string();
-    }
-    (2..).map(|suffix| format!("{wanted}-{suffix}")).find(|name| is_free(name)).expect("an unbounded range always finds a free name")
+    jstr::first_free_suffix(wanted, |name| components.iter().any(|component| jstr::equals_ignore_case(&component.name, name)))
 }
 
 async fn require_name_free(tx: &Tx, project_id: Id, name: &str, except: Option<Id>) -> Result<()> {

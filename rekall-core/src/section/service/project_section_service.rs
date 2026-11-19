@@ -4,7 +4,7 @@ use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use crate::note::OnTitleClash;
-use crate::{in_read, in_write, load, text_rule, Ctx, Tx};
+use crate::{in_read, in_write, load, text_rule, Ctx, ProjectRef, Tx};
 
 use crate::section::{rule::rules, ProjectSectionView, SectionStreamEvent, SectionWritten, SectionsRead};
 
@@ -32,17 +32,17 @@ impl ProjectSectionService {
     /// refused with the titles it has.
     pub async fn read(
         &self,
-        project_label: Option<&str>,
+        project_ref: Option<&ProjectRef>,
         task_label: Option<&str>,
         title: Option<&str>,
     ) -> Result<SectionsRead> {
         in_read!(&self.ctx, |tx| {
-            let project = match (task_label, project_label) {
+            let project = match (task_label, project_ref) {
                 (Some(task_label), _) => {
-                    let task = load::resolve_task(tx.db(), project_label, task_label).await?;
+                    let task = load::resolve_task(tx.db(), project_ref.map(|reference| reference.label.as_str()), task_label).await?;
                     load::project_of(tx.db(), &task).await?
                 }
-                (None, Some(project_label)) => load::resolve_project(tx.db(), project_label).await?,
+                (None, Some(reference)) => load::resolve_project(tx.db(), reference).await?,
                 (None, None) => return Err(RekallError::illegal("Name a project to read the sections of.")),
             };
             let rows = repo::project_section::list_of_project(tx.db(), project.id).await?;

@@ -1,4 +1,4 @@
-use rekall_core::claude::{SessionKind, TerminalMode, TerminalTarget};
+use rekall_core::claude::{SessionKind, SessionProvider, TerminalMode, TerminalTarget};
 use rekall_kernel::Id;
 
 /// A terminal to open: on a task or a project, the step it follows, whether it skips permission
@@ -8,6 +8,7 @@ use rekall_kernel::Id;
 pub struct OpenTerminalCommand {
     pub target: TerminalTarget,
     pub step_id: Option<Id>,
+    pub provider: SessionProvider,
     pub skip_permissions: bool,
     pub model: Option<String>,
     pub effort: Option<String>,

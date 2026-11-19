@@ -6,6 +6,7 @@ use sea_orm::entity::prelude::*;
 
 use crate::constraints::Violations;
 use crate::enums::ProjectStatus;
+use crate::task_key::TaskKey;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "project")]
@@ -13,6 +14,8 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Id,
     pub label: String,
+    /// Two to four capitals, unique across companies: the first half of every task code, as in `RK-12`.
+    pub task_key: String,
     pub title: String,
     pub status: ProjectStatus,
     /// A key into the console's fixed project-icon set (see `PROJECT_ICON_KEYS` in the UI); never
@@ -24,6 +27,13 @@ pub struct Model {
     /// Whether a session's claim commits the repo folder for it. Meaningful only while
     /// `repo_folder` is a git repository; the catalog clears it otherwise.
     pub auto_commit: bool,
+    /// The branch accepted work is merged into and a task's branch starts from; none means the
+    /// folder's current branch.
+    pub main_branch: Option<String>,
+    /// Whether accepted work reaches the main branch through a pull request or merge request
+    /// instead of a local merge. Turned on only while the project has a folder, a branch and a
+    /// GitHub or GitLab task manager.
+    pub pull_request_flow: bool,
     pub company_id: Id,
     pub created_at: Instant,
     pub updated_at: Instant,
@@ -66,11 +76,13 @@ impl Model {
             .not_blank("label", Some(&self.label))
             .max_length("label", Some(&self.label), 120)
             .slug("label", Some(&self.label))
+            .require(TaskKey::is_well_formed(&self.task_key), "taskKey must be 2 to 4 capital letters")
             .not_blank("title", Some(&self.title))
             .max_length("title", Some(&self.title), 200)
             .not_blank("icon", Some(&self.icon))
             .max_length("icon", Some(&self.icon), 40)
             .max_length("repoFolder", self.repo_folder.as_deref(), 1_000)
+            .max_length("mainBranch", self.main_branch.as_deref(), 255)
             .max_length("description", self.description.as_deref(), 100_000)
             .max_length("blueprintMarkdown", self.blueprint_markdown.as_deref(), 100_000)
             .finish()

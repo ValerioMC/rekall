@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import AnchorBar from '@/components/console/AnchorBar.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import { usePaletteStore } from '@/features/search/store/palette.store'
 import { mountWithHeaderChrome } from './support/mountWithHeaderChrome'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { ProjectId, TaskId } from '@/model/branded'
@@ -34,7 +35,6 @@ describe('the anchor bar, at rest', () => {
 
     expect(chips.map((chip) => chip.text())).toEqual(['project:vega', 'task:report-builder'])
     expect(chips[1]!.classes()).toContain('text-anchor-strong')
-    expect(wrapper.get('[data-testid="anchor-input"]').attributes('placeholder')).toBe('')
     wrapper.unmount()
   })
 
@@ -52,15 +52,12 @@ describe('the anchor bar, at rest', () => {
     wrapper.unmount()
   })
 
-  it('turns back into a search when focused', async () => {
-    const store = useConsoleStore()
-    store.tasks = [task]
-    store.selectedTaskId = task.id
-
+  it('opens the command palette when pressed', async () => {
     const wrapper = render()
-    await wrapper.get('[data-testid="anchor-input"]').trigger('focus')
 
-    expect(wrapper.find('[data-testid="anchor-location"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="anchor-trigger"]').trigger('click')
+
+    expect(usePaletteStore().isOpen).toBe(true)
     wrapper.unmount()
   })
 
@@ -68,7 +65,7 @@ describe('the anchor bar, at rest', () => {
     const wrapper = render()
 
     expect(wrapper.find('[data-testid="anchor-location"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="anchor-input"]').attributes('placeholder')).toBe('project:vega task:setup')
+    expect(wrapper.get('[data-testid="anchor-trigger"]').text()).toContain('project:vega task:setup')
     wrapper.unmount()
   })
 })

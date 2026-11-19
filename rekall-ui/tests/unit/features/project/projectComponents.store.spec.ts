@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import * as api from '@/features/project/api/project-components.api'
+import { openTerminal } from '@/features/claude/api/terminal.api'
 import { useProjectComponentsStore } from '@/features/project/store/projectComponents.store'
 import type { ProjectComponent } from '@/features/project/model/project-component'
 import type { ProjectComponentId, ProjectId } from '@/model/branded'
 
 vi.mock('@/features/project/api/project-components.api')
+vi.mock('@/features/claude/api/terminal.api', () => ({
+  openTerminal: vi.fn(async (target: unknown) => ({ id: 't-1', kind: 'TERMINAL', target })),
+  fetchTerminals: vi.fn(),
+  closeTerminal: vi.fn(),
+  sendTerminalInput: vi.fn()
+}))
 
 const PROJECT = 'p-1' as ProjectId
 
@@ -15,6 +22,7 @@ function component(id: string, position: number, name = id): ProjectComponent {
     projectId: PROJECT,
     name,
     folder: `/work/${id}`,
+    summary: '',
     description: '',
     position,
     createdAt: '2026-10-08T10:00:00Z',
@@ -83,6 +91,26 @@ describe('the project components store', () => {
     await store.remove(PROJECT, 'a' as ProjectComponentId)
 
     expect(store.componentsOf(PROJECT).map((c) => c.id)).toEqual(['b'])
+  })
+
+  it('opens a scan session on the project alone', async () => {
+    const store = useProjectComponentsStore()
+
+    await store.scan(PROJECT)
+
+    expect(openTerminal).toHaveBeenCalledWith({ projectId: PROJECT }, expect.objectContaining({ mode: 'SCAN_COMPONENTS' }))
+  })
+
+  it('reads the list again when the stream says it changed, and only if the project is open here', async () => {
+    vi.mocked(api.fetchProjectComponents).mockResolvedValue([component('a', 0)])
+    const store = useProjectComponentsStore()
+
+    await store.applyEvent(PROJECT)
+    expect(api.fetchProjectComponents).not.toHaveBeenCalled()
+
+    await store.load(PROJECT)
+    await store.applyEvent(PROJECT)
+    expect(api.fetchProjectComponents).toHaveBeenCalledTimes(2)
   })
 
   it('holds nothing for a project it has not opened', () => {

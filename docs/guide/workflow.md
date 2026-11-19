@@ -7,7 +7,7 @@ A task has at most one wrapup: what its implementation currently is, not a chang
 A quoted term after `wrapup` is a directive on what to write. It can narrow the subject, dictate the wording, or set the language or length.
 
 ```
-/rk project:vega task:report-builder wrapup "export module only"
+/rk task:VG-12 wrapup "export module only"
 ```
 
 The description pane and the steps pane both carry a **Generate the wrapup every session** toggle under the header, so it is set from whichever surface the work is driven from. Turning it on reveals an optional directive field. Set once on the task, the toggle stands in for the quoted term: the context load then tells the session a wrapup is expected every time without being asked, and the words it should follow. Turning the toggle off drops the directive with it.
@@ -21,23 +21,23 @@ A wrapup written after a step finishes folds that step's work into the same desc
 A session can keep what it produced as a note on the task, rather than in the wrapup. Ask for it with a quoted term after `note`, saying what the note has to hold:
 
 ```
-/rk project:vega task:report-builder note "the export formats we settled on"
+/rk task:VG-12 note "the export formats we settled on"
 ```
 
-The session writes the note and calls `rekall_note`, which creates it on that task, in full, with kind `notes`. It then travels with the task's context and shows up in the console without a reload. A step or a description that asks for its output to be kept as a note, or a task whose whole point is to write one, gets the same without the `note` term. A title the task's notes already carry is refused, unless the session passes `replace`: then that note's body is rewritten in place, its title and placements kept, so a runbook or a table of results stays one current note instead of piling up versions. The old body is not kept anywhere, and a note on several tasks changes on all of them; the tool's answer says how many. Sharing, detaching or deleting a note stays in the console. Writing a note does not claim the task or a step.
+The session writes the note and calls `rekall_note`, which creates it on that task, in full, with kind `notes`. It then travels with the task's context and shows up in the console without a reload. A step or a description that asks for its output to be kept as a note, or a task whose whole point is to write one, gets the same without the `note` term. A title the task's notes already carry is refused, unless the session passes `replace`: then that note's body is rewritten in place, its title and place on the task kept, so a runbook or a table of results stays one current note instead of piling up versions. The old body is not kept anywhere. Deleting a note stays in the console. Writing a note does not claim the task or a step.
 
 ## Steps
 
 A step sits on a line: **draft** while you are still wording it, **open** once you promote it and it is ready to work, **running** while a session works it, **claimed** when the session reports it finished, **done** when you accept it. Each step is a title and an optional markdown detail. The pane opens on the first step whose work is not finished.
 
-A new step is created as a draft and sits on a staging shelf below the checklist, off the rail. **Promote** moves it onto the list; an open step not yet started can go back with **To draft**. A draft is not work: it stays out of the checklist a session reads, `rekall_step` will not move it, and the navigator's step count ignores it. A task that holds only drafts is still treated as having no checklist.
+A new step is created as a draft and sits on a staging shelf below the checklist, off the rail. Selecting a draft opens it in the pane beside the list, in the frame a step is decided in: its title and detail, then its skills, whether it opens a new session or joins the one above, its checks and, for a draft from a proposed flow, its routes. **Promote** moves it onto the list, from the row or from the pane, and waits until the draft has a detail; an open step not yet started can go back with **Return to draft** in its **⋯** menu, and Undo in the toast that follows puts it back in its place. A draft is not work: it stays out of the checklist a session reads, `rekall_step` will not move it, and the navigator's step count ignores it. A task that holds only drafts is still treated as having no checklist.
 
 A session drives its own checklist over `/rk`:
 
 ```
-/rk project:vega task:report-builder step:3 start   # step 3 -> running
-/rk project:vega task:report-builder step:3 done    # step 3 -> claimed
-/rk project:vega task:release step:3 done outcome:app-error   # on a flow, follow that route (see Flows)
+/rk task:VG-12 step:3 start   # step 3 -> running
+/rk task:VG-12 step:3 done    # step 3 -> claimed
+/rk task:VG-14 step:3 done outcome:app-error   # on a flow, follow that route (see Flows)
 ```
 
 The console holds one `text/event-stream` connection (`GET /api/steps/stream`) carrying seven frames: `steps` for a checklist, `task-review` for a stepless task's review line, `wrapup` for a wrapup write or delete, `commit-reference` for a commit logged against a task or step, `run-queue` for the run queue (each item carries its task's steps and where each stands: open, running, claimed, done, or not needed for the steps a finished flow never entered), `note` for a note a session wrote or rewrote, and `feedback` for a change to a task's thread (a reply from a session, a revision opened by a description save). A step moved from an in-app terminal, a box ticked in another window, a wrapup or a note written over MCP, or a commit logged by a session all land without a reload.
@@ -61,7 +61,7 @@ Steps **drag** on the graph: press a step and move it, and the place is kept (**
 A session works a flow over the same `/rk` lines, adding what happened when it claims:
 
 ```
-/rk project:vega task:release step:3 done outcome:app-error   # step 3 -> claimed, the work -> the app-error route
+/rk task:VG-14 step:3 done outcome:app-error   # step 3 -> claimed, the work -> the app-error route
 ```
 
 `rekall_step` with `claimed` and an `outcome` closes the visit on that step, follows the route that outcome names, opens the step it leads to (again, if it was finished) and makes it current; the answer names it and the line that starts it. A flow runs unattended: that answer tells the session to start the next step at once and to write the wrapup only when the flow is finished, and `/rk` says the same, so no step waits for a tick between moves. A move into a step whose visit budget is spent is refused and rolls the claim back: the flow stops where it stands, the session reports what keeps sending the work back, and you raise the budget or **Reset moves** to let it go on. A step with one route needs no outcome, a step with no routes ends the flow, a route to End ends it with its outcome, and an outcome that names no route is refused with the routes there are. A claim can carry a `report` (markdown, up to 4,000 characters) of what the session saw: it is kept on the visit the claim closes, and the step the flow goes to shows it in its context in an `<arrived-from>` block naming the step and outcome it came from, so a fix works from what failed rather than from a session's memory. A report off a claim on a flow is refused. Starting another step leaves the current one without an outcome. An outcome is a slug, so `App error` is stored and matched as `app-error`; one outcome names one route per step, a route never leads back to its own step, and a step holds at most eight. The context marks a flow with `flow="true"`, the current step and the move count on `<steps>`, `(current, visit N)` on that step (`visit N of M` with a budget, and `(entered N of at most M times)` on the others), and a `Routes:` line under every step, finished ones included. A person writes routes from the console (a session can only propose them between drafts, see [Planning](#planning)): `POST /api/steps/{id}/links`, `PATCH` and `DELETE /api/step-links/{id}`, each answering the task's whole checklist; `POST` and `PATCH` take `endsFlow: true` in place of `toStepId` for a route to End. `PATCH /api/steps/{id}/max-visits` (`maxVisits`, 1 to 99; null lifts it) sets the budget. `PATCH /api/steps/{id}/flow-place` (`x`, `y`; both null clears it) keeps where a step was dragged and `DELETE /api/tasks/{id}/flow-places` clears them all. `DELETE /api/tasks/{id}/visits` is the reset. Both travel on the step views, so the `steps` frame redraws the graph live.
@@ -78,21 +78,21 @@ A project can make one graph its **release graph** with **Lay on every task the 
 
 ### Planning
 
-`/rk project:vega task:report-builder plan` has a session turn the task into a checklist, ready to work; you can review it in the console. It reads the description, the wrapup, the finished steps and the code the task touches, then calls `rekall_propose_step` once per step, in order: a title saying what the step delivers, a detail saying what to build, where, what it must satisfy and how you can tell it is done. Plan does not pass `draft`, so every proposal lands open and ready to work, promoted on its own, and the session builds nothing. A session passes `draft: true` only when you ask for drafts to review: the step then waits on the staging shelf until you promote it. A title the task already has is refused, so a second `plan` adds only what the first one missed; a task holds at most 20 drafts.
+`/rk task:VG-12 plan` has a session turn the task into a checklist, ready to work; you can review it in the console. It reads the description, the wrapup, the finished steps and the code the task touches, then calls `rekall_propose_step` once per step, in order: a title saying what the step delivers, a detail saying what to build, where, what it must satisfy and how you can tell it is done. Plan does not pass `draft`, so every proposal lands open and ready to work, promoted on its own, and the session builds nothing. A session passes `draft: true` only when you ask for drafts to review: the step then waits on the staging shelf until you promote it. A title the task already has is refused, so a second `plan` adds only what the first one missed; a task holds at most 20 drafts.
 
 When a picture says more than words, the session draws the solution before it cuts the steps. A note on the task, `solution-overview.md`, holds the diagrams of the whole (sequence, ER, class or state, whichever the solution is) when the plan crosses layers or runs past a handful of steps, and each step's detail carries a fenced `mermaid` block of its own piece, drawn among the parts around it, so a step late in a long plan is as clear as the first. A diagram already in the description or a note is the starting point, corrected, not a second one beside it. Small changes get none. The console draws the blocks in the step detail and in notes.
 
 A diagram or a design in a step is the plan, not a contract. A session that finds a better solution while building may build it, for a reason it can state, and records the difference with `rekall_deviation` on the task, for the step: what was planned, what was built, why, the diagram as built and the later steps it changes. A deviation is not a note. It is kept apart from the task's notes, listed in the task's dossier as one link per step (Deviations), opened in its own pane with the previous and next deviation one key away (`[` and `]`), and linked from the step it concerns on the checklist. A step's detail cannot be edited from a session, so the deviation carries it; the wrapup describes the system as built and only says a deviation exists.
 
-When a step's outcome decides what comes next (tests that can fail, a deploy that can break, a review that can reject), the session plans a flow instead: one `rekall_propose_flow` call with every step in order and its routes, each `{outcome, to}` naming another step of the plan by number or `end`, and an optional `max_visits` per step. Type `/rk … plan flow` to ask for a flow outright. The plan is checked whole before anything lands: every step reachable from the first, no loop without a way out to End, no step routing to itself, one route per outcome and at most eight per step, no title twice. A refusal names what to change and leaves the checklist empty. A flow is proposed only onto a task with no steps, drafts included, since the flow begins at the first one. The steps land open, so the task is a flow at once and a session follows its routes. When drafts were asked for, each lists its routes on the shelf (`app-error → Fix the application`); the task is not a flow, and no session follows those routes, until you promote them.
+When a step's outcome decides what comes next (tests that can fail, a deploy that can break, a review that can reject), the session plans a flow instead: one `rekall_propose_flow` call with every step in order and its routes, each `{outcome, to}` naming another step of the plan by number or `end`, and an optional `max_visits` per step. Type `/rk … plan flow` to ask for a flow outright. The plan is checked whole before anything lands: every step reachable from the first, no loop without a way out to End, no step routing to itself, one route per outcome and at most eight per step, no title twice. A refusal names what to change and leaves the checklist empty. A flow is proposed onto a task with no steps, drafts included, or one whose steps are all claimed or done: those stay as history and the flow begins at the first new step. A route's `to` counts the whole checklist as the console lists it, so after four finished steps the first new step is step 5; a route to a step that stays is refused. The steps land open, so the task is a flow at once and a session follows its routes. When drafts were asked for, each shows its routes in its pane (`app-error → Fix the application`) and a count on its row; the task is not a flow, and no session follows those routes, until you promote them.
 
-`/rk project:vega task:report-builder replan` is the same for a task that already has steps. The session reads what is there, decides again between a checklist and a flow, and calls `rekall_replan` once: it deletes every draft and every open step and lays the new plan in their place, in one transaction, and a plan it refuses deletes nothing. Steps that are running, claimed or done stay, because they carry a run, work waiting for review or work you accepted; the new steps follow them, as a checklist, since a flow begins at the first step. `/rk project:vega task:report-builder replan "also cover the csv export"` carries a message: what you noticed the plan missed. The session reads it as the new requirement, changes the draft and open steps it touches, keeps the others and adds what it needs. A single draft or open step can be dropped with `rekall_delete_step`; the same rule applies.
+`/rk task:VG-12 replan` is the same for a task that already has steps. The session reads what is there, decides again between a checklist and a flow, and calls `rekall_replan` once: it deletes every draft and every open step and lays the new plan in their place, in one transaction, and a plan it refuses deletes nothing. Steps that are running, claimed or done stay, because they carry a run, work waiting for review or work you accepted; the new steps follow them, as a checklist or as a flow that begins at the first new step: its routes are numbered over the whole checklist, a route into a step that stays is refused, and a step still running refuses a flow until it is claimed. The stays need no route into the new steps, and the console shows the first new step as current once they are finished. `/rk task:VG-12 replan "also cover the csv export"` carries a message: what you noticed the plan missed. The session reads it as the new requirement, changes the draft and open steps it touches, keeps the others and adds what it needs. A single draft or open step can be dropped with `rekall_delete_step`; the same rule applies.
 
 **Replan** is in the menu behind the arrow of **Run here**, on the description and on the checklist, whenever the task has a draft or an open step. It asks first, because the session deletes those steps: the dialog says how many go and that running, claimed and done steps stay, and has an optional **What did the plan miss?** field for the message. Confirming types `/rk … replan` (with the message quoted, when there is one) into the session running on the task, or opens one that starts on it, and the new plan lands open and ready to work.
 
-**Plan here** is in the menu behind the arrow of **Run here**, on the description and on the checklist, and starts it with or without a session already running. While one runs on the task in the console's terminal, it types the command into it. Without one, it opens a terminal in the project's folder that starts on `/rk … plan` instead of the plain `/rk`, so the session plans the task rather than working it; the project needs its folder set, as for **Run here**. Either way the steps land on the checklist for you to review, reword and run. While the task has no steps and no drafts, the only state a flow can land on, **Plan a flow** is in the same menu and does the same with `/rk … plan flow`. An empty checklist also shows the `/rk … plan` and `/rk … plan flow` chips, to copy into a session outside the console.
+**Plan here** is in the menu behind the arrow of **Run here**, on the description and on the checklist, and starts it with or without a session already running. While one runs on the task in the console's terminal, it types the command into it. Without one, it opens a terminal in the project's folder that starts on `/rk … plan` instead of the plain `/rk`, so the session plans the task rather than working it; the project needs its folder set, as for **Run here**. Either way the view stays where it is, and the steps land on the checklist for you to review, reword and run. While the task has no steps and no drafts, the only state a flow can land on, **Plan a flow** is in the same menu and does the same with `/rk … plan flow`. An empty checklist also shows the `/rk … plan` and `/rk … plan flow` chips, to copy into a session outside the console.
 
-A claimed step is reviewed from its detail: **Accept** ticks it to done, **Send back** returns it to open for another pass. Sending back seals the detail that pass worked from above the editor (`POST /api/steps/{id}/send-back`), and the detail starts empty for the feedback. `/rk` hands the next session each earlier pass in a `<previous-pass>` and the feedback in a `<feedback>`, so it builds on what was done instead of reading the feedback as a new brief. The **N awaiting review** count in the pane header jumps to the first one. The step node itself only moves a step forward, so a stray click never walks it back; reopening an accepted step is a separate **Reopen** button that arms before it fires.
+Once every step is claimed, **Accept** appears beside the session buttons at the top of the checklist and accepts all of them at once, as ticking each would; it is refused while a step is still open or running. A claimed step is also reviewed from its detail: **Accept** ticks it to done, **Send back** returns it to open for another pass. Sending back seals the detail that pass worked from above the editor (`POST /api/steps/{id}/send-back`), and the detail starts empty for the feedback. `/rk` hands the next session each earlier pass in a `<previous-pass>` and the feedback in a `<feedback>`, so it builds on what was done instead of reading the feedback as a new brief. The **N awaiting review** count in the pane header jumps to the first one. Moving a task to **Done** accepts everything left in one go: every step that is open, running or claimed turns done (drafts stay, since you are still wording them), and a task without a checklist takes the accepted review line. Tasks already in Done were accepted the same way when Rekall updated. The step node itself only moves a step forward, so a stray click never walks it back; reopening an accepted step is a separate **Reopen** button that arms before it fires.
 
 ## Epics
 
@@ -103,16 +103,19 @@ epic after it, in full, marked `inherited`, with its description and notes as pa
 
 - The navigator keeps a project's epics on a shelf above its tasks that starts closed, each with the
   status mix of its tasks, and opens it when an epic is selected elsewhere; a task in an epic wears the epic's name next to its anchor, and the card above its dossier opens the epic.
-- Selecting an epic opens it in the console: how far its tasks are, the tasks themselves and its
-  description, written in place. **Add existing task** files a task of the project under it (one in
+- Selecting an epic opens it in the console: its description, written in place, takes the main
+  column; beside it are how far its tasks are and the tasks themselves, oldest first, each with its
+  status and how far its steps are. **Add existing task** files a task of the project under it (one in
   another epic moves here), **New task** creates one already filed, and a row's cross takes a task
   out, with an Undo. In its dossier one **Epic tasks** card, with how many are done, stands where a
   task has its description and steps; its notes are listed below as on any task.
 - A session creates one with `rekall_create_task` and `kind: "epic"`, creates tasks under it with
   `epic`, and files an existing task under it with `rekall_join_epic`.
 - An epic belongs to no epic, takes no step, has no flow, is never run (no terminal, no Claude
-  Code launch, no run queue) and is never laid on a deployment graph. A task with steps cannot
-  become one, and an epic with tasks cannot turn back into a task or move to another project.
+  Code launch, no run queue) and is never laid on a deployment graph. A task with steps becomes one only through **Convert to epic** on its page, which
+  keeps the title, code, status, description, notes, label, issue and time and deletes what an epic
+  cannot hold (its steps and flow, wrapup, logged commits, deviations, dependencies, skills, pull request link and its own epic),
+  naming each before it converts; a task on the run queue is not converted. An epic with tasks cannot turn back into a task or move to another project.
   Deleting an epic leaves its tasks on their own.
 
 ## Dependencies
@@ -139,28 +142,61 @@ Set **Parallel sessions** in the run queue to two, three or four and the queue w
 1. Queue the tasks. Tasks that depend on each other (see Dependencies) never run together.
 2. Each task's session, its "Done when" checks and its commit on claim work in its worktree, so the commits land on its branch and your own branch does not move.
 3. In the review, a **Branch** panel shows the branch, the commits it is ahead of the project's current branch, the files it changed, and whether merging it would conflict (read with `git merge-tree`, which changes nothing). It has no buttons: acceptance does the merge.
-4. When you accept the task, once every revision is accepted, its branch is merged into the branch checked out in the project's folder (`git merge --no-edit`) and then its worktree is removed. A branch whose worktree has unsaved changes is not merged: the worktree stays and the reason is in the log. A branch that conflicts with the project opens a session on the task (`/rk … merge`) in its worktree: it merges the project's branch in, resolves the conflicts, runs the checks and commits. Rekall looks every five seconds; once the branch merges cleanly it is merged into the project, the session is closed and the worktree removed. If you close that session before it resolves the conflict, none is opened again until the task is accepted anew. A failed merge is abandoned, so your project folder is left as it was. The branch and its commits are never deleted by Rekall.
+4. When you accept the task, once every revision is accepted, its branch is merged into the branch checked out in the project's folder (`git merge --no-edit`) and then its worktree is removed. A branch whose worktree has unsaved changes is not merged: the worktree stays and the reason is in the log. A branch that conflicts with the project opens a session on the task (`/rk … merge`) in its worktree: it merges the project's branch in, resolves the conflicts, runs the checks and commits. Rekall looks every five seconds; once the branch merges cleanly it is merged into the project, the session is closed and the worktree removed. If you close that session before it resolves the conflict, none is opened again until the task is accepted anew. A failed merge is abandoned, so your project folder is left as it was. A task whose branch is merged is set to done. The branch and its commits are never deleted by Rekall locally.
 5. If you send the task back, the next run uses the worktree when it is still there and makes it again from the same branch when it is not.
 
-A task run by hand, or by a queue set to one session, has no worktree; the panel appears only for a task whose branch exists. `GET /api/tasks/{id}/branch` answers the panel (`null` without a branch).
+A project with a task manager and a folder keeps every task it works on a branch of its own, however the session opens: the run queue, a terminal or chat opened from the console, or **Open in terminal** (which opens the task's worktree, not the project's folder). The branch is made before the session starts and a refusal from git stops the session. A quick task is never put on a branch. Any other task run by hand, or by a queue set to one session, has no worktree; the panel appears only for a task whose branch exists. `GET /api/tasks/{id}/branch` answers the panel (`null` without a branch).
+
+### Pull request flow
+
+With **Merge through a pull request** on (project page, Settings, Repository), steps 3 and 4 change: the branch is not merged locally. A GitLab project says merge request wherever this says pull request.
+
+```mermaid
+sequenceDiagram
+    participant Claude as Session
+    participant Rekall
+    participant Host as GitHub or GitLab
+    Claude->>Rekall: claim the last step (one commit per step)
+    Rekall->>Host: push the task branch
+    Rekall->>Host: open the pull request once
+    Note over Rekall: the task shows a link to it
+    Note over Rekall: you accept the task
+    Rekall->>Host: merge with a merge commit
+    alt the pull request conflicts
+        Host-->>Rekall: conflicting
+        Rekall->>Claude: merge session in the worktree
+        Claude->>Host: merge the main branch into the branch, resolve, push
+        Rekall->>Host: merge again
+    end
+    Host-->>Rekall: merged
+    Rekall->>Host: close the issue
+    Rekall->>Host: delete the remote branch
+    Rekall->>Rekall: remove the worktree
+```
+
+- When every step of the task is claimed, its branch is pushed and a pull request is opened against the project's main branch (the branch its folder is on when none is named). It is opened once: a task claimed again is pushed again and keeps the same one. Its body is the task's description, `Closes #<issue>` and the commits listed by step. If the push or the host refuses, the reason shows on the task as **Not opened** and the next claim tries again.
+- When you accept the task, the pull request is merged through the host with a merge commit, so the commit of each step reaches the main branch. Then the task's issue is closed, its branch is deleted on the host (one the host no longer has is not a failure), the worktree is removed and the task is set to done. A merge the host turns down (required checks, a branch rule) shows as **Not merged** with the host's reason, and the worktree stays; a network error is tried again the next time the task moves. Rekall does not wait for reviews or checks: it merges as soon as you accept.
+- When the host says the pull request conflicts, a session opens on the task in its worktree (`/rk … merge pull-request`): it merges the main branch into the task branch, resolves the conflicts, runs the checks, commits and pushes. It does not force-push and does not merge through the host. Rekall then merges again. If you close that session with the pull request still conflicting, none opens again until the task is accepted anew.
+- The task's title row shows the request as a link (**PR #5**, **MR !5** on GitLab), **Merged** once it is, and nothing on a project with the switch off.
 
 ## Commits
 
-A task, or one of its steps, keeps a ledger of the commits that built it: the hash, the commit's own subject line as the comment, and the diff it introduced, read from the project's **repo folder** (set on the project's page). The console shows the ledger under the description as a collapsible rail, and under each step's detail; a row opens to its diff, and can be deleted by hand.
+A task, or one of its steps, keeps a ledger of the commits that built it: the hash, the commit's own subject line as the comment, and the diff it introduced, read from the project's **repo folder** (set on the project's page), or from a **component**'s folder when the commit was made in that component's own repository. A commit remembers its component; none means the project's folder, and the rail groups the ledger by repository once it spans more than one. The console shows the ledger under the description as a collapsible rail, and under each step's detail; a row is the hash, subject and step, with no diff: clicking it opens that commit in the **Changes** tab (`/task/:id/changes?commit=<reference id>`), and it can be deleted by hand.
 
-**Log commit** on the description, or inside a running or claimed step, logs the tip of the repo. The chevron next to it opens a picker over the last 30 commits, newest first, with their subject and age, so an earlier commit can be logged against the task or step instead; rows already logged there are marked. A hash the log does not reach can be pasted in the same panel, abbreviated or full. A hash that names no commit is refused and nothing is written. Logging the same commit against the same task and step twice is a no-op.
+**Log commit** on the description, or inside a running or claimed step, logs the tip of the repo. The chevron next to it opens a picker over the last 30 commits, newest first, with their subject and age, so an earlier commit can be logged against the task or step instead; rows already logged there are marked. A project with components shows its repositories above the log, and the picked commit is logged against the repository whose log it came from. A hash the log does not reach can be pasted in the same panel, abbreviated or full. A hash that names no commit is refused and nothing is written. Logging the same commit against the same task and step twice is a no-op.
 
 A session does the same over MCP right after `git commit`:
 
 ```
-rekall_record_commit  anchors="project:vega task:report-builder"                 # the tip
-rekall_record_commit  anchors="project:vega task:report-builder" step="3"        # against step 3
-rekall_record_commit  anchors="project:vega task:report-builder" commit="a0fd5cc" # an earlier commit
+rekall_record_commit  anchors="task:VG-12"                 # the tip
+rekall_record_commit  anchors="task:VG-12" step="3"        # against step 3
+rekall_record_commit  anchors="task:VG-12" commit="a0fd5cc" # an earlier commit
+rekall_record_commit  anchors="task:VG-12" component="Site" # the tip of the Site component's repository
 ```
 
-A logged commit stays out of `rekall_context` until it is chosen for it. Each row carries an **add to context** toggle (shown on hover; **in context** once on) and the rail fills the node of every chosen commit and counts them. A chosen commit travels with the task's context as a `<commit hash="…" step="…">` element inside `<commits>`: its subject, then its diff (capped at 60,000 characters), oldest logged first. Choosing is console-only; `rekall_record_commit` logs but never chooses.
+A logged commit stays out of `rekall_context` until it is chosen for it. Each row ends in an always-visible check that chooses the commit, the rail fills the node of every chosen commit and counts them, and on the **Changes** tab a commit's header carries the labelled **Add to /rk context** button while its chip on the track shows a dot once chosen. A chosen commit travels with the task's context as a `<commit hash="…" step="…">` element inside `<commits>`: its subject, then its diff (capped at 60,000 characters), oldest logged first. Choosing is console-only; `rekall_record_commit` logs but never chooses.
 
-The REST side is `GET /api/commit-references`, `POST /api/tasks/{id}/commit-references/latest`, `POST /api/tasks/{id}/commit-references` (body `commitHash`, optional `stepId`), `GET /api/tasks/{id}/recent-commits`, `GET /api/commit-references/{id}/diff`, `PATCH /api/commit-references/{id}` (body `inContext`) and `DELETE /api/commit-references/{id}`.
+The REST side is `GET /api/commit-references`, `POST /api/tasks/{id}/commit-references/latest`, `POST /api/tasks/{id}/commit-references` (body `commitHash`, optional `stepId` and `componentId`), `GET /api/tasks/{id}/recent-commits` (optional `componentId`), `GET /api/tasks/{id}/changes` (per repository: every logged commit's files and hunks, oldest first, read from git with the stored diff as the fallback, and the uncommitted working tree), `GET /api/commit-references/{id}/diff`, `PATCH /api/commit-references/{id}` (body `inContext`) and `DELETE /api/commit-references/{id}`.
 
 ### Commit on claim
 
@@ -172,32 +208,33 @@ The message says what the work does, never which files it touched. The session t
 
 ## Quick tasks
 
-A small change does not need a task with a description, a run and a review. On a project's page, the
-quick task field takes one text: press Enter, or **Start quick task**, and Rekall makes a task from
+A small change does not need a task with a description, a run and a review. In the composer above the task list,
+on Work and on a project's page, one text field takes the change: press Enter, or **Start quick task**, and Rekall makes a task from
 it (its first line is the title, the whole text the description), opens a session on it and starts
-the timer. Shift+Enter goes to a new line. The field needs the project's folder, and waits while
-another quick task on the project is still being worked.
+the timer. Shift+Enter goes to a new line. The key needs the project's folder; its menu, **Plan a task…**, opens the New task dialog with the text as the title instead. Across projects, a picker beside the key names the project. Any number of quick tasks can be worked on a project at once.
 
 When the session writes its wrapup and the commit on claim did not fail, Rekall accepts the task
 itself. The task then shows **Quick** and **Auto-accepted** beside its title, and the wrapup, the
 commit, the tokens and the time are kept like any task's. A failed commit, or a wrapup you wrote by
-hand, leaves the task claimed for you to review. Accepting is never final: feedback on the work reopens an
+hand, leaves the task claimed for you to review. Accepting is never final: a revision of the description asks an
 auto-accepted task for another pass. **Hide quick tasks**, in the navigator and in a project's task
 list, keeps them out of the way; they are listed by default.
 
 ## Description review
 
-A task with no checklist walks the same line at task scope: **open**, **running** while a terminal is open on it with no step target, **claimed** when a Claude-authored wrapup lands, **accepted** when you accept it in the console. Nothing new is typed for it: running follows the terminal and claimed follows the wrapup write. `/rk` tells the session to write that wrapup itself once the description's work is done, so a run queue, which waits on the claim, goes on to the next task. The description pane shows the running pill and a review bar: on **running** it carries **Accept** and a link to the wrapup, so a session driven by hand still has a console exit; on **claimed** it adds **Open the wrapup**; accepting offers to also mark the task done. It arrives on the same `GET /api/steps/stream` connection as a `task-review` frame, the wrapup that claims it rides the same connection as a `wrapup` frame so the pane shows the new text with the claim rather than on the next reload, and `PATCH /api/tasks/{id}/review` is the console-only Accept. Adding a first step retires the task-level line and the checklist takes over.
+A task with no checklist walks the same line at task scope: **open**, **running** while a terminal is open on it with no step target, **claimed** when a Claude-authored wrapup lands, **accepted** when you accept it in the console. Nothing new is typed for it: running follows the terminal and claimed follows the wrapup write. `/rk` tells the session to write that wrapup itself once the description's work is done, so a run queue, which waits on the claim, goes on to the next task. The description pane shows the running pill and a review bar. On **running** there is no Accept, because nothing has been claimed yet: the bar says which pass is running and on which revisions, and the task goes back to open if the session ends before it writes the wrapup. On **claimed** the bar lays out what the last pass did: the reply to each revision it took, any revision left without a reply, and the commits logged since the pass started (with no pass, the commits alone), next to **Accept** and **Open the wrapup**. If revisions are still waiting, Accept becomes **Accept anyway**, with a tooltip counting them, and **Run revision** is in the bar under the review bar. Accepting offers to also mark the task done. It arrives on the same `GET /api/steps/stream` connection as a `task-review` frame, the wrapup that claims it rides the same connection as a `wrapup` frame so the pane shows the new text with the claim rather than on the next reload, and `PATCH /api/tasks/{id}/review` is the console-only Accept. Adding a first step retires the task-level line and the checklist takes over.
 
-### The thread under the description
+### Revisions of the description
 
-What you want changed after a run goes in the thread under the description, not in a box that disappears: each message stays, and a session replies to it. Three kinds of entry, told apart by the chip on each card:
+What you want changed after a run goes into the description itself: edit it, and a session works the difference. There is no second box to write in. The **Revisions** tab next to **Description** in the description window lists every change made this way, with a count and an accent dot while one waits for a run or a session is on one.
 
-- **Revision**: you rewrote part of the description of a task that has already been evaluated (it has a wrapup, a started step or a review line past open). Rekall keeps the text before and after and shows the change as a diff; further edits rewrite the pending revision, and editing the text back removes it. **Discard** puts the earlier text back. A banner above the editor says the description was revised since the last run.
-- **Feedback on the work**: markdown written in the composer under the description, about what was built. On a claimed or accepted task with no checklist it reopens the review line, as Send back used to.
-- **Feedback on the plan**: the same composer, about the steps; the description stays as it is. It is the only way to change the steps from the description without using the steps.
+A change counts as a **revision** once the task has been evaluated (it has a wrapup, a started step or a review line past open). Rekall keeps the text before and after and shows the change as a diff on the revision's card; further edits rewrite the waiting revision, and editing the text back removes it. **Discard** on a waiting revision puts the earlier text back.
 
-An entry is **pending** until a session replies, then **applied**: sealed, dimmed, with the session's reply below it. Only pending entries are evaluated, so a run never rereads feedback already dealt with. A pending entry can be edited or deleted; an applied one cannot, and a revision follows the description, so it is discarded rather than edited. **Run revision** (a count of the pending revisions and feedback on the work) opens or reuses a session on `/rk … revise`; **Replan with feedback** (shown for a task with steps, a count of the pending plan feedback) runs `/rk … replan` on it. The session answers every entry it acted on with `rekall_feedback`, and a `feedback` frame on the event stream refreshes the thread.
+A revision is applied either **on the work** or **on the plan**, chosen with the switch in the bar that appears under the header while a revision waits: on the work, the session implements the difference on top of what is built; on the plan, it redesigns the draft and open steps from the difference and builds nothing. A task with steps starts on the plan, one without on the work. The same bar holds **Run revision**, the only button, and **See the changes**, which opens the tab.
+
+A revision **waits for the next run** until you press **Run revision**. That starts a **pass**: a session on `/rk … revise` (typed into the live session on the task, or a terminal opened for it, with the view staying on the description) takes every waiting revision at once, plan revisions first, and they become **in pass N**. Edits you make while a pass runs keep waiting and form the next one; a second pass cannot start until the first one ends. The session answers every revision with `rekall_feedback`, and each becomes **applied**: sealed, dimmed, with the session's reply below it. If the session ends before answering one, it goes back to waiting.
+
+The tab reads newest first: what waits for the next run, then one group per pass, then a folded **Before passes** group for revisions applied before passes existed. A running pass shows a live marker and how many of its revisions are answered; the newest pass is open and older ones fold to a line per revision with its reply. A `feedback` frame on the event stream refreshes the list.
 
 ## Review queue and notifications
 

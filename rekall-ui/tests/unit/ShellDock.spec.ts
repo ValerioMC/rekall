@@ -1,13 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { effectScope } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ShellDock from '@/components/shell/ShellDock.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
+import { useOpenSession } from '@/features/claude/composables/useOpenSession'
 import type { Terminal } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId, TaskStepId, TerminalId, TimeEntryId } from '@/model/branded'
-import type { Task, TimeEntry } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TimeEntry } from '@/features/time/model/time-entry'
 
 const terminalApi = {
   fetchTerminals: vi.fn(),
@@ -56,24 +59,11 @@ vi.mock('vue-router', () => ({
   })
 }))
 
-/** Reports once on `observe`, so the lane is published without a layout engine. */
-class ImmediateResizeObserver implements ResizeObserver {
-  constructor(private readonly callback: ResizeObserverCallback) {}
-
-  observe(): void {
-    this.callback([], this)
-  }
-
-  unobserve(): void {}
-
-  disconnect(): void {}
-}
-
 const TASK = 't-1' as TaskId
 
 const task: Task = {
   id: TASK,
-  label: 'report-builder',
+  code: 'report-builder', label: 'report-builder',
   title: 'Report builder',
   status: 'IN_PROGRESS',
   description: null,
@@ -98,7 +88,7 @@ const task: Task = {
   graphLaidAt: null,
   releaseSkipped: false,
   kind: 'TASK',
-  epicId: null, quick: false, autoAccepted: false, dependsOn: [],
+  epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, trackerContentSynced: true, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
   anchor: 'project:vega task:report-builder',
   updatedAt: '2026-09-10T10:00:00Z'
 }
@@ -112,9 +102,10 @@ function terminal(over: Partial<Terminal> = {}): Terminal {
     anchors: task.anchor,
     workingDir: '/code/vega',
     projectLabel: 'vega',
-    taskLabel: 'report-builder',
+    taskCode: 'report-builder',
     taskTitle: 'Report builder',
     mode: 'WORK',
+    provider: 'CLAUDE',
     skipPermissions: true,
     model: null,
     effort: null,
@@ -132,7 +123,7 @@ function running(over: Partial<TimeEntry> = {}): TimeEntry {
   return {
     id: 'time-1' as TimeEntryId,
     taskId: TASK,
-    taskLabel: 'report-builder',
+    taskCode: 'report-builder',
     taskTitle: 'Report builder',
     projectLabel: 'vega',
     anchor: task.anchor,
@@ -151,26 +142,13 @@ async function mountDock(open: Terminal[], entries: TimeEntry[] = []) {
   console.tasks = [task]
   console.timeEntries = entries
   terminals.terminals = open
-  const wrapper = mount(ShellDock, { attachTo: document.body })
+  const wrapper = mount(ShellDock, { attachTo: document.body, global: { stubs: { TerminalScreen: true } } })
   await flushPromises()
   return { wrapper, console, terminals }
 }
 
-function lane(): { width: string; height: string } {
-  const style = document.documentElement.style
-  return {
-    width: style.getPropertyValue('--dock-lane-width'),
-    height: style.getPropertyValue('--dock-lane-height')
-  }
-}
-
 describe('ShellDock', () => {
   beforeEach(() => {
-    vi.stubGlobal('ResizeObserver', ImmediateResizeObserver)
-    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
-      width: 240,
-      height: 40
-    } as DOMRect)
     Object.values(terminalApi).forEach((fn) => fn.mockReset())
     terminalApi.closeTerminal.mockResolvedValue(undefined)
     stopTimeEntry.mockReset()
@@ -180,9 +158,7 @@ describe('ShellDock', () => {
   })
 
   afterEach(() => {
-    vi.unstubAllGlobals()
     vi.restoreAllMocks()
-    document.documentElement.removeAttribute('style')
     document.body.innerHTML = ''
   })
 
@@ -190,7 +166,6 @@ describe('ShellDock', () => {
     it('renders nothing when nothing runs and no session is live', async () => {
       const { wrapper } = await mountDock([terminal({ live: false })])
       expect(wrapper.find('[data-testid="shell-dock"]').exists()).toBe(false)
-      expect(lane().width).toBe('')
     })
 
     it('shows only the sessions segment when sessions alone are live', async () => {
@@ -205,9 +180,9 @@ describe('ShellDock', () => {
       expect(wrapper.find('[data-testid="terminal-dock-toggle"]').exists()).toBe(false)
     })
 
-    it('publishes the lane for the whole bar whichever segments are present', async () => {
-      await mountDock([terminal()])
-      expect(lane()).toEqual({ width: '268px', height: '62px' })
+    it('is a fixed capsule in the corner of the window', async () => {
+      const { wrapper } = await mountDock([terminal()])
+      expect(wrapper.get('[data-testid="shell-dock"]').classes()).toContain('fixed')
     })
 
     it('counts the live terminals on the sessions segment', async () => {
@@ -222,7 +197,12 @@ describe('ShellDock', () => {
 
     it('counts the running timers on the running segment', async () => {
       const { wrapper } = await mountDock([], [running(), running({ id: 'time-2' as TimeEntryId })])
-      expect(wrapper.get('[data-testid="running-dock-toggle"]').text()).toContain('2 running')
+      expect(wrapper.get('[data-testid="running-dock-toggle"]').text()).toContain('2 in progress')
+    })
+
+    it('shows no elapsed clock on the running segment', async () => {
+      const { wrapper } = await mountDock([], [running()])
+      expect(wrapper.get('[data-testid="running-dock-toggle"]').text()).toBe('1 in progress')
     })
 
     it('hides the sessions segment while the terminal pane is already open', async () => {
@@ -308,18 +288,27 @@ describe('ShellDock', () => {
   })
 
   describe('the sessions panel', () => {
-    it('jumps to the task, opens the terminal pane, selects the terminal and closes', async () => {
-      const { wrapper, console, terminals } = await mountDock([terminal()])
+    it('opens a terminal session in a floating panel and closes the list', async () => {
+      const { wrapper, console } = await mountDock([terminal()])
 
       await wrapper.get('[data-testid="terminal-dock-toggle"]').trigger('click')
       await wrapper.get('[data-testid="terminal-dock-jump"]').trigger('click')
       await flushPromises()
 
-      expect(console.selectedTaskId).toBe(TASK)
-      expect(console.paneFocus).toBe('terminal')
-      expect(terminals.activeTerminalId).toBe('term-1')
-      expect(push).toHaveBeenCalledWith({ name: 'console' })
+      expect(wrapper.find('[data-testid="terminal-float"]').exists()).toBe(true)
       expect(wrapper.find('[data-testid="dock-panel"]').exists()).toBe(false)
+      expect(console.paneFocus).not.toBe('terminal')
+      expect(push).not.toHaveBeenCalled()
+    })
+
+    it('opens a chat session in the chat window, not in a floating panel', async () => {
+      const { wrapper } = await mountDock([terminal({ kind: 'CHAT' })])
+
+      await wrapper.get('[data-testid="terminal-dock-toggle"]').trigger('click')
+      await wrapper.get('[data-testid="terminal-dock-jump"]').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="terminal-float"]').exists()).toBe(false)
     })
 
     it('stops a terminal from its row', async () => {
@@ -358,16 +347,97 @@ describe('ShellDock', () => {
     })
   })
 
+  describe('the floating terminal', () => {
+    async function floatTerminal(open: Terminal[] = [terminal()]) {
+      const mounted = await mountDock(open)
+      await mounted.wrapper.get('[data-testid="terminal-dock-toggle"]').trigger('click')
+      await mounted.wrapper.get('[data-testid="terminal-dock-jump"]').trigger('click')
+      await flushPromises()
+      return mounted
+    }
+
+    it('minimizes from its minimize button, which is not a close, and leaves the session live', async () => {
+      const { wrapper, terminals } = await floatTerminal()
+
+      expect(wrapper.find('[data-testid="terminal-float-close"]').exists()).toBe(false)
+      expect(wrapper.get('[data-testid="terminal-float-minimize"]').attributes('aria-label')).toBe('Minimize')
+      await wrapper.get('[data-testid="terminal-float-minimize"]').trigger('click')
+
+      expect(wrapper.find('[data-testid="terminal-float"]').exists()).toBe(false)
+      expect(terminals.terminals[0]?.live).toBe(true)
+    })
+
+    it('stays open on Escape and on a press outside the dock', async () => {
+      const { wrapper } = await floatTerminal()
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+      document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="terminal-float"]').exists()).toBe(true)
+    })
+
+    it('moves to the full terminal pane from Open in pane', async () => {
+      const { wrapper, console, terminals } = await floatTerminal()
+
+      await wrapper.get('[data-testid="terminal-float-expand"]').trigger('click')
+      await flushPromises()
+
+      expect(console.paneFocus).toBe('terminal')
+      expect(terminals.activeTerminalId).toBe('term-1')
+      expect(push).toHaveBeenCalledWith({ name: 'console' })
+      expect(wrapper.find('[data-testid="terminal-float"]').exists()).toBe(false)
+    })
+
+    it('is where a session opens by default, wherever it is asked for', async () => {
+      const { wrapper, console, terminals } = await mountDock([terminal()])
+      const open = effectScope().run(() => useOpenSession())!
+
+      open(terminals.terminals[0]!)
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="terminal-float"]').exists()).toBe(true)
+      expect(console.paneFocus).not.toBe('terminal')
+      expect(push).not.toHaveBeenCalled()
+    })
+
+    it('opens the task from Open task', async () => {
+      const { wrapper } = await floatTerminal()
+
+      await wrapper.get('[data-testid="terminal-float-task"]').trigger('click')
+
+      expect(push).toHaveBeenCalledWith(`/task/${TASK}`)
+      expect(wrapper.find('[data-testid="terminal-float"]').exists()).toBe(false)
+    })
+
+    it('goes away when its session is stopped', async () => {
+      const { wrapper, terminals } = await floatTerminal()
+
+      terminals.terminals = []
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="terminal-float"]').exists()).toBe(false)
+    })
+
+    it('is replaced by the list when the sessions segment is pressed', async () => {
+      const { wrapper } = await floatTerminal()
+
+      await wrapper.get('[data-testid="terminal-dock-toggle"]').trigger('click')
+
+      expect(wrapper.find('[data-testid="terminal-float"]').exists()).toBe(false)
+      expect(wrapper.find('#dock-panel-sessions').exists()).toBe(true)
+    })
+  })
+
   describe('the running panel', () => {
     it('jumps to the task and closes', async () => {
-      const { wrapper, console } = await mountDock([], [running()])
+      const { wrapper } = await mountDock([], [running()])
 
       await wrapper.get('[data-testid="running-dock-toggle"]').trigger('click')
       await wrapper.get('[data-testid="running-dock-jump"]').trigger('click')
       await flushPromises()
 
-      expect(console.selectedTaskId).toBe(TASK)
-      expect(push).toHaveBeenCalledWith({ name: 'console' })
+      expect(push).toHaveBeenCalledWith(`/task/${TASK}`)
       expect(wrapper.find('[data-testid="dock-panel"]').exists()).toBe(false)
     })
 

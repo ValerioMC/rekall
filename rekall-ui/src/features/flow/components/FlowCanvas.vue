@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useElementSize } from '@/composables/useElementSize'
 import { smoothPath } from '@/features/diagram/lib/edge-path'
-import type { Point } from '@/features/diagram/lib/viewport'
+import { clampScale, fitCamera, type Point } from '@/features/diagram/lib/viewport'
 import { layoutFlow, placeSteps, type FlowLayout, type PlacedRoute } from '@/features/flow/lib/flow-layout'
 import { FLOW_END, type RouteTarget } from '@/features/flow/lib/route-target'
 import { pillBox, placeGates } from '@/features/flow/lib/route-gate'
@@ -14,10 +15,11 @@ import {
 import type { StepFlow } from '@/features/flow/lib/step-flow'
 import { useFlowDrag } from '@/features/flow/composables/useFlowDrag'
 import { useFlowPan } from '@/features/flow/composables/useFlowPan'
-import type { StepLink } from '@/features/catalog/model/catalog'
+import type { StepLink } from '@/features/steps/model/task-step'
 import type { StepLinkId, TaskStepId } from '@/model/branded'
 import FlowNode from './FlowNode.vue'
 import FlowTerminal from './FlowTerminal.vue'
+import FlowZoomControls from './FlowZoomControls.vue'
 
 /**
  * The flow drawn as a graph: Start, the steps laid out by dagre and End, with the routes between
@@ -25,7 +27,7 @@ import FlowTerminal from './FlowTerminal.vue'
  * and the route the work last came in by is heavier, lit and carries a light
  * running toward the step it stands on. Steps drag to where the person
  * wants them; the handle under a step draws a route to another step or to End. A press on the empty
- * canvas pans the graph.
+ * canvas pans the graph. It opens fitted to the canvas, and zooming holds until Fit is pressed.
  */
 const props = defineProps<{
   flow: StepFlow
@@ -39,7 +41,7 @@ const emit = defineEmits<{
   tidy: []
 }>()
 
-const base = computed(() => layoutFlow(props.flow.steps, sessionRibbonHeights(props.flow)))
+const base = computed(() => layoutFlow(props.flow.steps, sessionRibbonHeights(props.flow), true))
 const savedPlaces = computed(() => {
   const places = new Map<TaskStepId, Point>()
   for (const step of props.flow.steps) {
@@ -49,8 +51,10 @@ const savedPlaces = computed(() => {
 })
 
 const surface = ref<HTMLElement | null>(null)
+const scroller = ref<HTMLElement | null>(null)
 const drag = useFlowDrag<TaskStepId>({
   surface,
+  scale: () => scale.value,
   boxes: () => layout.value.nodes,
   endBox: () => layout.value.end,
   place: async (id, at) => emit('place', id, at),
@@ -153,8 +157,27 @@ function snapPoint(target: RouteTarget): Point {
   return { x: box.x + box.width / 2, y: box.y }
 }
 
-const scroller = ref<HTMLElement | null>(null)
 const pan = useFlowPan(scroller, surface)
+
+/** The room kept clear along the top of the canvas for the keys over it. */
+const KEYS_ROOM = 56
+const FIT_PADDING = 16
+const ZOOM_STEP = 1.2
+
+const canvasSize = useElementSize(scroller)
+const zoom = ref<number | null>(null)
+const fitScale = computed(() => {
+  const { width, height } = canvasSize.value
+  if (width === 0 || height === 0) return 1
+  const whole = { x: 0, y: 0, width: layout.value.width, height: layout.value.height }
+  return Math.min(1, fitCamera(whole, { width, height: height - KEYS_ROOM }, FIT_PADDING).k)
+})
+const scale = computed(() => zoom.value ?? fitScale.value)
+const percent = computed(() => Math.round(scale.value * 100))
+
+function zoomBy(factor: number): void {
+  zoom.value = clampScale(scale.value * factor)
+}
 
 /** Keeps the step the work stands on in view as the flow moves. */
 async function revealCurrent(): Promise<void> {
@@ -162,8 +185,8 @@ async function revealCurrent(): Promise<void> {
   const box = props.flow.currentId ? layout.value.nodes.get(props.flow.currentId) : undefined
   const element = scroller.value
   if (!box || !element) return
-  const left = box.x + box.width / 2 - element.clientWidth / 2
-  const top = box.y + box.height / 2 - element.clientHeight / 2
+  const left = (box.x + box.width / 2) * scale.value - element.clientWidth / 2
+  const top = (box.y + box.height / 2) * scale.value - element.clientHeight / 2
   element.scrollTo?.({ left, top, behavior: reducedMotion ? 'auto' : 'smooth' })
 }
 
@@ -173,142 +196,144 @@ onMounted(revealCurrent)
 
 <template>
   <div class="relative min-h-0 min-w-0 flex-1">
-    <button
-      v-if="tidyable"
-      type="button"
-      class="key-quiet focus-ring absolute right-3 top-3 z-20 cursor-pointer rounded-control px-2.5 py-1 text-caption"
-      data-testid="flow-tidy"
-      @click="emit('tidy')"
-    >
-      Tidy layout
-    </button>
+    <FlowZoomControls
+      class="absolute right-3 top-3 z-20"
+      :percent="percent"
+      :tidyable="tidyable"
+      @tidy="emit('tidy')"
+      @zoom-out="zoomBy(1 / ZOOM_STEP)"
+      @zoom-in="zoomBy(ZOOM_STEP)"
+      @fit="zoom = null"
+    />
     <div
       ref="scroller"
-      class="texture-dots size-full overflow-auto"
+      class="texture-dots flex size-full overflow-auto pt-14"
       data-testid="flow-canvas"
       @pointerdown="pan.startPan($event)"
     >
-      <div
-        ref="surface"
-        class="relative mx-auto"
-        :style="{ width: `${layout.width}px`, height: `${layout.height}px` }"
-      >
-        <svg
-          class="pointer-events-none absolute inset-0 overflow-visible"
-          :width="layout.width"
-          :height="layout.height"
-          aria-hidden="true"
+      <div class="m-auto shrink-0" :style="{ width: `${layout.width * scale}px`, height: `${layout.height * scale}px` }">
+        <div
+          ref="surface"
+          class="relative origin-top-left"
+          :style="{ width: `${layout.width}px`, height: `${layout.height}px`, transform: `scale(${scale})` }"
         >
-          <defs>
-            <marker
-              v-for="kind in arrowKinds"
-              :id="`flow-arrow-${kind}`"
-              :key="kind"
-              viewBox="-10 -5 10 10"
-              refX="-6.4"
-              refY="0"
-              :markerWidth="kind === 'live' ? 17 : 14"
-              :markerHeight="kind === 'live' ? 17 : 14"
-              markerUnits="userSpaceOnUse"
-              orient="auto"
-            >
-              <path d="M0,0L-8.5,-4.4L-6.4,0L-8.5,4.4Z" :class="`flow-arrowhead flow-arrowhead-${kind}`" />
-            </marker>
-          </defs>
-          <g
-            v-for="placed in layout.routes"
-            :key="placed.key"
-            :class="[
-              routeClass(placed),
-              touchesSelection(placed) && 'flow-route-focus',
-              routeMarks.get(placed.key)?.kind === 'shared' && 'flow-route-shared'
-            ]"
-            :style="{ '--session-accent': routeMarks.get(placed.key)?.accent }"
+          <svg
+            class="pointer-events-none absolute inset-0 overflow-visible"
+            :width="layout.width"
+            :height="layout.height"
+            aria-hidden="true"
           >
-            <path v-if="isPending(placed)" class="flow-route-track" :d="routePaths.get(placed.key)" />
-            <path
-              :id="`flow-route-${placed.key}`"
-              class="flow-route"
-              :d="routePaths.get(placed.key)"
-              :marker-end="`url(#flow-arrow-${arrowKind(placed)})`"
+            <defs>
+              <marker
+                v-for="kind in arrowKinds"
+                :id="`flow-arrow-${kind}`"
+                :key="kind"
+                viewBox="-10 -5 10 10"
+                refX="-6.4"
+                refY="0"
+                :markerWidth="kind === 'live' ? 17 : 14"
+                :markerHeight="kind === 'live' ? 17 : 14"
+                markerUnits="userSpaceOnUse"
+                orient="auto"
+              >
+                <path d="M0,0L-8.5,-4.4L-6.4,0L-8.5,4.4Z" :class="`flow-arrowhead flow-arrowhead-${kind}`" />
+              </marker>
+            </defs>
+            <g
+              v-for="placed in layout.routes"
+              :key="placed.key"
+              :class="[
+                routeClass(placed),
+                touchesSelection(placed) && 'flow-route-focus',
+                routeMarks.get(placed.key)?.kind === 'shared' && 'flow-route-shared'
+              ]"
+              :style="{ '--session-accent': routeMarks.get(placed.key)?.accent }"
             >
-              <title v-if="routeMarks.get(placed.key)?.kind === 'shared'">Same Claude session</title>
-            </path>
-            <path v-if="isLive(placed) && !reducedMotion" class="flow-route-run" :d="routePaths.get(placed.key)" />
-          </g>
-          <path
-            v-if="pendingPath"
-            :d="pendingPath"
-            class="flow-pending"
-            marker-end="url(#flow-arrow-focus)"
-          />
-        </svg>
-
-        <span
-          v-for="placed in labelled"
-          :key="`label-${placed.key}`"
-          class="flow-outcome pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
-          :class="[routeClass(placed), touchesSelection(placed) && 'flow-route-focus']"
-          :style="{ left: `${placed.labelAt.x}px`, top: `${placed.labelAt.y}px` }"
-          data-testid="flow-outcome"
-        >
-          {{ placed.linkId ? linkById.get(placed.linkId)?.outcome : '' }}
-        </span>
-
-        <span
-          v-for="gate in gates"
-          :key="`gate-${gate.key}`"
-          class="flow-gate pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
-          :style="{ left: `${gate.at.x}px`, top: `${gate.at.y}px`, '--session-accent': gate.mark.accent }"
-          role="img"
-          :aria-label="gate.mark.description"
-          data-testid="flow-gate"
-        >
-          <svg viewBox="0 0 16 16" class="size-3 shrink-0" aria-hidden="true">
+              <path v-if="isPending(placed)" class="flow-route-track" :d="routePaths.get(placed.key)" />
+              <path
+                :id="`flow-route-${placed.key}`"
+                class="flow-route"
+                :d="routePaths.get(placed.key)"
+                :marker-end="`url(#flow-arrow-${arrowKind(placed)})`"
+              >
+                <title v-if="routeMarks.get(placed.key)?.kind === 'shared'">Same Claude session</title>
+              </path>
+              <path v-if="isLive(placed) && !reducedMotion" class="flow-route-run" :d="routePaths.get(placed.key)" />
+            </g>
             <path
-              d="M8 1.5 13.6 4.75v6.5L8 14.5l-5.6-3.25v-6.5Z"
-              fill="var(--session-accent)"
-              stroke="var(--session-accent)"
-              stroke-width="1"
-              stroke-linejoin="round"
-            />
-            <path v-if="gate.mark.opens" d="M6.6 5.6 10.4 8l-3.8 2.4Z" fill="var(--color-canvas)" />
-            <path
-              v-else
-              d="M5.4 8h5M8.6 5.8 10.8 8l-2.2 2.2"
-              fill="none"
-              stroke="var(--color-canvas)"
-              stroke-width="1.4"
-              stroke-linecap="round"
-              stroke-linejoin="round"
+              v-if="pendingPath"
+              :d="pendingPath"
+              class="flow-pending"
+              marker-end="url(#flow-arrow-focus)"
             />
           </svg>
-          {{ gate.mark.label }}
-        </span>
 
-        <FlowTerminal kind="start" :box="layout.start" :reached="flow.trail.length > 0" />
-        <FlowTerminal
-          kind="end"
-          :box="layout.end"
-          :reached="flow.finished"
-          :aimed="drag.connecting.value?.over === FLOW_END"
-        />
+          <span
+            v-for="placed in labelled"
+            :key="`label-${placed.key}`"
+            class="flow-outcome pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
+            :class="[routeClass(placed), touchesSelection(placed) && 'flow-route-focus']"
+            :style="{ left: `${placed.labelAt.x}px`, top: `${placed.labelAt.y}px` }"
+            data-testid="flow-outcome"
+          >
+            {{ placed.linkId ? linkById.get(placed.linkId)?.outcome : '' }}
+          </span>
 
-        <FlowNode
-          v-for="step in flow.steps"
-          :key="step.id"
-          :step="step"
-          :box="layout.nodes.get(step.id)!"
-          :current="step.id === flow.currentId"
-          :selected="step.id === selectedId"
-          :aimed="drag.connecting.value?.over === step.id"
-          :dragging="drag.live.value.has(step.id)"
-          :session="sessionMarkOf(flow, step.id)"
-          @select="$emit('select', step.id)"
-          @move-start="drag.startMove(step.id, $event)"
-          @connect-start="drag.startConnect(step.id, $event)"
-          @nudge="(dx, dy) => drag.nudge(step.id, dx, dy)"
-        />
+          <span
+            v-for="gate in gates"
+            :key="`gate-${gate.key}`"
+            class="flow-gate pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
+            :style="{ left: `${gate.at.x}px`, top: `${gate.at.y}px`, '--session-accent': gate.mark.accent }"
+            role="img"
+            :aria-label="gate.mark.description"
+            data-testid="flow-gate"
+          >
+            <svg viewBox="0 0 16 16" class="size-3 shrink-0" aria-hidden="true">
+              <path
+                d="M8 1.5 13.6 4.75v6.5L8 14.5l-5.6-3.25v-6.5Z"
+                fill="var(--session-accent)"
+                stroke="var(--session-accent)"
+                stroke-width="1"
+                stroke-linejoin="round"
+              />
+              <path v-if="gate.mark.opens" d="M6.6 5.6 10.4 8l-3.8 2.4Z" fill="var(--color-canvas)" />
+              <path
+                v-else
+                d="M5.4 8h5M8.6 5.8 10.8 8l-2.2 2.2"
+                fill="none"
+                stroke="var(--color-canvas)"
+                stroke-width="1.4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            {{ gate.mark.label }}
+          </span>
+
+          <FlowTerminal kind="start" :box="layout.start" :reached="flow.trail.length > 0" />
+          <FlowTerminal
+            kind="end"
+            :box="layout.end"
+            :reached="flow.finished"
+            :aimed="drag.connecting.value?.over === FLOW_END"
+          />
+
+          <FlowNode
+            v-for="step in flow.steps"
+            :key="step.id"
+            :step="step"
+            :box="layout.nodes.get(step.id)!"
+            :current="step.id === flow.currentId"
+            :selected="step.id === selectedId"
+            :aimed="drag.connecting.value?.over === step.id"
+            :dragging="drag.live.value.has(step.id)"
+            :session="sessionMarkOf(flow, step.id)"
+            @select="$emit('select', step.id)"
+            @move-start="drag.startMove(step.id, $event)"
+            @connect-start="drag.startConnect(step.id, $event)"
+            @nudge="(dx, dy) => drag.nudge(step.id, dx, dy)"
+          />
+        </div>
       </div>
     </div>
   </div>

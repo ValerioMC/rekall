@@ -4186,6 +4186,8 @@ dependencies = [
  "rekall-kernel",
  "rekall-store",
  "sea-orm",
+ "serde",
+ "serde_json",
  "tempfile",
  "tokio",
  "tracing",
@@ -4200,6 +4202,7 @@ dependencies = [
  "chrono",
  "futures",
  "regex",
+ "rekall-core",
  "rekall-diagram",
  "rekall-kernel",
  "rekall-store",
@@ -4275,6 +4278,7 @@ dependencies = [
  "chrono",
  "dirs",
  "futures",
+ "hyper-util",
  "keyring",
  "libc",
  "portable-pty",
@@ -4284,13 +4288,14 @@ dependencies = [
  "rekall-kernel",
  "rekall-store",
  "reqwest 0.12.28",
+ "rustls-pki-types",
  "sea-orm",
  "serde",
  "serde_json",
  "tempfile",
  "thiserror 2.0.21",
  "tokio",
- "tokio-tungstenite",
+ "tokio-rustls",
  "tracing",
  "zip",
 ]
@@ -4300,11 +4305,9 @@ name = "rekall-kernel"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "regex",
  "sea-orm",
  "serde",
  "serde_json",
- "thiserror 2.0.21",
  "tracing",
  "uuid",
 ]
@@ -4316,14 +4319,12 @@ dependencies = [
  "async-trait",
  "axum",
  "base64 0.22.1",
- "http-body-util",
  "regex",
  "rekall-core",
  "rekall-kernel",
  "serde",
  "serde_json",
  "tokio",
- "tower",
  "tracing",
  "tracing-subscriber",
 ]
@@ -4341,7 +4342,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
- "tracing",
 ]
 
 [[package]]

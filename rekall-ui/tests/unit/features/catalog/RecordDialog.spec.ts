@@ -27,7 +27,7 @@ function pendingCreate(): { resolve: () => void; create: ReturnType<typeof vi.fn
 function render(): VueWrapper {
   wrapper = mount(RecordDialog, {
     attachTo: document.body,
-    props: { draft: { ...taskDraft(projectId), title: 'Report builder', label: 'report-builder' } },
+    props: { draft: { ...taskDraft(projectId), title: 'Report builder' } },
     global: { plugins: [pinia] }
   })
   return wrapper
@@ -125,6 +125,62 @@ describe('RecordDialog project icon image', () => {
   })
 })
 
+describe('RecordDialog project folder', () => {
+  const existing = {
+    id: 'p1',
+    label: 'vega',
+    title: 'Vega',
+    description: null,
+    status: 'ACTIVE',
+    icon: 'folder',
+    companyId: 'c1',
+    blueprintMarkdown: null,
+    repoFolder: '/stored/vega',
+    autoCommit: false
+  } as unknown as Project
+
+  function renderProject(draft: RecordDraft): VueWrapper {
+    wrapper = mount(RecordDialog, { attachTo: document.body, props: { draft }, global: { plugins: [pinia] } })
+    return wrapper
+  }
+
+  it('creates the project with the folder that was typed', async () => {
+    const store = useConsoleStore()
+    store.createProject = vi.fn().mockResolvedValue({ id: 'p9' } as Project)
+    const dialog = renderProject({ ...projectDraft('c1' as CompanyId), title: 'Vega', label: 'vega' } as RecordDraft)
+
+    await dialog.get('[data-testid="record-project-folder"]').setValue('  /work/vega  ')
+    await dialog.get('[data-testid="record-save"]').trigger('click')
+    await flushPromises()
+
+    expect(store.createProject).toHaveBeenCalledWith(expect.objectContaining({ repoFolder: '/work/vega' }))
+  })
+
+  it('creates the project without a folder when the field is left blank', async () => {
+    const store = useConsoleStore()
+    store.createProject = vi.fn().mockResolvedValue({ id: 'p9' } as Project)
+    const dialog = renderProject({ ...projectDraft('c1' as CompanyId), title: 'Vega', label: 'vega' } as RecordDraft)
+
+    await dialog.get('[data-testid="record-save"]').trigger('click')
+    await flushPromises()
+
+    expect(store.createProject).toHaveBeenCalledWith(expect.objectContaining({ repoFolder: null }))
+  })
+
+  it('does not ask for the folder when an existing project is edited, and keeps the stored one', async () => {
+    const store = useConsoleStore()
+    store.projects = [existing]
+    store.updateProject = vi.fn().mockResolvedValue(undefined)
+    const dialog = renderProject(projectDraft('c1' as CompanyId, existing))
+
+    expect(dialog.find('[data-testid="record-project-folder"]').exists()).toBe(false)
+    await dialog.get('[data-testid="record-save"]').trigger('click')
+    await flushPromises()
+
+    expect(store.updateProject).toHaveBeenCalledWith('p1', expect.objectContaining({ repoFolder: '/stored/vega' }))
+  })
+})
+
 describe('RecordDialog company logo', () => {
   const acme: Company = {
     id: 'c1' as CompanyId,
@@ -205,38 +261,85 @@ describe('RecordDialog identity fields', () => {
     return wrapper
   }
 
-  it('fills the label from the title until the label is typed in', async () => {
+  it('has no label to type for a task: its code is assigned', () => {
     const dialog = renderNewTask()
 
-    await dialog.get('[data-testid="record-title"]').setValue('Report Builder')
-    expect((dialog.get('[data-testid="record-label"]').element as HTMLInputElement).value).toBe('report-builder')
-
-    await dialog.get('[data-testid="record-label"]').setValue('rb')
-    await dialog.get('[data-testid="record-title"]').setValue('Report Builder v2')
-    expect((dialog.get('[data-testid="record-label"]').element as HTMLInputElement).value).toBe('rb')
+    expect(dialog.find('[data-testid="record-label"]').exists()).toBe(false)
   })
 
-  it('previews the anchor the record will load under, parent first', async () => {
-    const dialog = renderNewTask()
-
-    await dialog.get('[data-testid="record-title"]').setValue('Report Builder')
-
-    expect(dialog.get('[data-testid="anchor-preview"]').text()).toContain('project:vega task:report-builder')
-  })
-
-  it('warns that renaming the label moves the anchor of an existing record', async () => {
+  it('previews the code the task will get: its project’s key and the next number', async () => {
     const store = useConsoleStore()
-    store.projects = [{ id: projectId, anchor: 'project:vega' } as Project]
+    store.projects = [{ id: projectId, anchor: 'project:vega', taskKey: 'VG' } as Project]
+    store.tasks = [{ id: 't1', projectId, code: 'VG-4' } as Task, { id: 't2', projectId, code: 'VG-2' } as Task]
     wrapper = mount(RecordDialog, {
       attachTo: document.body,
-      props: { draft: { ...taskDraft(projectId), id: 't1', title: 'Report', label: 'report' } as RecordDraft },
+      props: { draft: taskDraft(projectId) },
+      global: { plugins: [pinia] }
+    })
+
+    expect(wrapper.get('[data-testid="anchor-preview"]').text()).toContain('task:VG-5')
+  })
+
+  it('shows the code a task already has, whatever the project holds after it', () => {
+    const store = useConsoleStore()
+    const stored = { id: 't1', projectId, code: 'VG-2' } as Task
+    store.projects = [{ id: projectId, anchor: 'project:vega', taskKey: 'VG' } as Project]
+    store.tasks = [stored, { id: 't9', projectId, code: 'VG-9' } as Task]
+    wrapper = mount(RecordDialog, {
+      attachTo: document.body,
+      props: { draft: { ...taskDraft(projectId, stored), id: 't1' } as RecordDraft },
+      global: { plugins: [pinia] }
+    })
+
+    expect(wrapper.get('[data-testid="anchor-preview"]').text()).toContain('task:VG-2')
+  })
+
+  it('fills a project’s label from its title until the label is typed in', async () => {
+    wrapper = mount(RecordDialog, { attachTo: document.body, props: { draft: projectDraft('c1' as CompanyId) }, global: { plugins: [pinia] } })
+
+    await wrapper.get('[data-testid="record-title"]').setValue('Report Builder')
+    expect((wrapper.get('[data-testid="record-label"]').element as HTMLInputElement).value).toBe('report-builder')
+
+    await wrapper.get('[data-testid="record-label"]').setValue('rb')
+    await wrapper.get('[data-testid="record-title"]').setValue('Report Builder v2')
+    expect((wrapper.get('[data-testid="record-label"]').element as HTMLInputElement).value).toBe('rb')
+  })
+
+  it('takes a project’s task key as two to four capital letters, whatever is typed', async () => {
+    wrapper = mount(RecordDialog, { attachTo: document.body, props: { draft: projectDraft('c1' as CompanyId) }, global: { plugins: [pinia] } })
+
+    await wrapper.get('[data-testid="record-key"]').setValue('r2k-12x')
+
+    expect((wrapper.get('[data-testid="record-key"]').element as HTMLInputElement).value).toBe('RKX')
+  })
+
+  it('sends the task key typed, and nothing when it is left empty', async () => {
+    const store = useConsoleStore()
+    store.createProject = vi.fn().mockResolvedValue({ id: 'p9' } as Project)
+    store.setProjectIconImage = vi.fn().mockResolvedValue(undefined)
+    wrapper = mount(RecordDialog, {
+      attachTo: document.body,
+      props: { draft: { ...projectDraft('c1' as CompanyId), title: 'Vega', label: 'vega', taskKey: 'VG' } },
+      global: { plugins: [pinia] }
+    })
+
+    await wrapper.get('[data-testid="record-save"]').trigger('click')
+    await flushPromises()
+
+    expect(store.createProject).toHaveBeenCalledWith(expect.objectContaining({ label: 'vega', taskKey: 'VG' }))
+  })
+
+  it('warns that renaming the label moves the anchor of an existing project', async () => {
+    wrapper = mount(RecordDialog, {
+      attachTo: document.body,
+      props: { draft: { ...projectDraft('c1' as CompanyId), id: 'p1', title: 'Vega', label: 'vega' } as RecordDraft },
       global: { plugins: [pinia] }
     })
     expect(wrapper.find('[data-testid="rename-warning"]').exists()).toBe(false)
 
-    await wrapper.get('[data-testid="record-label"]').setValue('report-builder')
+    await wrapper.get('[data-testid="record-label"]').setValue('vega-platform')
 
-    expect(wrapper.get('[data-testid="rename-warning"]').text()).toContain('task:report')
+    expect(wrapper.get('[data-testid="rename-warning"]').text()).toContain('project:vega')
   })
 
   it('refuses to save without a title and says why', async () => {
@@ -264,7 +367,7 @@ describe('RecordDialog task tag and keys', () => {
     await dialog.get('[data-testid="record-save"]').trigger('click')
     await flushPromises()
 
-    expect(store.createTask).toHaveBeenCalledWith(expect.objectContaining({ tagId: 'g1', label: 'report-builder' }))
+    expect(store.createTask).toHaveBeenCalledWith(expect.objectContaining({ tagId: 'g1' }))
   })
 
   it('closes on Escape', async () => {

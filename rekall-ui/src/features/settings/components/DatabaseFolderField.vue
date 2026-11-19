@@ -131,7 +131,7 @@ defineExpose({ focus: () => input.value?.focus() })
             data-testid="database-folder-input"
             placeholder="/Users/you/Documents/rekall"
             aria-describedby="database-folder-help"
-            class="field text-text h-10 w-full rounded-control pl-9 pr-3.5 font-mono text-body"
+            class="field text-text h-(--spacing-control) w-full rounded-control pl-9 pr-3.5 font-mono text-body"
             :aria-invalid="hint?.tone === 'danger' ? 'true' : undefined"
             @input="onInput(($event.target as HTMLInputElement).value)"
             @keydown.enter="submit"

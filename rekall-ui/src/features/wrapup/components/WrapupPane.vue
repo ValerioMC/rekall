@@ -5,7 +5,6 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
-import LaunchClaudeCodeButton from '@/features/claude/components/LaunchClaudeCodeButton.vue'
 import WrapupHereDialog from '@/features/wrapup/components/WrapupHereDialog.vue'
 import WrapupFreshnessTag from '@/features/wrapup/components/WrapupFreshnessTag.vue'
 import WrapupVersionsPanel from '@/features/wrapup/components/WrapupVersionsPanel.vue'
@@ -17,7 +16,11 @@ import { useOpenSession } from '@/features/claude/composables/useOpenSession'
 import { useEditorMode } from '@/composables/useEditorMode'
 import { relativeTime } from '@/common/format/relative-time'
 import { rkWrapupCommand } from '@/common/format/rk-command'
-import { WRAPUP_AUTHOR_LABEL, isEpic } from '@/features/catalog/model/catalog'
+import { WRAPUP_AUTHOR_LABEL } from '@/features/wrapup/model/wrapup'
+import { isEpic } from '@/features/catalog/model/catalog'
+
+/** On the task page the title is already above the tabs, so the pane keeps only its actions. */
+defineProps<{ embedded?: boolean }>()
 
 const store = useConsoleStore()
 const terminals = useTerminalStore()
@@ -109,28 +112,21 @@ async function sendWrapupHere(message: string): Promise<void> {
 </script>
 
 <template>
-  <section class="flex min-h-0 flex-1 flex-col bg-canvas" aria-label="Wrapup">
+  <section class="flex min-h-0 min-w-0 flex-1 flex-col bg-canvas" aria-label="Wrapup">
     <p v-if="!selectedTask" class="px-9 py-12 text-body text-text-muted">
       Pick a task to see what it currently is.
     </p>
 
     <template v-else>
       <header class="flex shrink-0 items-start gap-3.5 border-b border-border px-5 py-3.5">
-        <div class="min-w-0 flex-1">
+        <div v-if="!embedded" class="min-w-0 flex-1">
           <p class="eyebrow flex items-center gap-1.5">
             <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
             Wrapup
           </p>
           <TaskTitleRow :task="selectedTask" copy-testid="copy-wrapup-anchor" />
         </div>
-
-        <LaunchClaudeCodeButton
-          v-if="!isEpic(selectedTask)"
-          class="shrink-0"
-          :anchors="selectedTask.anchor"
-          :folder="selectedTask.projectRepoFolder"
-          missing-hint="Set this project's folder on its page to open a session from it"
-        />
+        <span v-else class="flex-1" />
 
         <AppButton
           v-if="liveTerminal"
@@ -204,7 +200,7 @@ async function sendWrapupHere(message: string): Promise<void> {
 
         <span
           v-if="wrapupIsBehind > 0"
-          class="inline-flex items-center gap-1.5 rounded-full bg-warn-soft px-2 py-0.5 text-caption text-warn"
+          class="inline-flex items-center gap-1.5 rounded-key bg-warn-soft px-2 py-0.5 text-caption text-warn"
         >
           <span class="size-[5px] shrink-0 rounded-full bg-warn" aria-hidden="true" />
           {{ wrapupIsBehind }} note{{ wrapupIsBehind === 1 ? ' is' : 's are' }} newer than this
@@ -218,7 +214,7 @@ async function sendWrapupHere(message: string): Promise<void> {
         @restored="adoptRestoredWrapup"
       />
 
-      <div v-else-if="!selectedWrapup && !isDrafting" class="min-h-0 flex-1 overflow-y-auto">
+      <div v-else-if="!selectedWrapup && !isDrafting" class="min-h-0 flex-1 page-scroll">
         <div class="max-w-[560px] px-9 py-12">
           <p class="eyebrow">
             Wrapup
@@ -254,7 +250,7 @@ async function sendWrapupHere(message: string): Promise<void> {
         >
           This saves itself. Describe the state, not the session.
         </p>
-        <div class="min-h-0 flex-1 overflow-y-auto p-4">
+        <div class="min-h-0 flex-1 page-scroll p-4">
           <Transition name="fade-quick" mode="out-in">
             <AppMarkdownEditor
               v-if="mode === 'write'"
@@ -264,7 +260,7 @@ async function sendWrapupHere(message: string): Promise<void> {
               :path-root="selectedTask?.projectRepoFolder"
               @update:model-value="scheduleSave"
             />
-            <AppMarkdownEditor v-else key="read" :model-value="draft" readonly />
+            <AppMarkdownEditor v-else key="read" :model-value="draft" readonly :read-settings="!embedded" />
           </Transition>
         </div>
       </div>

@@ -3,20 +3,19 @@
 //! configured once for an instance, or for a group on it, reaches every repository under it.
 
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use rekall_kernel::{jstr, Id, InternalFailure, RekallError, Result};
+use rekall_kernel::{Id, InternalFailure, RekallError, Result};
 use rekall_store::{external_connection, project_connection, ConnectionKind, Slug};
 use rekall_core::commit::GitRepositoryInspector;
 use rekall_core::{in_write, Ctx, Tx};
 
 use crate::connection::rule::connection_rules::first_free_label;
 use crate::connection::rule::repository_match_rules::connection_at;
-use crate::connection::support::repository_folders::repositories_under;
 use crate::connection::support::repository_origin::RepositoryOrigin;
 use crate::connection::{ConnectionService, DiscoveredRepositoryView, DiscoveryOutcome, ProjectConnectionService, RepositoryDiscoveryView};
 use crate::catalog::ProjectService;
-use crate::component::{folder_name, ProjectComponentCatalogService};
+use crate::component::{folder_name, project_root, repositories_under, ProjectComponentCatalogService};
 
 #[derive(Clone)]
 pub struct RepositoryDiscoveryService {
@@ -58,7 +57,7 @@ impl RepositoryDiscoveryService {
     /// The folder is walked and each origin read before the transaction opens.
     pub async fn discover(&self, project_id: Id) -> Result<RepositoryDiscoveryView> {
         let project = self.projects.get(project_id).await?;
-        let root = root_folder(project.repo_folder.as_deref())?;
+        let root = project_root(project.repo_folder.as_deref())?;
         let found = self.found_under(&root).await?;
         in_write!(&self.ctx, |tx| {
             let git_hosts = self.connections.list_in(&tx, project.company_id).await?.into_iter().filter(|connection| hosts_git(connection.kind)).collect();
@@ -124,17 +123,6 @@ impl RepositoryDiscoveryService {
         run.bindings.push((binding.clone(), connection));
         Ok(binding)
     }
-}
-
-fn root_folder(repo_folder: Option<&str>) -> Result<PathBuf> {
-    let Some(folder) = repo_folder.filter(|folder| !jstr::is_blank(folder)) else {
-        return Err(RekallError::illegal("This project has no folder yet. Set it before looking for its repositories."));
-    };
-    let root = PathBuf::from(jstr::strip(folder));
-    if !root.is_dir() {
-        return Err(RekallError::illegal(format!("{} is not a folder on this machine.", root.display())));
-    }
-    Ok(root)
 }
 
 fn hosts_git(kind: ConnectionKind) -> bool {

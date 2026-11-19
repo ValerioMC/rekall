@@ -1,4 +1,5 @@
 use super::*;
+use crate::wrapup::{Freshness, WrapupView};
 use rekall_kernel::{Id, Instant};
 use rekall_store::WrapupAuthor;
 
@@ -7,10 +8,10 @@ fn wrapup() -> WrapupView {
     WrapupView {
         id: Id::random(),
         task_id: Id::random(),
-        task_label: "export".into(),
+        task_code: "export".into(),
         task_title: "Export".into(),
         project_label: "vega".into(),
-        anchor: "project:vega task:export".into(),
+        anchor: "task:EXPORT".into(),
         body_markdown: "State.".into(),
         written_by: WrapupAuthor::Claude,
         created_at: now,

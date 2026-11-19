@@ -11,13 +11,14 @@ function render(markdown: string): string {
   return md.render(markdown)
 }
 
-function component(name: string, folder = 'services/auth', description = 'Issues tokens.'): ProjectComponent {
+function component(name: string, folder = 'services/auth', summary = 'Issues tokens.'): ProjectComponent {
   return {
     id: name as ProjectComponentId,
     projectId: 'p-1' as ProjectId,
     name,
     folder,
-    description,
+    summary,
+    description: '',
     position: 0,
     createdAt: '2026-10-08T10:00:00Z',
     updatedAt: '2026-10-08T10:00:00Z'
@@ -65,7 +66,7 @@ describe('componentNameKey', () => {
 })
 
 describe('paintComponentReferences', () => {
-  it('marks a known component found and gives its folder and description on hover', () => {
+  it('marks a known component found and gives its folder and summary on hover', () => {
     const [chip] = chipsOf('[[auth service]]', [component('Auth Service')])
 
     expect(chip?.dataset['state']).toBe('found')
@@ -99,7 +100,7 @@ describe('paintComponentReferences', () => {
     expect(page.querySelector<HTMLElement>('.rk-component-ref')?.dataset['state']).toBe('missing')
   })
 
-  it('cuts a long description in the hover text', () => {
+  it('cuts a long summary in the hover text', () => {
     const [chip] = chipsOf('[[Auth Service]]', [component('Auth Service', 'a', 'x'.repeat(400))])
 
     expect(chip?.title.endsWith('…')).toBe(true)

@@ -1,6 +1,6 @@
 use axum::Router;
 
-use super::{controller::company_controller, controller::company_logo_controller, controller::project_controller, controller::project_icon_controller, controller::task_controller};
+use super::{controller::company_controller, controller::company_logo_controller, controller::project_controller, controller::project_icon_controller, controller::task_controller, controller::task_epic_conversion_controller};
 use crate::ApiState;
 
 /// Every route of this domain.
@@ -11,4 +11,5 @@ pub fn routes() -> Router<ApiState> {
         .merge(project_controller::routes())
         .merge(project_icon_controller::routes())
         .merge(task_controller::routes())
+        .merge(task_epic_conversion_controller::routes())
 }

@@ -2,8 +2,10 @@
 
 mod command;
 mod service;
+mod support;
 
 pub use service::project_component_catalog_service::ProjectComponentCatalogService;
 pub use command::project_component_command::ProjectComponentCommand;
 pub use command::project_component_order_command::ProjectComponentOrderCommand;
 pub(crate) use service::project_component_catalog_service::folder_name;
+pub(crate) use support::repository_folders::{project_root, repositories_under};

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { codedTitle } from '@/features/catalog/model/task-code'
+import { formatDate, formatTimeOfDay } from '@/common/format/app-locale'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
@@ -8,7 +10,8 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useNow } from '@/composables/useNow'
 import { formatDuration } from '@/common/format/duration'
 import AppDialog from '@/components/ui/AppDialog.vue'
-import type { Task, TimeEntry } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TimeEntry } from '@/features/time/model/time-entry'
 import type { TimeEntryId } from '@/model/branded'
 
 const props = defineProps<{ task: Task; entries: readonly TimeEntry[] }>()
@@ -35,7 +38,7 @@ function fromLocalInput(value: string): string {
 }
 
 function timeOf(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  return formatTimeOfDay(new Date(iso))
 }
 
 function dayLabel(iso: string): string {
@@ -47,7 +50,7 @@ function dayLabel(iso: string): string {
     a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
   if (sameDay(d, today)) return 'Today'
   if (sameDay(d, yesterday)) return 'Yesterday'
-  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+  return formatDate(d)
 }
 
 const groups = computed(() => {
@@ -112,7 +115,7 @@ onMounted(async () => {
 
 <template>
   <AppDialog
-    :label="`Time on ${task.title}`"
+    :label="`Time on ${codedTitle(task)}`"
     panel-class="flex flex-col max-h-[80vh] max-w-[520px]"
     panel-testid="time-log-dialog"
     @dismiss="emit('close')"
@@ -120,7 +123,7 @@ onMounted(async () => {
     <header class="flex items-center gap-3 border-b border-border px-6 py-4">
       <span class="min-w-0 flex-1">
         <span class="block text-title font-semibold tracking-[-0.01em] text-text">
-          Time on {{ task.title }}
+          Time on {{ codedTitle(task) }}
         </span>
         <span class="block truncate font-mono text-caption text-anchor/80">{{ task.anchor }}</span>
       </span>

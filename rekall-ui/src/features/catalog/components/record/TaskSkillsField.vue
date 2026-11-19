@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import SkillField from '@/features/skills/components/SkillField.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import { skillsOfTag } from '@/features/skills/model/skill-assignment'
+import { skillsOfTag, type SkillAssignment } from '@/features/skills/model/skill-assignment'
 import type { TagId } from '@/model/branded'
 
 /**
@@ -12,7 +12,7 @@ import type { TagId } from '@/model/branded'
  */
 const props = defineProps<{ tagId: TagId | null }>()
 
-const skills = defineModel<readonly string[]>({ required: true })
+const skills = defineModel<readonly SkillAssignment[]>({ required: true })
 
 const { tagSkills } = storeToRefs(useConsoleStore())
 const fromTag = computed(() => skillsOfTag(props.tagId, tagSkills.value))

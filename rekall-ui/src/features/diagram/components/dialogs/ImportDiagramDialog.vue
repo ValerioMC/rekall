@@ -69,7 +69,7 @@ onMounted(async () => {
     <div class="flex flex-col gap-4 px-5 py-4">
       <label class="block">
         <span class="eyebrow mb-1.5 block text-caption">Title</span>
-        <input ref="field" v-model="title" class="field h-9 w-full rounded-control px-3 text-body text-text" placeholder="Order checkout" data-testid="import-title" />
+        <input ref="field" v-model="title" class="field h-8 w-full rounded-control px-3 text-body text-text" placeholder="Order checkout" data-testid="import-title" />
       </label>
       <div class="grid grid-cols-2 gap-3">
         <label class="block min-w-0">

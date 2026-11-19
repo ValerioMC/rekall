@@ -12,6 +12,7 @@ export function project(id: ProjectId, label: string, repoFolder: string | null 
   return {
     id,
     label,
+    taskKey: 'PR',
     title: label[0]!.toUpperCase() + label.slice(1),
     status: 'ACTIVE',
     icon: 'folder',
@@ -19,7 +20,7 @@ export function project(id: ProjectId, label: string, repoFolder: string | null 
     description: null,
     blueprintMarkdown: null,
     repoFolder,
-    autoCommit: false,
+    autoCommit: false, mainBranch: null, pullRequestFlow: false,
     companyId: 'c-acme' as CompanyId,
     companyName: 'acme',
     taskCount: 1,
@@ -31,6 +32,7 @@ export function project(id: ProjectId, label: string, repoFolder: string | null 
 export function task(id: TaskId, label: string, projectId: ProjectId): Task {
   return {
     id,
+    code: label,
     label,
     title: 'Report builder',
     status: 'IN_PROGRESS',
@@ -56,7 +58,7 @@ export function task(id: TaskId, label: string, projectId: ProjectId): Task {
     graphLaidAt: null,
     releaseSkipped: false,
     kind: 'TASK',
-    epicId: null, quick: false, autoAccepted: false, dependsOn: [],
+    epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, trackerContentSynced: true, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
     anchor: `project:vega task:${label}`,
     updatedAt: '2026-10-01T10:00:00Z'
   }

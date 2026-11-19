@@ -1,6 +1,11 @@
 pub(super) mod auto_commit_outcome;
 pub(super) mod auto_commit_status;
+pub(super) mod body_wrapping;
+pub(super) mod change_classification;
 pub(super) mod commit_message_generator;
+pub(super) mod markdown_plain_text;
+pub(super) mod repository_target;
 pub(super) mod subject;
 pub(super) mod work_tree_snapshot;
 pub(super) mod session_changes;
+pub(super) mod unified_diff;

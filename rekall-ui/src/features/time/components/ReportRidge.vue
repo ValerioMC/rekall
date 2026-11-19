@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/common/format/app-locale'
 import { computed } from 'vue'
+import { usePreferencesStore } from '@/features/settings/store/preferences.store'
 import { identityHue } from '@/common/identity'
 import { formatDuration } from '@/common/format/duration'
 import { capitalised } from '@/features/time/lib/month-grid'
@@ -11,13 +13,14 @@ const props = defineProps<{
   period: ReportPeriod
 }>()
 
-const FULL_DAY_SECONDS = 8 * 3600
+const preferences = usePreferencesStore()
+const fullDaySeconds = computed(() => preferences.workdayGoalHours * 3600)
 
 const peak = computed(() =>
-  Math.max(FULL_DAY_SECONDS, ...props.days.map((day) => day.totalSeconds))
+  Math.max(fullDaySeconds.value, ...props.days.map((day) => day.totalSeconds))
 )
 
-const fullDayLine = computed(() => `${(FULL_DAY_SECONDS / peak.value) * 100}%`)
+const fullDayLine = computed(() => `${(fullDaySeconds.value / peak.value) * 100}%`)
 
 const barWidth = computed(() => (props.period === 'week' ? '46%' : '78%'))
 
@@ -25,9 +28,9 @@ const columns = computed(() =>
   props.days.map((day) => ({
     day,
     isWeekend: day.date.getDay() === 0 || day.date.getDay() === 6,
-    weekday: capitalised(day.date.toLocaleDateString(undefined, { weekday: 'short' })),
+    weekday: capitalised(day.date.toLocaleDateString(APP_LOCALE, { weekday: 'short' })),
     dayNumber: day.date.getDate(),
-    label: `${day.date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}: ${formatDuration(day.totalSeconds)}`,
+    label: `${day.date.toLocaleDateString(APP_LOCALE, { weekday: 'long', day: 'numeric', month: 'long' })}: ${formatDuration(day.totalSeconds)}`,
     segments: day.byCompany.map((slice) => ({
       companyId: slice.companyId,
       height: `${(slice.seconds / peak.value) * 100}%`,
@@ -44,8 +47,8 @@ const columns = computed(() =>
         class="absolute inset-x-0 border-t border-dashed border-border-strong"
         :style="{ bottom: fullDayLine }"
       >
-        <span class="absolute right-0 top-0 -translate-y-1/2 rounded-full border border-border bg-surface px-1.5 font-mono text-micro leading-[15px] text-text-muted">
-          8h
+        <span class="absolute right-0 top-0 -translate-y-1/2 rounded-key border border-border bg-surface px-1.5 font-mono text-micro leading-[15px] text-text-muted">
+          {{ preferences.workdayGoalHours }}h
         </span>
       </div>
       <div class="absolute inset-x-0 bottom-0 border-t border-border" />

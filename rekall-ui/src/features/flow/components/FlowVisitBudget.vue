@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 
 /**
  * How many times the flow may enter one step. A session moving into a step whose budget is spent

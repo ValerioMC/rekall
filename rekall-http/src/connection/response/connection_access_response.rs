@@ -12,7 +12,7 @@ pub struct ConnectionAccessResponse {
     pub reason: Option<String>,
     pub terminal_id: String,
     pub task_id: Option<Id>,
-    pub task_label: Option<String>,
+    pub task_code: Option<String>,
     pub task_title: Option<String>,
 }
 
@@ -25,7 +25,7 @@ impl From<ConnectionAccessView> for ConnectionAccessResponse {
             reason: view.reason,
             terminal_id: view.terminal_id,
             task_id: view.task_id,
-            task_label: view.task_label,
+            task_code: view.task_code,
             task_title: view.task_title,
         }
     }

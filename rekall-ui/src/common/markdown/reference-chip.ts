@@ -2,6 +2,7 @@ import { componentNameKey, componentTitle, missingComponentTitle } from '@/commo
 import { connectionReferenceLabel, connectionTitle, missingConnectionTitle } from '@/common/markdown/connection-reference'
 import type { ReferenceIcon } from '@/common/markdown/reference-completion-icon'
 import { missingTaskTitle, taskReferenceLabel, taskTitle } from '@/common/markdown/task-reference'
+import { namesTask } from '@/features/catalog/model/task-code'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { ProjectConnection } from '@/features/connection/model/connection'
 import type { ProjectComponent } from '@/features/project/model/project-component'
@@ -52,7 +53,7 @@ function connectionChip(label: string, connections: readonly ProjectConnection[]
 
 function taskChip(label: string, tasks: readonly Task[] | null): ReferenceChip | null {
   if (tasks === null) return null
-  const found = tasks.find((task) => task.label.toLowerCase() === label.toLowerCase())
+  const found = tasks.find((task) => namesTask(task, label))
   return found
     ? { text: label, title: taskTitle(found), icon: 'task', missing: false }
     : { text: label, title: missingTaskTitle(label), icon: 'task', missing: true }

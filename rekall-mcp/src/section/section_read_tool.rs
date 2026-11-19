@@ -1,8 +1,9 @@
 use async_trait::async_trait;
 use rekall_core::section::{ProjectSectionService, SectionsRead};
+use rekall_core::ProjectRef;
 use serde_json::Value;
 
-use crate::tool::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
+use crate::tool::{told, Anchor, AnchoredProject, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
 use crate::protocol::{McpTool, ToolError, ToolSchema};
 use crate::texts;
 
@@ -20,8 +21,8 @@ impl SectionReadTool {
 
 /// Where to read: a project alone, or a task whose project it is.
 struct ReadTarget {
-    project_label: Option<String>,
-    task_label: Option<String>,
+    project: Option<ProjectRef>,
+    task_code: Option<String>,
 }
 
 #[async_trait]
@@ -38,7 +39,7 @@ impl McpTool for SectionReadTool {
         ToolSchema::object()
             .required_string(
                 "anchors",
-                "The project, `project:vega`, or a task and its project, `project:vega task:report-builder`. Labels, \
+                "The project, `project:vega`, or a task and its project, `task:RK-12`. Labels, \
                  never titles.",
             )
             .optional_string(
@@ -51,10 +52,10 @@ impl McpTool for SectionReadTool {
     async fn execute(&self, arguments: Option<&Value>) -> Result<String, ToolError> {
         let args = Arguments::of(arguments);
         let target = target_of(&Anchor::parse_all(Some(&args.required_string("anchors")?))?)?;
-        let hint = if target.task_label.is_some() { QUALIFY_WITH_PROJECT } else { "" };
+        let hint = if target.task_code.is_some() { QUALIFY_WITH_PROJECT } else { "" };
         let read = self
             .sections
-            .read(target.project_label.as_deref(), target.task_label.as_deref(), args.optional_string("title").as_deref())
+            .read(target.project.as_ref(), target.task_code.as_deref(), args.optional_string("title").as_deref())
             .await
             .map_err(|e| told(e, hint))?;
         Ok(report(&read))
@@ -64,14 +65,14 @@ impl McpTool for SectionReadTool {
 fn target_of(anchors: &[Anchor]) -> Result<ReadTarget, ToolError> {
     if anchors.iter().any(|anchor| anchor.is("task") || !anchor.is_qualified()) {
         let task = AnchoredTask::from(anchors)?;
-        return Ok(ReadTarget { project_label: task.project_label, task_label: Some(task.task_label) });
+        return Ok(ReadTarget { project: task.project_label.as_deref().map(ProjectRef::bare), task_code: Some(task.task_code) });
     }
-    match anchors {
-        [project] if project.is("project") => {
-            Ok(ReadTarget { project_label: Some(project.value.clone()), task_label: None })
-        }
-        _ => Err(ToolError::Failure(
-            "Sections belong to one project: pass `project:<label>` or `project:<label> task:<label>`.".into(),
+    match AnchoredProject::alone(anchors) {
+        Some(project) => Ok(ReadTarget { project: Some(project), task_code: None }),
+        None => Err(ToolError::Failure(
+            "Sections belong to one project: pass `project:<label>` or `project:<label> task:<code>`, with \
+             `company:<name>` beside the label when two companies share it."
+                .into(),
         )),
     }
 }

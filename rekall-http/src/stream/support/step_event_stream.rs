@@ -81,6 +81,7 @@ impl StepEventStream {
         }
     }
 
+    #[cfg(test)]
     pub fn client_count(&self) -> usize {
         self.clients.lock().map(|c| c.len()).unwrap_or(0)
     }

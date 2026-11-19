@@ -57,7 +57,7 @@ const missingFolder = computed(() => project.value !== null && !project.value.re
 const ready = computed(() => project.value !== null && !missingFolder.value && request.value.trim().length > 0 && !props.sending)
 
 const preview = computed(() => {
-  const anchors = [project.value ? `project:${project.value.label}` : 'project:…', task.value ? `task:${task.value.label}` : null].filter(Boolean).join(' ')
+  const anchors = [project.value ? `project:${project.value.label}` : 'project:…', task.value ? `task:${task.value.code}` : null].filter(Boolean).join(' ')
   const said = request.value.trim().replace(/\s+/g, ' ').replace(/"/g, "'") || '…'
   return `/rk ${anchors} explain "${said}"`
 })
@@ -136,7 +136,7 @@ onUnmounted(() => window.removeEventListener('keydown', submitOnModEnter, true))
       </p>
 
       <p class="anchor-chip flex items-center gap-2 truncate px-2.5 py-1.5 text-caption" data-testid="explain-preview">
-        <span class="shrink-0 opacity-60">&gt;</span>
+        <span class="shrink-0 opacity-80">&gt;</span>
         <span class="min-w-0 flex-1 truncate">{{ preview }}</span>
       </p>
     </div>

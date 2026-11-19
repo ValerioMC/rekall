@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 
 use super::*;
-use crate::worktree::{BranchReview, MergeOutcome, Worktree, WorktreeStatus};
+use crate::worktree::{BranchReview, MergeOutcome, PushOutcome, Worktree, WorktreeStatus};
 
 struct FakeHost {
     worktrees: Vec<(Worktree, bool)>,
@@ -13,7 +13,7 @@ struct FakeHost {
 
 #[async_trait]
 impl WorktreeHost for FakeHost {
-    async fn create(&self, _: &Path, _: &str, _: &Path) -> Result<Worktree> {
+    async fn create(&self, _: &Path, _: &str, _: &Path, _: &str) -> Result<Worktree> {
         unreachable!("reclaiming never creates")
     }
 
@@ -26,12 +26,16 @@ impl WorktreeHost for FakeHost {
         Ok(self.worktrees.iter().map(|(worktree, _)| worktree.clone()).collect())
     }
 
-    async fn review_branch(&self, _: &Path, _: &str, _: Option<&Path>) -> Result<Option<BranchReview>> {
+    async fn review_branch(&self, _: &Path, _: &str, _: Option<&Path>, _: &str) -> Result<Option<BranchReview>> {
         unreachable!("reclaiming never reviews a branch")
     }
 
-    async fn merge_branch(&self, _: &Path, _: &str) -> Result<MergeOutcome> {
+    async fn merge_branch(&self, _: &Path, _: &str, _: &str) -> Result<MergeOutcome> {
         unreachable!("reclaiming never merges")
+    }
+
+    async fn push_branch(&self, _: &Path, _: &str) -> Result<PushOutcome> {
+        unreachable!("reclaiming never pushes")
     }
 
     async fn status(&self, worktree: &Worktree) -> Result<WorktreeStatus> {

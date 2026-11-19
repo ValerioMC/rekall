@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, useId, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, useId } from 'vue'
 import { MdEditor, MdPreview, NormalToolbar, type ExposeParam, type ToolbarNames } from 'md-editor-v3'
 import '@/common/config/markdown-editor'
 import PathPicker from '@/components/ui/PathPicker.vue'
-import ReadModeSettings from '@/components/ui/ReadModeSettings.vue'
+import TaskWidthMenu from '@/features/task/components/TaskWidthMenu.vue'
+import { usePreferencesStore } from '@/features/settings/store/preferences.store'
+import { columnMaxWidth } from '@/features/task/model/task-width'
 import ReadSearchBar from '@/components/ui/ReadSearchBar.vue'
 import TableContextMenu from '@/components/ui/TableContextMenu.vue'
 import { componentCompletion } from '@/common/markdown/component-completion'
@@ -15,13 +17,13 @@ import { paintTaskReferences } from '@/common/markdown/task-reference'
 import { useReferenceChips } from '@/composables/useReferenceChips'
 import { useEditorPathPicker } from '@/composables/useEditorPathPicker'
 import { useFittedEditorHeight } from '@/composables/useFittedEditorHeight'
+import { useMermaidFences } from '@/composables/useMermaidFences'
 import { useReadModeSearch } from '@/composables/useReadModeSearch'
 import { useReferenceWidgets } from '@/composables/useReferenceWidgets'
 import { useTableContextMenu } from '@/composables/useTableContextMenu'
 import type { ProjectComponent } from '@/features/project/model/project-component'
 import type { ProjectConnection } from '@/features/connection/model/connection'
 import type { Task } from '@/features/catalog/model/catalog'
-import { readModeAlign, readModeWidth, setReadModeAlign, setReadModeWidth } from '@/common/config/read-mode'
 
 const props = withDefaults(
   defineProps<{
@@ -37,8 +39,12 @@ const props = withDefaults(
      * width and alignment they set belong to a pane-sized page, not to a card.
      */
     compact?: boolean
+    /** Puts the caret in the writing surface as it opens, for an editor the reader has just asked to write in. */
+    autofocus?: boolean
     /** Read as a message in a log: `compact`, and also without the indent that the section ticks hang into. */
     bare?: boolean
+    /** Offers the `Aa` key for the reading column's width; off where the pane sets the page width itself. */
+    readSettings?: boolean
     /** Whether the toolbar offers the page full screen, for text whose pane already gives it the room it needs. */
     pageFullscreen?: boolean
     /**
@@ -65,6 +71,8 @@ const props = withDefaults(
     placeholder: '# Contesto',
     compact: false,
     bare: false,
+    autofocus: false,
+    readSettings: true,
     pageFullscreen: true,
     pathRoot: null,
     components: null,
@@ -103,6 +111,7 @@ const tableMenu = useTableContextMenu(editor)
 const componentChips = useReferenceChips(root, () => props.components, paintComponentReferences)
 const connectionChips = useReferenceChips(root, () => props.connections, paintConnectionReferences)
 const taskChips = useReferenceChips(root, () => props.tasks, paintTaskReferences)
+const mermaidFences = useMermaidFences(root)
 
 useReferenceWidgets(editor, () => ({
   components: props.components,
@@ -114,6 +123,7 @@ function paintChips(): void {
   componentChips.paint()
   connectionChips.paint()
   taskChips.paint()
+  mermaidFences.paint()
 }
 
 // One source each for the editor's life; they read the props when asked, so a new list needs no reconfigure.
@@ -132,11 +142,8 @@ const search = useReadModeSearch(root, { enabled: () => props.readonly && !flush
 const editorId = `rekall-md-${useId()}`
 
 // The reading column's width and alignment, shared across every Read-mode pane via localStorage.
-const readWidth = ref(readModeWidth())
-const readAlign = ref(readModeAlign())
-watch(readWidth, (value) => setReadModeWidth(value))
-watch(readAlign, (value) => setReadModeAlign(value))
-const readStyle = computed(() => ({ '--rk-read-width': `${readWidth.value}px` }))
+const preferences = usePreferencesStore()
+const readStyle = computed(() => ({ '--rk-read-width': columnMaxWidth(preferences.taskWidth) }))
 
 const TOOLBARS: ToolbarNames[] = [
   'bold',
@@ -176,7 +183,6 @@ const toolbars = computed(() => (props.pageFullscreen ? TOOLBARS : TOOLBARS.filt
       'rekall-md--bare': readonly && bare
     }"
     :style="readonly && !flush ? readStyle : undefined"
-    :data-align="readonly && !flush ? readAlign : undefined"
     @keydown.capture="onEditorKeydown"
     @rk-table-menu="tableMenu.open"
   >
@@ -192,7 +198,7 @@ const toolbars = computed(() => (props.pageFullscreen ? TOOLBARS : TOOLBARS.filt
           @previous="search.previous"
           @close="search.close"
         />
-        <ReadModeSettings v-model:width="readWidth" v-model:align="readAlign" />
+        <TaskWidthMenu v-if="readSettings" v-model="preferences.taskWidth" />
       </div>
     </div>
     <MdPreview
@@ -204,6 +210,7 @@ const toolbars = computed(() => (props.pageFullscreen ? TOOLBARS : TOOLBARS.filt
       preview-theme="github"
       code-theme="atom"
       no-katex
+      no-mermaid
       no-echarts
       no-img-zoom-in
       @on-html-changed="paintChips"
@@ -223,6 +230,7 @@ const toolbars = computed(() => (props.pageFullscreen ? TOOLBARS : TOOLBARS.filt
       :footers="['markdownTotal']"
       :style="{ height: editorHeight }"
       :placeholder="placeholder"
+      :auto-focus="autofocus"
       no-katex
       no-mermaid
       no-echarts

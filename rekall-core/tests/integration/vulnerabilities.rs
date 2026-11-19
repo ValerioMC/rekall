@@ -16,6 +16,7 @@ use rekall_core::vulnerability::{
 };
 use rekall_core::Tx;
 use sea_orm::ConnectionTrait;
+use rekall_core::ProjectRef;
 use support::{commit, git, init_with_identity, world, World};
 
 /// What the feed answers one question with.
@@ -108,7 +109,7 @@ async fn a_scan_asks_about_each_inventoried_package_and_records_what_reaches_it(
     let world = world().await;
     let vega = world.project("vega", None, false).await;
     world.project("idle", None, false).await;
-    world.services.inventory_recording.record("vega", &[declared("npm", "Left-Pad", "1.0.0"), declared("pip", "django", "4.2.0")]).await.unwrap();
+    world.services.inventory_recording.record(&ProjectRef::bare("vega"), &[declared("npm", "Left-Pad", "1.0.0"), declared("pip", "django", "4.2.0")]).await.unwrap();
     let feed = Arc::new(FakeFeed { latest: vec![advisory("GHSA-aaaa-aaaa-aaaa", Ecosystem::Maven, "log4j")], ..FakeFeed::answering(Ecosystem::Npm, Ok(vec![advisory("GHSA-bbbb-bbbb-bbbb", Ecosystem::Npm, "left-pad")])) });
 
     let report = scanner(&world, feed.clone()).scan().await.unwrap();
@@ -130,11 +131,11 @@ async fn a_scan_asks_about_each_inventoried_package_and_records_what_reaches_it(
 async fn a_scan_keeps_a_verdict_on_an_exposure_found_again_and_drops_one_no_longer_found() {
     let world = world().await;
     world.project("vega", None, false).await;
-    world.services.inventory_recording.record("vega", &[declared("npm", "left-pad", "1.0.0")]).await.unwrap();
+    world.services.inventory_recording.record(&ProjectRef::bare("vega"), &[declared("npm", "left-pad", "1.0.0")]).await.unwrap();
     let feed = Arc::new(FakeFeed::answering(Ecosystem::Npm, Ok(vec![advisory("GHSA-bbbb-bbbb-bbbb", Ecosystem::Npm, "left-pad")])));
     let scan = scanner(&world, feed.clone());
     scan.scan().await.unwrap();
-    world.services.exposures.assess("vega", Some("ghsa-bbbb-bbbb-bbbb"), Some("not_affected"), Some("Only `pad` is called, never `parse`."), Some("Vega pads strings and parses none.")).await.unwrap();
+    world.services.exposures.assess(&ProjectRef::bare("vega"), Some("ghsa-bbbb-bbbb-bbbb"), Some("not_affected"), Some("Only `pad` is called, never `parse`."), Some("Vega pads strings and parses none.")).await.unwrap();
 
     let again = scan.scan().await.unwrap();
     assert_eq!((again.new_exposures, again.open_exposures), (0, 0));
@@ -152,8 +153,8 @@ async fn a_project_the_feed_could_not_answer_for_keeps_its_exposures_and_the_res
     let world = world().await;
     world.project("alpha", None, false).await;
     world.project("beta", None, false).await;
-    world.services.inventory_recording.record("alpha", &[declared("npm", "left-pad", "1.0.0")]).await.unwrap();
-    world.services.inventory_recording.record("beta", &[declared("npm", "left-pad", "1.0.0")]).await.unwrap();
+    world.services.inventory_recording.record(&ProjectRef::bare("alpha"), &[declared("npm", "left-pad", "1.0.0")]).await.unwrap();
+    world.services.inventory_recording.record(&ProjectRef::bare("beta"), &[declared("npm", "left-pad", "1.0.0")]).await.unwrap();
     let feed = Arc::new(FakeFeed::answering(Ecosystem::Npm, Ok(vec![advisory("GHSA-bbbb-bbbb-bbbb", Ecosystem::Npm, "left-pad")])));
     let scan = scanner(&world, feed.clone());
     scan.scan().await.unwrap();
@@ -173,11 +174,11 @@ async fn a_project_the_feed_could_not_answer_for_keeps_its_exposures_and_the_res
 async fn an_inventory_without_the_package_settles_its_exposure_at_once() {
     let world = world().await;
     world.project("vega", None, false).await;
-    world.services.inventory_recording.record("vega", &[declared("npm", "left-pad", "1.0.0")]).await.unwrap();
+    world.services.inventory_recording.record(&ProjectRef::bare("vega"), &[declared("npm", "left-pad", "1.0.0")]).await.unwrap();
     let feed = Arc::new(FakeFeed::answering(Ecosystem::Npm, Ok(vec![advisory("GHSA-bbbb-bbbb-bbbb", Ecosystem::Npm, "left-pad")])));
     scanner(&world, feed).scan().await.unwrap();
 
-    let recorded = world.services.inventory_recording.record("vega", &[declared("npm", "left-pad", "2.0.0"), declared("npm", "left-pad", "2.0.0")]).await.unwrap();
+    let recorded = world.services.inventory_recording.record(&ProjectRef::bare("vega"), &[declared("npm", "left-pad", "2.0.0"), declared("npm", "left-pad", "2.0.0")]).await.unwrap();
 
     assert_eq!((recorded.written.stored, recorded.written.repeats, recorded.settled_exposures), (1, 1, 1));
     assert!(world.services.exposures.list().await.unwrap().is_empty());
@@ -188,19 +189,19 @@ async fn an_inventory_without_the_package_settles_its_exposure_at_once() {
 async fn an_assessment_names_an_advisory_that_reaches_the_project() {
     let world = world().await;
     world.project("vega", None, false).await;
-    world.services.inventory_recording.record("vega", &[declared("npm", "left-pad", "1.0.0")]).await.unwrap();
+    world.services.inventory_recording.record(&ProjectRef::bare("vega"), &[declared("npm", "left-pad", "1.0.0")]).await.unwrap();
     let feed = Arc::new(FakeFeed::answering(Ecosystem::Npm, Ok(vec![advisory("GHSA-bbbb-bbbb-bbbb", Ecosystem::Npm, "left-pad")])));
     scanner(&world, feed).scan().await.unwrap();
 
-    let refused = world.services.exposures.assess("vega", Some("GHSA-cccc-cccc-cccc"), Some("affected"), Some("It is called."), Some("Vega parses input.")).await.unwrap_err();
+    let refused = world.services.exposures.assess(&ProjectRef::bare("vega"), Some("GHSA-cccc-cccc-cccc"), Some("affected"), Some("It is called."), Some("Vega parses input.")).await.unwrap_err();
     assert!(refused.message().contains("GHSA-cccc-cccc-cccc does not reach `project:vega`") && refused.message().contains("GHSA-bbbb-bbbb-bbbb"), "{}", refused.message());
 
-    let first = world.services.exposures.assess("vega", Some("GHSA-bbbb-bbbb-bbbb"), Some("affected"), Some("`parse` runs on every request body."), Some("Vega parses every request.")).await.unwrap();
+    let first = world.services.exposures.assess(&ProjectRef::bare("vega"), Some("GHSA-bbbb-bbbb-bbbb"), Some("affected"), Some("`parse` runs on every request body."), Some("Vega parses every request.")).await.unwrap();
     assert!(!first.replaced);
-    let second = world.services.exposures.assess("vega", Some("GHSA-bbbb-bbbb-bbbb"), Some("affected"), Some("Still reached."), Some("Vega still parses every request.")).await.unwrap();
+    let second = world.services.exposures.assess(&ProjectRef::bare("vega"), Some("GHSA-bbbb-bbbb-bbbb"), Some("affected"), Some("Still reached."), Some("Vega still parses every request.")).await.unwrap();
     assert!(second.replaced);
 
-    let read = world.services.exposures.read("vega", Some("GHSA-bbbb-bbbb-bbbb")).await.unwrap();
+    let read = world.services.exposures.read(&ProjectRef::bare("vega"), Some("GHSA-bbbb-bbbb-bbbb")).await.unwrap();
     assert!(read.asked_for_one && read.inventoried);
     assert_eq!(read.exposures[0].reasoning.as_deref(), Some("Still reached."));
     assert_eq!(read.exposures[0].conclusion.as_deref(), Some("Vega still parses every request."));
@@ -211,7 +212,7 @@ async fn an_assessment_names_an_advisory_that_reaches_the_project() {
 async fn each_version_of_a_package_is_asked_about_alone_and_carries_the_release_line_its_version_is_on() {
     let world = world().await;
     world.project("vega", None, false).await;
-    world.services.inventory_recording.record("vega", &[declared("npm", "vitest", "2.1.9"), declared("npm", "vitest", "4.0.7"), declared("npm", "vitest", "4.1.2")]).await.unwrap();
+    world.services.inventory_recording.record(&ProjectRef::bare("vega"), &[declared("npm", "vitest", "2.1.9"), declared("npm", "vitest", "4.0.7"), declared("npm", "vitest", "4.1.2")]).await.unwrap();
     let mut two_lines = advisory("GHSA-5xrq-8626-4rwp", Ecosystem::Npm, "vitest");
     two_lines.packages = vec![line(Ecosystem::Npm, "vitest", ">= 4.0.0, < 4.1.0", "4.1.0"), line(Ecosystem::Npm, "vitest", "< 3.2.6", "3.2.6")];
     let feed = Arc::new(FakeFeed::answering(Ecosystem::Npm, Ok(vec![two_lines])));
@@ -241,10 +242,10 @@ async fn an_assessment_covers_every_version_it_reaches_and_tells_how_far_the_cod
     commit(repo.path(), "seed");
     let world = world().await;
     world.project("vega", Some(&repo.path().to_string_lossy()), false).await;
-    world.services.inventory_recording.record("vega", &[declared("npm", "left-pad", "1.0.0"), declared("npm", "left-pad", "1.5.0")]).await.unwrap();
+    world.services.inventory_recording.record(&ProjectRef::bare("vega"), &[declared("npm", "left-pad", "1.0.0"), declared("npm", "left-pad", "1.5.0")]).await.unwrap();
     scanner(&world, Arc::new(FakeFeed::answering(Ecosystem::Npm, Ok(vec![advisory("GHSA-bbbb-bbbb-bbbb", Ecosystem::Npm, "left-pad")])))).scan().await.unwrap();
 
-    let written = world.services.exposures.assess("vega", Some("GHSA-bbbb-bbbb-bbbb"), Some("not_affected"), Some("`parse` is never called."), Some("Vega pads strings and parses none.")).await.unwrap();
+    let written = world.services.exposures.assess(&ProjectRef::bare("vega"), Some("GHSA-bbbb-bbbb-bbbb"), Some("not_affected"), Some("`parse` is never called."), Some("Vega pads strings and parses none.")).await.unwrap();
     assert_eq!(written.versions, vec!["left-pad 1.0.0", "left-pad 1.5.0"]);
     let head = git(repo.path(), &["rev-parse", "HEAD"]);
     let judged = world.services.exposures.list().await.unwrap();
@@ -256,7 +257,7 @@ async fn an_assessment_covers_every_version_it_reaches_and_tells_how_far_the_cod
     commit(repo.path(), "call parse");
 
     assert!(world.services.exposures.list().await.unwrap().iter().all(|exposure| exposure.commits_since_assessment == Some(1)));
-    let read = world.services.exposures.read("vega", Some("GHSA-bbbb-bbbb-bbbb")).await.unwrap();
+    let read = world.services.exposures.read(&ProjectRef::bare("vega"), Some("GHSA-bbbb-bbbb-bbbb")).await.unwrap();
     assert_eq!(read.exposures.len(), 2);
     assert_eq!(read.exposures[0].commits_since_assessment, Some(1));
 }
@@ -265,7 +266,7 @@ async fn an_assessment_covers_every_version_it_reaches_and_tells_how_far_the_cod
 async fn an_exposure_its_done_fix_task_left_in_place_warns_again_and_takes_a_new_fix() {
     let world = world().await;
     let vega = world.project("vega", None, false).await;
-    world.services.inventory_recording.record("vega", &[declared("npm", "left-pad", "1.0.0")]).await.unwrap();
+    world.services.inventory_recording.record(&ProjectRef::bare("vega"), &[declared("npm", "left-pad", "1.0.0")]).await.unwrap();
     scanner(&world, Arc::new(FakeFeed::answering(Ecosystem::Npm, Ok(vec![advisory("GHSA-bbbb-bbbb-bbbb", Ecosystem::Npm, "left-pad")])))).scan().await.unwrap();
     let exposure = world.services.exposures.list().await.unwrap().remove(0);
     let task = world.task(&vega, "fix-ghsa-bbbb-bbbb-bbbb").await;
@@ -290,7 +291,7 @@ async fn an_exposure_its_done_fix_task_left_in_place_warns_again_and_takes_a_new
 async fn a_scan_asks_for_what_its_scope_holds_and_a_saved_token_is_only_ever_told_as_saved() {
     let world = world().await;
     world.project("vega", None, false).await;
-    world.services.inventory_recording.record("vega", &[declared("npm", "left-pad", "1.0.0")]).await.unwrap();
+    world.services.inventory_recording.record(&ProjectRef::bare("vega"), &[declared("npm", "left-pad", "1.0.0")]).await.unwrap();
     let settings = settings(&world);
     assert_eq!(settings.read().await.unwrap().scope, ScanScope::default());
 

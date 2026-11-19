@@ -21,7 +21,9 @@ const GLYPH: Readonly<Record<ReferenceIcon, Glyph>> = {
   GITLAB: { path: CONNECTION_KIND_PATH.GITLAB, outline: false },
   GITHUB: { path: CONNECTION_KIND_PATH.GITHUB, outline: false },
   KUBERNETES: { path: CONNECTION_KIND_PATH.KUBERNETES, outline: false },
-  JIRA: { path: CONNECTION_KIND_PATH.JIRA, outline: false }
+  JIRA: { path: CONNECTION_KIND_PATH.JIRA, outline: false },
+  CONFLUENCE: { path: CONNECTION_KIND_PATH.CONFLUENCE, outline: false },
+  GRAFANA: { path: CONNECTION_KIND_PATH.GRAFANA, outline: false }
 }
 
 /** The completion `type` that carries an icon: CodeMirror also names the row's own icon class after it. */
@@ -67,7 +69,12 @@ export function renderReferenceIcon(completion: Completion): Node | null {
   return icon ? referenceIconElement(icon) : null
 }
 
-/** Adds the glyph to every suggestion row, merged into the editor's own completion setup. */
+export const COMPLETION_TOOLTIP_CLASS = 'rk-completion-tooltip'
+
+/** Adds the glyph to every suggestion row and the class the console styles the list by, merged into the editor's own completion setup. */
 export function referenceCompletionIcons(): Extension {
-  return autocompletion({ addToOptions: [{ render: renderReferenceIcon, position: 20 }] })
+  return autocompletion({
+    addToOptions: [{ render: renderReferenceIcon, position: 20 }],
+    tooltipClass: () => COMPLETION_TOOLTIP_CLASS
+  })
 }

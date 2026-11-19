@@ -3,7 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import AppSelect, { type SelectOption } from '@/components/ui/AppSelect.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { FLOW_END, isFlowEnd, type RouteTarget } from '@/features/flow/lib/route-target'
-import type { StepLink, TaskStep } from '@/features/catalog/model/catalog'
+import type { StepLink, TaskStep } from '@/features/steps/model/task-step'
 import type { StepLinkId, TaskStepId } from '@/model/branded'
 
 /**
@@ -149,7 +149,7 @@ function renameOutcome(link: StepLink, event: Event): void {
       </div>
       <button
         type="submit"
-        class="key-gold focus-ring h-8 shrink-0 cursor-pointer rounded-control px-3 text-caption font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+        class="key-gold focus-ring h-8 shrink-0 cursor-pointer rounded-key px-3 text-caption font-semibold disabled:cursor-not-allowed disabled:opacity-50"
         :disabled="busy || !canAdd"
       >
         Add

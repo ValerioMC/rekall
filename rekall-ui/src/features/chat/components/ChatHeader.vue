@@ -6,7 +6,7 @@ import AppConfirm from '@/components/ui/AppConfirm.vue'
 import TerminalConnectionChips from '@/features/connection/components/TerminalConnectionChips.vue'
 import { stepChip } from '@/features/chat/lib/step-chip'
 import type { ChatStatus } from '@/features/chat/lib/chat-status'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { Terminal } from '@/features/claude/model/terminal'
 import type { TaskId, TerminalId } from '@/model/branded'
 
@@ -93,7 +93,7 @@ function onSwitcherKeydown(event: KeyboardEvent): void {
           </button>
           <h2 v-else class="min-w-0 truncate text-title font-semibold text-text">{{ title }}</h2>
           <span
-            class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-surface-raised px-2 py-0.5 text-micro font-semibold tracking-[0.02em]"
+            class="inline-flex shrink-0 items-center gap-1.5 rounded-key bg-surface-raised px-2 py-0.5 text-micro font-semibold tracking-[0.02em]"
             :class="look.tone"
             data-testid="chat-status"
             :data-status="status"

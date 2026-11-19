@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { summarizeByDay } from '@/features/time/lib/day-summary'
-import type { Task, TimeEntry } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TimeEntry } from '@/features/time/model/time-entry'
 import type { ProjectId, TaskId } from '@/model/branded'
 
 function entry(overrides: Partial<TimeEntry>): TimeEntry {
   return {
     id: 'te1' as TimeEntry['id'],
     taskId: 't1' as TaskId,
-    taskLabel: 'report-builder',
+    taskCode: 'report-builder',
     taskTitle: 'Report builder',
     projectLabel: 'vega',
     anchor: 'project:vega task:report-builder',
@@ -22,7 +23,7 @@ function entry(overrides: Partial<TimeEntry>): TimeEntry {
 function taskStub(id: TaskId, projectId: ProjectId): Task {
   return {
     id,
-    label: 'report-builder',
+    code: 'report-builder', label: 'report-builder',
     title: 'Report builder',
     status: 'TODO',
     description: null,
@@ -46,7 +47,7 @@ function taskStub(id: TaskId, projectId: ProjectId): Task {
     graphLaidAt: null,
     releaseSkipped: false,
     kind: 'TASK',
-    epicId: null, quick: false, autoAccepted: false, dependsOn: [],
+    epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, trackerContentSynced: true, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
     anchor: 'project:vega task:report-builder',
     updatedAt: '2026-08-29T10:00:00.000Z'
   }

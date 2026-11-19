@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Walkthrough with the code at the centre</title>
+<style>
+  @font-face { font-family: 'Fira Sans'; font-weight: 400; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 500; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 600; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Code'; font-weight: 300 700; src: url('../../../rekall-ui/node_modules/@fontsource-variable/fira-code/files/fira-code-latin-wght-normal.woff2') format('woff2'); }
+
+  :root {
+    --canvas: #0d1017; --surface: #151922; --raised: #1d2330; --hover: #262d3c;
+    --border: #2a3243; --border-strong: #3b4558; --border-field: #5e6a82;
+    --text: #f2f5f9; --muted: #a3acba; --subtle: #8c96a6;
+    --accent: #eaa43c; --accent-strong: #ffd88e; --accent-deep: #a8651a; --accent-soft: #eaa43c24; --accent-ink: #2b1804;
+    --kind-data: #7fd66a; --kind-external: #8d9bb3;
+    --font-sans: 'Fira Sans', ui-sans-serif, -apple-system, sans-serif;
+    --font-mono: 'Fira Code', ui-monospace, Menlo, monospace;
+    --t-micro: 11px; --t-caption: 11.5px; --t-small: 12.5px; --t-body: 13.5px; --t-title: 15px;
+    --r-key: 3px; --r-control: 5px; --r-card: 8px;
+    --ease-out: cubic-bezier(.23, 1, .32, 1);
+    --quick: 140ms; --move: 220ms;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--canvas); color: var(--text); font: 400 var(--t-body)/1.4 var(--font-sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; text-align: left; }
+  button:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  ::selection { background: var(--accent-soft); color: var(--accent-strong); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-corner { background: transparent; }
+  .mono { font-family: var(--font-mono); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  kbd { font: 400 var(--t-micro) var(--font-mono); border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: var(--r-key); padding: 0 5px; color: var(--muted); }
+  .press { transition: transform 160ms var(--ease-out), background var(--quick) ease, color var(--quick) ease, border-color var(--quick) ease; }
+  .press:active { transform: scale(.97); }
+  @media (hover: hover) and (pointer: fine) { .hov:hover { background: var(--raised); color: var(--text); } }
+
+  .app { display: flex; flex-direction: column; height: 100vh; }
+
+  .topbar { height: 48px; flex: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 620px) minmax(0, 1fr); gap: 12px; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .brand { font-weight: 600; font-size: var(--t-title); letter-spacing: -0.01em; }
+  .search { height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); color: var(--subtle); font-size: var(--t-small); }
+  .search kbd { margin-left: auto; }
+  .topr { justify-self: end; display: flex; align-items: center; gap: 8px; position: relative; }
+  .about > summary { white-space: nowrap; list-style: none; height: 32px; padding: 0 10px; display: inline-flex; align-items: center; border: 1px dashed var(--border-strong); border-radius: var(--r-card); color: var(--subtle); font-size: var(--t-small); cursor: pointer; }
+  .about > summary::-webkit-details-marker { display: none; }
+  .about[open] > summary { color: var(--text); border-color: var(--border-field); }
+  .about > div { position: absolute; right: 0; top: 40px; z-index: 20; width: 420px; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--surface); box-shadow: 0 1px 2px rgb(0 0 0 / .55), 0 10px 22px -8px rgb(0 0 0 / .65); color: var(--muted); font-size: var(--t-small); line-height: 1.5; }
+  .about b { color: var(--text); font-weight: 500; }
+  .about ul { padding-left: 16px; display: grid; gap: 6px; }
+
+  /* viewer toolbar */
+  .vbar { height: 44px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .back { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border-radius: var(--r-control); color: var(--muted); font-size: var(--t-small); }
+  .vtitle { font-size: var(--t-body); font-weight: 500; }
+  .vsub { color: var(--subtle); font-size: var(--t-small); }
+  .seg { display: inline-flex; padding: 2px; border: 1px solid var(--border); border-radius: var(--r-control); background: var(--surface); }
+  .seg button { height: 24px; padding: 0 10px; border-radius: var(--r-key); color: var(--subtle); font-size: var(--t-small); }
+  .seg button[aria-pressed="true"], .seg button[aria-checked="true"] { background: var(--raised); color: var(--text); }
+  .tog { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--r-control); color: var(--muted); font-size: var(--t-small); }
+  .tog[aria-pressed="true"] { color: var(--text); border-color: var(--border-strong); background: var(--surface); }
+
+  /* the three-pane viewer */
+  .viewer { flex: 1; min-height: 0; display: grid; grid-template-columns: 372px minmax(0, 1fr) 304px; grid-template-rows: minmax(0, 1fr) 56px; }
+  .viewer.no-seq { grid-template-columns: minmax(0, 1fr) 304px; }
+  .viewer.no-seq .seq { display: none; }
+
+  .seq { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+  .ph { flex: none; height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-bottom: 1px solid var(--border); color: var(--subtle); font-size: var(--t-caption); font-weight: 500; text-transform: uppercase; letter-spacing: .06em; }
+  .seq-scroll { flex: 1; min-height: 0; overflow: auto; }
+  .seq svg { display: block; }
+  .seq .lane { stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 4; transition: stroke var(--quick) ease; }
+  .seq .lane.lit { stroke: var(--border-strong); }
+  .seq .pbox { fill: var(--canvas); stroke: var(--border-strong); }
+  .seq .pbox.ext { stroke-dasharray: 3 3; }
+  .seq .ptxt { fill: var(--muted); font: 500 var(--t-micro) var(--font-sans); text-anchor: middle; }
+  .seq .m .line { stroke: var(--border-strong); stroke-width: 1.5; fill: none; transition: stroke var(--quick) ease; }
+  .seq .m.reply .line { stroke-dasharray: 5 4; }
+  .seq .m .head { fill: var(--border-strong); transition: fill var(--quick) ease; }
+  .seq .m .lbl { fill: var(--subtle); font: 400 var(--t-micro) var(--font-mono); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; transition: fill var(--quick) ease; }
+  .seq .m .num { fill: var(--subtle); font: 500 var(--t-micro) var(--font-mono); }
+  .seq .m.played .line { stroke: #eaa43c73; } .seq .m.played .head { fill: #eaa43c73; } .seq .m.played .lbl { fill: var(--muted); }
+  .seq .m.current .line { stroke: var(--accent); } .seq .m.current .head { fill: var(--accent); } .seq .m.current .lbl { fill: var(--accent-strong); } .seq .m.current .num { fill: var(--accent); }
+  .seq .m .hit { fill: transparent; cursor: pointer; }
+  @media (hover: hover) and (pointer: fine) { .seq .m:hover .hit { fill: #ffffff08; } }
+  .seq .m:focus-visible { outline: none; }
+  .seq .m:focus-visible .hit { stroke: var(--accent); stroke-width: 2; }
+
+  /* code workspace */
+  .code { background: var(--canvas); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .tabs { flex: none; height: 36px; display: flex; align-items: stretch; background: var(--surface); border-bottom: 1px solid var(--border); overflow: hidden; }
+  .tab { position: relative; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-right: 1px solid var(--border); color: var(--subtle); font: 400 var(--t-small) var(--font-mono); white-space: nowrap; }
+  .tab .cnt { font: 500 var(--t-micro) var(--font-mono); color: var(--subtle); border: 1px solid var(--border-strong); border-radius: 9999px; min-width: 18px; padding: 0 5px; text-align: center; }
+  .tab[aria-selected="true"] { color: var(--text); background: var(--canvas); }
+  .tab[aria-selected="true"]::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); }
+  .tab[aria-selected="true"] .cnt { color: var(--accent-strong); border-color: #eaa43c59; }
+  .crumbs { flex: none; height: 32px; display: flex; align-items: center; gap: 6px; padding: 0 14px; border-bottom: 1px solid var(--border); font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); min-width: 0; }
+  .crumbs > * { white-space: nowrap; flex: none; }
+  .crumbs > .trunc { flex: 0 1 auto; }
+  .crumbs .sep { color: var(--border-strong); }
+  .crumbs .scope { color: var(--muted); }
+  .crumbs .scope.deep { color: var(--text); font-weight: 500; }
+  .crumbs .span { margin-left: auto; padding-left: 12px; color: var(--accent-strong); white-space: nowrap; }
+  .backchip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; margin-left: 10px; border: 1px solid var(--border-strong); border-radius: var(--r-control); color: var(--muted); font: 400 var(--t-caption) var(--font-sans); white-space: nowrap; }
+  .backchip[hidden] { display: none; }
+
+  .editor { flex: 1; min-height: 0; overflow: auto; position: relative; padding: 8px 0 120px; }
+  .lines { min-width: max-content; font: 400 13px/22px var(--font-mono); }
+  .ln { position: relative; display: flex; height: 22px; padding-right: 24px; }
+  .ln .mk { width: 52px; flex: none; display: flex; justify-content: flex-end; align-items: center; gap: 2px; padding-right: 4px; }
+  .ln .no { width: 36px; flex: none; padding-right: 14px; text-align: right; color: var(--subtle); font-variant-numeric: tabular-nums; user-select: none; }
+  .ln .tx { white-space: pre; color: var(--muted); }
+  .ln.in { background: #eaa43c12; transition: background var(--move) var(--ease-out); }
+  .ln.in::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent); box-shadow: 0 0 8px -1px var(--accent); }
+  .ln.in .no { color: var(--accent-strong); }
+  .ln.in .tx { color: var(--text); }
+  .quiet .ln.in { transition: none; }
+
+  .chip { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 9999px; border: 1px solid var(--border-strong); background: var(--canvas); color: var(--subtle); font: 500 var(--t-micro)/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+  .chip.now { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  @media (hover: hover) and (pointer: fine) { .chip:not(.now):hover { color: var(--text); border-color: var(--muted); } }
+
+  .tk-kw { color: #ff7b72; } .tk-str { color: #a5d6ff; } .tk-com { color: #8b949e; font-style: italic; } .tk-fn { color: #d2a8ff; } .tk-ty { color: #ffa657; } .tk-num { color: #79c0ff; } .tk-mac { color: #79c0ff; }
+  .link { cursor: pointer; text-decoration: underline dotted var(--border-field); text-decoration-thickness: 1px; text-underline-offset: 4px; border-radius: 2px; transition: background var(--quick) ease; }
+  .link.target { text-decoration-color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .link:hover { background: var(--hover); text-decoration-style: solid; text-decoration-color: var(--text); } }
+  .tip { position: fixed; z-index: 30; pointer-events: none; padding: 6px 9px; border: 1px solid var(--border-strong); border-radius: var(--r-control); background: var(--raised); box-shadow: 0 1px 2px rgb(0 0 0 / .55), 0 10px 22px -8px rgb(0 0 0 / .65); font: 400 var(--t-small) var(--font-sans); color: var(--text); opacity: 0; transform: scale(.97); transform-origin: 0 100%; transition: opacity 125ms var(--ease-out), transform 125ms var(--ease-out); }
+  .tip.on { opacity: 1; transform: none; }
+  .tip.instant { transition-duration: 0ms; }
+  .tip small { display: block; color: var(--subtle); font: 400 var(--t-micro) var(--font-mono); margin-top: 1px; }
+
+  /* step pane */
+  .step { background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+  .step-body { flex: 1; min-height: 0; overflow: auto; padding: 14px 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+  .badge { display: inline-block; border-radius: var(--r-key); padding: 1px 8px; font-size: var(--t-caption); font-weight: 600; color: var(--tint); background: color-mix(in srgb, var(--tint) 14%, transparent); }
+  .badge.call, .badge.self { --tint: var(--accent); } .badge.reply { --tint: var(--kind-data); }
+  .step h3 { margin-top: 8px; font: 600 var(--t-body)/1.35 var(--font-mono); overflow-wrap: anywhere; }
+  .ends { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; font-size: var(--t-small); }
+  .end { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border); border-radius: var(--r-control); background: var(--canvas); padding: 1px 7px; min-width: 0; }
+  .end em { font-style: normal; font-size: var(--t-micro); color: var(--subtle); }
+  .explain { line-height: 1.55; }
+  .label { font-size: var(--t-caption); font-weight: 500; color: var(--subtle); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+  .val { border: 1px solid var(--border); border-radius: var(--r-control); background: var(--canvas); padding: 7px 10px; font: 400 var(--t-caption)/1.55 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 120px; overflow: auto; }
+  .into { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border: 1px solid #eaa43c73; border-radius: var(--r-control); background: #eaa43c14; color: var(--accent-strong); }
+  .into b { display: block; font-size: var(--t-small); font-weight: 600; }
+  .into span { display: block; font-size: var(--t-caption); opacity: .8; }
+  .into kbd { margin-left: auto; color: var(--accent-strong); border-color: #eaa43c59; }
+  .ext-note { border: 1px dashed var(--border-strong); border-radius: var(--r-control); padding: 8px 10px; color: var(--muted); font-size: var(--t-small); line-height: 1.5; }
+  .swap { animation: swap 140ms var(--ease-out); }
+  @keyframes swap { from { opacity: 0; } }
+  .quiet .swap { animation: none; }
+
+  /* transport */
+  .transport { grid-column: 1 / -1; border-top: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; justify-content: center; padding: 0 14px; gap: 2px; min-width: 0; }
+  .trail { display: flex; align-items: center; gap: 6px; font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .trow { display: flex; align-items: center; gap: 4px; }
+  .key { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: var(--r-card); color: var(--muted); }
+  .gold { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 9999px; background: var(--accent); border: 1px solid var(--accent-deep); box-shadow: 0 1px 0 rgb(255 255 255 / .35) inset, 0 1px 2px rgb(0 0 0 / .5); color: var(--accent-ink); }
+  .counter { width: 64px; flex: none; text-align: center; font: 400 var(--t-caption) var(--font-mono); color: var(--muted); }
+  .ticks { flex: 1; min-width: 0; display: flex; gap: 3px; height: 32px; padding: 0 6px; list-style: none; padding-left: 6px; }
+  .ticks li { flex: 1; min-width: 3px; display: flex; }
+  .tick { position: relative; width: 100%; height: 100%; border-radius: var(--r-key); --tint: var(--border-strong); }
+  .tick::before { content: ''; position: absolute; inset-inline: 0; bottom: 6px; top: calc(6px + min(var(--depth), 4) * 3px); border-radius: 2px; background: var(--tint); transition: background var(--quick) ease; }
+  .tick.reply::before { top: calc(12px + min(var(--depth), 4) * 3px); }
+  .tick.played { --tint: color-mix(in srgb, var(--accent) 45%, var(--border-strong)); }
+  .tick.now { --tint: var(--accent); }
+  .tick.now::before { box-shadow: 0 0 8px -1px var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .tick:hover { --tint: var(--muted); } }
+  .tick i { position: absolute; left: 50%; top: 0; width: 4px; height: 4px; margin-left: -2px; border-radius: 9999px; background: var(--accent); }
+  .pace { display: flex; padding: 2px; border: 1px solid var(--border); border-radius: var(--r-control); flex: none; }
+  .pace button { height: 24px; padding: 0 7px; border-radius: var(--r-key); color: var(--subtle); font: 400 var(--t-micro) var(--font-mono); }
+  .pace button[aria-checked="true"] { background: var(--raised); color: var(--text); }
+  svg.i { width: 16px; height: 16px; flex: none; }
+
+  @media (max-width: 1280px) { .viewer { grid-template-columns: 300px minmax(0, 1fr) 280px; } .viewer.no-seq { grid-template-columns: minmax(0, 1fr) 280px; } }
+  @media (prefers-reduced-motion: reduce) { .swap { animation: none; } .tip { transition: none; } .press:active { transform: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <span class="brand">Rekall</span>
+    <div class="search"><span>/rk</span><span>search</span><kbd>⌘K</kbd></div>
+    <div class="topr">
+      <details class="about">
+        <summary>About this mock</summary>
+        <div>
+          <p><b>Walkthrough with the code at the centre.</b> The real code of the <span class="mono">GET /source</span> flow, so the file view has real lines to hold.</p>
+          <ul>
+            <li><b>Three panes, one story.</b> Sequence at the left to know where you are, the file in the middle to read, the words of the step at the right. The code is no longer a 320px excerpt inside a card.</li>
+            <li><b>The whole file, scrolled to the step.</b> Tabs are the files the walk touches, in the order it reaches them. The span is the one amber thing; the rest of the file reads quietly.</li>
+            <li><b>Click a method, the walk follows.</b> Dotted words are methods the walkthrough has a step for; the numbered chips in the gutter are steps that start on that line. Either one moves the whole walkthrough, diagram and card included.</li>
+            <li><b>Back, like an IDE.</b> After a jump a chip offers the step you left.</li>
+            <li><b>Motion.</b> Keyboard steps are instant; scroll and wash ease only for a click or while playing. Reduced motion keeps the jump.</li>
+          </ul>
+          <p style="margin-top:8px">Try: click <span class="mono">project_folder</span> in the service, a gutter chip, a message on the left, <kbd>←</kbd> <kbd>→</kbd>, <kbd>Space</kbd>.</p>
+        </div>
+      </details>
+    </div>
+  </header>
+
+  <div class="vbar">
+    <button class="back press hov"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg>Diagrams</button>
+    <span class="vtitle">How the console reads a diagram's code</span>
+    <span class="vsub">Rekall vR · 9 steps</span>
+    <div class="seg" style="margin-left:8px" role="group" aria-label="View"><button aria-pressed="false">Diagram</button><button aria-pressed="true">Walkthrough</button></div>
+    <button class="tog press" id="toggleSeq" aria-pressed="true"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M6 3v10"/></svg>Sequence</button>
+  </div>
+
+  <main class="viewer" id="viewer">
+    <section class="seq" aria-label="Sequence">
+      <div class="ph">Sequence</div>
+      <div class="seq-scroll" id="seqScroll"></div>
+    </section>
+
+    <section class="code" aria-label="Code">
+      <div class="tabs" role="tablist" id="tabs"></div>
+      <div class="crumbs" id="crumbs"></div>
+      <div class="editor" id="editor" tabindex="0" aria-label="Source file"><div class="lines" id="lines"></div></div>
+    </section>
+
+    <aside class="step" aria-label="This step" aria-live="polite">
+      <div class="ph">This step</div>
+      <div class="step-body" id="stepBody"></div>
+    </aside>
+
+    <footer class="transport" role="group" aria-label="Walkthrough">
+      <div class="trow">
+        <button class="key press hov" id="restart" title="Start over" aria-label="Start over"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3.5v9M12 3.5 6.5 8l5.5 4.5Z"/></svg></button>
+        <button class="key press hov" id="prev" title="Previous step (←)" aria-label="Previous step"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m10 3.5-4.5 4.5 4.5 4.5"/></svg></button>
+        <button class="gold press" id="play" title="Play (Space)" aria-label="Play" aria-pressed="false"></button>
+        <button class="key press hov" id="next" title="Next step (→)" aria-label="Next step"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 3.5 4.5 4.5L6 12.5"/></svg></button>
+        <span class="counter tnum" id="counter"></span>
+        <ol class="ticks" id="ticks" aria-label="Steps"></ol>
+        <div class="pace" role="radiogroup" aria-label="Pace"><button role="radio" aria-checked="false" data-pace="5200">0.5×</button><button role="radio" aria-checked="true" data-pace="3200">1×</button><button role="radio" aria-checked="false" data-pace="1600">2×</button></div>
+      </div>
+    </footer>
+  </main>
+</div>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+const FILES = {"rekall-http/src/diagram/controller/diagram_controller.rs": ["use axum::extract::{Path, Query, State};", "use axum::response::Response;", "use axum::routing::get;", "use axum::{Json, Router};", "use rekall_kernel::{jstr, RekallError};", "use rekall_core::diagram::{DiagramDraft, DiagramService, DiagramSummaryView, DiagramView};", "use serde_json::json;", "", "use crate::shared::{created, no_content};", "use crate::diagram::{DiagramRequest, SourceExcerptQuery, SourceExcerptResponse};", "use crate::shared::error::ApiResult;", "use crate::shared::extract::{optional_uuid, required, uuid, JsonBody, Validator};", "use crate::ApiState;", "", "pub fn routes() -> Router<ApiState> {", "    Router::new()", "        .route(\"/api/diagrams\", get(list).post(create))", "        .route(\"/api/diagrams/{id}\", get(get_one).put(replace).delete(delete))", "        .route(\"/api/diagrams/{id}/source\", get(source))", "}", "", "async fn list(State(state): State<ApiState>) -> ApiResult<Json<Vec<DiagramSummaryView>>> {", "    Ok(Json(state.diagrams.list().await?))", "}", "", "async fn get_one(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<DiagramView>> {", "    Ok(Json(state.diagrams.get(uuid(\"id\", &id)?).await?))", "}", "", "async fn create(State(state): State<ApiState>, JsonBody(request): JsonBody<DiagramRequest>) -> ApiResult<Response> {", "    let draft = draft_of(None, request)?;", "    Ok(created(state.diagrams.write(draft).await?))", "}", "", "async fn replace(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(request): JsonBody<DiagramRequest>) -> ApiResult<Json<DiagramView>> {", "    let draft = draft_of(Some(uuid(\"id\", &id)?), request)?;", "    Ok(Json(state.diagrams.write(draft).await?))", "}", "", "async fn delete(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Response> {", "    state.diagram_catalog.delete(uuid(\"id\", &id)?).await?;", "    Ok(no_content())", "}", "", "async fn source(State(state): State<ApiState>, Path(id): Path<String>, Query(query): Query<SourceExcerptQuery>) -> ApiResult<Json<SourceExcerptResponse>> {", "    let file = required(query.file.filter(|file| !jstr::is_blank(file)))?;", "    Ok(Json(state.sources.excerpt(uuid(\"id\", &id)?, &file, query.start, query.end).await?.into()))", "}", "", "fn draft_of(id: Option<rekall_kernel::Id>, request: DiagramRequest) -> ApiResult<DiagramDraft> {", "    Validator::new()", "        .not_blank(\"projectId\", request.project_id.as_deref())", "        .not_blank(\"title\", request.title.as_deref())", "        .finish()?;", "    let sheets = request.sheets.ok_or_else(|| RekallError::illegal(\"A diagram needs at least one sheet.\"))?;", "    Ok(DiagramDraft {", "        id,", "        project_id: uuid(\"projectId\", request.project_id.as_deref().unwrap_or_default())?,", "        task_id: optional_uuid(\"taskId\", request.task_id.as_deref())?,", "        title: request.title.unwrap_or_default(),", "        question: request.question.unwrap_or_default(),", "        document: DiagramService::read_document(json!({ \"sheets\": sheets }))?,", "    })", "}"], "rekall-console/src/diagram/service/source_excerpt_service.rs": ["//! Reads the code a diagram element points at, so the console can show CONCEPT \u2192 CODE without", "//! leaving the page. It only ever reads inside the diagram's project folder (`ProjectFolder`).", "", "use std::path::{Path, PathBuf};", "", "use rekall_core::Ctx;", "", "use rekall_kernel::{jstr, Id, InternalFailure, RekallError, Result};", "use rekall_store::repository as repo;", "use rekall_core::diagram::ProjectFolder;", "use rekall_core::in_read;", "", "use crate::diagram::{SourceExcerptView, SourceLineView};", "", "/// Lines shown either side of the span, so it reads in its surroundings.", "const CONTEXT_LINES: u32 = 4;", "/// The most lines one excerpt carries; a longer span is cut and flagged.", "pub const MAX_LINES: u32 = 400;", "/// A file larger than this is not source a person reads, and is refused.", "const MAX_FILE_BYTES: u64 = 4 * 1024 * 1024;", "", "#[derive(Clone)]", "pub struct SourceExcerptService {", "    ctx: Ctx,", "}", "", "impl SourceExcerptService {", "    pub fn new(ctx: Ctx) -> Self {", "        Self { ctx }", "    }", "", "    pub async fn excerpt(&self, diagram_id: Id, file: &str, start: Option<u32>, end: Option<u32>) -> Result<SourceExcerptView> {", "        let folder = self.project_folder(diagram_id).await?;", "        let file = file.to_string();", "        tokio::task::spawn_blocking(move || read_excerpt(&folder, &file, start, end))", "            .await", "            .map_err(|failed| RekallError::internal(InternalFailure::Background, failed))?", "    }", "", "    async fn project_folder(&self, diagram_id: Id) -> Result<PathBuf> {", "        in_read!(&self.ctx, |tx| {", "            let row = repo::diagram::find_by_id(tx.db(), diagram_id).await?.ok_or_else(|| RekallError::not_found(\"Diagram\", diagram_id))?;", "            let project = repo::project::require(tx.db(), row.project_id).await?;", "            let folder = project.repo_folder.filter(|folder| !jstr::is_blank(folder)).ok_or_else(|| {", "                RekallError::illegal(\"This diagram's project has no folder, so its code cannot be shown. Set one on the project page.\")", "            })?;", "            Ok::<_, RekallError>(PathBuf::from(jstr::strip(&folder)))", "        })", "    }", "}", "", "/// The excerpt of `file` under `folder`, confined to it, with [`CONTEXT_LINES`] around the span.", "fn read_excerpt(folder: &Path, file: &str, start: Option<u32>, end: Option<u32>) -> Result<SourceExcerptView> {", "    let text = ProjectFolder::open(folder)?.read(file, MAX_FILE_BYTES)?;", "    let all: Vec<&str> = text.lines().collect();", "    let total = u32::try_from(all.len()).unwrap_or(u32::MAX);", "", "    let highlight_start = start.map(|line| line.clamp(1, total.max(1)));", "    let highlight_end = highlight_start.map(|first| end.unwrap_or(first).clamp(first, total.max(first)));", "    let (first, last) = match (highlight_start, highlight_end) {", "        (Some(first), Some(last)) => (first.saturating_sub(CONTEXT_LINES).max(1), last.saturating_add(CONTEXT_LINES).min(total)),", "        _ => (1, total),", "    };", "    let last_shown = last.min(first.saturating_add(MAX_LINES - 1));", "    let lines = (first..=last_shown)", "        .filter_map(|number| all.get((number - 1) as usize).map(|text| SourceLineView { number, text: text.to_string() }))", "        .collect();", "    Ok(SourceExcerptView {", "        file: file.to_string(),", "        language: language_of(file),", "        highlight_start,", "        highlight_end,", "        total_lines: total,", "        lines,", "        truncated: last_shown < last,", "    })", "}", "", "/// A highlight.js language name from the extension, when it is one the console registers.", "fn language_of(file: &str) -> Option<String> {", "    let extension = Path::new(file).extension()?.to_str()?.to_ascii_lowercase();", "    let language = match extension.as_str() {", "        \"rs\" => \"rust\",", "        \"ts\" | \"tsx\" | \"mts\" => \"typescript\",", "        \"js\" | \"jsx\" | \"mjs\" | \"cjs\" => \"javascript\",", "        \"vue\" | \"html\" | \"xml\" => \"xml\",", "        \"py\" => \"python\",", "        \"java\" => \"java\",", "        \"kt\" | \"kts\" => \"kotlin\",", "        \"go\" => \"go\",", "        \"sql\" => \"sql\",", "        \"json\" => \"json\",", "        \"yml\" | \"yaml\" => \"yaml\",", "        \"toml\" => \"ini\",", "        \"sh\" | \"zsh\" | \"bash\" => \"bash\",", "        \"css\" => \"css\",", "        \"md\" => \"markdown\",", "        _ => return None,", "    };", "    Some(language.to_string())", "}", "", "#[cfg(test)]", "#[path = \"../../../tests/unit/diagram/service/source_excerpt_service_tests.rs\"]", "mod tests;"], "rekall-core/src/diagram/model/project_folder.rs": ["use std::fs;", "use std::path::{Path, PathBuf};", "", "use rekall_kernel::{RekallError, Result};", "", "/// A project's folder, the only place a diagram's code is read from. A path that climbs out of", "/// it, through `..`, an absolute path or a symlink, is refused.", "#[derive(Clone, Debug)]", "pub struct ProjectFolder {", "    root: PathBuf,", "}", "", "impl ProjectFolder {", "    pub fn open(folder: &Path) -> Result<Self> {", "        let root = folder", "            .canonicalize()", "            .map_err(|_| RekallError::not_found_msg(format!(\"The project folder {} is not there.\", folder.display())))?;", "        Ok(Self { root })", "    }", "", "    /// `file` resolved under the folder: refused unless its real path is a file still inside it.", "    pub fn resolve(&self, file: &str) -> Result<PathBuf> {", "        let requested = Path::new(file.trim());", "        let joined = if requested.is_absolute() { requested.to_path_buf() } else { self.root.join(requested) };", "        let real = joined.canonicalize().map_err(|_| missing(file))?;", "        if !real.starts_with(&self.root) {", "            return Err(RekallError::illegal(format!(\"{file} is outside the project folder.\")));", "        }", "        if !real.is_file() {", "            return Err(RekallError::illegal(format!(\"{file} is not a file.\")));", "        }", "        Ok(real)", "    }", "", "    /// The file's text, lossily decoded, refused past `max_bytes`.", "    pub fn read(&self, file: &str, max_bytes: u64) -> Result<String> {", "        let path = self.resolve(file)?;", "        let size = fs::metadata(&path).map_err(|_| missing(file))?.len();", "        if size > max_bytes {", "            return Err(RekallError::illegal(format!(\"{file} is {size} bytes, too large to read.\")));", "        }", "        let bytes = fs::read(&path).map_err(|_| missing(file))?;", "        Ok(String::from_utf8_lossy(&bytes).into_owned())", "    }", "}", "", "fn missing(file: &str) -> RekallError {", "    RekallError::not_found_msg(format!(\"There is no file {file} in the project folder.\"))", "}"]};
+const A = 'rekall-http/src/diagram/controller/diagram_controller.rs';
+const B = 'rekall-console/src/diagram/service/source_excerpt_service.rs';
+const C = 'rekall-core/src/diagram/model/project_folder.rs';
+
+const PARTS = [
+  { id: 'console', label: ['Console'], name: 'Console', external: true },
+  { id: 'ctl', label: ['Diagram', 'controller'], name: 'diagram_controller' },
+  { id: 'svc', label: ['Excerpt', 'service'], name: 'SourceExcerptService' },
+  { id: 'folder', label: ['Project', 'Folder'], name: 'ProjectFolder' },
+  { id: 'disk', label: ['Disk'], name: 'Disk', external: true }
+];
+
+const BEATS = [
+  { from: 'console', to: 'ctl', motion: 'call', depth: 0, label: 'GET /source', title: 'GET /api/diagrams/{id}/source', file: A, start: 45, end: 48,
+    explain: 'The console asks for the lines a diagram element points at. The handler requires a file and refuses a blank one before anything is read.',
+    input: '?file=rekall-core/src/diagram/model/project_folder.rs&start=36&end=44', output: null },
+  { from: 'ctl', to: 'svc', motion: 'call', depth: 1, label: 'excerpt()', title: 'excerpt(id, file, start, end)', file: B, start: 32, end: 38,
+    explain: 'The controller hands the checked path and the optional span to the service. Reading runs on a blocking task, off the async runtime.',
+    input: 'id, file, start: 36, end: 44', output: 'SourceExcerptView' },
+  { from: 'svc', to: 'svc', motion: 'self', depth: 2, label: 'project_folder()', title: 'project_folder(diagram_id)', file: B, start: 40, end: 49,
+    explain: 'Finds the diagram’s project and takes its folder. A project with no folder is a 400 that says where to set one.',
+    input: 'diagram_id', output: 'PathBuf of the project folder' },
+  { from: 'svc', to: 'folder', motion: 'call', depth: 2, label: 'read()', title: 'read(file, max_bytes)', file: C, start: 36, end: 44,
+    explain: 'ProjectFolder is the only place a diagram’s code is read from. It resolves the path, then refuses a file past 4 MB.',
+    input: 'file, max_bytes: 4194304', output: 'the file’s text' },
+  { from: 'folder', to: 'folder', motion: 'self', depth: 3, label: 'resolve()', title: 'resolve(file)', file: C, start: 22, end: 33,
+    explain: 'Joins the path under the root and refuses anything whose real path leaves it: “..”, an absolute path or a symlink.',
+    input: 'file', output: 'PathBuf inside the folder' },
+  { from: 'folder', to: 'disk', motion: 'call', depth: 3, label: 'fs::read()', title: 'fs::read(path)', file: C, start: 42, end: 42,
+    explain: 'The one read of the disk. A failure becomes a not-found that names the file.', input: 'path', output: 'bytes' },
+  { from: 'folder', to: 'svc', motion: 'reply', depth: 2, label: 'text', title: 'text', file: C, start: 43, end: 43,
+    explain: 'The bytes are decoded lossily into a string, so a file with a stray byte still opens.', input: null, output: 'String' },
+  { from: 'svc', to: 'ctl', motion: 'reply', depth: 1, label: 'excerpt view', title: 'SourceExcerptView', file: B, start: 68, end: 76,
+    explain: 'The service cuts the span with four lines either side, caps it at 400 lines and names the highlight language from the extension.',
+    input: null, output: 'SourceExcerptView { lines, highlight_start, highlight_end, truncated }' },
+  { from: 'ctl', to: 'console', motion: 'reply', depth: 0, label: '200 JSON', title: '200 JSON', file: A, start: 47, end: 47,
+    explain: 'The controller maps the view to the response and the console draws it.', input: null, output: 'SourceExcerptResponse' }
+];
+
+// Words the walkthrough has a step for: a click on one walks to that step.
+const LINKS = [
+  { file: A, line: 45, text: 'source', beat: 0 }, { file: A, line: 47, text: 'excerpt', beat: 1 },
+  { file: B, line: 32, text: 'excerpt', beat: 1 }, { file: B, line: 33, text: 'project_folder', beat: 2 }, { file: B, line: 40, text: 'project_folder', beat: 2 },
+  { file: B, line: 54, text: 'read', beat: 3 },
+  { file: C, line: 36, text: 'read', beat: 3 }, { file: C, line: 37, text: 'resolve', beat: 4 }, { file: C, line: 22, text: 'resolve', beat: 4 }, { file: C, line: 42, text: 'fs::read', beat: 5 }
+];
+
+const SCOPES = {
+  [A]: [{ k: 'fn', n: 'source', s: 45, e: 48 }],
+  [B]: [{ k: 'impl', n: 'SourceExcerptService', s: 27, e: 50, in: [{ k: 'fn', n: 'excerpt', s: 32, e: 38 }, { k: 'fn', n: 'project_folder', s: 40, e: 49 }] }, { k: 'fn', n: 'read_excerpt', s: 53, e: 77 }],
+  [C]: [{ k: 'impl', n: 'ProjectFolder', s: 13, e: 45, in: [{ k: 'fn', n: 'open', s: 14, e: 19 }, { k: 'fn', n: 'resolve', s: 22, e: 33 }, { k: 'fn', n: 'read', s: 36, e: 44 }] }]
+};
+
+const FILE_ORDER = [...new Set(BEATS.map((beat) => beat.file))];
+const KEYWORDS = new Set('use pub fn async let mut impl struct enum const static match if else return Ok Err Some None self Self mod crate as in for while loop move where type trait dyn await derive'.split(' '));
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = (id) => document.getElementById(id);
+
+let cur = 0;
+let playing = false;
+let interval = 3200;
+let timer = null;
+let lastFrom = null;
+let shownFile = null;
+
+function esc(text) { return text.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function tokenize(text) {
+  const pattern = /(\/\/.*$)|("(?:[^"\\]|\\.)*")|(\b\d[\d_]*\b)|([A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*!?)|(\s+)|(.)/g;
+  const out = [];
+  let match;
+  let afterFn = false;
+  while ((match = pattern.exec(text))) {
+    const [raw, comment, string, number, word, space] = match;
+    if (comment) out.push({ s: raw, c: 'tk-com' });
+    else if (string) out.push({ s: raw, c: 'tk-str' });
+    else if (number) out.push({ s: raw, c: 'tk-num' });
+    else if (word) {
+      const last = word.split('::').pop();
+      const next = text[pattern.lastIndex];
+      let cls = '';
+      if (word.endsWith('!')) cls = 'tk-mac';
+      else if (!word.includes('::') && KEYWORDS.has(word)) cls = 'tk-kw';
+      else if (afterFn || next === '(') cls = 'tk-fn';
+      else if (/^[A-Z]/.test(last) && !/^[A-Z0-9_]+$/.test(last)) cls = 'tk-ty';
+      out.push({ s: word, c: cls, word });
+      afterFn = word === 'fn';
+      continue;
+    } else out.push({ s: raw, c: '' });
+    if (!space) afterFn = false;
+  }
+  return out;
+}
+
+function beatsOfFile(file) { return BEATS.map((beat, index) => ({ beat, index })).filter((entry) => entry.beat.file === file); }
+
+function scopeChain(file, line) {
+  const chain = [];
+  let level = SCOPES[file] || [];
+  while (level.length) {
+    const hit = level.find((scope) => line >= scope.s && line <= scope.e);
+    if (!hit) break;
+    chain.push(hit);
+    level = hit.in || [];
+  }
+  return chain;
+}
+
+function drawSequence() {
+  const x0 = 44, gap = 71, top = 18, rowTop = 100, rowGap = 50;
+  const width = x0 * 2 + gap * (PARTS.length - 1) - 16;
+  const height = rowTop + BEATS.length * rowGap + 24;
+  const px = (id) => x0 + gap * PARTS.findIndex((part) => part.id === id);
+  let svg = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Sequence diagram">`;
+  svg += `<defs><marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 7 4 1 7z" fill="context-stroke"/></marker></defs>`;
+  PARTS.forEach((part) => {
+    const x = px(part.id);
+    svg += `<line class="lane" data-lane="${part.id}" x1="${x}" y1="${top + 38}" x2="${x}" y2="${height - 8}"/>`;
+    svg += `<rect class="pbox ${part.external ? 'ext' : ''}" x="${x - 32}" y="${top}" width="64" height="38" rx="5"/>`;
+    part.label.forEach((word, i) => { svg += `<text class="ptxt" x="${x}" y="${top + (part.label.length === 1 ? 23 : 16 + i * 13)}">${esc(word)}</text>`; });
+  });
+  BEATS.forEach((beat, i) => {
+    const y = rowTop + i * rowGap;
+    const a = px(beat.from), b = px(beat.to);
+    let path;
+    let lbl;
+    if (a === b) { path = `M${a} ${y - 8} h26 v16 h-24`; lbl = `<text class="lbl" x="${a + 32}" y="${y + 4}">${esc(beat.label)}</text>`; }
+    else { path = `M${a} ${y} H${b + (b > a ? -1 : 1)}`; lbl = `<text class="lbl" x="${Math.min(a, b) + 6}" y="${y - 7}">${esc(beat.label)}</text>`; }
+    svg += `<g class="m ${beat.motion}" data-i="${i}" tabindex="0" role="button" aria-label="Step ${i + 1}: ${esc(beat.title)}">`;
+    svg += `<rect class="hit" x="0" y="${y - 24}" width="${width}" height="${rowGap - 2}" rx="4"/>`;
+    svg += `<path class="line" d="${path}" marker-end="url(#ah)"/>`;
+    svg += lbl + `<text class="num" x="6" y="${y + 4}">${i + 1}</text></g>`;
+  });
+  $('seqScroll').innerHTML = svg + '</svg>';
+  $('seqScroll').querySelectorAll('.m').forEach((node) => {
+    const index = Number(node.dataset.i);
+    node.addEventListener('click', () => go(index, 'pointer'));
+    node.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); go(index, 'pointer'); } });
+  });
+}
+
+function paintSequence() {
+  const reached = new Set();
+  BEATS.slice(0, cur + 1).forEach((beat) => { reached.add(beat.from); reached.add(beat.to); });
+  document.querySelectorAll('.lane').forEach((lane) => lane.classList.toggle('lit', reached.has(lane.dataset.lane)));
+  document.querySelectorAll('.seq .m').forEach((node) => {
+    const index = Number(node.dataset.i);
+    node.classList.toggle('current', index === cur);
+    node.classList.toggle('played', index < cur);
+    node.setAttribute('aria-current', index === cur ? 'step' : 'false');
+  });
+  const row = document.querySelector(`.seq .m[data-i="${cur}"]`);
+  const scroller = $('seqScroll');
+  const y = 100 + cur * 50;
+  if (y - 40 < scroller.scrollTop || y + 30 > scroller.scrollTop + scroller.clientHeight) scroller.scrollTo({ top: Math.max(0, y - scroller.clientHeight / 2), behavior: 'auto' });
+}
+
+function paintTabs() {
+  $('tabs').innerHTML = '';
+  FILE_ORDER.forEach((file) => {
+    const tab = document.createElement('button');
+    tab.className = 'tab press';
+    tab.setAttribute('role', 'tab');
+    tab.setAttribute('aria-selected', String(file === BEATS[cur].file));
+    tab.title = file;
+    const name = document.createElement('span');
+    name.textContent = file.split('/').pop();
+    const count = document.createElement('span');
+    count.className = 'cnt tnum';
+    count.textContent = String(beatsOfFile(file).length);
+    tab.append(name, count);
+    tab.addEventListener('click', () => { if (file !== BEATS[cur].file) go(beatsOfFile(file)[0].index, 'pointer'); });
+    $('tabs').append(tab);
+  });
+}
+
+function paintCrumbs() {
+  const beat = BEATS[cur];
+  const parts = beat.file.split('/');
+  const crumbs = $('crumbs');
+  crumbs.innerHTML = '';
+  const add = (text, cls) => { const node = document.createElement('span'); node.className = cls || ''; node.textContent = text; crumbs.append(node); return node; };
+  add(parts.slice(0, -1).join('/'), 'trunc');
+  add('/', 'sep');
+  add(parts[parts.length - 1], 'scope');
+  scopeChain(beat.file, beat.start).forEach((scope, i, chain) => { add('›', 'sep'); add(`${scope.k} ${scope.n}`, i === chain.length - 1 ? 'scope deep' : 'scope'); });
+  const back = document.createElement('button');
+  back.className = 'backchip press hov';
+  back.hidden = lastFrom === null;
+  if (lastFrom !== null) back.innerHTML = `<svg class="i" style="width:12px;height:12px" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3 2.5 6.5 6 10M3 6.5h6.5a4 4 0 0 1 0 8H7"/></svg>Back to step ${lastFrom + 1}<kbd>⌥←</kbd>`;
+  back.addEventListener('click', () => go(lastFrom, 'pointer'));
+  crumbs.append(back);
+  const range = beat.start === beat.end ? `L${beat.start}` : `L${beat.start}–${beat.end}`;
+  add(range, 'span tnum');
+}
+
+function renderFile(file) {
+  const lines = $('lines');
+  lines.innerHTML = '';
+  const chips = new Map();
+  beatsOfFile(file).forEach(({ beat, index }) => { (chips.get(beat.start) || chips.set(beat.start, []).get(beat.start)).push(index); });
+  FILES[file].forEach((text, i) => {
+    const number = i + 1;
+    const row = document.createElement('div');
+    row.className = 'ln';
+    row.dataset.n = String(number);
+    const mark = document.createElement('span');
+    mark.className = 'mk';
+    (chips.get(number) || []).forEach((index) => {
+      const chip = document.createElement('button');
+      chip.className = 'chip press';
+      chip.dataset.i = String(index);
+      chip.textContent = String(index + 1);
+      chip.setAttribute('aria-label', `Go to step ${index + 1}: ${BEATS[index].title}`);
+      chip.addEventListener('click', () => go(index, 'pointer'));
+      mark.append(chip);
+    });
+    const no = document.createElement('span'); no.className = 'no tnum'; no.textContent = String(number);
+    const tx = document.createElement('span'); tx.className = 'tx';
+    const linkHere = LINKS.filter((link) => link.file === file && link.line === number);
+    const used = new Set();
+    tokenize(text).forEach((token) => {
+      const node = document.createElement('span');
+      node.className = token.c;
+      node.textContent = token.s;
+      const link = token.word && linkHere.find((candidate) => !used.has(candidate) && (candidate.text === token.word || candidate.text === token.word.split('::').pop() && !candidate.text.includes('::')));
+      if (link) {
+        used.add(link);
+        node.classList.add('link');
+        node.dataset.i = String(link.beat);
+        node.setAttribute('role', 'button');
+        node.addEventListener('click', () => go(link.beat, 'pointer'));
+        node.addEventListener('mouseenter', () => showTip(node, link.beat));
+        node.addEventListener('mouseleave', hideTip);
+      }
+      tx.append(node);
+    });
+    row.append(mark, no, tx);
+    lines.append(row);
+  });
+  shownFile = file;
+}
+
+function paintEditor(via) {
+  const beat = BEATS[cur];
+  if (shownFile !== beat.file) renderFile(beat.file);
+  document.querySelectorAll('.ln').forEach((row) => {
+    const n = Number(row.dataset.n);
+    row.classList.toggle('in', n >= beat.start && n <= beat.end);
+  });
+  document.querySelectorAll('.chip').forEach((chip) => chip.classList.toggle('now', Number(chip.dataset.i) === cur));
+  document.querySelectorAll('.link').forEach((link) => link.classList.toggle('target', Number(link.dataset.i) === cur));
+  const editor = $('editor');
+  const first = editor.querySelector(`.ln[data-n="${beat.start}"]`);
+  const last = editor.querySelector(`.ln[data-n="${beat.end}"]`);
+  const spanHeight = last.offsetTop + last.offsetHeight - first.offsetTop;
+  const lead = spanHeight > editor.clientHeight * 0.6 ? 24 : editor.clientHeight * 0.22;
+  const instant = reduce || via === 'key' || via === 'init';
+  editor.scrollTo({ top: Math.max(0, first.offsetTop - lead), behavior: instant ? 'auto' : 'smooth' });
+}
+
+function paintStep() {
+  const beat = BEATS[cur];
+  const fromPart = PARTS.find((part) => part.id === beat.from);
+  const toPart = PARTS.find((part) => part.id === beat.to);
+  const label = { call: 'Call', reply: 'Returns', self: 'Inside' }[beat.motion];
+  const end = (part) => `<span class="end"><span class="trunc">${esc(part.name)}</span>${part.external ? '<em>external</em>' : ''}</span>`;
+  const arrow = '<svg class="i" style="width:14px;height:14px;color:var(--subtle)" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h9.5M9 4.5 12.5 8 9 11.5"/></svg>';
+  const values = beat.motion === 'reply' ? [['Returned', beat.output]] : [['Input', beat.input], ['Output', beat.output]];
+  const note = beat.motion === 'call' && toPart.external ? `<p class="ext-note">This call leaves the project’s code: what happens inside ${esc(toPart.name)} is not shown.</p>` : '';
+  const into = cur === 3 ? `<button class="into press" title="Unchanged by this mock"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v6.5h8M9 6.5l3 3-3 3"/></svg><span style="flex:1"><b>Step into this call</b><span>ProjectFolder.read</span></span><kbd>↵</kbd></button>` : '';
+  $('stepBody').innerHTML = `<div class="swap">
+    <p style="display:flex;align-items:center;gap:8px"><span class="badge ${beat.motion}">${label}</span><span class="mono tnum" style="font-size:var(--t-caption);color:var(--subtle)">Step ${cur + 1} of ${BEATS.length}</span></p>
+    <h3>${esc(beat.title)}</h3>
+    <p class="ends">${end(fromPart)}${beat.from === beat.to ? '' : arrow + end(toPart)}</p>
+  </div>
+  <p class="explain swap">${esc(beat.explain)}</p>${note}
+  ${values.filter(([, text]) => text).map(([name, text]) => `<div class="swap"><p class="label">${name}</p><div class="val">${esc(text)}</div></div>`).join('')}${into}`;
+}
+
+function paintTransport() {
+  $('counter').textContent = `${cur + 1} / ${BEATS.length}`;
+  $('play').innerHTML = playing
+    ? '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><rect x="4" y="3.5" width="2.6" height="9" rx=".8"/><rect x="9.4" y="3.5" width="2.6" height="9" rx=".8"/></svg>'
+    : '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.3v9.4c0 .5.5.8.9.5l7-4.7c.4-.3.4-.8 0-1.1l-7-4.6c-.4-.3-.9 0-.9.5Z"/></svg>';
+  $('play').setAttribute('aria-pressed', String(playing));
+  $('play').title = playing ? 'Pause (Space)' : 'Play (Space)';
+  document.querySelectorAll('.tick').forEach((tick, i) => {
+    tick.classList.toggle('now', i === cur);
+    tick.classList.toggle('played', i < cur);
+  });
+}
+
+function buildTicks() {
+  BEATS.forEach((beat, i) => {
+    const item = document.createElement('li');
+    const tick = document.createElement('button');
+    tick.className = `tick ${beat.motion}`;
+    tick.style.setProperty('--depth', beat.depth);
+    tick.title = `${i + 1}. ${beat.title}`;
+    tick.setAttribute('aria-label', `Step ${i + 1}: ${beat.title}`);
+    if (i === 3) tick.append(Object.assign(document.createElement('i'), {}));
+    tick.addEventListener('click', () => go(i, 'pointer'));
+    item.append(tick);
+    $('ticks').append(item);
+  });
+}
+
+function go(index, via) {
+  if (index < 0 || index >= BEATS.length) return;
+  if (via === 'pointer' && Math.abs(index - cur) > 1) lastFrom = cur;
+  else if (via === 'key' || via === 'play') lastFrom = null;
+  cur = index;
+  document.body.classList.toggle('quiet', via === 'key' || via === 'init');
+  paintSequence(); paintTabs(); paintCrumbs(); paintEditor(via); paintStep(); paintTransport();
+  restartTimer();
+}
+
+function restartTimer() {
+  clearTimeout(timer);
+  if (playing) timer = setTimeout(() => { if (cur < BEATS.length - 1) go(cur + 1, 'play'); else { playing = false; paintTransport(); } }, interval);
+}
+
+function toggle() {
+  if (!playing && cur === BEATS.length - 1) go(0, 'key');
+  playing = !playing;
+  paintTransport();
+  restartTimer();
+}
+
+let tipShownAt = 0;
+let tipTimer = null;
+function showTip(node, index) {
+  clearTimeout(tipTimer);
+  const tip = $('tip');
+  const open = () => {
+    const beat = BEATS[index];
+    tip.innerHTML = `Step ${index + 1} · ${esc(beat.title)}<small>${esc(beat.file.split('/').pop())}${beat.motion === 'reply' ? '' : ''}</small>`;
+    const box = node.getBoundingClientRect();
+    tip.style.left = `${box.left}px`;
+    tip.style.top = `${box.top - tip.offsetHeight - 6}px`;
+    tip.classList.toggle('instant', Date.now() - tipShownAt < 400);
+    tip.classList.add('on');
+    tipShownAt = Date.now();
+  };
+  if (Date.now() - tipShownAt < 400) open(); else tipTimer = setTimeout(open, 350);
+}
+function hideTip() { clearTimeout(tipTimer); $('tip').classList.remove('on'); tipShownAt = Date.now(); }
+
+document.addEventListener('keydown', (event) => {
+  if (event.metaKey || event.ctrlKey) return;
+  if (event.altKey && event.key === 'ArrowLeft') { if (lastFrom !== null) { event.preventDefault(); go(lastFrom, 'pointer'); } return; }
+  if (event.altKey) return;
+  const onButton = event.target.closest && event.target.closest('button, [role="button"]');
+  if (onButton && (event.key === ' ' || event.key === 'Enter')) return;
+  const actions = { ArrowRight: () => go(cur + 1, 'key'), ArrowLeft: () => go(cur - 1, 'key'), ' ': toggle, Home: () => go(0, 'key'), End: () => go(BEATS.length - 1, 'key'), Escape: () => { playing = false; paintTransport(); restartTimer(); } };
+  if (!actions[event.key]) return;
+  event.preventDefault();
+  actions[event.key]();
+});
+
+$('restart').addEventListener('click', () => go(0, 'key'));
+$('prev').addEventListener('click', () => go(cur - 1, 'key'));
+$('next').addEventListener('click', () => go(cur + 1, 'key'));
+$('play').addEventListener('click', toggle);
+document.querySelectorAll('[data-pace]').forEach((button) => button.addEventListener('click', () => {
+  interval = Number(button.dataset.pace);
+  document.querySelectorAll('[data-pace]').forEach((other) => other.setAttribute('aria-checked', String(other === button)));
+  restartTimer();
+}));
+$('toggleSeq').addEventListener('click', () => {
+  const hidden = $('viewer').classList.toggle('no-seq');
+  $('toggleSeq').setAttribute('aria-pressed', String(!hidden));
+  paintEditor('key');
+});
+
+drawSequence();
+buildTicks();
+const start = Number(new URLSearchParams(location.search).get('step') || 2) - 1;
+go(Math.min(Math.max(start, 0), BEATS.length - 1), 'init');
+</script>
+</body>
+</html>

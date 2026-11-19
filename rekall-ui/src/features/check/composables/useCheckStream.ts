@@ -1,5 +1,5 @@
 import { onScopeDispose } from 'vue'
-import { env } from '@/common/config/env'
+import { subscribeToFrame } from '@/common/stream/consoleEventStream'
 import {
   ProjectCheckStreamEventSchema,
   TaskCheckResultStreamEventSchema
@@ -16,17 +16,18 @@ interface CheckStreamHandlers {
  * edited elsewhere, and a result a session's claim has just produced, show without a reload.
  */
 export function useCheckStream(handlers: CheckStreamHandlers): void {
-  if (typeof EventSource === 'undefined') return
-  const source = new EventSource(`${env.VITE_API_BASE_URL}/api/steps/stream`)
-  source.addEventListener('project-check', (event) => {
+  const unsubscribeChecks = subscribeToFrame('project-check', (event) => {
     const parsed = ProjectCheckStreamEventSchema.safeParse(payloadOf(event))
     if (parsed.success) handlers.onChecks?.(parsed.data)
   })
-  source.addEventListener('task-check-result', (event) => {
+  const unsubscribeResults = subscribeToFrame('task-check-result', (event) => {
     const parsed = TaskCheckResultStreamEventSchema.safeParse(payloadOf(event))
     if (parsed.success) handlers.onResults?.(parsed.data)
   })
-  onScopeDispose(() => source.close())
+  onScopeDispose(() => {
+    unsubscribeChecks()
+    unsubscribeResults()
+  })
 }
 
 function payloadOf(event: Event): unknown {

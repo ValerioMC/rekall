@@ -4,12 +4,21 @@ import SkillMark from '@/features/skills/components/SkillMark.vue'
 
 describe('SkillMark', () => {
   it('renders nothing for no skills', () => {
-    expect(mount(SkillMark, { props: { skills: [] } }).find('[data-testid="skill-mark"]').exists()).toBe(false)
+    expect(
+      mount(SkillMark, { props: { skills: [] } })
+        .find('[data-testid="skill-mark"]')
+        .exists()
+    ).toBe(false)
   })
 
   it('shows the count and says each skill and its origin in its accessible name and tooltip', () => {
     const wrapper = mount(SkillMark, {
-      props: { skills: [{ name: 'rust-standards', origin: 'task' }, { name: 'code-review', origin: 'tag' }] }
+      props: {
+        skills: [
+          { name: 'rust-standards', arguments: null, origin: 'task' },
+          { name: 'code-review', arguments: null, origin: 'tag' }
+        ]
+      }
     })
     const mark = wrapper.get('[data-testid="skill-mark"]')
 
@@ -19,7 +28,7 @@ describe('SkillMark', () => {
   })
 
   it('uses the singular for one skill', () => {
-    const wrapper = mount(SkillMark, { props: { skills: [{ name: 'rk', origin: 'step' }] } })
+    const wrapper = mount(SkillMark, { props: { skills: [{ name: 'rk', arguments: null, origin: 'step' }] } })
 
     expect(wrapper.get('[data-testid="skill-mark"]').attributes('aria-label')).toBe('1 skill: rk')
   })

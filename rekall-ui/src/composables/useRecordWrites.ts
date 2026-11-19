@@ -1,4 +1,6 @@
 import { useConsoleStore } from '@/stores/console.store'
+import { blankToNull } from '@/stores/console/rows'
+import { taskDeletionBlast } from '@/features/catalog/lib/task-deletion'
 import type { RecordDraft } from '@/features/catalog/model/record-draft'
 import type { CompanyId, ProjectId } from '@/model/branded'
 
@@ -12,8 +14,8 @@ export interface AfterSave {
 
 /**
  * What saving or deleting a company, project or task from the record dialog sends to the store.
- * A project keeps the fields its own page edits (blueprint, folder, auto-commit) as they are
- * stored, since the dialog does not show them. A blank description is saved as none.
+ * A project keeps the fields its own page edits (blueprint, auto-commit, and its folder once
+ * created) as they are stored, since the dialog does not show them. A blank description is saved as none.
  */
 export function useRecordWrites() {
   const store = useConsoleStore()
@@ -34,13 +36,16 @@ export function useRecordWrites() {
     const stored = store.projects.find((candidate) => candidate.id === draft.id)
     const input = {
       label,
+      taskKey: blankToNull(draft.taskKey.trim()),
       title: draft.title.trim(),
       status: draft.status,
       icon: draft.icon,
       description: descriptionOf(draft),
       blueprintMarkdown: stored?.blueprintMarkdown ?? null,
-      repoFolder: stored?.repoFolder ?? null,
+      repoFolder: draft.id === null ? blankToNull(draft.repoFolder.trim()) : (stored?.repoFolder ?? null),
       autoCommit: stored?.autoCommit ?? false,
+      mainBranch: stored?.mainBranch ?? null,
+      pullRequestFlow: stored?.pullRequestFlow ?? false,
       companyId: draft.companyId
     }
     if (draft.id === null) return (await store.createProject(input)).id
@@ -48,9 +53,8 @@ export function useRecordWrites() {
     return draft.id
   }
 
-  async function writeTask(draft: Draft<'task'>, label: string): Promise<void> {
+  async function writeTask(draft: Draft<'task'>): Promise<void> {
     const input = {
-      label,
       title: draft.title.trim(),
       status: draft.status,
       description: descriptionOf(draft),
@@ -68,7 +72,7 @@ export function useRecordWrites() {
   async function write(draft: RecordDraft, label: string, after: AfterSave): Promise<void> {
     if (draft.kind === 'company') await after.company(await writeCompany(draft))
     else if (draft.kind === 'project') await after.project(await writeProject(draft, label))
-    else await writeTask(draft, label)
+    else await writeTask(draft)
   }
 
   async function erase(draft: RecordDraft): Promise<void> {
@@ -88,8 +92,7 @@ export function useRecordWrites() {
       const count = store.tasks.filter((task) => task.projectId === draft.id).length
       return `${plural(count, 'task')} · the notes it owns`
     }
-    const task = store.tasks.find((candidate) => candidate.id === draft.id)
-    return `${plural(task?.documentCount ?? 0, 'note')} unlinked · each stays where it lives`
+    return taskDeletionBlast(store.tasks.find((candidate) => candidate.id === draft.id))
   }
 
   return { write, erase, deletionBlast }

@@ -10,12 +10,14 @@ use rekall_store::repository as repo;
 use rekall_core::diagram::ProjectFolder;
 use rekall_core::in_read;
 
-use crate::diagram::{SourceExcerptView, SourceLineView};
+use crate::diagram::{ExcerptScope, SourceExcerptView, SourceLineView};
 
 /// Lines shown either side of the span, so it reads in its surroundings.
 const CONTEXT_LINES: u32 = 4;
 /// The most lines one excerpt carries; a longer span is cut and flagged.
 pub const MAX_LINES: u32 = 400;
+/// The most lines a whole-file excerpt carries: a file a person reads in full, not a dump.
+pub const WHOLE_FILE_MAX_LINES: u32 = 5000;
 /// A file larger than this is not source a person reads, and is refused.
 const MAX_FILE_BYTES: u64 = 4 * 1024 * 1024;
 
@@ -29,10 +31,10 @@ impl SourceExcerptService {
         Self { ctx }
     }
 
-    pub async fn excerpt(&self, diagram_id: Id, file: &str, start: Option<u32>, end: Option<u32>) -> Result<SourceExcerptView> {
+    pub async fn excerpt(&self, diagram_id: Id, file: &str, start: Option<u32>, end: Option<u32>, scope: ExcerptScope) -> Result<SourceExcerptView> {
         let folder = self.project_folder(diagram_id).await?;
         let file = file.to_string();
-        tokio::task::spawn_blocking(move || read_excerpt(&folder, &file, start, end))
+        tokio::task::spawn_blocking(move || read_excerpt(&folder, &file, start, end, scope))
             .await
             .map_err(|failed| RekallError::internal(InternalFailure::Background, failed))?
     }
@@ -49,19 +51,20 @@ impl SourceExcerptService {
     }
 }
 
-/// The excerpt of `file` under `folder`, confined to it, with [`CONTEXT_LINES`] around the span.
-fn read_excerpt(folder: &Path, file: &str, start: Option<u32>, end: Option<u32>) -> Result<SourceExcerptView> {
+/// The excerpt of `file` under `folder`, confined to it: the span with [`CONTEXT_LINES`] around it, or the whole file.
+fn read_excerpt(folder: &Path, file: &str, start: Option<u32>, end: Option<u32>, scope: ExcerptScope) -> Result<SourceExcerptView> {
     let text = ProjectFolder::open(folder)?.read(file, MAX_FILE_BYTES)?;
     let all: Vec<&str> = text.lines().collect();
     let total = u32::try_from(all.len()).unwrap_or(u32::MAX);
 
     let highlight_start = start.map(|line| line.clamp(1, total.max(1)));
     let highlight_end = highlight_start.map(|first| end.unwrap_or(first).clamp(first, total.max(first)));
-    let (first, last) = match (highlight_start, highlight_end) {
-        (Some(first), Some(last)) => (first.saturating_sub(CONTEXT_LINES).max(1), last.saturating_add(CONTEXT_LINES).min(total)),
+    let (first, last) = match (scope, highlight_start, highlight_end) {
+        (ExcerptScope::Around, Some(first), Some(last)) => (first.saturating_sub(CONTEXT_LINES).max(1), last.saturating_add(CONTEXT_LINES).min(total)),
         _ => (1, total),
     };
-    let last_shown = last.min(first.saturating_add(MAX_LINES - 1));
+    let line_cap = if scope == ExcerptScope::WholeFile { WHOLE_FILE_MAX_LINES } else { MAX_LINES };
+    let last_shown = last.min(first.saturating_add(line_cap - 1));
     let lines = (first..=last_shown)
         .filter_map(|number| all.get((number - 1) as usize).map(|text| SourceLineView { number, text: text.to_string() }))
         .collect();

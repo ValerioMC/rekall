@@ -6,6 +6,9 @@ export interface CommitReference {
   readonly taskId: TaskId
   readonly stepId: TaskStepId | null
   readonly stepTitle: string | null
+  /** The component whose repository holds the commit; null is the project's own folder. */
+  readonly componentId: string | null
+  readonly componentName: string | null
   readonly commitHash: string
   readonly comment: string
   /** Chosen in the console to travel with `/rk`: hash, subject and diff land in the session's context. */

@@ -57,7 +57,7 @@ async fn running_step_of(tx: &Tx, project: &project::Model) -> Result<Option<Run
     for task in repo::task::list_of_project(tx.db(), project.id).await? {
         let steps = repo::task_step::list_of_task(tx.db(), task.id).await?;
         if let Some(position) = steps.iter().position(|step| step.state == TaskStepState::Running) {
-            return Ok(Some(RunningStepView { number: position as u32 + 1, task_anchor: task.anchor(&project.label) }));
+            return Ok(Some(RunningStepView { number: position as u32 + 1, task_anchor: task.anchor() }));
         }
     }
     Ok(None)

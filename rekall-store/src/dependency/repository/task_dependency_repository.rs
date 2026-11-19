@@ -1,6 +1,6 @@
 use rekall_kernel::{Id, RekallError};
 use crate::task_dependency::{Column, Entity, Model};
-use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder};
+use sea_orm::{ColumnTrait, Condition, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder};
 
 pub async fn find_by_id(db: &impl ConnectionTrait, id: Id) -> Result<Option<Model>, RekallError> {
     Ok(Entity::find_by_id(id).one(db).await?)
@@ -33,4 +33,17 @@ pub async fn find_pair(db: &impl ConnectionTrait, task_id: Id, depends_on_task_i
         .filter(Column::DependsOnTaskId.eq(depends_on_task_id))
         .one(db)
         .await?)
+}
+
+/// Every dependency the task is on either side of: what it waits for and what waits for it.
+pub async fn list_involving(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<Model>, RekallError> {
+    Ok(Entity::find().filter(involving(task_id)).order_by_asc(Column::CreatedAt).all(db).await?)
+}
+
+pub async fn delete_involving(db: &impl ConnectionTrait, task_id: Id) -> Result<u64, RekallError> {
+    Ok(Entity::delete_many().filter(involving(task_id)).exec(db).await?.rows_affected)
+}
+
+fn involving(task_id: Id) -> Condition {
+    Condition::any().add(Column::TaskId.eq(task_id)).add(Column::DependsOnTaskId.eq(task_id))
 }

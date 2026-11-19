@@ -35,7 +35,7 @@ impl McpTool for EpicMembershipTool {
         ToolSchema::object()
             .required_string(
                 "anchors",
-                "The task to file, e.g. `project:vega task:pay`. Labels, never titles, and it has to name exactly one task.",
+                "The task to file, e.g. `task:RK-12`. Labels, never titles, and it has to name exactly one task.",
             )
             .required_string("epic", "The label of an epic of the same project, `checkout`.")
             .build()
@@ -47,7 +47,7 @@ impl McpTool for EpicMembershipTool {
         let epic = args.required_string("epic")?;
         let joined = self
             .membership
-            .join(target.project_label.as_deref(), &target.task_label, &epic)
+            .join(target.project_label.as_deref(), &target.task_code, &epic)
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
         Ok(report(&joined))

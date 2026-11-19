@@ -3,7 +3,8 @@ import { z } from 'zod'
 import { TaskSchema, TaskStepListSchema } from '../../catalog/api/schemas/catalog.schema'
 import { DeploymentGraphListSchema, DeploymentGraphSchema } from './schemas/deployment-graph.schema'
 import type { DeploymentGraph, GraphDraft } from '@/features/graph/model/deployment-graph'
-import type { Task, TaskStep } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { DeploymentGraphId, ProjectId, TaskId } from '@/model/branded'
 
 export async function fetchDeploymentGraphs(projectId: ProjectId): Promise<DeploymentGraph[]> {

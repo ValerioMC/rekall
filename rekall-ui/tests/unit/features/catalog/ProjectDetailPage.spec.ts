@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
-import { createMemoryHistory, createRouter } from 'vue-router'
+import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import ProjectDetailPage from '@/features/catalog/components/ProjectDetailPage.vue'
 import * as sectionsApi from '@/features/project/api/project-sections.api'
 import * as componentsApi from '@/features/project/api/project-components.api'
@@ -10,10 +10,11 @@ import * as graphsApi from '@/features/graph/api/deployment-graphs.api'
 import * as connectionsApi from '@/features/connection/api/connections.api'
 import { useConsoleStore } from '@/stores/console.store'
 import { mountWithHeaderChrome } from '../../support/mountWithHeaderChrome'
-import type { Company, Project, Task } from '@/features/catalog/model/catalog'
+import { task as workTask } from '../work/work-fixtures'
+import type { Company, Project } from '@/features/catalog/model/catalog'
 import type { ProjectSection } from '@/features/project/model/project-section'
 import type { ProjectConnection } from '@/features/connection/model/connection'
-import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId, ProjectSectionId, TaskId } from '@/model/branded'
+import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId, ProjectSectionId } from '@/model/branded'
 
 vi.mock('@/features/project/api/project-sections.api')
 vi.mock('@/features/project/api/project-components.api')
@@ -26,6 +27,8 @@ const PROJECT = 'p-1' as ProjectId
 const project = {
   id: PROJECT,
   companyId: 'c-1' as CompanyId,
+  companyName: 'Acme',
+  taskCount: 1,
   title: 'Vega',
   label: 'vega',
   anchor: 'project:vega',
@@ -38,13 +41,11 @@ const project = {
   autoCommit: false
 } as unknown as Project
 
-const task = {
-  id: 't-1' as TaskId,
-  projectId: PROJECT,
-  label: 'report-builder',
-  title: 'Build the report',
-  status: 'IN_PROGRESS'
-} as unknown as Task
+const OTHER = 'p-2' as ProjectId
+
+const other = { ...project, id: OTHER, title: 'Atlas', label: 'atlas', anchor: 'project:atlas' } as unknown as Project
+
+const task = workTask('t-1', { projectId: PROJECT, title: 'Build the report' })
 
 const deployment: ProjectSection = {
   id: 's-1' as ProjectSectionId,
@@ -60,17 +61,18 @@ const MarkdownStub = { props: ['modelValue'], template: '<div data-testid="markd
 
 let pinia: Pinia
 let wrapper: VueWrapper | null = null
+let routerUnderTest: Router | null = null
 
-async function render(): Promise<VueWrapper> {
-  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/connections/:id?', name: 'connections', component: { template: '<div />' } }, { path: '/:p(.*)*', component: { template: '<div />' } }] })
+async function render(tab?: string): Promise<VueWrapper> {
+  const router = (routerUnderTest = createRouter({ history: createMemoryHistory(), routes: [{ path: '/connections/:id?', name: 'connections', component: { template: '<div />' } }, { path: '/:p(.*)*', component: { template: '<div />' } }] }))
   const store = useConsoleStore()
   store.isLoading = false
-  store.projects = [project]
+  store.projects = [project, other]
   store.companies = [{ id: project.companyId, name: 'Acme' } as unknown as Company]
   store.tasks = [task]
   wrapper = mountWithHeaderChrome(ProjectDetailPage, {
-    props: { id: PROJECT } as never,
-    global: { plugins: [pinia, router], stubs: { AppMarkdownEditor: MarkdownStub } }
+    props: { id: PROJECT, tab } as never,
+    global: { plugins: [pinia, router], stubs: { AppMarkdownEditor: MarkdownStub, HeaderStatus: true } }
   }) as unknown as VueWrapper
   await flushPromises()
   return wrapper
@@ -94,51 +96,59 @@ afterEach(() => {
 })
 
 describe('the project page', () => {
-  it('opens on the blueprint with the tasks out of sight', async () => {
+  it('opens on the tasks of the project, as the ledger', async () => {
     const page = await render()
 
-    expect(page.find('[data-testid="blueprint-pane"]').exists()).toBe(true)
-    expect(page.find('[data-testid="tasks-drawer"]').exists()).toBe(false)
-    expect(page.text()).not.toContain('Build the report')
+    expect(page.find('[data-testid="tasks-section"]').exists()).toBe(true)
+    await page.get('[data-testid="tasks-section"] [data-testid="sub-nav-open"]').trigger('click')
+    expect(page.find('[data-testid="work-ledger"]').text()).toContain('Build the report')
+    expect(page.get('[data-testid="sub-nav-tasks"]').attributes('aria-selected')).toBe('true')
   })
 
-  it('carries no anchor to copy and no terminal to open in its header', async () => {
+  it('carries the anchor to copy in its header and no terminal to open', async () => {
     const page = await render()
 
-    expect(page.find('[data-testid="copy-project-anchor"]').exists()).toBe(false)
+    expect(page.find('[data-testid="copy-project-anchor"]').exists()).toBe(true)
     expect(page.find('[data-testid="launch-claude-code"]').exists()).toBe(false)
   })
 
-  it('shows the tasks only when asked and closes them again', async () => {
+  it('names the project in its first row and shows the same search and status as every working screen', async () => {
     const page = await render()
 
-    await page.find('[data-testid="show-tasks"]').trigger('click')
-    expect(page.find('[data-testid="tasks-drawer"]').text()).toContain('Build the report')
-
-    await page.find('[data-testid="tasks-drawer-close"]').trigger('click')
-    await flushPromises()
-    expect(page.find('[data-testid="tasks-drawer"]').exists()).toBe(false)
+    expect(page.get('[data-testid="scope-trigger-title"]').text()).toBe('Vega')
+    expect(page.get('[data-testid="anchor-location"]').text()).toContain('project:vega')
+    expect(page.find('[data-testid="save-state"]').exists()).toBe(true)
   })
 
-  it('opens each tab’s page in place of the blueprint', async () => {
-    const page = await render()
+  it('moves to another project from the switcher and stays on the tab that is open', async () => {
+    const page = await render('components')
+    const push = vi.spyOn(routerUnderTest!, 'push')
+
+    await page.get('[data-testid="scope-trigger"]').trigger('click')
+    const atlas = page.findAll('[data-testid="scope-project"]').find((row) => row.text().includes('Atlas'))!
+    await atlas.trigger('click')
+
+    expect(push).toHaveBeenCalledWith(`/projects/${OTHER}/components`)
+  })
+
+  it('opens the page the route names in place of the tasks', async () => {
+    const page = await render('components')
     const workspace = page.get('[data-testid="project-workspace"]')
-
-    await page.get('[data-testid="tab-components"]').trigger('click')
-    await flushPromises()
     expect(workspace.find('[data-testid="project-components"]').exists()).toBe(true)
-    expect(workspace.find('[data-testid="blueprint-pane"]').exists()).toBe(false)
+    expect(workspace.find('[data-testid="tasks-section"]').exists()).toBe(false)
 
-    await page.get('[data-testid="tab-connections"]').trigger('click')
+    await page.setProps({ tab: 'connections' })
     await flushPromises()
     expect(workspace.find('[data-testid="project-connections"]').exists()).toBe(true)
 
-    await page.get('[data-testid="tab-settings"]').trigger('click')
+    await page.setProps({ tab: 'settings' })
     await flushPromises()
     expect(workspace.find('[data-testid="project-description"]').exists()).toBe(true)
+    await page.get('[data-testid="settings-rail-repository"]').trigger('click')
+    await flushPromises()
     expect(workspace.find('[data-testid="project-repo-folder"]').exists()).toBe(true)
 
-    await page.get('[data-testid="tab-blueprint"]').trigger('click')
+    await page.setProps({ tab: 'blueprint' })
     await flushPromises()
     expect(workspace.find('[data-testid="blueprint-pane"]').exists()).toBe(true)
   })
@@ -154,25 +164,26 @@ describe('the project page', () => {
       baseUrl: 'https://gitlab.example.com',
       kubeContext: null,
       target: 'acme/billing',
+      taskManager: false,
       credentialSetAt: null
     } satisfies ProjectConnection
     vi.mocked(connectionsApi.fetchProjectConnections).mockResolvedValue([unsigned])
     const page = await render()
 
     expect(componentsApi.fetchProjectComponents).toHaveBeenCalledWith(PROJECT)
-    expect(page.get('[data-testid="tab-sections-count"]').text()).toBe('1')
-    expect(page.get('[data-testid="tab-connections-count"]').text()).toBe('1')
-    expect(page.get('[data-testid="tab-connections-warning"]').text()).toBe('1 binding without a credential')
-    expect(page.find('[data-testid="tab-components-count"]').exists()).toBe(false)
+    const count = (tab: string): string => page.get(`[data-testid="sub-nav-${tab}"] [data-testid="sub-nav-count"]`).text()
+    expect(count('pages')).toBe('1')
+    expect(count('connections')).toBe('1')
+    expect(page.get('[data-testid="sub-nav-connections"] [data-testid="sub-nav-count"]').classes()).toContain('bg-accent')
+    expect(page.find('[data-testid="sub-nav-components"] [data-testid="sub-nav-count"]').exists()).toBe(false)
   })
 
-  it('opens the first section from its tab and another from the rail', async () => {
+  it('opens the first page from its tab and another from the rail', async () => {
     const glossary = { ...deployment, id: 's-2' as ProjectSectionId, title: 'Glossary', position: 1 }
     vi.mocked(sectionsApi.fetchProjectSections).mockResolvedValue([deployment, glossary])
-    const page = await render()
-
-    await page.get('[data-testid="tab-sections"]').trigger('click')
+    const page = await render('pages')
     await flushPromises()
+
     expect((page.get('[data-testid="section-title"]').element as HTMLInputElement).value).toBe('Deployment')
     expect(page.find('[data-testid="blueprint-pane"]').exists()).toBe(false)
 
@@ -184,9 +195,7 @@ describe('the project page', () => {
   it('creates a section from the rail and opens it', async () => {
     const created = { ...deployment, id: 's-2' as ProjectSectionId, title: 'Glossary', bodyMarkdown: '', position: 1 }
     vi.mocked(sectionsApi.createProjectSection).mockResolvedValue(created)
-    const page = await render()
-    await page.get('[data-testid="tab-sections"]').trigger('click')
-    await flushPromises()
+    const page = await render('pages')
 
     await page.find('[data-testid="rail-new-section"]').trigger('click')
     await page.find('[data-testid="rail-new-title"]').setValue('Glossary')
@@ -197,11 +206,9 @@ describe('the project page', () => {
     expect((page.find('[data-testid="section-title"]').element as HTMLInputElement).value).toBe('Glossary')
   })
 
-  it('asks before deleting a section, then stays on the sections with none open', async () => {
+  it('asks before deleting a section, then stays on the pages with none open', async () => {
     vi.mocked(sectionsApi.deleteProjectSection).mockResolvedValue()
-    const page = await render()
-    await page.get('[data-testid="tab-sections"]').trigger('click')
-    await flushPromises()
+    const page = await render('pages')
 
     await page.find('[data-testid="section-delete"]').trigger('click')
     expect(page.text()).toContain('Delete Deployment?')
@@ -212,6 +219,6 @@ describe('the project page', () => {
 
     expect(sectionsApi.deleteProjectSection).toHaveBeenCalledWith('s-1')
     expect(page.find('[data-testid="sections-none"]').exists()).toBe(true)
-    expect(page.get('[data-testid="tab-sections"]').attributes('aria-current')).toBe('page')
+    expect(page.get('[data-testid="sub-nav-pages"]').attributes('aria-selected')).toBe('true')
   })
 })

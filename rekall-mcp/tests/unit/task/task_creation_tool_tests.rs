@@ -1,7 +1,9 @@
 use rekall_core::flow::{PlannedRoute, PlannedStep};
 use serde_json::json;
 
-use super::{plan_or_empty, project_label};
+use rekall_core::ProjectRef;
+
+use super::{plan_or_empty, project_ref};
 use crate::tool::Anchor;
 
 #[test]
@@ -36,9 +38,9 @@ fn a_step_without_a_title_is_refused_and_says_what_was_expected() {
 
 #[test]
 fn only_a_lone_project_anchor_names_where_the_task_goes() {
-    assert_eq!(project_label(&Anchor::parse_all(Some("project:vega")).unwrap()).unwrap(), "vega");
-    assert!(project_label(&Anchor::parse_all(Some("project:vega task:report")).unwrap()).is_err());
-    assert!(project_label(&Anchor::parse_all(Some("vega")).unwrap()).is_err());
+    assert_eq!(project_ref(&Anchor::parse_all(Some("project:vega")).unwrap()).unwrap(), ProjectRef::bare("vega"));
+    assert!(project_ref(&Anchor::parse_all(Some("project:vega task:report")).unwrap()).is_err());
+    assert!(project_ref(&Anchor::parse_all(Some("vega")).unwrap()).is_err());
 }
 
 #[test]
@@ -82,4 +84,11 @@ fn a_checklist_created_is_answered_as_ready_to_work_and_a_flow_with_its_routes()
         "Task \"Report\" created as `project:vega task:report` with 2 steps ready to work: none is a draft, so a session can start the first at once. `/rk project:vega task:report` loads it."
     );
     assert!(super::report(&flow).contains("as a flow of 3 steps joined by 4 routes, ready to work"), "{}", super::report(&flow));
+}
+
+#[test]
+fn a_company_beside_the_project_says_which_of_two_projects_with_one_label_gets_the_task() {
+    let anchors = Anchor::parse_all(Some("company:Acme project:vega")).unwrap();
+
+    assert_eq!(project_ref(&anchors).unwrap(), ProjectRef::in_company("Acme", "vega"));
 }

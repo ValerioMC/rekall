@@ -24,14 +24,14 @@ async fn a_folder_inside_an_auto_commit_project_answers_its_commit_rule_and_its_
     let task_id = app.a_task(&project_id, "report-builder").await;
     app.a_step(&task_id, "First", None).await;
     app.a_step(&task_id, "Second", None).await;
-    app.call_tool("rekall_step", json!({ "anchors": "project:vega task:report-builder", "step": "2", "state": "running" })).await;
+    app.call_tool("rekall_step", json!({ "anchors": "task:VE-1", "step": "2", "state": "running" })).await;
 
     let context = app.get(&context_url(&repo.path().join("src"))).await;
 
     assert_eq!(context.status, 200);
     assert_eq!(context.str("projectAnchor"), "project:vega");
     assert_eq!(context.get("autoCommit"), &json!(true));
-    assert_eq!(context.get("runningStep"), &json!({ "number": 2, "taskAnchor": "project:vega task:report-builder" }));
+    assert_eq!(context.get("runningStep"), &json!({ "number": 2, "taskAnchor": "task:VE-1" }));
 }
 
 #[tokio::test]

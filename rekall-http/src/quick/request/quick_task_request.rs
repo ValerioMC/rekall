@@ -1,5 +1,5 @@
 use rekall_console::quick::QuickTaskCommand;
-use rekall_core::claude::SessionKind;
+use rekall_core::claude::{SessionKind, SessionProvider};
 use rekall_kernel::Id;
 use serde::Deserialize;
 
@@ -9,6 +9,7 @@ use serde::Deserialize;
 #[serde(rename_all = "camelCase", default)]
 pub struct QuickTaskRequest {
     pub text: Option<String>,
+    pub provider: SessionProvider,
     pub skip_permissions: Option<bool>,
     pub model: Option<String>,
     pub effort: Option<String>,
@@ -20,6 +21,7 @@ impl QuickTaskRequest {
         QuickTaskCommand {
             project_id,
             text: self.text.unwrap_or_default(),
+            provider: self.provider,
             skip_permissions: self.skip_permissions.unwrap_or(false),
             model: self.model,
             effort: self.effort,

@@ -57,7 +57,7 @@ onMounted(() => field.value?.focus())
       <div class="flex flex-col gap-4 px-5 py-4">
         <label class="block">
           <span class="eyebrow mb-1.5 block text-caption">Name</span>
-          <input ref="field" v-model="name" class="field h-9 w-full rounded-control px-3 text-body text-text" placeholder="a short, lowercase name" autocomplete="off" spellcheck="false" data-testid="new-resource-name" />
+          <input ref="field" v-model="name" class="field h-8 w-full rounded-control px-3 text-body text-text" placeholder="a short, lowercase name" autocomplete="off" spellcheck="false" data-testid="new-resource-name" />
         </label>
 
         <div v-if="section === 'memories'" class="grid grid-cols-2 gap-3">

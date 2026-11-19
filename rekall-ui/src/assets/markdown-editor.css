@@ -2,7 +2,7 @@
    Unscoped on purpose, since the editor renders its own DOM; every rule sits under `.rekall-md`. */
 
 .rekall-md .md-editor {
-  --md-bk-color: var(--color-surface);
+  --md-bk-color: var(--color-canvas);
   --md-color: var(--color-text);
   --md-border-color: var(--color-border);
   --md-hover-color: var(--color-text);
@@ -259,7 +259,7 @@
 }
 
 .rekall-md .md-editor-preview pre {
-  background: var(--color-canvas);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
 }
@@ -342,6 +342,24 @@
 .rekall-md .md-editor-toolbar-wrapper {
   padding: 6px 8px;
   border-bottom: 1px solid var(--color-border);
+  /* The library scrolls a toolbar wider than its column with the scrollbar hidden, which cuts the
+     keys off. Wrapping keeps every key in reach at any width; the fitted height reads the result. */
+  overflow: visible;
+}
+
+.rekall-md .md-editor-toolbar {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  row-gap: 2px;
+}
+
+.rekall-md .md-editor-toolbar-left,
+.rekall-md .md-editor-toolbar-right {
+  flex-wrap: wrap;
+}
+
+.rekall-md .md-editor-toolbar-right {
+  margin-inline-start: auto;
 }
 
 .rekall-md .md-editor-toolbar-item {
@@ -386,7 +404,7 @@
   font-size: var(--text-micro);
   color: var(--color-text-subtle);
   border-color: var(--color-border);
-  background: var(--color-surface);
+  background: var(--color-canvas);
 }
 
 .rekall-md--readonly {
@@ -403,11 +421,6 @@
   line-height: 1.75 !important;
   box-sizing: border-box;
   transition: max-width 0.12s ease-out;
-}
-
-.rekall-md--readonly[data-align='left'] .md-editor-preview {
-  margin-inline: 0;
-  margin-left: clamp(16px, 4vw, 56px);
 }
 
 .rekall-md--readonly .md-editor-previewOnly {
@@ -436,66 +449,69 @@
 }
 
 /*
- * A diagram and its two controls (copy the source, pan and zoom). The library inserts the controls
- * as bare elements after the SVG and ships no rule for them, so on a wide window they sat in the
- * flow beside the drawing. They are held over the diagram's top-right corner instead, clear of
- * the page's own reading controls, and the SVG is kept inside the frame at any width.
+ * A mermaid fence in a read view, drawn by the console as a Diagram section sheet is. It is held
+ * in a frame like the writing surface's, and its drawing scales down to the width it is given.
  */
-.rekall-md .md-editor-preview .md-editor-mermaid {
-  position: relative;
+.rekall-md .md-editor-preview .rk-mermaid-fence {
   display: flex;
   justify-content: center;
   overflow-x: auto;
-  padding: 36px 16px 16px;
+  padding: 16px;
   background: var(--color-canvas);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
 }
 
-.rekall-md .md-editor-preview .md-editor-mermaid svg {
+.rekall-md .md-editor-preview .rk-mermaid-fence {
+  position: relative;
+}
+
+.rekall-md .md-editor-preview .rk-mermaid-zoomable {
+  cursor: zoom-in;
+}
+
+.rekall-md .md-editor-preview .rk-mermaid-expand {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  opacity: 0;
+  transition: opacity 0.12s ease-out, color 0.12s ease-out;
+}
+
+.rekall-md .md-editor-preview .rk-mermaid-fence:hover .rk-mermaid-expand,
+.rekall-md .md-editor-preview .rk-mermaid-expand:focus-visible {
+  opacity: 1;
+}
+
+.rekall-md .md-editor-preview .rk-mermaid-expand:hover {
+  color: var(--color-text);
+}
+
+@media (hover: none) {
+  .rekall-md .md-editor-preview .rk-mermaid-expand {
+    opacity: 1;
+  }
+}
+
+.rekall-md .md-editor-preview .rk-mermaid-fence > svg {
   max-width: 100%;
   height: auto;
 }
 
-.rekall-md .md-editor-preview .md-editor-mermaid[data-grab] {
-  overflow: hidden;
-  cursor: grab;
-}
-
-.rekall-md .md-editor-preview .md-editor-mermaid-action {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  z-index: var(--z-sticky);
-  display: flex;
-  gap: 2px;
-}
-
-.rekall-md .md-editor-preview .md-editor-mermaid-action > span {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  color: var(--color-text-subtle);
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  cursor: pointer;
-  transition:
-    color var(--motion-quick) ease,
-    background-color var(--motion-quick) ease;
-}
-
-.rekall-md .md-editor-preview .md-editor-mermaid-action > span:hover {
-  color: var(--color-text);
-  background: var(--color-surface-hover);
-}
-
-.rekall-md .md-editor-preview .md-editor-mermaid-action svg.md-editor-icon {
-  width: 14px;
-  height: 14px;
-  padding: 0;
+.rekall-md .md-editor-preview .rk-mermaid-fence--failed {
+  justify-content: flex-start;
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  color: var(--color-danger);
 }
 
 /* Held over the page's top-right corner rather than given a row of its own, so opening a read
@@ -585,8 +601,13 @@
   border-color: var(--color-accent-deep);
 }
 
-/* The `[[` suggestions: a raised card of rows, each a glyph, the reference in mono and what it is, muted, on the right. */
-.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete {
+/*
+ * The `[[` suggestions: a raised card of rows, each a glyph, the reference in mono and what it is,
+ * muted, on the right. CodeMirror mounts them on the body, so no pane or editor edge clips them;
+ * the z-index clears md-editor's full-screen page and its modals.
+ */
+body .cm-tooltip.cm-tooltip-autocomplete.rk-completion-tooltip {
+  z-index: 30000;
   overflow: hidden;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-card);
@@ -594,7 +615,7 @@
   box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
 }
 
-.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul {
+body .cm-tooltip.cm-tooltip-autocomplete.rk-completion-tooltip > ul {
   min-width: 300px;
   max-width: min(560px, 80vw);
   max-height: 18rem;
@@ -603,7 +624,7 @@
   font-family: var(--font-sans);
 }
 
-.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul > completion-section {
+body .cm-tooltip.cm-tooltip-autocomplete.rk-completion-tooltip > ul > completion-section {
   display: block;
   padding: 8px 8px 4px;
   border: 0;
@@ -614,7 +635,7 @@
   text-transform: uppercase;
 }
 
-.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul li {
+body .cm-tooltip.cm-tooltip-autocomplete.rk-completion-tooltip > ul li {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -625,22 +646,22 @@
   line-height: 18px;
 }
 
-.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul li[aria-selected] {
+body .cm-tooltip.cm-tooltip-autocomplete.rk-completion-tooltip > ul li[aria-selected] {
   background: var(--color-accent-soft);
   color: var(--color-text);
 }
 
-.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul li .cm-completionIcon[class*='cm-completionIcon-rk-ref-'] {
+body .cm-tooltip.cm-tooltip-autocomplete.rk-completion-tooltip > ul li .cm-completionIcon[class*='cm-completionIcon-rk-ref-'] {
   display: none;
 }
 
-.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete .cm-completionLabel {
+body .cm-tooltip.cm-tooltip-autocomplete.rk-completion-tooltip .cm-completionLabel {
   flex: none;
   font-family: var(--font-mono);
   font-size: var(--text-small);
 }
 
-.rekall-md .md-editor .cm-editor .cm-tooltip.cm-tooltip-autocomplete .cm-completionDetail {
+body .cm-tooltip.cm-tooltip-autocomplete.rk-completion-tooltip .cm-completionDetail {
   overflow: hidden;
   flex: 1;
   min-width: 0;
@@ -691,4 +712,12 @@
 
 .rk-completion-icon[data-icon='jira'] {
   color: var(--color-brand-jira);
+}
+
+.rk-completion-icon[data-icon='confluence'] {
+  color: var(--color-brand-confluence);
+}
+
+.rk-completion-icon[data-icon='grafana'] {
+  color: var(--color-brand-grafana);
 }

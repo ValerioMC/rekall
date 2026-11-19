@@ -30,7 +30,7 @@ impl StepStateTool {
         }
         let report = self
             .checks
-            .run_for_step_claim(target.project_label.as_deref(), &target.task_label, Some(step_ref))
+            .run_for_step_claim(target.project_label.as_deref(), &target.task_code, Some(step_ref))
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
         admit(report, texts::STEP_LEFT_AS_IT_WAS)
@@ -160,7 +160,7 @@ impl McpTool for StepStateTool {
         ToolSchema::object()
             .required_string(
                 "anchors",
-                "The task the step is on, e.g. `project:vega task:report-builder`. Labels, never titles, and it has to \
+                "The task the step is on, e.g. `task:RK-12`. Labels, never titles, and it has to \
                  name exactly one task.",
             )
             .required_string("step", "Which step: its one-based position in the checklist (`\"3\"`), or its exact title.")
@@ -203,7 +203,7 @@ impl McpTool for StepStateTool {
 
         let flow_move = self
             .flow
-            .transition(target.project_label.as_deref(), &target.task_label, Some(&step_ref), requested, outcome.as_deref(), report.as_deref())
+            .transition(target.project_label.as_deref(), &target.task_code, Some(&step_ref), requested, outcome.as_deref(), report.as_deref())
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
 

@@ -6,6 +6,7 @@ export const ProjectComponentSchema = z.object({
   projectId: z.string().uuid().transform(asProjectId),
   name: z.string(),
   folder: z.string(),
+  summary: z.string(),
   description: z.string(),
   position: z.number().int(),
   createdAt: z.string(),
@@ -13,3 +14,7 @@ export const ProjectComponentSchema = z.object({
 })
 
 export const ProjectComponentListSchema = z.array(ProjectComponentSchema)
+
+export const ProjectComponentStreamEventSchema = z.object({
+  projectId: z.string().uuid().transform(asProjectId)
+})

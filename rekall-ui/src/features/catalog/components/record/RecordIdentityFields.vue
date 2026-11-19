@@ -1,30 +1,37 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { identityHue } from '@/common/identity'
 import { slugify } from '@/features/catalog/model/catalog'
 
 /**
- * What a record is called and what its anchor carries: the title, the label (filled from the
- * title until it is typed in), and the `/rk` line the two make, with a warning when renaming the
- * label of an existing record moves its anchor.
+ * What a record is called and what its anchor carries: the title, for a project its label (filled
+ * from the title until it is typed in) and its task key, and the `/rk` line they make. A task has
+ * no label: its anchor is its code, shown here and never typed. Renaming an existing project's
+ * label moves its anchor, and the form says so.
  */
-const props = defineProps<{
-  kind: 'company' | 'project' | 'task'
-  isNew: boolean
-  /** The label as stored, for the rename warning; empty for a company, which has none. */
-  originalLabel: string
-  /** The parent's anchor, `project:vega` for a task; empty when the anchor has no parent part. */
-  anchorParent: string
-  /** The parent's id, which tints a task's anchor with its project's colour. */
-  parentId: string
-  titleError: string | null
-  labelError: string | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    kind: 'company' | 'project' | 'task'
+    isNew: boolean
+    /** The label as stored, for the rename warning; empty for a company, which has none. */
+    originalLabel?: string
+    /** The parent's id, which tints a task's anchor with its project's colour. */
+    parentId?: string
+    /** A task's code, or the one it will get; empty while the project is unknown. */
+    taskCode?: string
+    titleError: string | null
+    labelError?: string | null
+    /** Puts the cursor in the title, selected, once the dialog around it has settled. */
+    autofocus?: boolean
+  }>(),
+  { originalLabel: '', parentId: '', taskCode: '', labelError: null, autofocus: false }
+)
 
 const title = defineModel<string>('title', { required: true })
-const rawLabel = defineModel<string>('label', { required: true })
+const rawLabel = defineModel<string>('label', { default: '' })
+const taskKey = defineModel<string>('taskKey', { default: '' })
 
-const hasLabel = computed(() => props.kind !== 'company')
+const hasLabel = computed(() => props.kind === 'project')
 const label = computed(() => slugify(rawLabel.value))
 const labelWasTouched = ref(!props.isNew)
 const anchorLive = ref(false)
@@ -42,16 +49,21 @@ function onLabelInput(value: string): void {
 
 const anchorSelf = computed(() => {
   if (props.kind === 'company') return title.value.trim() ? `company:${title.value.trim()}` : ''
-  return label.value ? `${props.kind}:${label.value}` : ''
+  if (props.kind === 'task') return props.taskCode ? `task:${props.taskCode}` : ''
+  return label.value ? `project:${label.value}` : ''
 })
-const anchorPreview = computed(() => [props.anchorParent, anchorSelf.value].filter(Boolean).join(' '))
+const anchorPreview = computed(() => anchorSelf.value)
+
+function onKeyInput(value: string): void {
+  taskKey.value = value.replace(/[^a-z]/gi, '').slice(0, 4).toUpperCase()
+}
 const anchorIsMoving = computed(() => !props.isNew && hasLabel.value && label.value !== props.originalLabel)
 
-defineExpose({
-  focusTitle(): void {
-    titleField.value?.focus()
-    titleField.value?.select()
-  }
+onMounted(async () => {
+  if (!props.autofocus) return
+  await nextTick()
+  titleField.value?.focus()
+  titleField.value?.select()
 })
 </script>
 
@@ -62,7 +74,7 @@ defineExpose({
     ref="titleField"
     :value="title"
     data-testid="record-title"
-    class="field text-text h-10 w-full rounded-control px-3 text-title"
+    class="field text-text h-(--spacing-control) w-full rounded-control px-3 text-title"
     :aria-invalid="titleError ? 'true' : undefined"
     :placeholder="hasLabel ? 'Report builder, main workflow' : 'Acme S.p.A.'"
     @input="onTitleInput(($event.target as HTMLInputElement).value)"
@@ -82,7 +94,7 @@ defineExpose({
       data-testid="record-label"
       spellcheck="false"
       autocomplete="off"
-      class="field field-anchor h-10 w-full rounded-control px-3 font-mono text-body text-anchor"
+      class="field field-anchor h-(--spacing-control) w-full rounded-control px-3 font-mono text-body text-anchor"
       :aria-invalid="labelError ? 'true' : undefined"
       placeholder="report-builder"
       @input="onLabelInput(($event.target as HTMLInputElement).value)"
@@ -92,6 +104,23 @@ defineExpose({
     <p v-if="labelError" class="mt-1.5 text-caption text-danger" role="alert">{{ labelError }}</p>
     <p v-else class="mt-1.5 text-caption text-text-subtle">
       What the anchor carries. Lowercase, no spaces, unique inside its parent.
+    </p>
+
+    <label for="record-key" class="mb-1.5 mt-5 block eyebrow text-caption">Task key</label>
+    <input
+      id="record-key"
+      :value="taskKey"
+      data-testid="record-key"
+      spellcheck="false"
+      autocomplete="off"
+      maxlength="4"
+      class="field field-anchor h-(--spacing-control) w-28 rounded-control px-3 font-mono text-body uppercase text-anchor"
+      placeholder="RK"
+      @input="onKeyInput(($event.target as HTMLInputElement).value)"
+    />
+    <p class="mt-1.5 text-caption text-text-subtle">
+      <template v-if="isNew">Two to four letters opening every task code, like RK-12. Left empty, one is taken from the label.</template>
+      <template v-else>Changing it renames every task code of this project.</template>
     </p>
   </template>
 
@@ -103,14 +132,12 @@ defineExpose({
   >
     <span class="shrink-0 font-mono text-small text-text-subtle" aria-hidden="true">/rk</span>
     <span
-      v-if="kind === 'task' && anchorParent"
+      v-if="kind === 'task' && parentId"
       class="size-1.5 shrink-0 rounded-full"
       :style="{ backgroundColor: identityHue(parentId).base }"
       aria-hidden="true"
     />
-    <span class="min-w-0 flex-1 truncate font-mono text-body">
-      <span v-if="anchorParent" class="text-anchor/60">{{ anchorParent }}</span> <span class="text-anchor">{{ anchorSelf || '…' }}</span>
-    </span>
+    <span class="min-w-0 flex-1 truncate font-mono text-body text-anchor">{{ anchorSelf || '…' }}</span>
     <span class="shrink-0 eyebrow font-normal">loads this</span>
   </div>
 

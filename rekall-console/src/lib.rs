@@ -1,6 +1,7 @@
 //! The services only the console calls, one folder per domain. A service takes a command and
 //! returns a view, both defined beside it; the HTTP layer maps its requests and responses onto them.
 
+pub mod codex;
 pub mod adherence;
 pub mod backup;
 pub mod catalog;
@@ -21,6 +22,7 @@ pub mod queue;
 pub mod quick;
 pub mod section;
 pub mod settings;
+pub mod shared;
 pub mod skill;
 pub mod tag;
 pub mod terminal;

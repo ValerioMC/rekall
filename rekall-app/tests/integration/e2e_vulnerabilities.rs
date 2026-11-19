@@ -156,12 +156,11 @@ async fn fixing_an_exposure_opens_a_briefed_task_once() {
     app.post_empty("/api/vulnerabilities/scan").await;
     let exposure_id = app.get("/api/vulnerabilities/exposures").await.list()[0]["id"].as_str().unwrap().to_string();
     app.a_task(&project_id, "fix-ghsa-p6mc-m468-83gw").await;
-
     let fixed = app.post_empty(&format!("/api/vulnerability-exposures/{exposure_id}/fix")).await;
 
     assert_eq!(fixed.status, 200, "{}", fixed.text);
     let task = fixed.get("task");
-    assert_eq!(task["label"], "fix-ghsa-p6mc-m468-83gw-2", "a label the project uses is not taken over");
+    assert_eq!(task["code"], "VE-2", "the fix takes the next number of the project");
     assert_eq!(task["title"], "Fix GHSA-p6mc-m468-83gw in lodash 4.17.15");
     let description = task["description"].as_str().unwrap();
     assert!(description.contains("`lodash` 4.17.15 (npm, declared in `web/package-lock.json`)"), "{description}");
@@ -182,7 +181,7 @@ async fn fixing_a_project_opens_one_task_with_a_step_per_open_exposure_once() {
 
     assert_eq!(fixed.status, 200, "{}", fixed.text);
     let task = fixed.get("task");
-    assert_eq!((task["label"].as_str(), task["title"].as_str()), (Some("fix-vulnerabilities"), Some("Fix 2 critical advisories in vega")));
+    assert_eq!((task["code"].as_str(), task["title"].as_str()), (Some("VE-1"), Some("Fix 2 critical advisories in vega")));
     let steps = app.get(&format!("/api/tasks/{}/steps", task["id"].as_str().unwrap())).await.list();
     let mut titles: Vec<&str> = steps.iter().map(|step| step["title"].as_str().unwrap()).collect();
     titles.sort_unstable();

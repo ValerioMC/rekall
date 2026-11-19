@@ -1,21 +1,26 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppCheckbox from '@/components/ui/AppCheckbox.vue'
 import AppDialog from '@/components/ui/AppDialog.vue'
 import AppField from '@/components/ui/AppField.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import ConnectionCompanyPicker from '@/features/connection/components/ConnectionCompanyPicker.vue'
 import ConnectionCredentialInput from '@/features/connection/components/ConnectionCredentialInput.vue'
+import ConnectionProjectPicker from '@/features/connection/components/ConnectionProjectPicker.vue'
 import ConnectionKindPicker from '@/features/connection/components/ConnectionKindPicker.vue'
 import ConnectionRootPathField from '@/features/connection/components/ConnectionRootPathField.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { slugify } from '@/features/catalog/model/catalog'
-import { CREDENTIAL_FIELD, ROOT_PATH_FIELD, TAKES_PROXY, URL_FIELD } from '@/features/connection/lib/connection-fields'
+import { CREDENTIAL_FIELD, ROOT_PATH_FIELD, TAKES_PROXY, TAKES_SELF_SIGNED, URL_FIELD } from '@/features/connection/lib/connection-fields'
 import { emptyDraft, isComplete, isStarted } from '@/features/connection/lib/credential-draft'
+import { bindableProjects } from '@/features/connection/lib/connection-impact'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
+import { useConsoleStore } from '@/stores/console.store'
+import { useToastStore } from '@/stores/toast.store'
 import type { Connection, ConnectionInput, ConnectionKind, CredentialDraft } from '@/features/connection/model/connection'
-import type { CompanyId } from '@/model/branded'
+import type { CompanyId, ProjectId } from '@/model/branded'
 
 /**
  * Creates a connection, with its credential and the companies it is shared with, or edits one's
@@ -32,6 +37,8 @@ const props = defineProps<{
 const emit = defineEmits<{ close: []; saved: [connection: Connection]; editCompanies: [] }>()
 
 const store = useConnectionsStore()
+const consoleStore = useConsoleStore()
+const toast = useToastStore()
 const { run, isRunning } = useAsyncAction()
 const isNew = props.connection === null
 
@@ -40,8 +47,10 @@ const title = ref(props.connection?.title ?? '')
 const label = ref(props.connection?.label ?? '')
 const baseUrl = ref(props.connection?.baseUrl ?? '')
 const proxyUrl = ref(props.connection?.proxyUrl ?? '')
+const acceptSelfSigned = ref(props.connection?.acceptSelfSigned ?? false)
 const rootPath = ref(props.connection?.rootPath ?? '')
 const companyIds = ref<readonly CompanyId[]>(props.initialCompanyIds)
+const projectIds = ref<readonly ProjectId[]>([])
 const credential = ref<CredentialDraft>(emptyDraft(kind.value))
 const submitted = ref(false)
 const summary = ref<HTMLElement | null>(null)
@@ -55,11 +64,15 @@ watch(kind, (next) => {
 const sharedCompanyNames = computed(() =>
   props.companies.filter((company) => props.initialCompanyIds.includes(company.id)).map((company) => company.name)
 )
+const chosenCompanies = computed(() => props.companies.filter((company) => companyIds.value.includes(company.id)))
+const selectableProjects = computed(() => companyIds.value.flatMap((companyId) => bindableProjects(consoleStore.projects, companyId)))
+const projectsToBind = computed(() => selectableProjects.value.filter((project) => projectIds.value.includes(project.id)))
 const heading = isNew ? 'New connection' : `Edit ${props.connection?.title}`
 const slug = computed(() => slugify(label.value || title.value))
 const urlField = computed(() => URL_FIELD[kind.value])
 const credentialField = computed(() => CREDENTIAL_FIELD[kind.value])
 const takesProxy = computed(() => TAKES_PROXY[kind.value])
+const takesSelfSigned = computed(() => TAKES_SELF_SIGNED[kind.value])
 const takesRootPath = computed(() => ROOT_PATH_FIELD[kind.value] !== null)
 
 const titleError = computed(() => (!title.value.trim() ? 'A title is required.' : null))
@@ -84,7 +97,8 @@ function input(): ConnectionInput {
   const typed = { title: title.value.trim(), label: slug.value }
   const withUrl = urlField.value ? { ...typed, baseUrl: baseUrl.value.trim() } : typed
   const withProxy = takesProxy.value ? { ...withUrl, proxyUrl: proxyUrl.value.trim() } : withUrl
-  const withRoot = takesRootPath.value ? { ...withProxy, rootPath: rootPath.value.trim() } : withProxy
+  const withTrust = takesSelfSigned.value ? { ...withProxy, acceptSelfSigned: acceptSelfSigned.value } : withProxy
+  const withRoot = takesRootPath.value ? { ...withTrust, rootPath: rootPath.value.trim() } : withTrust
   return isNew ? { ...withRoot, kind: kind.value, companyIds: companyIds.value } : withRoot
 }
 
@@ -103,8 +117,20 @@ async function save(): Promise<void> {
     `${isNew ? 'Created' : 'Saved'} ${title.value.trim()}`
   )
   if (saved) {
+    if (isNew) await bindChosenProjects(saved)
     emit('saved', saved)
     emit('close')
+  }
+}
+
+async function bindChosenProjects(created: Connection): Promise<void> {
+  for (const project of projectsToBind.value) {
+    try {
+      await store.bind(project.id, created.id, { target: null })
+    } catch (failure) {
+      const reason = failure instanceof Error ? failure.message : 'the server refused it'
+      toast.notifyError(new Error(`${created.title} was created but not bound to ${project.title}: ${reason}`))
+    }
   }
 }
 
@@ -179,7 +205,7 @@ onMounted(async () => {
         v-if="takesProxy"
         v-slot="{ fieldId, describedBy }"
         label="Proxy URL"
-        hint="Optional. Check, the issue import and rekall-jira all reach the site through it."
+        hint="Optional. Check, the terminal helper and, on Jira, the issue import and, on Confluence, the project import all reach the site through it."
       >
         <AppInput
           :id="fieldId"
@@ -188,6 +214,21 @@ onMounted(async () => {
           mono
           data-testid="connection-proxy"
           placeholder="http://proxy.example.com:8080"
+        />
+      </AppField>
+
+      <AppField
+        v-if="takesSelfSigned"
+        v-slot="{ fieldId, describedBy }"
+        label="Certificate"
+        hint="For an instance that serves a self-signed certificate. Check and the terminal helper then skip verifying it, so only turn it on for a host you trust."
+      >
+        <AppCheckbox
+          :id="fieldId"
+          v-model="acceptSelfSigned"
+          :described-by="describedBy"
+          label="Accept a self-signed certificate"
+          data-testid="connection-accept-self-signed"
         />
       </AppField>
 
@@ -210,6 +251,11 @@ onMounted(async () => {
           <p v-else class="mt-1.5 text-caption text-text-subtle">A project can bind the connection only if its company is in this list.</p>
         </template>
       </section>
+      <section v-if="isNew && !bindToProject && companyIds.length" class="mb-4" aria-labelledby="sheet-projects-heading">
+        <h3 id="sheet-projects-heading" class="mb-1.5 text-small font-medium text-text-muted">Used by projects</h3>
+        <ConnectionProjectPicker v-model="projectIds" :companies="chosenCompanies" :projects="selectableProjects" />
+        <p class="mt-1.5 text-caption text-text-subtle">Optional. Each project you tick uses the whole connection; narrow it to a repository or namespace from the connection afterwards.</p>
+      </section>
       <p v-else class="mb-4 text-small text-text-muted">
         Companies are changed in
         <button type="button" class="focus-ring rounded-key text-accent underline-offset-2 hover:underline" data-testid="sheet-edit-companies" @click="emit('editCompanies')">
@@ -223,7 +269,7 @@ onMounted(async () => {
           v-slot="{ fieldId, describedBy }"
           class="mt-3"
           label="Label"
-          hint="The short name sessions use for this connection: kubectl --context, rekall-gitlab, rekall-github and rekall-jira --connection. Made from the title when left empty."
+          hint="The short name sessions use for this connection: kubectl --context, rekall-gitlab, rekall-github, rekall-jira and rekall-grafana --connection. Made from the title when left empty."
           :error="submitted ? labelError : null"
         >
           <AppInput

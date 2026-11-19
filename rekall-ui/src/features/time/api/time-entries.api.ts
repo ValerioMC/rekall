@@ -1,6 +1,6 @@
 import { apiClient, request } from '../../../api/client'
 import { TimeEntryListSchema, TimeEntrySchema } from '../../catalog/api/schemas/catalog.schema'
-import type { TimeEntry } from '@/features/catalog/model/catalog'
+import type { TimeEntry } from '@/features/time/model/time-entry'
 import type { TaskId, TimeEntryId } from '@/model/branded'
 
 export interface TimeEntryEdit {

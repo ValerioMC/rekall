@@ -9,9 +9,6 @@ use crate::constraints::Violations;
 pub const TITLE_MAX_CHARACTERS: usize = 200;
 pub const DESCRIPTION_MAX_CHARACTERS: usize = 10_000;
 
-/// Steps one graph holds, the same as the drafts a planned flow may leave on a task.
-pub const STEPS_MAX: usize = 20;
-
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "deployment_graph")]
 pub struct Model {

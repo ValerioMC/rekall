@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use rekall_core::claude::{ClaudeResources, MemoryAnalysis, ResourceCatalog, ResourceFile, ResourceSave};
-use rekall_kernel::{InternalFailure, RekallError, Result};
+use rekall_kernel::Result;
 
+use crate::claude::support::blocking_job::blocking;
 use crate::claude::SaveResourceCommand;
 
 /// The files of Claude Code's home folder. The disk is read and written with blocking calls, so
@@ -42,10 +43,6 @@ impl ClaudeFolderService {
         let resources = self.resources.clone();
         blocking(move || resources.delete(&path)).await
     }
-}
-
-async fn blocking<T: Send + 'static>(work: impl FnOnce() -> Result<T> + Send + 'static) -> Result<T> {
-    tokio::task::spawn_blocking(work).await.map_err(|failed| RekallError::internal(InternalFailure::Background, failed))?
 }
 
 #[cfg(test)]

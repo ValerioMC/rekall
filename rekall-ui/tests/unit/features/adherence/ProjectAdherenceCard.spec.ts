@@ -13,7 +13,7 @@ async function render() {
   return wrapper
 }
 
-describe('the plan adherence card of a project', () => {
+describe('the plan adherence strip of a project', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.resetAllMocks()
@@ -30,18 +30,18 @@ describe('the plan adherence card of a project', () => {
     expect(wrapper.get('[data-testid="project-adherence-deviations"]').text()).toBe('1')
   })
 
-  it('lists the tasks with most steps sent back and opens the one clicked', async () => {
+  it('links the task with most steps sent back and opens it', async () => {
     vi.mocked(api.fetchProjectAdherence).mockResolvedValue(projectAdherence())
     const wrapper = await render()
 
-    const rows = wrapper.findAll('[data-testid="project-adherence-task"]')
-    expect(rows.map((row) => row.text())).toEqual(['Import2 sent back7 passes', 'Export1 sent back2 passes'])
-    await rows[1]?.trigger('click')
+    const link = wrapper.get('[data-testid="project-adherence-task"]')
+    expect(link.text()).toBe('Most sent backImport2')
+    await link.trigger('click')
 
-    expect(wrapper.emitted('open')).toEqual([['b']])
+    expect(wrapper.emitted('open')).toEqual([['a']])
   })
 
-  it('lists no task when none had a step sent back', async () => {
+  it('links no task when none had a step sent back', async () => {
     vi.mocked(api.fetchProjectAdherence).mockResolvedValue(projectAdherence({ sentBack: 0, mostSentBack: [] }))
 
     const wrapper = await render()

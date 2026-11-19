@@ -5,6 +5,7 @@ use rekall_core::Services;
 use crate::protocol::McpTool;
 
 use crate::commit::CommitReferenceTool;
+use crate::component::{ComponentReadTool, ComponentTool};
 use crate::context::ContextTool;
 use crate::deviation::DeviationTool;
 use crate::diagram::DiagramTool;
@@ -15,7 +16,7 @@ use crate::note::NoteTool;
 use crate::search::SearchTool;
 use crate::section::{ProjectSectionTool, SectionReadTool};
 use crate::step::{StepDeletionTool, StepProposalTool, StepStateTool};
-use crate::task::{EpicMembershipTool, TaskCreationTool};
+use crate::task::{EpicMembershipTool, TaskCreationTool, TaskDescriptionTool};
 use crate::vulnerability::{AssessmentTool, VulnerabilityReadTool};
 use crate::wrapup::WrapupTool;
 
@@ -26,6 +27,7 @@ pub fn all(services: &Services) -> Vec<Arc<dyn McpTool>> {
         Arc::new(ContextTool::new(services.context.clone())),
         Arc::new(TaskCreationTool::new(services.task_authoring.clone())),
         Arc::new(EpicMembershipTool::new(services.epic_membership.clone())),
+        Arc::new(TaskDescriptionTool::new(services.task_descriptions.clone())),
         Arc::new(NoteTool::new(services.notes.clone())),
         Arc::new(DeviationTool::new(services.deviations.clone())),
         Arc::new(FeedbackTool::new(services.feedback.clone())),
@@ -38,6 +40,8 @@ pub fn all(services: &Services) -> Vec<Arc<dyn McpTool>> {
         Arc::new(DiagramTool::new(services.diagrams.clone())),
         Arc::new(ProjectSectionTool::new(services.sections.clone())),
         Arc::new(SectionReadTool::new(services.sections.clone())),
+        Arc::new(ComponentTool::new(services.components.clone())),
+        Arc::new(ComponentReadTool::new(services.components.clone())),
         Arc::new(SearchTool::new(services.search.clone())),
         Arc::new(InventoryTool::new(services.inventory_recording.clone())),
         Arc::new(VulnerabilityReadTool::new(services.exposures.clone())),

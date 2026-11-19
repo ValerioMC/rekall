@@ -1,5 +1,12 @@
 import type { CompanyId, ProjectId, TagId, TaskId } from '../../../model/branded'
-import type { Company, Project, ProjectStatus, Task, TaskKind, TaskStatus } from './catalog'
+import type { SkillAssignment } from '../../skills/model/skill-assignment'
+import type { Company, Project, Task, TaskKind } from './catalog'
+import type { ProjectStatus } from './project-status'
+import type { TaskStatus } from './task-status'
+
+export type CompanyDraft = Extract<RecordDraft, { kind: 'company' }>
+export type ProjectDraft = Extract<RecordDraft, { kind: 'project' }>
+export type TaskDraft = Extract<RecordDraft, { kind: 'task' }>
 
 export type RecordDraft =
   | {
@@ -12,16 +19,21 @@ export type RecordDraft =
       kind: 'project'
       id: ProjectId | null
       label: string
+      /** Typed in capitals or not; blank leaves it to the server on a new project. */
+      taskKey: string
       title: string
       description: string
       status: ProjectStatus
       icon: string
       companyId: CompanyId
+      /** Where the project's sessions run; asked only when the project is created. */
+      repoFolder: string
     }
   | {
       kind: 'task'
       id: TaskId | null
-      label: string
+      /** The code the task has; empty while it is new. */
+      code: string
       title: string
       description: string
       status: TaskStatus
@@ -31,8 +43,16 @@ export type RecordDraft =
       /** The epic of the same project the task belongs to; always null on an epic. */
       epicId: TaskId | null
       /** The skills a new task starts with; an existing task's are changed on its own pane. */
-      skills: string[]
+      skills: SkillAssignment[]
     }
+
+export function titleOf(draft: RecordDraft): string {
+  return draft.kind === 'company' ? draft.name : draft.title
+}
+
+export function labelOf(draft: RecordDraft): string {
+  return draft.kind === 'project' ? draft.label : ''
+}
 
 export function companyDraft(company?: Company): RecordDraft {
   return {
@@ -43,25 +63,27 @@ export function companyDraft(company?: Company): RecordDraft {
   }
 }
 
-export function projectDraft(companyId: CompanyId, project?: Project): RecordDraft {
+export function projectDraft(companyId: CompanyId, project?: Project): ProjectDraft {
   return {
     kind: 'project',
     id: project?.id ?? null,
     label: project?.label ?? '',
+    taskKey: project?.taskKey ?? '',
     title: project?.title ?? '',
     description: project?.description ?? '',
     status: project?.status ?? 'ACTIVE',
     icon: project?.icon ?? 'folder',
-    companyId: project?.companyId ?? companyId
+    companyId: project?.companyId ?? companyId,
+    repoFolder: project?.repoFolder ?? ''
   }
 }
 
-export function taskDraft(projectId: ProjectId, task?: Task, epicId: TaskId | null = null): RecordDraft {
+export function taskDraft(projectId: ProjectId, task?: Task, epicId: TaskId | null = null, title = ''): RecordDraft {
   return {
     kind: 'task',
     id: task?.id ?? null,
-    label: task?.label ?? '',
-    title: task?.title ?? '',
+    code: task?.code ?? '',
+    title: task?.title ?? title,
     description: task?.description ?? '',
     status: task?.status ?? 'TODO',
     projectId: task?.projectId ?? projectId,

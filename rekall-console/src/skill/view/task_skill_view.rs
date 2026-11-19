@@ -7,10 +7,11 @@ pub struct TaskSkillView {
     pub task_id: Id,
     pub step_id: Option<Id>,
     pub skill_name: String,
+    pub arguments: Option<String>,
 }
 
 impl TaskSkillView {
     pub fn of(skill: &task_skill::Model) -> Self {
-        Self { task_id: skill.task_id, step_id: skill.step_id, skill_name: skill.skill_name.clone() }
+        Self { task_id: skill.task_id, step_id: skill.step_id, skill_name: skill.skill_name.clone(), arguments: skill.arguments.clone() }
     }
 }

@@ -7,30 +7,20 @@ use std::process::Stdio;
 
 use tokio::process::Command;
 
-use crate::session::ClaudeOptions;
+use crate::session::SessionOptions;
 
 const HEADLESS_ARGUMENTS: [&str; 7] =
     ["-p", "--verbose", "--input-format", "stream-json", "--output-format", "stream-json", "--include-partial-messages"];
 
 /// `binary` in `directory` with only `environment`. Without skip-permissions, `claude` asks its
 /// host for each approval over the same pipes.
-pub fn chat_command(binary: &Path, options: &ClaudeOptions, environment: HashMap<String, String>, directory: &Path) -> Command {
+pub fn chat_command(binary: &Path, options: &SessionOptions, environment: HashMap<String, String>, directory: &Path) -> Command {
     let mut command = Command::new(binary);
     command.args(HEADLESS_ARGUMENTS);
-    if options.skip_permissions {
-        command.arg("--dangerously-skip-permissions");
-    } else {
+    if !options.skip_permissions {
         command.args(["--permission-prompt-tool", "stdio"]);
     }
-    if let Some(model) = &options.model {
-        command.args(["--model", model]);
-    }
-    if let Some(effort) = &options.effort {
-        command.args(["--effort", effort]);
-    }
-    if let Some(settings) = &options.settings {
-        command.arg("--settings").arg(settings);
-    }
+    command.args(options.arguments());
     command.env_clear().envs(environment).current_dir(directory);
     command.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
     command

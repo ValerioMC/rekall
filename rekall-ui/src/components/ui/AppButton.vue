@@ -33,7 +33,7 @@ const VARIANTS: Readonly<Record<Variant, string>> = {
 
 const SIZES: Readonly<Record<Size, string>> = {
   sm: 'h-7 px-3 text-caption font-medium gap-1.5',
-  md: 'h-9 px-3.5 text-body gap-2',
+  md: 'h-8 px-3.5 text-body gap-2',
   icon: 'size-8 shrink-0'
 }
 

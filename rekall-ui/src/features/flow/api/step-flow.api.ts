@@ -1,7 +1,7 @@
 import { apiClient, request } from '../../../api/client'
 import { TaskStepListSchema } from '../../catalog/api/schemas/catalog.schema'
 import { isFlowEnd, type RouteTarget } from '@/features/flow/lib/route-target'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { StepLinkId, TaskId, TaskStepId } from '@/model/branded'
 
 /** A route as the console edits it: on create a target and an outcome are sent, on edit either may be left out. */

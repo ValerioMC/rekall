@@ -39,13 +39,14 @@ impl McpTool for ReplanTool {
         ToolSchema::object()
             .required_string(
                 "anchors",
-                "The task to replan, e.g. `project:vega task:release`. Labels, never titles, and it has to name exactly one task.",
+                "The task to replan, e.g. `task:RK-12`. Labels, never titles, and it has to name exactly one task.",
             )
             .required_object_array(
                 "steps",
                 "The new steps in order, as for `rekall_propose_flow`: `[{\"title\":\"Run the tests\",\"detail\":\"markdown\",\
                  \"new_session\":true,\"max_visits\":3,\"routes\":[{\"outcome\":\"passed\",\"to\":\"end\"}]}]`. Without any `routes` \
-                 they are a checklist, in the order listed; with routes they are a flow.",
+                 they are a checklist, in the order listed; with routes they are a flow, and `to` counts the whole checklist \
+                 as the console lists it, steps that stay included.",
             )
             .optional_boolean(
                 "draft",
@@ -61,7 +62,7 @@ impl McpTool for ReplanTool {
         let staging = if args.flag("draft") { Staging::Draft } else { Staging::Ready };
         let replanned = self
             .proposals
-            .replan(target.project_label.as_deref(), &target.task_label, &plan, staging)
+            .replan(target.project_label.as_deref(), &target.task_code, &plan, staging)
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
         let state = if staging == Staging::Ready { texts::REPLANNED_READY } else { texts::REPLANNED_DRAFT };

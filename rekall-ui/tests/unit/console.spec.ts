@@ -5,7 +5,11 @@ import { fetchTimeEntries, startTimeEntry } from '@/features/time/api/time-entri
 import { setActivePinia, createPinia } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
 import type { TaskInput } from '@/features/catalog/api/catalog.api'
-import type { Company, Project, RekallDocument, Task, TaskStep, TimeEntry, Wrapup } from '@/features/catalog/model/catalog'
+import type { Company, Project, Task } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
+import type { TaskStep } from '@/features/steps/model/task-step'
+import type { TimeEntry } from '@/features/time/model/time-entry'
+import type { Wrapup } from '@/features/wrapup/model/wrapup'
 import type {
   CompanyId,
   DocumentId,
@@ -33,10 +37,10 @@ const vega = 'p1' as ProjectId
 const beacon = 'p2' as ProjectId
 
 const projects: Project[] = [
-  { id: vega, label: 'vega', title: 'Vega Platform', status: 'ACTIVE', icon: 'folder', iconImageVersion: null, description: null, blueprintMarkdown: null,
-    repoFolder: null, autoCommit: false, companyId: acme, companyName: 'acme', taskCount: 2, anchor: 'project:vega', updatedAt: '2026-08-12T10:00:00Z' },
-  { id: beacon, label: 'beacon', title: 'Beacon', status: 'ACTIVE', icon: 'folder', iconImageVersion: null, description: null, blueprintMarkdown: null,
-    repoFolder: null, autoCommit: false, companyId: globex, companyName: 'globex', taskCount: 1, anchor: 'project:beacon', updatedAt: '2026-08-12T10:00:00Z' }
+  { id: vega, label: 'vega', taskKey: 'PR', title: 'Vega Platform', status: 'ACTIVE', icon: 'folder', iconImageVersion: null, description: null, blueprintMarkdown: null,
+    repoFolder: null, autoCommit: false, mainBranch: null, pullRequestFlow: false, companyId: acme, companyName: 'acme', taskCount: 2, anchor: 'project:vega', updatedAt: '2026-08-12T10:00:00Z' },
+  { id: beacon, label: 'beacon', taskKey: 'PR', title: 'Beacon', status: 'ACTIVE', icon: 'folder', iconImageVersion: null, description: null, blueprintMarkdown: null,
+    repoFolder: null, autoCommit: false, mainBranch: null, pullRequestFlow: false, companyId: globex, companyName: 'globex', taskCount: 1, anchor: 'project:beacon', updatedAt: '2026-08-12T10:00:00Z' }
 ]
 
 const validator = 't1' as TaskId
@@ -54,6 +58,7 @@ const task = (
   companyName: string
 ): Task => ({
   id,
+  code: label,
   label,
   title,
   status,
@@ -78,7 +83,7 @@ const task = (
   graphLaidAt: null,
   releaseSkipped: false,
   kind: 'TASK',
-  epicId: null, quick: false, autoAccepted: false, dependsOn: [],
+  epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, trackerContentSynced: true, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
   anchor: `project:${projectLabel} task:${label}`,
   updatedAt: '2026-08-12T10:00:00Z'
 })
@@ -89,40 +94,24 @@ const tasks: Task[] = [
   task(wiring, 'wiring', 'Wiring the adapter', 'DONE', beacon, 'beacon', 'Beacon', 'globex')
 ]
 
-const ref = (id: TaskId, label: string, title: string, projectLabel: string, companyName = 'acme') => ({
-  id,
-  label,
-  title,
-  projectLabel,
-  projectTitle: projectLabel === 'vega' ? 'Vega Platform' : 'Beacon',
-  companyName,
-  anchor: `project:${projectLabel} task:${label}`
-})
-
 const documents: RekallDocument[] = [
   {
     id: 'd1' as DocumentId,
     title: 'CONTEXT.md',
     kind: 'context',
     bodyMarkdown: 'Il workflow parte da POST /api/v1/pipelines',
-    tasks: [ref(validator, 'report-builder', 'Report builder', 'vega')],
+    taskId: validator,
     contextMode: 'FULL',
-    scope: { kind: 'GLOBAL' },
     anchor: 'note:00000000',
     updatedAt: '2026-08-12T12:00:00Z'
   },
   {
-    // The shape the whole model change exists for: one note, three tasks.
     id: 'd2' as DocumentId,
     title: 'kmaster14.md',
     kind: 'notes',
     bodyMarkdown: 'Accesso via bastion',
-    tasks: [
-      ref(validator, 'report-builder', 'Report builder', 'vega'),
-      ref(retry, 'retry-policy', 'Retry policy', 'vega')
-    ],
+    taskId: retry,
     contextMode: 'FULL',
-    scope: { kind: 'GLOBAL' },
     anchor: 'note:00000000',
     updatedAt: '2026-08-12T13:00:00Z'
   },
@@ -131,9 +120,8 @@ const documents: RekallDocument[] = [
     title: 'onboarding.md',
     kind: 'notes',
     bodyMarkdown: 'brew install openjdk',
-    tasks: [ref(wiring, 'wiring', 'Wiring the adapter', 'beacon', 'globex')],
+    taskId: wiring,
     contextMode: 'FULL',
-    scope: { kind: 'GLOBAL' },
     anchor: 'note:00000000',
     updatedAt: '2026-08-12T09:00:00Z'
   }
@@ -147,7 +135,7 @@ const wrapups: Wrapup[] = [
   {
     id: 'w1' as WrapupId,
     taskId: validator,
-    taskLabel: 'report-builder',
+    taskCode: 'report-builder',
     taskTitle: 'Report builder',
     projectLabel: 'vega',
     anchor: 'project:vega task:report-builder',
@@ -299,7 +287,7 @@ vi.mock('@/features/steps/api/steps.api', () => ({
 const runningEntry = (taskId: TaskId): TimeEntry => ({
   id: `e-${taskId}` as TimeEntryId,
   taskId,
-  taskLabel: 'report-builder',
+  taskCode: 'report-builder',
   taskTitle: 'Report builder',
   projectLabel: 'vega',
   anchor: 'project:vega task:report-builder',
@@ -326,8 +314,7 @@ vi.mock('@/features/skills/api/skill-assignments.api', () => ({
 
 vi.mock('@/features/commits/api/commitReference.api', () => ({
   fetchCommitReferences: vi.fn(async () => []),
-  recordLatestCommit: vi.fn(),
-  fetchCommitReferenceDiff: vi.fn()
+  recordLatestCommit: vi.fn()
 }))
 
 describe('console store', () => {
@@ -358,12 +345,10 @@ describe('console store', () => {
 
     store.setScope(acme, vega)
     expect(store.visibleTasks).toHaveLength(2)
-    expect(store.scopeName).toBe('acme / Vega Platform')
     expect(store.scopeAnchor).toBe('project:vega')
 
     store.setScope(null)
     expect(store.visibleTasks).toHaveLength(3)
-    expect(store.scopeName).toBe('All work')
   })
 
   it('keeps an archived project’s tasks out of the navigator unless the scope names it', () => {
@@ -375,68 +360,14 @@ describe('console store', () => {
     expect(store.visibleTasks).toHaveLength(2)
   })
 
-  it('finds a task by either half of its anchor', () => {
-    store.filter = 'vega/retry'
-    expect(store.visibleTasks.map((t) => t.label)).toEqual(['retry-policy'])
-
-    store.filter = 'task:report-builder'
-    expect(store.visibleTasks.map((t) => t.label)).toEqual(['report-builder'])
-  })
-
-  /**
-   * The label is what you type after `/rk` and the title is what you called it out loud. Both
-   * have to find the row, or one of them is a name you cannot search by.
-   */
-  it('finds a task by its title as well as by its label', () => {
-    store.filter = 'Wiring the adapter'
-    expect(store.visibleTasks.map((t) => t.label)).toEqual(['wiring'])
-
-    store.filter = 'wiring'
-    expect(store.visibleTasks.map((t) => t.label)).toEqual(['wiring'])
-  })
-
-  it('lists tasks and notes by title, whatever order they were loaded in', () => {
+  it('lists tasks by title, whatever order they were loaded in', () => {
     const titles = store.visibleTasks.map((task) => task.title)
     expect(titles).toEqual([...titles].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })))
-
-    store.navMode = 'notes'
-    const noteTitles = store.visibleDocuments.map((document) => document.title)
-    expect(noteTitles).toEqual(['CONTEXT.md', 'kmaster14.md', 'onboarding.md'])
   })
 
-  it('searches note bodies, not only their titles', () => {
-    store.navMode = 'notes'
-    store.filter = 'bastion'
-    expect(store.visibleDocuments.map((document) => document.title)).toEqual(['kmaster14.md'])
-  })
-
-  /**
-   * The case that made this necessary: scoped to one project, searching for something that
-   * lives in another. Without the notice the answer looks like "you never wrote it".
-   */
-  it('reports the matches the project scope is hiding', () => {
-    store.setScope(acme)
-    store.filter = 'wiring'
-
-    expect(store.visibleTasks).toHaveLength(0)
-    expect(store.elsewhere).toEqual({ count: 1, names: ['globex'] })
-
-    store.setScope(null)
-    expect(store.visibleTasks).toHaveLength(1)
-    expect(store.elsewhere).toBeNull()
-  })
-
-  it('says nothing about elsewhere when the search is already global', () => {
-    store.filter = 'wiring'
-    expect(store.elsewhere).toBeNull()
-  })
-
-  it('lists a shared note under every task it is attached to', () => {
+  it("lists a task's notes and only its own", () => {
     store.selectTask(validator)
-    expect(store.taskDocuments.map((document) => document.title)).toEqual([
-      'CONTEXT.md',
-      'kmaster14.md'
-    ])
+    expect(store.taskDocuments.map((document) => document.title)).toEqual(['CONTEXT.md'])
 
     store.selectTask(retry)
     expect(store.taskDocuments.map((document) => document.title)).toEqual(['kmaster14.md'])
@@ -447,111 +378,25 @@ describe('console store', () => {
     expect(store.selectedDocId).toBe('d2')
   })
 
-  /** Browsing tasks, a note has to bring its task along, or the task panes disagree with it. */
-  it('follows a note back to a task it belongs to while browsing tasks', () => {
+  /** A note has to bring its task along, or the task panes disagree with it. */
+  it('follows a note back to a task it belongs to', () => {
     store.selectTask(validator)
     store.selectDocument('d3' as DocumentId)
 
     expect(store.selectedTaskId).toBe(wiring)
   })
 
-  /**
-   * Browsing notes is for managing notes, not a detour through tasks: the note opens with its
-   * placements, and whatever task was in view stays there untouched.
-   */
-  it('leaves the task alone when a note is picked while browsing notes', () => {
-    store.selectTask(validator)
-    store.setNavMode('notes')
-    store.selectDocument('d3' as DocumentId)
-
-    expect(store.selectedDocId).toBe('d3')
-    expect(store.selectedTaskId).toBe(validator)
-    expect(store.paneFocus).toBe('note')
-  })
-
-  it('catches the task up with the note when going back to browsing tasks', () => {
-    store.selectTask(validator)
-    store.setNavMode('notes')
-    store.selectDocument('d3' as DocumentId)
-
-    store.setNavMode('tasks')
-    expect(store.selectedTaskId).toBe(wiring)
-  })
-
-  it('opens the note itself when switching to browsing notes', () => {
-    store.selectTask(validator)
-    store.openDescription()
-    store.setNavMode('notes')
-
-    expect(store.paneFocus).toBe('note')
-  })
-
-  describe('placing a note on tasks', () => {
-    beforeEach(() => {
-      vi.mocked(updateDocument).mockImplementation(async (id, input) => {
-        const current = documents.find((document) => document.id === id)!
-        return {
-          ...current,
-          tasks: input.taskIds.map(
-            (taskId) => [...current.tasks, ...documents.flatMap((d) => d.tasks)].find((t) => t.id === taskId)!
-          )
-        }
-      })
-    })
-
-    it('puts a note on one more task, keeping the ones it was on', async () => {
-      await store.attachNoteToTask('d1' as DocumentId, retry)
-
-      expect(vi.mocked(updateDocument).mock.calls[0]?.[1]).toMatchObject({ taskIds: [validator, retry] })
-      expect(store.documents.find((d) => d.id === 'd1')?.tasks.map((t) => t.id)).toEqual([validator, retry])
-    })
-
-    it('does nothing when the note is already on that task', async () => {
-      await store.attachNoteToTask('d1' as DocumentId, validator)
-      expect(updateDocument).not.toHaveBeenCalled()
-    })
-
-    it('takes a note off one of its tasks', async () => {
-      await store.detachNoteFromTask('d2' as DocumentId, validator)
-
-      expect(vi.mocked(updateDocument).mock.calls[0]?.[1]).toMatchObject({ taskIds: [retry] })
-    })
-
-    /** A note is on at least one task, so the last placement cannot be taken away. */
-    it('takes a note off its only task too, since its scope keeps it', async () => {
-      await store.detachNoteFromTask('d1' as DocumentId, validator)
-      expect(vi.mocked(updateDocument).mock.calls[0]?.[1]).toMatchObject({ taskIds: [] })
-    })
-
+  describe('deleting a note', () => {
     /** Browsing tasks, the editor shows a note on the task in view, so the next one steps in. */
-    it('moves the editor to the next note on the task when the open one leaves it', async () => {
+    it('moves the editor to the next note on the task when the open one is deleted', async () => {
       store.selectTask(validator)
-      store.selectDocument('d2' as DocumentId)
+      store.selectDocument('d1' as DocumentId)
 
-      await store.detachNoteFromTask('d2' as DocumentId, validator)
+      await store.deleteNote('d1' as DocumentId)
 
-      expect(store.selectedDocId).toBe('d1')
+      expect(store.documents.map((document) => document.id)).not.toContain('d1')
+      expect(store.selectedDocId).toBeNull()
       expect(store.selectedTaskId).toBe(validator)
-    })
-
-    it('keeps the editor on the note when it leaves a task that is not in view', async () => {
-      store.selectTask(validator)
-      store.selectDocument('d2' as DocumentId)
-
-      await store.detachNoteFromTask('d2' as DocumentId, retry)
-
-      expect(store.selectedDocId).toBe('d2')
-    })
-
-    /** Browsing notes, the columns are the note's own: it stays open whatever it leaves. */
-    it('keeps the note open while browsing notes', async () => {
-      store.selectTask(validator)
-      store.setNavMode('notes')
-      store.selectDocument('d2' as DocumentId)
-
-      await store.detachNoteFromTask('d2' as DocumentId, validator)
-
-      expect(store.selectedDocId).toBe('d2')
     })
   })
 
@@ -562,69 +407,29 @@ describe('console store', () => {
         title: input.title,
         kind: input.kind,
         bodyMarkdown: input.bodyMarkdown,
-        tasks: input.taskIds.map(
-          (taskId) => documents.flatMap((d) => d.tasks).find((t) => t.id === taskId)!
-        ),
+        taskId: input.taskId,
         contextMode: 'FULL',
-        scope: { kind: 'GLOBAL' },
         anchor: 'note:00000000',
         updatedAt: '2026-08-12T15:00:00Z'
       }))
     })
 
-    it('is born on every task it was given, with its name, and opens in the editor', async () => {
-      store.setNavMode('notes')
-      store.openNoteComposer()
-
-      await store.createNote({ scope: { kind: 'PROJECT', id: vega }, taskIds: [validator, retry], title: 'cluster.md' })
+    it('is born on the task it was given, with its name, and opens in the editor', async () => {
+      await store.createNote(validator, 'cluster.md')
 
       expect(vi.mocked(createDocument).mock.calls[0]?.[0]).toMatchObject({
         title: 'cluster.md',
         kind: 'notes',
-        taskIds: [validator, retry],
-        scope: { kind: 'PROJECT', id: vega }
+        taskId: validator
       })
       expect(store.selectedDocId).toBe('d9')
       expect(store.paneFocus).toBe('note')
-      expect(store.noteComposerOpen).toBe(false)
     })
 
     it('falls back to untitled.md when no name is given', async () => {
-      await store.createNote({ scope: { kind: 'GLOBAL' }, taskIds: [validator], title: '   ' })
+      await store.createNote(validator, '   ')
       expect(vi.mocked(createDocument).mock.calls[0]?.[0]).toMatchObject({ title: 'untitled.md' })
     })
-
-    /** Its scope owns a note, so one on no task is created all the same. */
-    it('creates a note on no task in the scope it was given', async () => {
-      await store.createNote({ scope: { kind: 'PROJECT', id: vega } })
-      expect(vi.mocked(createDocument).mock.calls[0]?.[0]).toMatchObject({
-        taskIds: [],
-        scope: { kind: 'PROJECT', id: vega }
-      })
-    })
-
-    it('starts a note made from a task in that task\'s project', () => {
-      expect(store.projectScopeOf(validator)).toEqual({ kind: 'PROJECT', id: vega })
-    })
-
-    it('closes the composer when a note is picked or the side is switched', () => {
-      store.setNavMode('notes')
-      store.openNoteComposer()
-      store.selectDocument('d1' as DocumentId)
-      expect(store.noteComposerOpen).toBe(false)
-
-      store.openNoteComposer()
-      store.setNavMode('tasks')
-      expect(store.noteComposerOpen).toBe(false)
-    })
-  })
-
-  it('offers the most recently written notes first', () => {
-    expect(store.recentDocuments.map((document) => document.title)).toEqual([
-      'kmaster14.md',
-      'CONTEXT.md',
-      'onboarding.md'
-    ])
   })
 
   it('keeps the selection when the new scope still contains it', () => {
@@ -655,7 +460,10 @@ describe('console store', () => {
      */
     it('counts the notes written since the wrapup was', () => {
       store.selectTask(validator)
-      // kmaster14.md is 13:00, the wrapup is 12:30; CONTEXT.md at 12:00 is not.
+      // CONTEXT.md is 12:00 and the wrapup is 12:30: nothing was written since.
+      expect(store.wrapupIsBehind).toBe(0)
+
+      store.documents = [...store.documents, { ...documents[0]!, id: 'd8' as DocumentId, updatedAt: '2026-08-12T13:00:00Z' }]
       expect(store.wrapupIsBehind).toBe(1)
 
       store.selectTask(retry)
@@ -668,18 +476,6 @@ describe('console store', () => {
       expect(store.paneFocus).toBe('wrapup')
 
       store.selectTask(retry)
-      expect(store.paneFocus).toBe('note')
-    })
-
-    /** What the keyboard does. A one-way door would need a second key to undo it. */
-    it('toggles the pane, and does nothing at all with no task in view', () => {
-      store.toggleWrapup()
-      expect(store.paneFocus).toBe('note')
-
-      store.selectTask(validator)
-      store.toggleWrapup()
-      expect(store.paneFocus).toBe('wrapup')
-      store.toggleWrapup()
       expect(store.paneFocus).toBe('note')
     })
 
@@ -722,7 +518,7 @@ describe('console store', () => {
       const feedWrapup = (taskId: TaskId, over: Partial<Wrapup> = {}): Wrapup => ({
         id: 'w9' as WrapupId,
         taskId,
-        taskLabel: 'retry-policy',
+        taskCode: 'retry-policy',
         taskTitle: 'Retry policy',
         projectLabel: 'vega',
         anchor: 'project:vega task:retry-policy',
@@ -784,8 +580,7 @@ describe('console store', () => {
         const written: RekallDocument = {
           ...documents[0]!,
           id: 'd9' as DocumentId,
-          title: 'export-formats.md',
-          tasks: [documents[0]!.tasks[0]!]
+          title: 'export-formats.md'
         }
         vi.mocked(fetchAllDocuments).mockResolvedValueOnce([written, ...documents])
 
@@ -804,12 +599,12 @@ describe('console store', () => {
    * goes on saying there is nowhere to open until the window is reloaded.
    */
   it('saves auto-commit through the same full-record update, and keeps what the server decided', async () => {
-    vi.mocked(updateProject).mockResolvedValue({ ...projects[0]!, autoCommit: false })
+    vi.mocked(updateProject).mockResolvedValue({ ...projects[0]!, autoCommit: false, mainBranch: null, pullRequestFlow: false })
 
     await store.saveProjectAutoCommit(vega, true)
 
     expect(vi.mocked(updateProject).mock.calls[0]?.[1]).toMatchObject({
-      autoCommit: true,
+      autoCommit: true, mainBranch: null, pullRequestFlow: false,
       repoFolder: null,
       label: 'vega'
     })
@@ -836,18 +631,13 @@ describe('console store', () => {
     ).toEqual([null])
   })
 
-  /**
-   * A status change sends the record back whole. Dropping the label out of that payload would
-   * blank the column the anchor resolves on, which the endpoint would then reject or, worse,
-   * accept.
-   */
-  it('keeps the label and the title when only the status changes', async () => {
+  /** A status change sends the record back whole: nothing else about it moves. */
+  it('keeps the title and the project when only the status changes', async () => {
     await store.setTaskStatus(validator, 'DONE')
 
     expect(updateTask).toHaveBeenCalledWith(
       validator,
       expect.objectContaining({
-        label: 'report-builder',
         title: 'Report builder',
         status: 'DONE',
         projectId: vega
@@ -878,11 +668,10 @@ describe('console store', () => {
    * a status change: everything else about the record goes back untouched.
    */
   describe('the description', () => {
-    it('saves it without moving the label, the title or the status', async () => {
+    it('saves it without moving the title or the status', async () => {
       await store.saveTaskDescription(validator, 'Builds the weekly report from the pipeline runs.')
 
       expect(updateTask).toHaveBeenCalledWith(validator, {
-        label: 'report-builder',
         title: 'Report builder',
         status: 'IN_PROGRESS',
         description: 'Builds the weekly report from the pipeline runs.',
@@ -906,19 +695,6 @@ describe('console store', () => {
         expect.objectContaining({ description: null })
       )
       expect(store.tasks.find((task) => task.id === validator)?.description).toBeNull()
-    })
-
-    /** The pane it is written in is reached and left on one key, like the wrapup's. */
-    it('opens and closes its pane without touching the note in view', async () => {
-      store.selectTask(validator)
-      expect(store.paneFocus).toBe('note')
-
-      store.toggleDescription()
-      expect(store.paneFocus).toBe('description')
-
-      store.toggleDescription()
-      expect(store.paneFocus).toBe('note')
-      expect(store.selectedDocId).toBe('d1')
     })
 
     /** Autosave fires on a pause, not on a change, so it lands on text that is already saved. */
@@ -1057,19 +833,6 @@ describe('console store', () => {
       expect(store.selectedTaskSteps.map((step) => step.title)).toEqual(['Write the tests'])
       const task = store.tasks.find((candidate) => candidate.id === validator)!
       expect([task.stepCount, task.stepsDone]).toEqual([1, 0])
-    })
-
-    /** Four surfaces, and the key that took you to one takes you back, the way W and D do. */
-    it('toggles its pane, and does nothing at all with no task in view', () => {
-      store.selectedTaskId = null
-      store.toggleSteps()
-      expect(store.paneFocus).toBe('note')
-
-      store.selectTask(validator)
-      store.toggleSteps()
-      expect(store.paneFocus).toBe('steps')
-      store.toggleSteps()
-      expect(store.paneFocus).toBe('note')
     })
 
     /**

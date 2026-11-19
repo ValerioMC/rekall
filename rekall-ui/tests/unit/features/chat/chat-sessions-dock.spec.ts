@@ -53,6 +53,25 @@ describe('chat sessions in the sessions dock', () => {
     expect(badges.sort()).toEqual(['approve', 'chat'])
   })
 
+  it('groups the sessions working on a task apart from the ones that are not', () => {
+    const terminals = useTerminalStore()
+    terminals.upsert(chatSession({ id: 'on-task' as never, taskId: 'task-1' as TaskId }))
+    terminals.upsert(chatSession({ id: 'no-task' as never, taskId: null }))
+    const panel = mount(TerminalSessionsPanel, { global: { stubs: { TerminalConnectionChips: true } } })
+
+    expect(panel.get('[data-testid=terminal-dock-group-task]').text()).toBe('Working on a task')
+    expect(panel.get('[data-testid=terminal-dock-group-project]').text()).toBe('Not on a task')
+    expect(panel.findAll('[data-testid=terminal-dock-row]')).toHaveLength(2)
+  })
+
+  it('omits a group with no session', () => {
+    useTerminalStore().upsert(chatSession({ taskId: null }))
+    const panel = mount(TerminalSessionsPanel, { global: { stubs: { TerminalConnectionChips: true } } })
+
+    expect(panel.find('[data-testid=terminal-dock-group-task]').exists()).toBe(false)
+    expect(panel.find('[data-testid=terminal-dock-group-project]').exists()).toBe(true)
+  })
+
   it('opens a chat row in the chat window and closes it through the shared close call', async () => {
     const terminals = useTerminalStore()
     terminals.upsert(chatSession())
@@ -70,7 +89,7 @@ describe('chat sessions in the sessions dock', () => {
     const terminals = useTerminalStore()
     terminals.upsert(chatSession({ awaitingPermission: true }))
     useConsoleStore().selectedTaskId = 't-1' as TaskId
-    const dock = mount(ShellDock, { global: { stubs: { TerminalSessionsPanel: true, RunningTasksPanel: true } } })
+    const dock = mount(ShellDock, { props: { placement: 'screen' }, global: { stubs: { TerminalSessionsPanel: true, RunningTasksPanel: true } } })
 
     expect(dock.find('[data-testid=terminal-dock-toggle]').exists()).toBe(false)
     useChatDockStore().hide()
@@ -82,7 +101,7 @@ describe('chat sessions in the sessions dock', () => {
   it('keeps the sessions segment while the selected task is not the chat\'s own', async () => {
     useTerminalStore().upsert(chatSession())
     useConsoleStore().selectedTaskId = 't-2' as TaskId
-    const dock = mount(ShellDock, { global: { stubs: { TerminalSessionsPanel: true, RunningTasksPanel: true } } })
+    const dock = mount(ShellDock, { props: { placement: 'screen' }, global: { stubs: { TerminalSessionsPanel: true, RunningTasksPanel: true } } })
 
     expect(dock.get('[data-testid=terminal-dock-toggle]').text()).toBe('1 session')
   })

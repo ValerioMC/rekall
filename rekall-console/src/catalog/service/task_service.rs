@@ -3,9 +3,10 @@
 //! its project while tasks belong to it.
 
 use rekall_kernel::{jstr, Id, RekallError, Result};
-use rekall_store::{project, task, Slug, TaskKind, TaskStatus, TaskStepState};
+use rekall_store::{project, task, task_tracker_link, Slug, TaskKind, TaskStatus, TaskStepState};
 use rekall_store::repository as repo;
 use rekall_core::review::TaskReviewService;
+use rekall_core::task::{TaskCreatedEvent, TaskDeletedEvent};
 use rekall_core::timeentry::TimeEntryService;
 use rekall_core::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
@@ -24,7 +25,7 @@ pub struct TaskService {
 
 impl TaskService {
     pub fn new(ctx: Ctx, review: TaskReviewService, time_entries: TimeEntryService) -> Self {
-        let feedback = FeedbackService::new(ctx.clone(), review.clone());
+        let feedback = FeedbackService::new(ctx.clone());
         Self { ctx, review, time_entries, feedback }
     }
 
@@ -47,52 +48,75 @@ impl TaskService {
     }
 
     pub async fn create(&self, command: TaskCommand) -> Result<TaskView> {
-        in_write!(&self.ctx, |tx| self.create_in(&tx, command).await)
+        in_write!(&self.ctx, |tx| self.create_in(&mut tx, command).await)
     }
 
-    pub async fn create_in(&self, tx: &Tx, command: TaskCommand) -> Result<TaskView> {
-        let label = Slug::of(command.label.as_deref())?;
+    /// A task that arrives with the issue it was imported from is not pushed back to its task manager.
+    pub async fn create_in(&self, tx: &mut Tx, command: TaskCommand) -> Result<TaskView> {
         let project = require_owning_project(tx, command.project_id).await?;
-        let mut task = task::Model::new(label, trimmed_title(&command), project.id, self.ctx.now());
+        let mut task = task::Model::new(String::new(), trimmed_title(&command), project.id, self.ctx.now());
+        repo::task::assign_next_code(tx.db(), &mut task, &project).await?;
+        if let Some(label) = command.label.as_deref() {
+            task.label = Slug::of(Some(label))?;
+            require_label_free(tx, &task).await?;
+        }
         apply_request(tx, &mut task, &command).await?;
         task.quick = command.quick;
         task.validate()?;
-        require_label_free(tx, &task, None).await?;
-        require_no_other_active_quick(tx, &task).await?;
         task.clone().into_active_model().insert(tx.db()).await?;
+        if command.tracker_issue_key.is_none() {
+            tx.publish(TaskCreatedEvent { task_id: task.id });
+        } else {
+            self.keep_imported_issue_in(tx, &task, &command).await?;
+        }
         response(tx, &task).await
+    }
+
+    async fn keep_imported_issue_in(&self, tx: &mut Tx, task: &task::Model, command: &TaskCommand) -> Result<()> {
+        let now = self.ctx.now();
+        let link = task_tracker_link::Model {
+            task_id: task.id,
+            issue_key: command.tracker_issue_key.clone(),
+            issue_url: command.tracker_issue_url.clone(),
+            sync_error: None,
+            synced_fingerprint: None,
+            created_at: now,
+            updated_at: now,
+        };
+        repo::task_tracker_link::save(tx.db(), link).await
     }
 
     pub async fn update(&self, id: Id, command: TaskCommand) -> Result<TaskView> {
         in_write!(&self.ctx, |tx| {
             let before = repo::task::require(tx.db(), id).await?;
             let mut task = before.clone();
-            task.label = Slug::of(command.label.as_deref())?;
             task.title = trimmed_title(&command);
-            task.project_id = require_owning_project(&tx, command.project_id).await?.id;
+            let project = require_owning_project(&tx, command.project_id).await?;
+            task.project_id = project.id;
             apply_request(&tx, &mut task, &command).await?;
-            require_label_free(&tx, &task, Some(id)).await?;
+            number_again_when_moved(&tx, &before, &mut task, &project).await?;
             require_epic_kept_whole(&tx, &before, &task).await?;
             require_epic_stepless(&tx, &task).await?;
             let task = repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
             if before.description != task.description {
                 self.feedback.track_description_in(&mut tx, &task, before.description.as_deref(), task.description.as_deref()).await?;
             }
-            let response = response(&tx, &task).await?;
             if before.status != TaskStatus::Done && task.status == TaskStatus::Done {
                 self.time_entries.stop_if_running_in(&mut tx, id).await?;
+                self.review.accept_everything_in(&mut tx, id).await?;
             }
-            Ok(response)
+            let task = repo::task::require(tx.db(), id).await?;
+            response(&tx, &task).await
         })
     }
 
-    /// `DONE` accepts a stepless task, `OPEN` sends it back; other states are refused.
+    /// `DONE` accepts a stepless task, or every claimed step of one with a checklist; `OPEN` sends a stepless task back; other states are refused.
     pub async fn review(&self, id: Id, target: TaskStepState) -> Result<TaskView> {
         in_write!(&self.ctx, |tx| {
             repo::task::require(tx.db(), id).await?;
             match target {
                 TaskStepState::Done => {
-                    self.review.accept_in(&mut tx, id).await?;
+                    self.review.accept_work_in(&mut tx, id).await?;
                 }
                 TaskStepState::Open => {
                     self.review.send_back_in(&mut tx, id).await?;
@@ -130,7 +154,11 @@ impl TaskService {
     pub async fn delete(&self, id: Id) -> Result<()> {
         in_write!(&self.ctx, |tx| {
             let task = repo::task::require(tx.db(), id).await?;
+            let issue_key = repo::task_tracker_link::find_of_task(tx.db(), id).await?.and_then(|link| link.issue_key);
             task::Entity::delete_by_id(task.id).exec(tx.db()).await?;
+            if issue_key.is_some() {
+                tx.publish(TaskDeletedEvent { project_id: task.project_id, issue_key });
+            }
             Ok::<_, RekallError>(())
         })
     }
@@ -201,25 +229,22 @@ async fn require_epic_stepless(tx: &Tx, task: &task::Model) -> Result<()> {
     Err(RekallError::conflict("This task has steps, and an epic holds none. Delete its steps before turning it into an epic."))
 }
 
-/// A label names one task within its project, or a `task:` anchor would be ambiguous.
-async fn require_label_free(tx: &Tx, task: &task::Model, except: Option<Id>) -> Result<()> {
-    if repo::task::label_taken(tx.db(), task.project_id, &task.label, except).await? {
-        return Err(RekallError::conflict(
-            "Another task on this project already uses that label. An anchor has to name one record.",
-        ));
+/// An explicit label names one task within its project.
+async fn require_label_free(tx: &Tx, task: &task::Model) -> Result<()> {
+    if repo::task::label_taken(tx.db(), task.project_id, &task.label, None).await? {
+        return Err(RekallError::conflict("Another task on this project already uses that label."));
     }
     Ok(())
 }
 
-/// A quick task skips the review, so a project holds one at a time: it is for small changes, not a
-/// way round the review for large ones.
-async fn require_no_other_active_quick(tx: &Tx, task: &task::Model) -> Result<()> {
-    if !task.quick || !repo::task::active_quick_exists(tx.db(), task.project_id).await? {
+/// A task that changes project takes the next number there, and the code that goes with it.
+async fn number_again_when_moved(tx: &Tx, before: &task::Model, task: &mut task::Model, project: &project::Model) -> Result<()> {
+    if before.project_id == task.project_id {
         return Ok(());
     }
-    Err(RekallError::conflict(
-        "This project already has a quick task being worked. Wait for its wrapup, or use a regular task for this change.",
-    ))
+    let number = repo::task::next_number(tx.db(), project.id).await?;
+    task.assign_code(&project.task_key, number);
+    Ok(())
 }
 
 #[cfg(test)]

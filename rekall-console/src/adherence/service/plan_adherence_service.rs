@@ -65,7 +65,7 @@ fn planned_steps(steps: Vec<task_step::Model>) -> Vec<task_step::Model> {
 fn sent_back_of(task: &task::Model, adherence: &PlanAdherenceView) -> TaskSentBackView {
     TaskSentBackView {
         task_id: task.id,
-        label: task.label.clone(),
+        code: task.code.clone(),
         title: task.title.clone(),
         sent_back: adherence.counts.sent_back,
         passes_total: adherence.counts.passes_total,
@@ -74,7 +74,7 @@ fn sent_back_of(task: &task::Model, adherence: &PlanAdherenceView) -> TaskSentBa
 
 fn most_sent_back(mut tasks: Vec<TaskSentBackView>) -> Vec<TaskSentBackView> {
     tasks.retain(|task| task.sent_back > 0);
-    tasks.sort_by(|a, b| b.sent_back.cmp(&a.sent_back).then_with(|| a.label.cmp(&b.label)));
+    tasks.sort_by(|a, b| b.sent_back.cmp(&a.sent_back).then_with(|| a.code.cmp(&b.code)));
     tasks.truncate(MOST_SENT_BACK_LISTED);
     tasks
 }

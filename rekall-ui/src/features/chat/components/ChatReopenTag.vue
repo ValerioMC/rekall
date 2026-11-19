@@ -17,13 +17,13 @@ const shown = computed(() => dock.hidden && chat.sessionFor(selectedTaskId.value
   <button
     v-if="shown"
     type="button"
-    class="focus-ring group absolute right-0 top-1/2 z-(--z-sticky) flex -translate-y-1/2 cursor-pointer flex-col items-center gap-2.5 rounded-l-card border border-r-0 border-border-strong bg-surface-raised py-3 pl-3 pr-2 text-text-muted shadow-raised transition-colors duration-200 hover:bg-surface-hover hover:text-text"
+    class="focus-ring group absolute right-0 top-1/2 z-(--z-sticky) flex -translate-y-1/2 cursor-pointer flex-col items-center gap-2.5 rounded-l-card border border-r-0 border-border-strong bg-surface-raised py-3 pl-3 pr-2 text-text-muted shadow-raised transition-colors duration-(--motion-move) hover:bg-surface-hover hover:text-text"
     title="Open the chat"
     data-testid="chat-reopen-tag"
     @click="dock.open(selectedTaskId)"
   >
     <span
-      class="absolute inset-y-2.5 left-0 w-[3px] rounded-r-full bg-accent opacity-70 transition-opacity duration-200 group-hover:opacity-100"
+      class="absolute inset-y-2.5 left-0 w-[3px] rounded-r-full bg-accent opacity-70 transition-opacity duration-(--motion-move) group-hover:opacity-100"
       aria-hidden="true"
     />
     <svg class="size-3.5 shrink-0 text-accent" viewBox="0 0 14 14" fill="none" aria-hidden="true">

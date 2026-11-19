@@ -24,7 +24,7 @@ export const RunQueueItemSchema = z.object({
   id: z.string().uuid().transform(asRunQueueItemId),
   taskId: z.string().uuid().transform(asTaskId),
   taskTitle: z.string(),
-  taskLabel: z.string(),
+  taskCode: z.string(),
   projectLabel: z.string(),
   anchor: z.string(),
   position: z.number().int(),

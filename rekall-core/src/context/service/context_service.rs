@@ -9,18 +9,16 @@ use rekall_store::document::ANCHOR_ID_LENGTH;
 use rekall_store::{company, project, task, TaskStatus, TaskStepState};
 use rekall_store::repository as repo;
 
-use crate::context::{ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView, StepConnectionView};
-use crate::component::{referenced_task_labels, ProjectComponentView};
+use crate::context::{AnchorEntity, ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView, StepConnectionView};
+use crate::component::{names_task, referenced_task_labels, ProjectComponentView};
 use crate::connection::ConnectionView;
 use crate::dependency::{TaskWait, TaskWaitService};
 use crate::deviation::DeviationView;
 use crate::feedback::FeedbackView;
-use crate::step::{StepFlowRows, TaskStepView};
+use crate::step::{flow_entry, StepFlowRows, TaskStepView};
 use crate::task::TaskReferenceView;
 use crate::wrapup::{Freshness, WrapupFreshnessService, WrapupView};
 use crate::{in_read, load, Ctx, Tx};
-
-pub const ENTITY_NAMES: [&str; 4] = ["company", "project", "task", "note"];
 
 #[derive(Clone)]
 pub struct ContextService {
@@ -33,34 +31,30 @@ impl ContextService {
         Self { freshness: WrapupFreshnessService::new(ctx.clone()), ctx }
     }
 
-    pub async fn load(&self, entity_name: Option<&str>, value: &str) -> Result<ContextRecord> {
-        in_read!(&self.ctx, |tx| self.load_in(&tx, entity_name, value).await)
+    pub async fn load(&self, entity: Option<AnchorEntity>, value: &str) -> Result<ContextRecord> {
+        in_read!(&self.ctx, |tx| self.load_in(&tx, entity, value).await)
     }
 
-    pub async fn load_in(&self, tx: &Tx, entity_name: Option<&str>, value: &str) -> Result<ContextRecord> {
-        let Some(entity_name) = entity_name else {
+    pub async fn load_in(&self, tx: &Tx, entity: Option<AnchorEntity>, value: &str) -> Result<ContextRecord> {
+        let Some(entity) = entity else {
             return self.load_anywhere(tx, value).await;
         };
-        match entity_name.to_lowercase().as_str() {
-            "company" | "companies" | "azienda" | "aziende" | "cliente" => {
+        match entity {
+            AnchorEntity::Company => {
                 match repo::company::find_by_name(tx.db(), value).await? {
                     Some(company) => self.render_company(tx, &company).await,
                     None => Err(RekallError::unknown_anchor(format!("No company matches '{value}'"))),
                 }
             }
-            "project" | "projects" | "progetto" | "progetti" => {
+            AnchorEntity::Project => {
                 let found = repo::project::find_by_label(tx.db(), value).await?;
                 self.render_single_project(tx, found, value).await
             }
-            "task" | "tasks" | "issue" | "issues" | "attivita" => {
+            AnchorEntity::Task => {
                 let task = load::resolve_task(tx.db(), None, value).await?;
                 self.render_task(tx, &task).await
             }
-            "note" | "notes" | "nota" | "document" => self.render_single_note(tx, value).await,
-            _ => Err(RekallError::unknown_anchor(format!(
-                "No entity matches '{entity_name}'. Known entities: {}",
-                ENTITY_NAMES.join(", ")
-            ))),
+            AnchorEntity::Note => self.render_single_note(tx, value).await,
         }
     }
 
@@ -84,19 +78,6 @@ impl ContextService {
         Ok(vec![self.render_project(tx, &project).await?, self.render_task(tx, &task).await?])
     }
 
-    pub async fn load_project(&self, company_name: &str, project_label: &str) -> Result<ContextRecord> {
-        in_read!(&self.ctx, |tx| {
-            match repo::project::find_by_anchor(tx.db(), company_name, project_label)
-                .await?
-            {
-                Some(project) => self.render_project(&tx, &project).await,
-                None => Err(RekallError::unknown_anchor(format!(
-                    "No project '{project_label}' on company '{company_name}'"
-                ))),
-            }
-        })
-    }
-
     async fn load_anywhere(&self, tx: &Tx, value: &str) -> Result<ContextRecord> {
         let mut matches = Vec::new();
         if let Some(company) = repo::company::find_by_name(tx.db(), value).await? {
@@ -105,13 +86,13 @@ impl ContextService {
         for project in repo::project::find_by_label(tx.db(), value).await? {
             matches.push(self.render_project(tx, &project).await?);
         }
-        for task in repo::task::find_by_label(tx.db(), value).await? {
+        if let Some(task) = repo::task::find_by_code(tx.db(), value).await? {
             matches.push(self.render_task(tx, &task).await?);
         }
         if matches.is_empty() {
             return Err(RekallError::unknown_anchor(format!(
                 "Nothing matches '{value}'. Known entities: {}",
-                ENTITY_NAMES.join(", ")
+                AnchorEntity::known_names()
             )));
         }
         if matches.len() > 1 {
@@ -154,13 +135,13 @@ impl ContextService {
             return Err(RekallError::ambiguous(value, found.iter().map(|d| d.anchor()).collect()));
         }
         let note = &found[0];
-        let tasks = repo::document::tasks_of_document(tx.db(), note.id).await?;
+        let task = repo::task::require(tx.db(), note.task_id).await?;
         Ok(ContextRecord {
             kind: "Note".into(),
             label: note.title.clone(),
             anchor: note.anchor(),
             fields: vec![("kind".into(), note.kind.clone())],
-            related: tasks.iter().map(|t| format!("task:{}", t.label)).collect(),
+            related: vec![format!("task:{}", task.code)],
             documents: vec![DocumentView::of(note).in_full()],
             ..Default::default()
         })
@@ -200,7 +181,7 @@ impl ContextService {
             anchor: project.anchor(),
             fields,
             references: vec![self.referenced_company(tx, &company).await?],
-            related: tasks.iter().map(|t| format!("task:{}", t.label)).collect(),
+            related: tasks.iter().map(|t| format!("task:{}", t.code)).collect(),
             components: components.iter().map(ProjectComponentView::of).collect(),
             connections: connections.iter().map(|(binding, connection)| ConnectionView::of(binding, connection)).collect(),
             blueprint: project.blueprint_markdown.clone(),
@@ -219,7 +200,7 @@ impl ContextService {
         if let Some(epic) = epic_of(task, &siblings) {
             record.fields.push((
                 "epic".into(),
-                format!("belongs to the epic `task:{}` below, and inherits its description and notes.", epic.label),
+                format!("belongs to the epic `task:{}` below, and inherits its description and notes.", epic.code),
             ));
             record.references.push(self.inherited_epic(tx, epic, &project, &siblings).await?);
         }
@@ -305,10 +286,10 @@ impl ContextService {
         Ok(ContextRecord {
             kind: if task.is_epic() { "Epic" } else { "Task" }.into(),
             label: task.title.clone(),
-            anchor: format!("task:{}", task.label),
+            anchor: task.anchor(),
             fields,
             references: Vec::new(),
-            related: children.iter().map(|child| format!("task:{}", child.label)).collect(),
+            related: children.iter().map(|child| child.anchor()).collect(),
             documents: documents.iter().map(DocumentView::of).collect(),
             deviations: deviations.iter().map(|deviation| DeviationView::of(deviation, step_title_at(&steps, deviation.step_number))).collect(),
             thread: thread.iter().map(FeedbackView::of).collect(),
@@ -329,25 +310,27 @@ impl ContextService {
         })
     }
 
-    /// The task's own skills, then its tag's, then those of the steps still to be worked. A skill
-    /// already listed at a wider scope is not listed again.
+    /// The task's own skills, then its tag's, then those of the steps still to be worked. An
+    /// invocation (name and arguments) already listed at a wider scope is not listed again.
     async fn skills_of(&self, tx: &Tx, task: &task::Model, steps: &[TaskStepView]) -> Result<Vec<ContextSkillView>> {
         let assigned = repo::task_skill::list_of_task(tx.db(), task.id).await?;
         let mut skills: Vec<ContextSkillView> = assigned
             .iter()
             .filter(|skill| skill.step_id.is_none())
-            .map(|skill| ContextSkillView { name: skill.skill_name.clone(), scope: ContextSkillScope::Task })
+            .map(|skill| ContextSkillView { name: skill.skill_name.clone(), arguments: skill.arguments.clone(), scope: ContextSkillScope::Task })
             .collect();
         if let Some(tag) = self.tag_of(tx, task).await? {
             for skill in repo::tag_skill::list_of_tag(tx.db(), tag.id).await? {
-                skills.push(ContextSkillView { name: skill.skill_name, scope: ContextSkillScope::Tag(tag.name.clone()) });
+                skills.push(ContextSkillView { name: skill.skill_name, arguments: skill.arguments, scope: ContextSkillScope::Tag(tag.name.clone()) });
             }
         }
         let mut seen = std::collections::HashSet::new();
-        skills.retain(|skill| seen.insert(skill.name.clone()));
+        skills.retain(|skill| seen.insert((skill.name.clone(), skill.arguments.clone())));
         for step in steps.iter().filter(|step| !step.state.draft() && !step.state.complete()) {
-            for skill in assigned.iter().filter(|skill| skill.step_id == Some(step.id) && !seen.contains(&skill.skill_name)) {
-                skills.push(ContextSkillView { name: skill.skill_name.clone(), scope: ContextSkillScope::Step(step.title.clone()) });
+            for skill in assigned.iter().filter(|skill| skill.step_id == Some(step.id)) {
+                if seen.insert((skill.skill_name.clone(), skill.arguments.clone())) {
+                    skills.push(ContextSkillView { name: skill.skill_name.clone(), arguments: skill.arguments.clone(), scope: ContextSkillScope::Step(step.title.clone()) });
+                }
             }
         }
         Ok(skills)
@@ -406,12 +389,12 @@ impl ContextService {
 }
 
 /// The other tasks of the project the record's description and checklist name, once each, in the
-/// order first named. A label that names no task is left to the text, which flags it.
+/// order first named. A reference that names no task is left to the text, which flags it.
 fn referenced_tasks<'a>(record: &ContextRecord, task: &task::Model, siblings: &'a [task::Model]) -> Vec<&'a task::Model> {
     let texts = record.description.iter().chain(record.steps.iter().filter(|step| !step.state.draft()).filter_map(|step| step.body_markdown.as_ref()));
     let mut found: Vec<&task::Model> = Vec::new();
-    for label in texts.flat_map(|text| referenced_task_labels(text)) {
-        let named = siblings.iter().find(|sibling| jstr::lower(&sibling.label) == label && sibling.id != task.id);
+    for reference in texts.flat_map(|text| referenced_task_labels(text)) {
+        let named = siblings.iter().find(|sibling| names_task(&sibling.code, &sibling.label, &reference) && sibling.id != task.id);
         if let Some(named) = named.filter(|named| found.iter().all(|seen| seen.id != named.id)) {
             found.push(named);
         }
@@ -463,15 +446,15 @@ fn flow_summary(steps: &[TaskStepView]) -> Option<String> {
         return None;
     }
     let moves: usize = routed.iter().map(|step| step.visits.len()).sum();
-    let summary = match (routed.iter().find(|step| step.is_current()), routed.first()) {
+    let summary = match (routed.iter().find(|step| step.is_current()), flow_entry(routed.iter().copied())) {
         (Some(current), _) => format!(
             "the steps are routed; the work stands on step {} \"{}\" after {moves} move{}. Claim it with the `outcome` that happened",
             current.position + 1,
             current.title,
             if moves == 1 { "" } else { "s" }
         ),
-        (None, Some(first)) if moves == 0 => {
-            format!("the steps are routed and not started: the flow begins at step 1 \"{}\"", first.title)
+        (None, Some(entry)) if moves == 0 => {
+            format!("the steps are routed and not started: the flow begins at step {} \"{}\"", entry.position + 1, entry.title)
         }
         _ => format!("the steps are routed; no step is current after {moves} moves"),
     };

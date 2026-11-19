@@ -1,5 +1,5 @@
 import { groupBySession } from '@/features/steps/lib/step-sessions'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TaskStepId } from '@/model/branded'
 
 /** "Step 3 of 7 · session covers steps 3 to 5"; "Task" when the session is on no step, none when the step is not in `steps`. */

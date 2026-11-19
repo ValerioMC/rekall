@@ -1,7 +1,7 @@
 //! The queries whose rules live in SQL: label lookups, catalog order, and note search.
 
 use rekall_kernel::{Id, Instant};
-use rekall_store::{company, document, document_task, project, task, DocumentContextMode, ProjectStatus};
+use rekall_store::{company, document, project, task, DocumentContextMode, ProjectStatus};
 use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, ConnectionTrait, IntoActiveModel};
 
@@ -16,7 +16,7 @@ async fn a_project(db: &impl ConnectionTrait, company: &company::Model, label: &
     let now = Instant::now();
     let project = project::Model {
         id: Id::random(), label: label.into(), title: label.into(), status: ProjectStatus::Active, icon: "folder".into(),
-        description: None, blueprint_markdown: None, repo_folder: None, auto_commit: false, company_id: company.id,
+        description: None, blueprint_markdown: None, repo_folder: None, auto_commit: false, main_branch: None, pull_request_flow: false, task_key: String::new(), company_id: company.id,
         created_at: now, updated_at: now,
     };
     project.clone().into_active_model().insert(db).await.unwrap();
@@ -32,26 +32,56 @@ async fn a_task(db: &impl ConnectionTrait, project: &project::Model, label: &str
 async fn a_note(db: &impl ConnectionTrait, title: &str, body: &str, on: &task::Model) -> document::Model {
     let now = Instant::now();
     let note = document::Model {
-        id: Id::random(), title: title.into(), kind: "notes".into(), body_markdown: body.into(), source_path: None,
-        context_mode: DocumentContextMode::Full, scope_company_id: None, scope_project_id: None, created_at: now, updated_at: now,
+        id: Id::random(), task_id: on.id, position: 0, title: title.into(), kind: "notes".into(), body_markdown: body.into(),
+        source_path: None, context_mode: DocumentContextMode::Full, created_at: now, updated_at: now,
     };
     note.clone().into_active_model().insert(db).await.unwrap();
-    document_task::Model { document_id: note.id, task_id: on.id, position: 0 }.into_active_model().insert(db).await.unwrap();
     note
 }
 
 #[tokio::test]
-async fn an_anchor_finds_its_task_whatever_the_case_it_is_typed_in() {
+async fn a_code_finds_its_task_whatever_the_case_it_is_typed_in() {
     let database = rekall_store::open_temporary().await.unwrap();
     let db = &database.conn;
     let acme = a_company(db, "Acme").await;
     let vega = a_project(db, &acme, "vega").await;
-    let report = a_task(db, &vega, "report-builder").await;
+    let mut report = task::Model::new("report-builder".into(), "Report".into(), vega.id, Instant::now());
+    report.assign_code("VG", 1);
+    report.clone().into_active_model().insert(db).await.unwrap();
 
-    assert_eq!(repo::task::find_by_anchor(db, "VEGA", "Report-Builder").await.unwrap(), Some(report.clone()));
-    assert_eq!(repo::task::find_by_label(db, "REPORT-builder").await.unwrap(), vec![report]);
+    assert_eq!(repo::task::find_by_code(db, "vg-1").await.unwrap(), Some(report));
+    assert_eq!(repo::task::find_by_code(db, "VG-2").await.unwrap(), None);
     assert_eq!(repo::project::find_by_anchor(db, "acme", "Vega").await.unwrap(), Some(vega));
-    assert_eq!(repo::task::find_by_anchor(db, "vega", "nothing").await.unwrap(), None);
+}
+
+#[tokio::test]
+async fn the_next_number_is_one_past_the_highest_of_the_project() {
+    let database = rekall_store::open_temporary().await.unwrap();
+    let db = &database.conn;
+    let acme = a_company(db, "Acme").await;
+    let vega = a_project(db, &acme, "vega").await;
+    assert_eq!(repo::task::next_number(db, vega.id).await.unwrap(), 1);
+    for number in [1, 2, 5] {
+        let mut task = task::Model::new(format!("task-{number}"), "Task".into(), vega.id, Instant::now());
+        task.assign_code("VG", number);
+        task.into_active_model().insert(db).await.unwrap();
+    }
+    assert_eq!(repo::task::next_number(db, vega.id).await.unwrap(), 6);
+}
+
+#[tokio::test]
+async fn changing_a_key_writes_every_code_of_the_project_again() {
+    let database = rekall_store::open_temporary().await.unwrap();
+    let db = &database.conn;
+    let acme = a_company(db, "Acme").await;
+    let vega = a_project(db, &acme, "vega").await;
+    let mut task = task::Model::new("report".into(), "Report".into(), vega.id, Instant::now());
+    task.assign_code("VG", 3);
+    task.clone().into_active_model().insert(db).await.unwrap();
+
+    repo::task::recode_project(db, vega.id, "VEGA").await.unwrap();
+
+    assert_eq!(repo::task::require(db, task.id).await.unwrap().code, "VEGA-3");
 }
 
 #[tokio::test]
@@ -87,7 +117,7 @@ async fn note_search_takes_percent_and_underscore_literally() {
 }
 
 #[tokio::test]
-async fn a_projects_notes_are_those_on_its_tasks_once_each() {
+async fn a_projects_notes_are_those_on_its_tasks() {
     let database = rekall_store::open_temporary().await.unwrap();
     let db = &database.conn;
     let acme = a_company(db, "Acme").await;
@@ -96,11 +126,12 @@ async fn a_projects_notes_are_those_on_its_tasks_once_each() {
     let first = a_task(db, &vega, "first").await;
     let second = a_task(db, &vega, "second").await;
     let elsewhere = a_task(db, &other, "elsewhere").await;
-    let shared = a_note(db, "Shared", "x", &first).await;
-    document_task::Model { document_id: shared.id, task_id: second.id, position: 0 }.into_active_model().insert(db).await.unwrap();
+    a_note(db, "First", "x", &first).await;
+    a_note(db, "Second", "x", &second).await;
     a_note(db, "Elsewhere", "x", &elsewhere).await;
 
-    let notes: Vec<String> = repo::document::list_on_project_tasks(db, vega.id).await.unwrap().into_iter().map(|d| d.title).collect();
+    let mut notes: Vec<String> = repo::document::list_on_project_tasks(db, vega.id).await.unwrap().into_iter().map(|d| d.title).collect();
+    notes.sort();
 
-    assert_eq!(notes, ["Shared"]);
+    assert_eq!(notes, ["First", "Second"]);
 }

@@ -5,11 +5,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use rekall_kernel::{Id, RekallError, Result};
+use rekall_store::repository as repo;
 use rekall_store::ConnectionKind;
-use rekall_core::connection::{JiraCredential, JiraFailure, JiraIssue, JiraIssues, JiraSite, SecretStore};
-use rekall_core::{in_write, Ctx};
+use rekall_core::connection::{JiraIssue, JiraIssues, SecretStore};
+use rekall_core::{in_read, in_write, Ctx};
 
-use crate::connection::support::credential_keeping::recall;
+use crate::connection::support::atlassian_access::{access_of, refused_by, AtlassianAccess};
 use crate::connection::rule::jira_rules::{chosen_issues_query, open_issues_query, project_key_of, task_label, task_request, ISSUE_LIMIT};
 use crate::connection::{JiraImportCommand, JiraIssueView, ProjectConnectionService};
 use crate::catalog::{TaskView, TaskService};
@@ -25,9 +26,9 @@ pub struct JiraIssueService {
 
 /// Where a binding's issues are read: the site, the project key and the credential that opens it.
 struct JiraSource {
-    site: JiraSite,
+    access: AtlassianAccess,
     project_key: String,
-    credential: JiraCredential,
+    task_manager: bool,
 }
 
 impl JiraIssueService {
@@ -39,7 +40,7 @@ impl JiraIssueService {
         let source = self.source(project_id, binding_id).await?;
         let issues = self.search(&source, &open_issues_query(&source.project_key), ISSUE_LIMIT).await?;
         let imported = self.imported_tasks(project_id).await?;
-        Ok(issues.iter().map(|issue| JiraIssueView::of(issue, &source.site.url, imported.get(&task_label(&issue.key)).copied())).collect())
+        Ok(issues.iter().map(|issue| JiraIssueView::of(issue, &source.access.site.url, imported.get(&task_label(&issue.key)).copied())).collect())
     }
 
     /// Issues already imported are passed over, so importing twice adds nothing.
@@ -52,7 +53,7 @@ impl JiraIssueService {
         in_write!(&self.ctx, |tx| {
             let mut created = Vec::with_capacity(fresh.len());
             for issue in &fresh {
-                created.push(self.tasks.create_in(&tx, task_request(project_id, &source.site.url, issue)).await?);
+                created.push(self.tasks.create_in(&mut tx, task_request(project_id, &source.access.site.url, issue, source.task_manager)).await?);
             }
             Ok(created)
         })
@@ -63,31 +64,21 @@ impl JiraIssueService {
         if connection.kind != ConnectionKind::Jira {
             return Err(RekallError::illegal("Only a Jira connection has issues to import."));
         }
-        if !connection.has_credential() {
-            return Err(RekallError::illegal("No credential is stored for this Jira connection. Set one on the Connections page."));
-        }
         let project_key = project_key_of(binding.target.as_deref())?;
-        let stored = recall(self.secrets.clone(), connection.secret_ref.clone()).await?;
-        Ok(JiraSource { site: JiraSite::of(&connection), project_key, credential: JiraCredential::from_stored(&stored)? })
+        let access = access_of(self.secrets.clone(), &connection, "Jira").await?;
+        Ok(JiraSource { access, project_key, task_manager: binding.task_manager })
     }
 
     async fn search(&self, source: &JiraSource, jql: &str, limit: u16) -> Result<Vec<JiraIssue>> {
-        self.jira.search(&source.site, &source.credential, jql, limit).await.map_err(refused_by_jira)
+        self.jira.search(&source.access.site, &source.access.credential, jql, limit).await.map_err(|failure| refused_by("Jira", failure))
     }
 
     /// The project's task ids by label.
     async fn imported_tasks(&self, project_id: Id) -> Result<HashMap<String, Id>> {
-        Ok(self.tasks.list(Some(project_id)).await?.into_iter().map(|task| (task.label, task.id)).collect())
-    }
-}
-
-/// Jira's refusal is the stored credential or the site, which the person fixes on the Connections page.
-fn refused_by_jira(failure: JiraFailure) -> RekallError {
-    match failure {
-        JiraFailure::Rejected { status } => {
-            RekallError::conflict(format!("Jira rejected the stored credential (HTTP {status}). Replace it on the Connections page."))
-        }
-        JiraFailure::Failed { reason } => RekallError::conflict(format!("Jira could not be asked: {reason}.")),
+        in_read!(&self.ctx, |tx| {
+            let tasks = repo::task::list_of_project(tx.db(), project_id).await?;
+            Ok::<_, RekallError>(tasks.into_iter().map(|task| (task.label, task.id)).collect())
+        })
     }
 }
 

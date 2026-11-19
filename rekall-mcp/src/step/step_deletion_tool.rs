@@ -36,7 +36,7 @@ impl McpTool for StepDeletionTool {
         ToolSchema::object()
             .required_string(
                 "anchors",
-                "The task the step is on, e.g. `project:vega task:report-builder`. Labels, never titles, and it has to name exactly one task.",
+                "The task the step is on, e.g. `task:RK-12`. Labels, never titles, and it has to name exactly one task.",
             )
             .required_string("step", "The step's one-based number as `rekall_context` lists it (`\"3\"`), or its exact title.")
             .build()
@@ -48,7 +48,7 @@ impl McpTool for StepDeletionTool {
         let step = args.required_string("step")?;
         let removed = self
             .steps
-            .remove(target.project_label.as_deref(), &target.task_label, Some(&step))
+            .remove(target.project_label.as_deref(), &target.task_code, Some(&step))
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
         Ok(texts::STEP_DELETED_REPORT

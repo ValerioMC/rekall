@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { periodRange } from '@/features/time/lib/period'
 import { buildTimeReport, reportAsMarkdown } from '@/features/time/lib/time-report'
-import type { Company, Task, TaskStep, TimeEntry } from '@/features/catalog/model/catalog'
+import type { Company, Task } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
+import type { TimeEntry } from '@/features/time/model/time-entry'
 import type { CompanyId, ProjectId, TaskId, TaskStepId, TimeEntryId } from '@/model/branded'
 
 /**
@@ -25,6 +27,7 @@ const companies: Company[] = [
 function task(id: TaskId, title: string, projectId: ProjectId, companyName: string): Task {
   return {
     id,
+    code: title.toLowerCase().replace(/ /g, '-'),
     label: title.toLowerCase().replace(/ /g, '-'),
     title,
     status: 'IN_PROGRESS',
@@ -49,7 +52,7 @@ function task(id: TaskId, title: string, projectId: ProjectId, companyName: stri
     graphLaidAt: null,
     releaseSkipped: false,
     kind: 'TASK',
-    epicId: null, quick: false, autoAccepted: false, dependsOn: [],
+    epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, trackerContentSynced: true, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
     anchor: `project:${projectId === vega ? 'vega' : 'beacon'} task:${title.toLowerCase().replace(/ /g, '-')}`,
     updatedAt: ''
   }
@@ -71,7 +74,7 @@ function session(taskId: TaskId, day: Date, hours: number, open = false): TimeEn
   return {
     id: `te${nextId++}` as TimeEntryId,
     taskId,
-    taskLabel: known.label,
+    taskCode: known.label,
     taskTitle: known.title,
     projectLabel: known.projectLabel,
     anchor: known.anchor,

@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Layout map: fill or centre</title>
+<link rel="stylesheet" href="../redesign/shared.css">
+<style>
+  body { overflow: auto; }
+  .wrap { max-width: 1480px; margin: 0 auto; padding: 32px 32px 64px; }
+  h1 { font-size: var(--t-display); font-weight: 500; letter-spacing: -0.02em; }
+  .lead { margin-top: 8px; max-width: 72ch; font-size: var(--t-body); line-height: 1.6; color: var(--muted); }
+  .rule { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 28px; }
+  .rule > div { padding: 16px 18px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); }
+  .rule h2 { font-size: var(--t-title); font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .rule p { margin-top: 6px; font-size: var(--t-small); line-height: 1.55; color: var(--muted); }
+  .rule .eg { margin-top: 8px; font-size: var(--t-caption); color: var(--subtle); }
+  .key { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+  .k-fill { background: var(--anchor); } .k-doc { background: var(--accent); } .k-form { background: var(--session); }
+  .bar { display: flex; align-items: center; gap: 12px; margin: 32px 0 16px; }
+  .seg { display: flex; gap: 2px; padding: 2px; border-radius: var(--r-control); background: var(--canvas); border: 1px solid var(--border); }
+  .seg button { height: 26px; padding: 0 12px; border-radius: var(--r-key); font-size: var(--t-small); font-weight: 500; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 16px; }
+  .card { display: flex; flex-direction: column; gap: 12px; padding: 14px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); }
+  .card h3 { font-size: var(--t-body); font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card p { font-size: var(--t-small); line-height: 1.5; color: var(--muted); }
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag { display: inline-flex; align-items: center; gap: 6px; height: 20px; padding: 0 7px; border-radius: var(--r-key); border: 1px solid var(--border-strong); font-size: var(--t-micro); color: var(--muted); }
+  .now { color: var(--warn); border-color: #f3c04a55; }
+
+  /* wireframe */
+  .wf { position: relative; aspect-ratio: 16 / 10; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--canvas); overflow: hidden; }
+  .wf .top { position: absolute; left: 0; right: 0; top: 0; height: 7%; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .b { position: absolute; border-radius: 2px; background: var(--border); }
+  .b.l { background: #2f3748; } .b.s { background: var(--surface); border: 1px solid var(--border-strong); }
+  .b.fill { background: #55c9ea1f; border: 1px dashed #55c9ea88; }
+  .b.doc { background: #eaa43c1c; border: 1px dashed #eaa43c99; }
+  .b.form { background: #7c83f71f; border: 1px dashed #7c83f799; }
+  .b.t { background: var(--muted); opacity: .55; height: 1.6%; }
+  .span { position: absolute; display: flex; align-items: center; color: var(--subtle); font: 400 9px var(--font-mono); }
+  .span::before, .span::after { content: ""; flex: 1; height: 1px; background: currentColor; opacity: .5; }
+  .span::before { margin-right: 4px; } .span::after { margin-left: 4px; }
+  .span.fill { color: var(--anchor); } .span.doc { color: var(--accent); } .span.form { color: #b4b9ff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Which screens fill the window, which stay centred</h1>
+  <p class="lead">One rule per screen, decided by what the screen shows. The width menu (Narrow, Standard, Wide, Full) replaces the <b>Aa</b> key everywhere a document is read or written. Dashed regions are what grows with the window.</p>
+
+  <div class="rule">
+    <div><h2><span class="key k-fill"></span>Fill</h2><p>A list, a table, a grid, a canvas or a calendar. The window is the column; more width shows more of it, never wider lines of prose.</p><p class="eg">Columns share the room: the title takes what the others leave.</p></div>
+    <div><h2><span class="key k-doc"></span>Document, centred</h2><p>Prose a person reads or writes. The pane around it fills; the text sits centred in it at the width chosen in the width menu, and its outline stays at the edge.</p><p class="eg">One choice holds for every document in the console.</p></div>
+    <div><h2><span class="key k-form"></span>Form, centred</h2><p>Fields in a column. Labels left, fields right, centred, never stretched across a wide window. Narrow forms read faster than wide ones.</p><p class="eg">Settings, a connection's detail, a graph's setup.</p></div>
+  </div>
+
+  <div class="bar"><div class="seg" id="seg" role="group" aria-label="Show"></div><span class="dim" style="font-size:var(--t-small);color:var(--subtle)" id="count"></span></div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<script>
+const b = (l, t, w, h, c = '', extra = '') => `<i class="b ${c}" style="left:${l}%;top:${t}%;width:${w}%;height:${h}%;${extra}"></i>`
+const rows = (l, t, w, n, gap, h = 3.2) => Array.from({ length: n }, (_, i) => b(l, t + i * gap, w, h, 'l')).join('')
+const span = (l, t, w, c, label) => `<span class="span ${c}" style="left:${l}%;top:${t}%;width:${w}%">${label}</span>`
+
+const WF = {
+  table: () => b(3, 13, 94, 7, 's') + b(3, 24, 94, 62, 'fill') + rows(5, 27, 90, 8, 7.4) + span(3, 90, 94, 'fill', 'fills'),
+  board: () => [0, 1, 2, 3].map((i) => b(3 + i * 24.5, 13, 22.5, 74, 'fill') + b(4.5 + i * 24.5, 17, 19.5, 11, 's') + b(4.5 + i * 24.5, 31, 19.5, 11, 's')).join('') + span(3, 90, 94, 'fill', 'fills'),
+  cards: () => [0, 1, 2].map((r) => [0, 1, 2].map((c) => b(3 + c * 31.7, 13 + r * 29, 29.5, 26, 'fill') + b(5 + c * 31.7, 28 + r * 29, 18, 2.2, 'l')).join('')).join('') + span(3, 91, 94, 'fill', 'columns grow with the window'),
+  calendar: () => b(3, 13, 94, 6, 's') + Array.from({ length: 5 }, (_, r) => Array.from({ length: 7 }, (_, c) => b(3 + c * 13.5, 21 + r * 15.5, 13, 14.2, 'fill')).join('')).join(''),
+  canvas: () => b(3, 13, 17, 74, 's') + rows(4.5, 16, 14, 4, 9) + b(22, 13, 53, 74, 'fill') + [[26, 22], [42, 22], [58, 22], [42, 52]].map(([l, t]) => b(l, t, 12, 9, 's')).join('') + b(77, 13, 20, 74, 's') + rows(79, 17, 16, 5, 7),
+  railDoc: () => b(3, 13, 17, 74, 's') + rows(4.5, 16, 14, 6, 8) + b(22, 13, 75, 74, 'fill') + b(36, 17, 36, 66, 'doc') + rows(38, 21, 32, 7, 8) + b(80, 17, 14, 30, 'l') + span(22, 90, 75, 'doc', 'pane fills, text centred'),
+  docPanel: () => b(3, 13, 62, 74, 'fill') + b(14, 17, 40, 66, 'doc') + rows(16, 21, 36, 7, 8) + b(67, 13, 30, 74, 's') + rows(69, 17, 26, 5, 9, 4.5) + span(3, 90, 62, 'doc', 'document centred'),
+  doc: () => b(3, 13, 94, 74, 'fill') + b(24, 17, 52, 66, 'doc') + rows(27, 21, 46, 8, 8) + span(3, 90, 94, 'doc', 'text centred at the chosen width'),
+  split: () => b(3, 13, 22, 74, 's') + rows(5, 16, 18, 5, 10) + b(27, 13, 70, 74, 'fill') + b(40, 17, 44, 66, 'form') + rows(42, 21, 40, 6, 10, 5.5) + span(27, 90, 70, 'form', 'form centred'),
+  form: () => b(3, 13, 94, 74, 'fill') + b(30, 17, 40, 66, 'form') + rows(33, 21, 34, 6, 10, 5.5) + span(3, 90, 94, 'form', 'form centred, not stretched'),
+  master: () => b(3, 13, 22, 74, 's') + rows(5, 16, 18, 6, 9) + b(27, 13, 70, 74, 'fill') + b(29, 16, 66, 9, 's') + b(29, 28, 66, 56, 'l', 'opacity:.5') + span(27, 90, 70, 'fill', 'fills'),
+  adhere: () => b(3, 13, 94, 7, 's') + b(3, 23, 94, 55, 'fill') + rows(5, 26, 90, 6, 8.4) + b(3, 82, 94, 7, 's') + b(5, 84, 40, 2, 'l')
+}
+
+const SCREENS = [
+  ['Work', 'fill', 'table', 'The ledger and the board; the title takes what the status, plan and dates leave.', 'now: capped at 1320px'],
+  ['Projects', 'fill', 'cards', 'Project cards: more columns on a wide window.', 'now: capped at 1320px'],
+  ['Companies', 'fill', 'cards', 'Company cards, same grid as Projects.', 'now: capped at 1320px'],
+  ['Project › Tasks', 'fill', 'adhere', 'The Work ledger narrowed to the project, adherence strip beneath.', 'now: full width'],
+  ['Project › Pages', 'doc', 'railDoc', 'Index rail, then a pane that fills; the page sits centred in it with its outline at the edge.', 'now: full width, left aligned'],
+  ['Project › Blueprint', 'doc', 'docPanel', 'The document centred, the "Handed to a session" panel fixed at the right.', 'now: full width'],
+  ['Project › Components', 'doc', 'railDoc', 'Folder tree, then one component as a centred page with its outline.', 'now: full width'],
+  ['Project › Diagrams', 'fill', 'cards', 'Diagram cards: four columns on a wide window.', 'now: full width'],
+  ['Project › Deployment', 'fill', 'canvas', 'Graph list, canvas that grows, step inspector. A bigger window shows more graph.', 'now: full width'],
+  ['Project › Connections', 'fill', 'table', 'Bindings per connection as wide rows: label, target, credential, actions.', 'now: full width'],
+  ['Project › Settings', 'form', 'split', 'A rail of four panes; the open form is centred, not stretched across the window.', 'now: 600px centred'],
+  ['Task › Plan, Changes', 'fill', 'master', 'Steps beside the open step; the step decision panel obeys the width menu.', 'now: width menu'],
+  ['Task › Description, Notes, Wrapup', 'doc', 'doc', 'Prose in a centred column at the chosen width.', 'now: width menu, Aa on read'],
+  ['Connections hub', 'fill', 'table', 'List by kind, selected connection beside it.', 'now: capped at 1320px'],
+  ['Connection detail', 'form', 'form', 'Credential, sharing and access log in one column.', 'now: 760px, left'],
+  ['Calendar', 'fill', 'calendar', 'The month grid fills the window.', 'now: capped at 1320px'],
+  ['Reports', 'fill', 'table', 'Wide tables of time per company and project.', 'now: capped at 1320px'],
+  ['Diagrams', 'fill', 'cards', 'The gallery; an opened diagram takes the whole screen.', 'now: capped at 1320px'],
+  ['Security overview', 'fill', 'cards', 'Exposure tiles and tables across the window.', 'now: 1280px centred'],
+  ['Review', 'fill', 'master', 'Queue beside the item under review.', 'now: capped at 1320px'],
+  ['Settings', 'form', 'split', 'Sections rail and one centred form; Help is the one prose page and takes the width menu.', 'now: 1100px, form 620px'],
+  ['Epic', 'form', 'form', 'An epic\'s fields and its task list in a column.', 'now: 1100px centred'],
+  ['Graph setup', 'form', 'form', 'Choosing how a new deployment graph starts.', 'now: 640px centred'],
+  ['Claude resources', 'fill', 'table', 'Skills, commands and memory listed as rows.', 'now: capped at 1320px']
+]
+const NAME = { fill: 'Fill', doc: 'Document, centred', form: 'Form, centred' }
+const S = { show: 'all' }
+
+function render() {
+  const list = SCREENS.filter((s) => S.show === 'all' || s[1] === S.show)
+  document.getElementById('seg').innerHTML = [['all', 'All'], ['fill', 'Fill'], ['doc', 'Document'], ['form', 'Form']].map(([k, l]) => `<button data-show="${k}" aria-pressed="${S.show === k}">${l} ${k === 'all' ? SCREENS.length : SCREENS.filter((s) => s[1] === k).length}</button>`).join('')
+  document.getElementById('count').textContent = `${list.length} screens`
+  document.getElementById('grid').innerHTML = list.map(([n, kind, wf, why, now]) => `<article class="card"><div class="wf"><span class="top"></span>${WF[wf]()}</div>
+    <h3><span class="key k-${kind}"></span>${n}</h3><p>${why}</p><div class="tags"><span class="tag">${NAME[kind]}</span>${kind === 'doc' ? '<span class="tag">Width menu</span>' : ''}<span class="tag now">${now}</span></div></article>`).join('')
+}
+document.addEventListener('click', (e) => { const t = e.target.closest('[data-show]'); if (t) { S.show = t.dataset.show; render() } })
+render()
+</script>
+</body>
+</html>

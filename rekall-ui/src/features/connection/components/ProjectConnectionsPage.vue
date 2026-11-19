@@ -6,6 +6,7 @@ import ConnectionKindIcon from '@/features/connection/components/ConnectionKindI
 import ConnectionOption from '@/features/connection/components/ConnectionOption.vue'
 import ConnectionSheet from '@/features/connection/components/ConnectionSheet.vue'
 import ConnectionTrunk from '@/features/connection/components/ConnectionTrunk.vue'
+import ConfluenceImportDialog from '@/features/connection/components/ConfluenceImportDialog.vue'
 import JiraImportDialog from '@/features/connection/components/JiraImportDialog.vue'
 import RepositoryDiscoveryResult from '@/features/connection/components/RepositoryDiscoveryResult.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
@@ -46,6 +47,7 @@ const discovery = ref<RepositoryDiscovery | null>(null)
 const query = ref('')
 const creating = ref(false)
 const importing = ref<ProjectConnection | null>(null)
+const filling = ref<ProjectConnection | null>(null)
 const returnTo = computed(() => `/projects/${props.project.id}`)
 const companies = computed(() => consoleStore.companies.map((company) => ({ id: company.id, name: company.name })))
 const hubQuery = computed(() => ({ company: props.project.companyId, returnTo: returnTo.value }))
@@ -143,11 +145,11 @@ watch(
       >
       <RouterLink
         :to="{ name: 'connections', query: hubQuery }"
-        class="focus-ring key-slate inline-flex h-7 items-center rounded-control px-3 text-caption font-medium max-sm:min-h-11"
+        class="focus-ring key-slate inline-flex h-7 items-center rounded-key px-3 text-caption font-medium max-sm:min-h-11"
         data-testid="manage-connections-link"
         >Manage connections</RouterLink
       >
-      <AppButton size="sm" variant="primary" data-testid="new-project-connection" @click="creating = true">New connection</AppButton>
+      <AppButton size="sm" variant="primary" data-testid="new-project-connection" @click="creating = true">+ New connection</AppButton>
     </header>
 
     <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
@@ -177,6 +179,7 @@ watch(
               @save="save"
               @unbind="unbind"
               @import-issues="importing = $event"
+              @fill-project="filling = $event"
             />
           </div>
         </section>
@@ -192,7 +195,7 @@ watch(
         </p>
         <div class="mt-3 flex flex-wrap items-center gap-3">
           <AppButton size="sm" variant="secondary" class="max-sm:min-h-11" data-testid="empty-new-connection" @click="creating = true"
-            >New connection</AppButton
+            >+ New connection</AppButton
           >
           <RouterLink
             :to="{ name: 'connections', query: hubQuery }"
@@ -203,7 +206,7 @@ watch(
         </div>
       </div>
       <p v-else class="max-w-[60ch] text-small leading-relaxed text-text-subtle" data-testid="connections-empty">
-        No connection used yet. A session on this project reaches only the clusters, GitLab instances, GitHub servers and Jira sites
+        No connection used yet. A session on this project reaches only the clusters, GitLab instances, GitHub servers, Jira and Confluence sites and Grafana instances
         bound here.
       </p>
 
@@ -239,6 +242,9 @@ watch(
     </Transition>
     <Transition name="dialog">
       <JiraImportDialog v-if="importing" :binding="importing" @close="importing = null" />
+    </Transition>
+    <Transition name="dialog">
+      <ConfluenceImportDialog v-if="filling" :binding="filling" @close="filling = null" />
     </Transition>
   </section>
 </template>

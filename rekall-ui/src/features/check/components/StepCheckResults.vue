@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { toRef } from 'vue'
 import { relativeTime } from '@/common/format/relative-time'
-import { failedRuns, latestRunsOfStep, runDuration, runOutcome } from '@/features/check/lib/check-results'
-import { useChecksStore } from '@/features/check/store/checks.store'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import { runDuration, runOutcome } from '@/features/check/lib/check-results'
+import { useStepCheckRuns } from '@/features/check/composables/useStepCheckRuns'
+import type { TaskStep } from '@/features/steps/model/task-step'
 
 /**
  * What the last run of each check found on this step, so the review starts from what was already
@@ -11,10 +11,7 @@ import type { TaskStep } from '@/features/catalog/model/catalog'
  */
 const props = defineProps<{ step: TaskStep }>()
 
-const store = useChecksStore()
-
-const runs = computed(() => latestRunsOfStep(store.resultsOf(props.step.taskId), props.step.id))
-const failures = computed(() => failedRuns(runs.value).length)
+const { runs, failures } = useStepCheckRuns(toRef(props, 'step'))
 </script>
 
 <template>
@@ -30,7 +27,7 @@ const failures = computed(() => failedRuns(runs.value).length)
         <details :open="!run.passed" class="rounded-control border border-border bg-canvas px-2.5 py-1.5">
           <summary class="focus-ring flex cursor-pointer list-none items-center gap-2 rounded-key text-small">
             <span
-              class="inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-px text-micro font-semibold"
+              class="inline-flex shrink-0 items-center gap-1 rounded-key px-1.5 py-px text-micro font-semibold"
               :class="run.passed ? 'bg-safe-soft text-safe' : 'bg-danger-soft text-danger'"
               data-testid="step-check-outcome"
             >

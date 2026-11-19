@@ -27,7 +27,7 @@ impl Anchor {
         }
         if anchors.is_empty() {
             return Err(ToolError::Failure(
-                "No anchor given. Pass something like `project:vega task:report-builder`.".into(),
+                "No anchor given. Pass something like `project:vega` or `task:RK-12`.".into(),
             ));
         }
         Ok(anchors)

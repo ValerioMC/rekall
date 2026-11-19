@@ -1,3 +1,4 @@
+pub(super) mod confluence_import_response;
 pub(super) mod connection_access_response;
 pub(super) mod connection_company_response;
 pub(super) mod connection_detail_response;
@@ -7,6 +8,8 @@ pub(super) mod connection_response;
 pub(super) mod discovered_repository_response;
 pub(super) mod discovery_outcome_response;
 pub(super) mod jira_issue_response;
+pub(super) mod target_suggestion_response;
 pub(super) mod kube_context_response;
 pub(super) mod project_connection_response;
 pub(super) mod repository_discovery_response;
+pub(super) mod revealed_credential_response;

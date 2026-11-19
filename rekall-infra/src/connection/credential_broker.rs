@@ -6,13 +6,13 @@ use async_trait::async_trait;
 
 use rekall_kernel::{cleanup, Id, InternalFailure, RekallError, Result};
 use rekall_store::ConnectionKind;
-use rekall_core::claude::{TerminalConnection, TerminalLaunch};
-use rekall_core::connection::{ConnectionAccessService, CredentialDesk, JiraCredential, KubeAccess, Secret, SecretStore};
+use rekall_core::claude::{SessionProvider, TerminalConnection, TerminalLaunch};
+use rekall_core::connection::{ConnectionAccessService, CredentialDesk, GrafanaCredential, AtlassianCredential, KubeAccess, Secret, SecretStore};
 use tracing::{info, warn};
 
 use super::credential_session::CredentialSession;
 use super::guard_rails::settings_document;
-use super::helper_scripts::{api_wrapper, git_helper, kube_plugin, GITHUB_API, GITLAB_API, GIT_HELPER, JIRA_API, KUBE_PLUGIN};
+use super::helper_scripts::{api_wrapper, git_helper, kube_plugin, CredentialRequest, CONFLUENCE_API, GITHUB_API, GITLAB_API, GIT_HELPER, GRAFANA_API, JIRA_API, KUBE_PLUGIN};
 use super::session_kubeconfig::{exec_credential, session_kubeconfig, SessionCluster};
 use super::{CredentialPurpose, HandOut, Refusal, SessionEnvironment};
 
@@ -20,6 +20,7 @@ use super::{CredentialPurpose, HandOut, Refusal, SessionEnvironment};
 pub const CREDENTIAL_ENDPOINT_PREFIX: &str = "/api/terminal/";
 const KUBECONFIG_FILE: &str = "kubeconfig";
 const SETTINGS_FILE: &str = "claude-settings.json";
+const CREDENTIAL_HEADER_FILE: &str = "credential-header";
 
 /// Opens a credential session for every terminal whose project binds a connection with a stored
 /// credential, answers its helpers, and closes it with the terminal. The only reader of credentials
@@ -42,7 +43,7 @@ impl CredentialBroker {
 
     /// What to add to the terminal's environment, or nothing when no bound connection has a
     /// credential. The helpers are shell scripts, so a Windows terminal gets none.
-    pub async fn open(&self, terminal_id: Id, launch: &TerminalLaunch) -> Result<Option<SessionEnvironment>> {
+    pub async fn open(&self, terminal_id: Id, launch: &TerminalLaunch, provider: SessionProvider) -> Result<Option<SessionEnvironment>> {
         let usable: Vec<TerminalConnection> = launch.connections.iter().filter(|connection| connection.credential_set).cloned().collect();
         if usable.is_empty() || !cfg!(unix) {
             return Ok(None);
@@ -51,15 +52,19 @@ impl CredentialBroker {
         create_private_folder(&folder)?;
         // Claude Code matches its deny rules against the real path, so a symlinked root is resolved.
         let folder = folder.canonicalize().unwrap_or(folder);
-        let environment = match self.write_helpers(terminal_id, &folder, &usable).await {
+        let session = CredentialSession {
+            task_id: launch.task_id,
+            token: Secret::new(new_token()),
+            folder,
+            connections: usable,
+        };
+        let environment = match self.write_helpers(terminal_id, &session, provider).await {
             Ok(environment) => environment,
             Err(failure) => {
-                cleanup::remove_dir_all(&folder);
+                cleanup::remove_dir_all(&session.folder);
                 return Err(failure);
             }
         };
-        let token = environment.token.clone().expect("every session environment carries its token");
-        let session = CredentialSession { task_id: launch.task_id, token: Secret::new(token), folder, connections: usable };
         self.sessions().insert(terminal_id, Arc::new(session));
         info!(%terminal_id, "Opened a credential session");
         Ok(Some(environment))
@@ -129,28 +134,28 @@ impl CredentialBroker {
             CredentialPurpose::Git => Ok(Secret::new(format!("username=oauth2\npassword={}\n", stored.expose()))),
             CredentialPurpose::Gitlab => Ok(Secret::new(format!("PRIVATE-TOKEN: {}\n", stored.expose()))),
             CredentialPurpose::Github => Ok(Secret::new(format!("Authorization: Bearer {}\n", stored.expose()))),
-            CredentialPurpose::Jira => {
-                let credential = JiraCredential::from_stored(&stored).map_err(|failure| (Refusal::Failed, failure.message().to_string()))?;
+            CredentialPurpose::Grafana => {
+                let credential = GrafanaCredential::from_stored(&stored).map_err(|failure| (Refusal::Failed, failure.message().to_string()))?;
+                Ok(Secret::new(format!("Authorization: {}\n", credential.authorization().expose())))
+            }
+            CredentialPurpose::Jira | CredentialPurpose::Confluence => {
+                let credential = AtlassianCredential::from_stored(&stored).map_err(|failure| (Refusal::Failed, failure.message().to_string()))?;
                 Ok(Secret::new(format!("Authorization: {}\n", credential.authorization().expose())))
             }
         }
     }
 
-    /// Writes the helpers into `folder` and answers the environment that points at them.
-    async fn write_helpers(&self, terminal_id: Id, folder: &Path, connections: &[TerminalConnection]) -> Result<SessionEnvironment> {
+    async fn write_helpers(&self, terminal_id: Id, session: &CredentialSession, provider: SessionProvider) -> Result<SessionEnvironment> {
+        let folder = &session.folder;
+        let connections = &session.connections;
         let endpoint = format!("{}{CREDENTIAL_ENDPOINT_PREFIX}{terminal_id}/credentials", self.endpoint);
-        let settings = folder.join(SETTINGS_FILE);
-        write_private(&settings, &settings_document(folder, &endpoint))?;
-        let mut environment = SessionEnvironment {
-            path_prefix: Some(folder.to_path_buf()),
-            token: Some(new_token()),
-            claude_settings: Some(settings),
-            ..SessionEnvironment::default()
-        };
+        let mut environment = SessionEnvironment { path_prefix: Some(folder.clone()), ..SessionEnvironment::default() };
+        let header_file = prepare_helper_authentication(session, provider, &endpoint, &mut environment)?;
+        let request = CredentialRequest { endpoint: &endpoint, header_file: header_file.as_deref() };
         let clusters = self.clusters_of(connections).await;
         if !clusters.is_empty() {
             let plugin = folder.join(KUBE_PLUGIN);
-            write_script(&plugin, &kube_plugin(&endpoint))?;
+            write_script(&plugin, &kube_plugin(&request))?;
             let sessions: Vec<SessionCluster<'_>> =
                 clusters.iter().map(|(connection, access)| SessionCluster { label: &connection.label, access, namespace: connection.target.as_deref() }).collect();
             let kubeconfig = folder.join(KUBECONFIG_FILE);
@@ -161,20 +166,28 @@ impl CredentialBroker {
             connections.iter().filter(|connection| matches!(connection.kind, ConnectionKind::Gitlab | ConnectionKind::Github)).collect();
         if !git_hosts.is_empty() {
             let helper = folder.join(GIT_HELPER);
-            write_script(&helper, &git_helper(&endpoint))?;
+            write_script(&helper, &git_helper(&request))?;
             environment.git_config = git_config(&git_hosts, &helper);
         }
         let gitlabs: Vec<&TerminalConnection> = connections.iter().filter(|connection| connection.kind == ConnectionKind::Gitlab).collect();
         if !gitlabs.is_empty() {
-            write_script(&folder.join(GITLAB_API.name), &api_wrapper(&GITLAB_API, &endpoint, &gitlabs))?;
+            write_script(&folder.join(GITLAB_API.name), &api_wrapper(&GITLAB_API, &request, &gitlabs))?;
         }
         let githubs: Vec<&TerminalConnection> = connections.iter().filter(|connection| connection.kind == ConnectionKind::Github).collect();
         if !githubs.is_empty() {
-            write_script(&folder.join(GITHUB_API.name), &api_wrapper(&GITHUB_API, &endpoint, &githubs))?;
+            write_script(&folder.join(GITHUB_API.name), &api_wrapper(&GITHUB_API, &request, &githubs))?;
         }
         let jiras: Vec<&TerminalConnection> = connections.iter().filter(|connection| connection.kind == ConnectionKind::Jira).collect();
         if !jiras.is_empty() {
-            write_script(&folder.join(JIRA_API.name), &api_wrapper(&JIRA_API, &endpoint, &jiras))?;
+            write_script(&folder.join(JIRA_API.name), &api_wrapper(&JIRA_API, &request, &jiras))?;
+        }
+        let confluences: Vec<&TerminalConnection> = connections.iter().filter(|connection| connection.kind == ConnectionKind::Confluence).collect();
+        if !confluences.is_empty() {
+            write_script(&folder.join(CONFLUENCE_API.name), &api_wrapper(&CONFLUENCE_API, &request, &confluences))?;
+        }
+        let grafanas: Vec<&TerminalConnection> = connections.iter().filter(|connection| connection.kind == ConnectionKind::Grafana).collect();
+        if !grafanas.is_empty() {
+            write_script(&folder.join(GRAFANA_API.name), &api_wrapper(&GRAFANA_API, &request, &grafanas))?;
         }
         Ok(environment)
     }
@@ -208,6 +221,29 @@ impl CredentialBroker {
 impl CredentialDesk for CredentialBroker {
     async fn hand_out(&self, terminal_id: Id, presented: Option<&str>, label: &str, purpose: CredentialPurpose) -> HandOut {
         CredentialBroker::hand_out(self, terminal_id, presented, label, purpose).await
+    }
+}
+
+fn prepare_helper_authentication(
+    session: &CredentialSession,
+    provider: SessionProvider,
+    endpoint: &str,
+    environment: &mut SessionEnvironment,
+) -> Result<Option<PathBuf>> {
+    match provider {
+        SessionProvider::Claude => {
+            let settings = session.folder.join(SETTINGS_FILE);
+            write_private(&settings, &settings_document(&session.folder, endpoint))?;
+            environment.claude_settings = Some(settings);
+            environment.token = Some(session.token.expose().to_owned());
+            Ok(None)
+        }
+        SessionProvider::Codex => {
+            let file = session.folder.join(CREDENTIAL_HEADER_FILE);
+            let header = Secret::new(format!("X-Rekall-Credential-Token: {}\n", session.token.expose()));
+            write_private(&file, header.expose())?;
+            Ok(Some(file))
+        }
     }
 }
 

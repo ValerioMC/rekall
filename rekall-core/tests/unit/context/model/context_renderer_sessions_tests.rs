@@ -2,6 +2,8 @@ use rekall_kernel::{Id, Instant};
 use rekall_store::task_step;
 
 use super::*;
+use rekall_store::TaskStepState;
+use crate::step::TaskStepView;
 use crate::step::StepFlowRows;
 
 fn step(task_id: Id, title: &str, position: i32, starts_session: bool) -> task_step::Model {

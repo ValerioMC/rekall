@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { neighbourOf, stepNumberOf } from '@/features/deviations/model/deviation'
-import type { TaskStep, TaskStepState } from '@/features/catalog/model/catalog'
+import type { TaskStep, TaskStepState } from '@/features/steps/model/task-step'
 import type { TaskStepId } from '@/model/branded'
 import { deviation } from './fixtures'
 

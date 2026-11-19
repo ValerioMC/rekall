@@ -1,3 +1,5 @@
+import { formatDate } from '@/common/format/app-locale'
+
 const MINUTE = 60_000
 const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
@@ -17,9 +19,5 @@ export function relativeTime(iso: string, now: number = Date.now()): string {
     const days = Math.floor(elapsed / DAY)
     return days === 1 ? 'yesterday' : `${days} days ago`
   }
-  return new Date(then).toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  })
+  return formatDate(new Date(then))
 }

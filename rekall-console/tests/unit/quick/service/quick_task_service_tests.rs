@@ -1,7 +1,9 @@
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
+use rekall_core::review::TaskReviewService;
 use rekall_core::claude::{SessionKind, TerminalEnded, TerminalHost, TerminalOpening, TerminalView};
+use rekall_core::worktree::{ScriptedWorktreeHost, TaskWorktreeService, WorktreeLayout};
 use rekall_core::{Ctx, EventBus, Services};
 use rekall_kernel::Instant;
 use rekall_store::{company, project, ProjectStatus, TaskStepState};
@@ -70,9 +72,10 @@ fn view_on(target: &TerminalTarget) -> TerminalView {
         anchors: "project:app".into(),
         working_dir: "/work/app".into(),
         project_label: "app".into(),
-        task_label: None,
+        task_code: None,
         task_title: None,
         mode: TerminalMode::Work,
+        provider: Default::default(),
         skip_permissions: false,
         model: None,
         effort: None,
@@ -88,6 +91,7 @@ fn view_on(target: &TerminalTarget) -> TerminalView {
 struct World {
     service: QuickTaskService,
     tasks: TaskService,
+    review: TaskReviewService,
     host: Arc<FakeHost>,
     project_id: Id,
 }
@@ -107,7 +111,7 @@ async fn world(refuse_with: Option<&'static str>) -> World {
         description: None,
         blueprint_markdown: None,
         repo_folder: None,
-        auto_commit: false,
+        auto_commit: false, main_branch: None, pull_request_flow: false, task_key: "QT".into(),
         company_id: company.id,
         created_at: now,
         updated_at: now,
@@ -116,12 +120,12 @@ async fn world(refuse_with: Option<&'static str>) -> World {
     let services = Services::new(ctx.clone(), Arc::new(rekall_core::check::ScriptedCheckRunner::new()));
     let tasks = TaskService::new(ctx.clone(), services.review.clone(), services.time_entries.clone());
     let host = Arc::new(FakeHost { refuse_with, openings: Mutex::new(Vec::new()) });
-    let service = QuickTaskService::new(ctx, tasks.clone(), TerminalService::new(host.clone()));
-    World { service, tasks, host, project_id: project.id }
+    let service = QuickTaskService::new(ctx.clone(), tasks.clone(), TerminalService::new(host.clone(), TaskWorktreeService::new(ctx.clone(), Arc::new(ScriptedWorktreeHost::new()), WorktreeLayout::new(std::env::temp_dir().join("rekall-quick-worktrees")))));
+    World { service, tasks, review: services.review.clone(), host, project_id: project.id }
 }
 
 fn command(project_id: Id, text: &str) -> QuickTaskCommand {
-    QuickTaskCommand { project_id, text: text.into(), skip_permissions: true, model: Some("sonnet".into()), effort: None, kind: SessionKind::Chat }
+    QuickTaskCommand { project_id, text: text.into(), provider: Default::default(), skip_permissions: true, model: Some("sonnet".into()), effort: None, kind: SessionKind::Chat }
 }
 
 #[tokio::test]
@@ -131,7 +135,7 @@ async fn the_text_becomes_a_quick_task_titled_by_its_first_line_with_a_session_o
     assert!(started.task.quick);
     assert!(!started.task.auto_accepted);
     assert_eq!(started.task.title, "Fix the typo in README");
-    assert_eq!(started.task.label, "fix-the-typo-in-readme");
+    assert_eq!(started.task.code, "QT-1");
     assert_eq!(started.task.description.as_deref(), Some("Fix the typo in README\nIt says recieve."));
     assert_eq!(started.task.review_state, TaskStepState::Open);
     let openings = world.host.openings.lock().unwrap();
@@ -151,21 +155,24 @@ async fn a_blank_text_is_refused_and_nothing_is_created() {
 }
 
 #[tokio::test]
-async fn a_second_quick_task_is_refused_while_the_first_is_still_being_worked() {
+async fn quick_tasks_can_run_side_by_side_on_one_project() {
     let world = world(None).await;
-    world.service.create(command(world.project_id, "First change")).await.unwrap();
-    let refusal = world.service.create(command(world.project_id, "Second change")).await.unwrap_err();
-    assert!(matches!(refusal, RekallError::Conflict(_)), "{refusal}");
-    assert_eq!(world.tasks.list(Some(world.project_id)).await.unwrap().len(), 1);
+    let first = world.service.create(command(world.project_id, "First change")).await.unwrap();
+    world.review.session_running(first.task.id, true).await.unwrap();
+    let second = world.service.create(command(world.project_id, "Second change")).await.unwrap();
+    world.review.session_running(second.task.id, true).await.unwrap();
+    let third = world.service.create(command(world.project_id, "Third change")).await.unwrap();
+    assert!(third.task.quick);
+    assert_eq!(world.tasks.list(Some(world.project_id)).await.unwrap().len(), 3);
 }
 
 #[tokio::test]
-async fn the_same_request_twice_gets_a_numbered_label_once_the_first_is_out_of_the_way() {
+async fn the_same_request_twice_gets_the_next_code_once_the_first_is_out_of_the_way() {
     let world = world(None).await;
     let first = world.service.create(command(world.project_id, "Fix the typo")).await.unwrap();
     world.tasks.review(first.task.id, TaskStepState::Done).await.unwrap();
     let second = world.service.create(command(world.project_id, "Fix the typo")).await.unwrap();
-    assert_eq!(second.task.label, "fix-the-typo-2");
+    assert_eq!(second.task.code, "QT-2");
 }
 
 #[tokio::test]

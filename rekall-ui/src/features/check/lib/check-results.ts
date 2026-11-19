@@ -16,6 +16,13 @@ export function failedRuns(runs: readonly CheckResult[]): CheckResult[] {
   return runs.filter((run) => !run.passed)
 }
 
+/** What the last runs found in one line, or null when nothing ran for the step. */
+export function checksLine(runs: readonly CheckResult[]): string | null {
+  if (!runs.length) return null
+  const failed = failedRuns(runs).length
+  return failed ? `${failed} of ${runs.length} checks failed` : `${runs.length} checks passed`
+}
+
 export function runDuration(durationMs: number): string {
   if (durationMs < 1000) return `${durationMs} ms`
   const seconds = durationMs / 1000

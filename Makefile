@@ -18,7 +18,7 @@ DEMO_TASKS_PER_COMPANY  ?= 20
 
 .DEFAULT_GOAL := help
 .PHONY: help ui ui-dev run run-demo build start desktop dmg app install icons test test-backend test-ui lint \
-	mcp-add mcp-check reset-data load-data
+	mcp-add mcp-check reset-data load-data load-sql
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -99,3 +99,5 @@ reset-data: ## Delete the demo database (./data/demo) so the next load-data star
 load-data: ## Seed the running instance with demo companies, tasks, notes and time tracking. Start it first with `make run-demo`
 	python3 scripts/seed-demo-data.py --base-url $(REKALL_URL) --companies $(DEMO_COMPANIES) --tasks-per-company $(DEMO_TASKS_PER_COMPANY)
 
+load-sql: ## Fill the demo database (./data/demo) straight from SQL with a large catalog: companies, tasks, flows, connections, vulnerabilities. Stop the server first; run it once with `make run-demo` so the schema exists
+	sqlite3 $(DEMO_DB_DIR)/rekall.db < scripts/seed-demo-data.sql

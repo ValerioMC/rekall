@@ -18,6 +18,16 @@ impl TaskBranchService {
     pub async fn view(&self, task_id: Id) -> Result<Option<TaskBranchView>> {
         Ok(self.worktrees.review_branch(task_id).await?.map(TaskBranchView::of))
     }
+
+    /// Makes the task's branch and worktree when its project keeps tasks on branches, for a session
+    /// opened outside Rekall; none for a project that does not.
+    pub async fn start(&self, task_id: Id) -> Result<Option<TaskBranchView>> {
+        if !self.worktrees.requires_branch(task_id).await? {
+            return Ok(None);
+        }
+        self.worktrees.ensure(task_id).await?;
+        self.view(task_id).await
+    }
 }
 
 #[cfg(test)]

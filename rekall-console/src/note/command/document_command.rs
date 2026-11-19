@@ -1,15 +1,13 @@
 use rekall_kernel::Id;
 use rekall_store::DocumentContextMode;
-use rekall_store::note_scope::NoteScope;
 
-/// `contextMode` left out keeps what the note had, or `FULL` for a new one. `scope` left out
-/// keeps the note's, or for a new one takes the narrowest its tasks share.
-#[derive(Clone, Debug, Default)]
+/// `contextMode` left out keeps what the note had, or `FULL` for a new one. A note belongs to
+/// the task it was written on: `task_id` on an update has to be that task.
+#[derive(Clone, Debug)]
 pub struct DocumentCommand {
+    pub task_id: Id,
     pub title: Option<String>,
     pub kind: Option<String>,
     pub body_markdown: Option<String>,
-    pub task_ids: Option<Vec<Id>>,
     pub context_mode: Option<DocumentContextMode>,
-    pub scope: Option<NoteScope>,
 }

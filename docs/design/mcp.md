@@ -9,27 +9,28 @@ claude mcp add --transport http rekall http://localhost:47355/mcp
 Six tools. `rekall_context` reads, taking one string:
 
 ```json
-{ "anchors": "project:vega task:report-builder-main-workflow" }
+{ "anchors": "task:VG-12" }
 ```
 
 `rekall_wrapup` writes, taking the same anchors and the text:
 
 ```json
-{ "anchors": "project:vega task:report-builder", "body": "## What it does\n..." }
+{ "anchors": "task:VG-12", "body": "## What it does\n..." }
 ```
 
 `rekall_step` moves one step of a task along its line, taking the anchors, the step's number or
 title, and the target state:
 
 ```json
-{ "anchors": "project:vega task:report-builder", "step": "3", "state": "running" }
+{ "anchors": "task:VG-12", "step": "3", "state": "running" }
 ```
 
 `state` is `running`, `claimed` or `open`. It refuses `done`, and refuses a step a person has
 already accepted: reopening one is a console decision.
 
 `rekall_record_commit` logs the tip of the project's repo folder, or an earlier hash, against a
-task or one of its steps. On a project set to auto-commit, `rekall_step` with `claimed` (and
+task or one of its steps; `component` names a project component to read that component's
+repository instead. On a project set to auto-commit, `rekall_step` with `claimed` (and
 `rekall_wrapup` on a task with no checklist) commits the folder itself; both take an optional
 `commit_message` the session writes, a Conventional Commits subject and a few sentences of body,
 and without one `CommitMessageGenerator` draws the message from the step's detail or the wrapup.
@@ -60,11 +61,12 @@ releases them in the same transaction. The tool text asks the model to choose ch
 for a flow, to work out each step's arcs: what can end it and where each outcome goes.
 
 `rekall_replan` is how a session redesigns a task that already has steps. `FlowProposalService::replan`
-checks the plan whole (`FlowPlan::check_as_written`: a flow when any step has a route, a checklist
-otherwise), then in one transaction deletes the task's draft and open steps (`TaskStepService::clear_unstarted_in`)
+checks the plan whole once it has been rebased over the steps that stay (`FlowPlan::following`, then
+`FlowPlan::check_as_written`: a flow when any step has a route, a checklist otherwise), then in one
+transaction deletes the task's draft and open steps (`TaskStepService::clear_unstarted_in`)
 and lays the plan with `lay_in`. `TaskStepState::unstarted` is the one rule for what a session may delete:
 running, claimed and done steps carry a run, work waiting for review or work a person accepted, so they stay
-and the new steps follow them. A flow begins at the first step, so a flow is refused while any step stays;
+and the new steps follow them. A flow is laid after the steps that stay once none of them is running (its `to` counts the whole checklist, a route into a kept step is refused, and the flow begins at the first new step);
 a title a staying step has is refused; either refusal leaves everything as it was. `rekall_delete_step`
 (`TaskStepService::remove`) deletes one draft or open step by number or title under the same rule, renumbers
 the rest and drops the routes that touched it.
@@ -88,9 +90,21 @@ rekall-core, the one write a session makes on a task it did not just create. It 
 `require_joinable`, moves a task between epics and names the one it left, never takes a task out of an
 epic and never changes a kind, and publishes `task-created` so the console reads its lists again.
 
+`rekall_description` replaces the description of one task: the anchors and the `body`, the whole new text. `TaskDescriptionService::replace` in rekall-core writes it and nothing else on the task, a blank body or one over 100000 characters is refused, and it does not go through the console's revision tracking, so a rewrite opens no revision and nothing keeps the old text.
+
 `rekall_read_sections` is the read side of `rekall_project_section`: a context lists a project's
 sections by title only, so this is the only way a session reads one. `ProjectSectionService::read` lists the titles, or returns one
 section by title ignoring case; a title the project lacks is refused with the titles it has.
+
+`rekall_component` writes one component of a project: `anchors` name the project, then `name`, `folder`, a `summary`
+(at most 500 characters, the only text a context carries) and the `description`, a markdown page whose headings the tool's text lists (Purpose,
+Responsibilities, Stack and layout, Interfaces, Depends on and Used by, Configuration and data, Run and develop, Adding a
+feature, Flow, Gotchas). `ProjectComponentService::write` in rekall-core rewrites the component with that name (ignoring
+case) or, failing that, the one holding that folder, keeping its name and place, and otherwise adds one last; a relative
+folder is taken from the project's. It publishes a `project-component` event so an open console lists the component while the
+session works. Reordering and deleting are the console's, in `ProjectComponentCatalogService`. `rekall_read_components` is its
+read side: without a `name` it lists the components with their summary and the size of their description, with one it returns
+that component whole. `/rk project:<label> components` is the playbook a scan session follows (`.claude/rk/scanning-components.md`).
 
 `rekall_search` is how a session learns that earlier work exists before redoing it: a context only
 holds what it was handed. `SearchTool` calls the `SearchService` the console's search bar uses, or
@@ -112,9 +126,9 @@ one by its GHSA id; `rekall_assess_vulnerability` records a verdict, its reasoni
 
 `rekall_deviation` records where a session's work left the plan: the anchors, the number of the `step` (from 1, as the checklist lists them, drafts not counted) and the `body`. It writes a `task_deviation` row, one per task and step, so it never appears among the task's notes; recording again for a step rewrites that row, a step the checklist does not have is refused, and the `deviation` event tells an open console. The context carries the deviations of a task in a `<deviations>` block, in step order, in full.
 
-The context of a task also carries its thread in a `<thread pending="N" applied="M">` block, oldest first. A `PENDING` entry is rendered in full with its `seq`, `kind` and body (a `REVISION` as the `<quoted>` text before and the `<new>` text now), because those are what a session acts on; an `APPLIED` entry is one line with its `seq`, `kind` and the first line of its reply, because it is history. The block is left out when the thread is empty. `/rk … revise` and `/rk … replan` work the pending entries and answer them with `rekall_feedback`; a plain run never works them.
+The context of a task also carries its thread in a `<thread pending="N" running="R" applied="M">` block, oldest first. A `PENDING` or `RUNNING` entry is rendered in full with its `seq`, `kind` (`IMPLEMENTATION` when the revision is applied to the work, `PLAN` when it is applied to the steps) and the `<quoted>` text before and the `<new>` text now, plus `pass="P"` once Run revision took it into a pass, because those are what a session acts on; an `APPLIED` entry is one line with its `seq`, `kind` and the first line of its reply, because it is history. The block is left out when the thread is empty. `/rk … revise` works one pass (the `RUNNING` entries, or every `PENDING` one when none runs, `PLAN` revisions first through the replanning rules) and answers every entry with `rekall_feedback`; `/rk … replan` works the `PLAN` revisions alone; a plain run never works either.
 
-`rekall_feedback` answers the thread under a task's description: the anchors and a list of `replies`, each a `seq` and a short `reply`. It calls `FeedbackService::reply` and nothing else: every named entry must be `PENDING`, a `seq` the thread lacks, an applied entry, a blank reply or one over 2000 characters refuses the whole call, and a `feedback` event reaches an open console after the commit. It cannot create, edit or delete an entry.
+`rekall_feedback` answers the thread under a task's description: the anchors and a list of `replies`, each a `seq` and a short `reply`. It calls `FeedbackService::reply` and nothing else: every named entry must be `PENDING` or `RUNNING`; a `seq` the thread lacks, an applied entry, a blank reply or one over 2000 characters refuses the whole call, and a `feedback` event reaches an open console after the commit. The answer lists the entries still open (`Still open: #3`), so a session sees what it did not answer. It cannot create, edit or delete a revision. When the session on a task alone ends, `WorkMarker` calls `FeedbackService::release_running` and the entries it took and never answered go back to `PENDING`.
 
 `rekall_project_section` is `rekall_note` for a project: the anchors name a task, the section lands on that
 task's project, and `replace` rewrites the body of the section with the same title (ignoring case) instead
@@ -209,9 +223,6 @@ An anchor is `entity:value`. A value containing spaces is quoted. A bare term wi
 is looked up across both entities and accepted only when exactly one record matches; on more
 than one the candidates come back and nothing is loaded. The tool does not score, weigh or
 choose.
-
-A note attached to several tasks arrives under each of their anchors. The same markdown showing
-up twice in one session is the relation working, not a duplicate.
 
 The two writes are narrower on purpose. `rekall_context` may be handed a company and will
 happily return everything under it; a write cannot, because a project names forty tasks and

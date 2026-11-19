@@ -1,5 +1,5 @@
 import { deleteWrapup as apiDeleteWrapup, saveWrapup as apiSaveWrapup } from '@/features/wrapup/api/wrapups.api'
-import type { WrapupStreamEvent } from '@/features/catalog/model/catalog'
+import type { WrapupStreamEvent } from '@/features/wrapup/model/wrapup'
 import type { TaskId } from '@/model/branded'
 import type { ConsoleState } from '../../../stores/console/console-state'
 import type { useConsoleRefreshes } from '../../../stores/console/useConsoleRefreshes'

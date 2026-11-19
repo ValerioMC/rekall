@@ -8,8 +8,7 @@ const { toasts } = storeToRefs(store)
 
 <template>
   <div
-    class="dock-lane-above pointer-events-none fixed right-6 z-(--z-toast) flex w-full max-w-sm flex-col gap-2"
-    style="--dock-lane-gutter: 24px"
+    class="pointer-events-none fixed bottom-6 right-6 z-(--z-toast) flex w-full max-w-sm flex-col gap-2"
   >
     <TransitionGroup
       enter-active-class="transition duration-(--motion-move) ease-out"

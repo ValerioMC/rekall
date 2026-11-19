@@ -1,4 +1,4 @@
-use rekall_core::claude::SessionKind;
+use rekall_core::claude::{SessionKind, SessionProvider};
 use rekall_kernel::Id;
 
 /// What to do, in the person's words, and how the session that does it is opened.
@@ -6,6 +6,7 @@ use rekall_kernel::Id;
 pub struct QuickTaskCommand {
     pub project_id: Id,
     pub text: String,
+    pub provider: SessionProvider,
     pub skip_permissions: bool,
     pub model: Option<String>,
     pub effort: Option<String>,

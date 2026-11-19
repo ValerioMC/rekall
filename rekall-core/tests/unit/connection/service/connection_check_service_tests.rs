@@ -44,9 +44,21 @@ impl ConnectionProbe for FakeProbe {
         self.outcome.clone()
     }
 
-    async fn jira(&self, site: &JiraSite, credential: &JiraCredential) -> ProbeOutcome {
+    async fn jira(&self, site: &AtlassianSite, credential: &AtlassianCredential) -> ProbeOutcome {
         let proxy = site.proxy_url.as_deref().unwrap_or("no proxy");
         self.asked.lock().unwrap().push(format!("{} via {proxy} as {}", site.url, credential.email().unwrap_or("a personal access token")));
+        self.outcome.clone()
+    }
+
+    async fn confluence(&self, site: &AtlassianSite, credential: &AtlassianCredential) -> ProbeOutcome {
+        self.asked.lock().unwrap().push(format!("confluence {} as {}", site.url, credential.email().unwrap_or("a personal access token")));
+        self.outcome.clone()
+    }
+
+    async fn grafana(&self, instance: &GrafanaInstance, credential: &GrafanaCredential) -> ProbeOutcome {
+        let trust = if instance.accept_self_signed { "self-signed accepted" } else { "certificate verified" };
+        let user = credential.user().map(|user| format!(" as {user}")).unwrap_or_default();
+        self.asked.lock().unwrap().push(format!("grafana {} via {}, {trust}{user}", instance.url, instance.proxy_url.as_deref().unwrap_or("no proxy")));
         self.outcome.clone()
     }
 }
@@ -72,10 +84,12 @@ impl World {
             ConnectionKind::Gitlab => Some("https://gitlab.example.com".to_string()),
             ConnectionKind::Github => Some("https://github.com".to_string()),
             ConnectionKind::Jira => Some("https://example.atlassian.net".to_string()),
+            ConnectionKind::Confluence => Some("https://example.atlassian.net/wiki".to_string()),
+            ConnectionKind::Grafana => Some("https://grafana.example.com".to_string()),
             ConnectionKind::Kubernetes => None,
         };
         let mut connection = external_connection::Model::new("conn".into(), "Conn".into(), kind, base_url, Instant::now());
-        connection.proxy_url = (kind == ConnectionKind::Jira).then(|| "http://proxy.example.com:8080".to_string());
+        connection.proxy_url = matches!(kind, ConnectionKind::Jira | ConnectionKind::Grafana).then(|| "http://proxy.example.com:8080".to_string());
         if let Some(credential) = credential {
             self.secrets.put(&connection.secret_ref, &Secret::new(credential)).unwrap();
             connection.secret_set_at = Some(Instant::now());
@@ -162,4 +176,51 @@ async fn a_github_check_asks_the_server_the_connection_names() {
 
     assert_eq!(check.detail, "Signed in as octocat.");
     assert_eq!(*world.probe.asked.lock().unwrap(), ["github https://github.com"]);
+}
+
+#[tokio::test]
+async fn a_grafana_check_asks_the_instance_through_the_proxy_the_connection_names() {
+    let world = world(ProbeOutcome::Accepted { identity: Some("sa-rekall".into()), version: None }).await;
+    let id = world.connection(ConnectionKind::Grafana, Some("glsa_secret")).await;
+
+    let check = world.checks.check(id).await.unwrap();
+
+    assert!(check.ok);
+    assert_eq!(check.detail, "Signed in as sa-rekall.");
+    assert_eq!(*world.probe.asked.lock().unwrap(), ["grafana https://grafana.example.com via http://proxy.example.com:8080, certificate verified"]);
+}
+
+#[tokio::test]
+async fn a_grafana_check_trusts_the_self_signed_certificate_when_the_connection_accepts_it() {
+    let world = world(ProbeOutcome::Accepted { identity: Some("sa-rekall".into()), version: None }).await;
+    let id = world.connection(ConnectionKind::Grafana, Some("glsa_secret")).await;
+    let mut connection = repo::external_connection::require(&world.ctx.db, id).await.unwrap();
+    connection.accept_self_signed = true;
+    connection.into_active_model().reset_all().update(&world.ctx.db).await.unwrap();
+
+    world.checks.check(id).await.unwrap();
+
+    assert_eq!(*world.probe.asked.lock().unwrap(), ["grafana https://grafana.example.com via http://proxy.example.com:8080, self-signed accepted"]);
+}
+
+#[tokio::test]
+async fn a_grafana_check_hands_the_probe_the_user_of_a_stored_password() {
+    let world = world(ProbeOutcome::Accepted { identity: Some("admin".into()), version: None }).await;
+    let id = world.connection(ConnectionKind::Grafana, Some("admin:pa55")).await;
+
+    world.checks.check(id).await.unwrap();
+
+    assert_eq!(*world.probe.asked.lock().unwrap(), ["grafana https://grafana.example.com via http://proxy.example.com:8080, certificate verified as admin"]);
+}
+
+#[tokio::test]
+async fn a_confluence_check_asks_the_site_with_the_stored_atlassian_credential() {
+    let world = world(ProbeOutcome::Accepted { identity: Some("Ada Lovelace".into()), version: None }).await;
+    let id = world.connection(ConnectionKind::Confluence, Some("ada@example.com:atl-secret")).await;
+
+    let check = world.checks.check(id).await.unwrap();
+
+    assert!(check.ok);
+    assert_eq!(check.detail, "Signed in as Ada Lovelace.");
+    assert_eq!(*world.probe.asked.lock().unwrap(), ["confluence https://example.atlassian.net/wiki as ada@example.com"]);
 }

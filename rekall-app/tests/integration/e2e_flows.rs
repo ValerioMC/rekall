@@ -6,7 +6,7 @@ mod support;
 use serde_json::json;
 use support::{app, App};
 
-const TASK: &str = "project:vega task:release";
+const TASK: &str = "task:VE-1";
 
 /// Build, deploy, test, with a failed test routed to a fix that routes back to deploy.
 async fn release(app: &App) -> (String, [String; 4]) {

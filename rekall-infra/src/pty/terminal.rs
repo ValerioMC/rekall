@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use portable_pty::{ChildKiller, MasterPty, PtySize};
 use rekall_kernel::{Id, Instant};
-use rekall_core::claude::{TerminalLaunch, TerminalMode};
+use rekall_core::claude::{SessionProvider, TerminalLaunch, TerminalMode};
 use tokio::sync::watch;
 use tracing::debug;
 
@@ -21,6 +21,7 @@ pub(super) struct Terminal {
     pub(super) size: Mutex<(u16, u16)>,
     /// What it was opened to do; only a terminal in a mode that follows steps can be followed by a new session.
     pub(super) mode: TerminalMode,
+    pub(super) provider: SessionProvider,
     pub(super) skip_permissions: bool,
     pub(super) model: Option<String>,
     pub(super) effort: Option<String>,
@@ -54,9 +55,10 @@ impl Terminal {
             anchors: self.launch.anchors.clone(),
             working_dir: self.launch.working_dir.clone(),
             project_label: self.launch.project_label.clone(),
-            task_label: self.launch.task_label.clone(),
+            task_code: self.launch.task_code.clone(),
             task_title: self.launch.task_title.clone(),
             mode: self.mode.clone(),
+            provider: self.provider,
             skip_permissions: self.skip_permissions,
             model: self.model.clone(),
             effort: self.effort.clone(),

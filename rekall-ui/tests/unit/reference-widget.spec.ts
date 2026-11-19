@@ -16,7 +16,8 @@ const AUTH: ProjectComponent = {
   projectId: 'p-1' as ProjectId,
   name: 'Auth',
   folder: 'services/auth',
-  description: 'Issues tokens.',
+  summary: 'Issues tokens.',
+  description: '',
   position: 0,
   createdAt: '2026-10-08T10:00:00Z',
   updatedAt: '2026-10-08T10:00:00Z'
@@ -32,6 +33,7 @@ const PROD: ProjectConnection = {
   baseUrl: null,
   kubeContext: null,
   target: 'payments',
+  taskManager: false,
   credentialSetAt: null
 }
 

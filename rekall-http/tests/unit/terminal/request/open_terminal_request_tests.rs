@@ -28,6 +28,15 @@ fn a_revise_request_evaluates_the_pending_thread_whatever_else_it_carries() {
 }
 
 #[test]
+fn a_rewrite_request_names_its_style_whatever_else_it_carries() {
+    assert_eq!(parsed(r#"{"mode":"REWRITE_FIX"}"#).mode().unwrap(), TerminalMode::Rewrite { style: RewriteStyle::Fix });
+    assert_eq!(
+        parsed(r#"{"mode":"REWRITE_RESTRUCTURE","request":"ignored"}"#).mode().unwrap(),
+        TerminalMode::Rewrite { style: RewriteStyle::Restructure }
+    );
+}
+
+#[test]
 fn a_generate_request_needs_something_to_generate() {
     assert!(parsed(r#"{"mode":"GENERATE","request":"  "}"#).mode().is_err());
     assert_eq!(
@@ -52,6 +61,11 @@ fn an_explain_request_needs_something_to_explain() {
 #[test]
 fn an_inventory_request_opens_an_inventory_terminal() {
     assert_eq!(parsed(r#"{"mode":"INVENTORY"}"#).mode().unwrap(), TerminalMode::Inventory);
+}
+
+#[test]
+fn a_scan_components_request_opens_a_scan_components_terminal() {
+    assert_eq!(parsed(r#"{"mode":"SCAN_COMPONENTS"}"#).mode().unwrap(), TerminalMode::ScanComponents);
 }
 
 #[test]

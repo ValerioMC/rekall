@@ -2,12 +2,14 @@
 //! its own company, and may bind one several times, once per target.
 
 use rekall_kernel::{Id, RekallError, Result};
-use rekall_store::{external_connection, project, project_connection, Slug};
+use rekall_store::{external_connection, project, project_connection, ConnectionKind, Slug};
 use rekall_store::repository as repo;
 use rekall_core::connection::ConnectionStreamEvent;
+use rekall_core::worktree::require_host_kept;
 use rekall_core::{in_read, in_write, Ctx, Tx};
 
 use crate::connection::rule::connection_rules::{first_free_label, target_of};
+use crate::connection::rule::tracker_rules::tracker_location_of;
 use crate::connection::{ProjectConnectionCommand, ProjectConnectionView};
 
 #[derive(Clone)]
@@ -74,7 +76,13 @@ impl ProjectConnectionService {
         Ok((binding, connection))
     }
 
-    /// Sets the binding's target, and its label when one is given.
+    /// The binding the project's tasks are written to, with its connection, when there is one.
+    pub async fn task_manager(&self, project_id: Id) -> Result<Option<(project_connection::Model, external_connection::Model)>> {
+        in_read!(&self.ctx, |tx| repo::project_connection::task_manager_of_project(tx.db(), project_id).await)
+    }
+
+    /// Sets the binding's target, and its label and whether it is the project's task manager when
+    /// given. A project has one task manager: choosing a binding releases the one it had.
     pub async fn update(&self, project_id: Id, binding_id: Id, command: ProjectConnectionCommand) -> Result<ProjectConnectionView> {
         in_write!(&self.ctx, |tx| {
             let project = repo::project::require(tx.db(), project_id).await?;
@@ -88,7 +96,15 @@ impl ProjectConnectionService {
                 Some(typed) => free_typed_label(typed, &others.iter().map(|(binding, _)| binding.label.clone()).collect::<Vec<_>>())?,
                 None => before.label.clone(),
             };
-            let after = project_connection::Model { label, target, ..before.clone() };
+            let task_manager = command.task_manager.unwrap_or(before.task_manager);
+            if task_manager {
+                tracker_location_of(connection.kind, target.as_deref())?;
+                release_task_manager(&tx, &others, self.ctx.now()).await?;
+            }
+            if project.pull_request_flow {
+                require_host_kept(task_manager_kind_after(task_manager.then_some(connection.kind), &others))?;
+            }
+            let after = project_connection::Model { label, target, task_manager, ..before.clone() };
             let binding = repo::update_if_changed(tx.db(), &before, after, self.ctx.now()).await?;
             tx.publish(ConnectionStreamEvent { company_ids: vec![project.company_id] });
             Ok::<_, RekallError>(ProjectConnectionView::of(&binding, &connection))
@@ -98,6 +114,10 @@ impl ProjectConnectionService {
     pub async fn unbind(&self, project_id: Id, binding_id: Id) -> Result<()> {
         in_write!(&self.ctx, |tx| {
             let project = repo::project::require(tx.db(), project_id).await?;
+            if project.pull_request_flow {
+                let others: Vec<_> = repo::project_connection::list_of_project(tx.db(), project_id).await?.into_iter().filter(|(binding, _)| binding.id != binding_id).collect();
+                require_host_kept(task_manager_kind_after(None, &others))?;
+            }
             if !repo::project_connection::unbind(tx.db(), project_id, binding_id).await? {
                 return Err(RekallError::not_found_msg("This project has no such connection."));
             }
@@ -105,6 +125,19 @@ impl ProjectConnectionService {
             Ok::<_, RekallError>(())
         })
     }
+}
+
+/// The kind of the project's task manager once a binding changes: the one it is set to, else the
+/// manager among the other bindings.
+fn task_manager_kind_after(chosen: Option<ConnectionKind>, others: &[(project_connection::Model, external_connection::Model)]) -> Option<ConnectionKind> {
+    chosen.or_else(|| others.iter().find(|(binding, _)| binding.task_manager).map(|(_, connection)| connection.kind))
+}
+
+async fn release_task_manager(tx: &Tx, others: &[(project_connection::Model, external_connection::Model)], now: rekall_kernel::Instant) -> Result<()> {
+    for (other, _) in others.iter().filter(|(binding, _)| binding.task_manager) {
+        repo::update_if_changed(tx.db(), other, project_connection::Model { task_manager: false, ..other.clone() }, now).await?;
+    }
+    Ok(())
 }
 
 /// Another company's project has no business with a connection that was not shared with its company.

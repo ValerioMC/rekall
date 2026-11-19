@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use rekall_kernel::RekallError;
-use rekall_core::{context::ContextService, context::{ContextRecord, ContextRenderer}};
+use rekall_core::{context::AnchorEntity, context::ContextService, context::{ContextRecord, ContextRenderer}};
 use serde_json::Value;
 
 use crate::tool::{Anchor, Arguments};
@@ -20,13 +20,14 @@ impl ContextTool {
         let context = &self.context;
         if anchors.len() == 2 && anchors[0].is("project") && anchors[1].is("task") {
             return Ok(vec![
-                context.load(Some("project"), &anchors[0].value).await?,
+                context.load(Some(AnchorEntity::Project), &anchors[0].value).await?,
                 context.load_task(&anchors[0].value, &anchors[1].value).await?,
             ]);
         }
         let mut records = Vec::with_capacity(anchors.len());
         for anchor in anchors {
-            records.push(context.load(anchor.entity_name.as_deref(), &anchor.value).await?);
+            let entity = anchor.entity_name.as_deref().map(AnchorEntity::parse).transpose()?;
+            records.push(context.load(entity, &anchor.value).await?);
         }
         Ok(records)
     }
@@ -46,8 +47,8 @@ impl McpTool for ContextTool {
         ToolSchema::object()
             .required_string(
                 "anchors",
-                "Space-separated anchors, e.g. `project:vega task:report-builder`. The value is the record's label, \
-                 lowercase and without spaces, never its title. A single anchor is valid and loads that record alone.",
+                "Space-separated anchors, e.g. `task:RK-12`. The value of a company or project is its label, a task's its code (`RK-12`), \
+                 never its title. A single anchor is valid and loads that record alone.",
             )
             .build()
     }

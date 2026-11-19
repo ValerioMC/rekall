@@ -8,6 +8,7 @@ function project(id: string, title: string, companyName: string, status: Project
   return {
     id: id as ProjectId,
     label: title.toLowerCase(),
+    taskKey: 'PR',
     title,
     status,
     icon: 'folder',
@@ -15,7 +16,7 @@ function project(id: string, title: string, companyName: string, status: Project
     description: null,
     blueprintMarkdown: null,
     repoFolder: null,
-    autoCommit: false,
+    autoCommit: false, mainBranch: null, pullRequestFlow: false,
     companyId: companyName as CompanyId,
     companyName,
     taskCount: 3,

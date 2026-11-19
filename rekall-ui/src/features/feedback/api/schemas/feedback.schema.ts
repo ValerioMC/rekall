@@ -5,13 +5,15 @@ export const FeedbackSchema = z.object({
   id: z.string().uuid().transform(asFeedbackId),
   taskId: z.string().uuid().transform(asTaskId),
   seq: z.number().int().positive(),
-  kind: z.enum(['REVISION', 'IMPLEMENTATION', 'PLAN']),
-  state: z.enum(['PENDING', 'APPLIED']),
+  kind: z.enum(['IMPLEMENTATION', 'PLAN']),
+  state: z.enum(['PENDING', 'RUNNING', 'APPLIED']),
   quotedMarkdown: z.string().nullable(),
   bodyMarkdown: z.string(),
   replyMarkdown: z.string().nullable(),
   createdAt: z.string(),
-  appliedAt: z.string().nullable()
+  appliedAt: z.string().nullable(),
+  pass: z.number().int().positive().nullable(),
+  takenAt: z.string().nullable()
 })
 
 export const FeedbackListSchema = z.array(FeedbackSchema)

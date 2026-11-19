@@ -18,6 +18,8 @@ export interface Connecting<StepId extends string = TaskStepId> {
 export interface FlowDragOptions<StepId extends string = TaskStepId> {
   /** The element the canvas content is drawn in, which pointer positions are measured against. */
   surface: Ref<HTMLElement | null>
+  /** How far the canvas is zoomed; pointer travel in pixels is divided by it. One when unset. */
+  scale?: () => number
   boxes: () => ReadonlyMap<StepId, Box>
   endBox: () => Box
   /** Saves a dropped step; the live position is kept until it settles. */
@@ -43,12 +45,13 @@ function holds(box: Box, at: Point): boolean {
 
 /**
  * Dragging on the flow canvas: a step by its body to move it, from its handle to draw a route to
- * another step or to End. Positions in canvas pixels; the page scrolls, it is not scaled.
+ * another step or to End. Positions in canvas pixels, whatever the zoom.
  */
 export function useFlowDrag<StepId extends string = TaskStepId>(options: FlowDragOptions<StepId>) {
   const live = ref(new Map<StepId, Point>()) as Ref<Map<StepId, Point>>
   const connecting = ref<Connecting<StepId> | null>(null) as Ref<Connecting<StepId> | null>
   let stop: (() => void) | null = null
+  const zoom = (): number => options.scale?.() ?? 1
 
   function track(onMove: (event: PointerEvent) => void, onEnd: (event: PointerEvent) => void): void {
     stop?.()
@@ -74,8 +77,8 @@ export function useFlowDrag<StepId extends string = TaskStepId>(options: FlowDra
     let dragged = false
     track(
       (event) => {
-        const dx = event.clientX - press.clientX
-        const dy = event.clientY - press.clientY
+        const dx = (event.clientX - press.clientX) / zoom()
+        const dy = (event.clientY - press.clientY) / zoom()
         if (!dragged && Math.hypot(dx, dy) < DRAG_THRESHOLD) return
         dragged = true
         live.value = new Map(live.value).set(id, {
@@ -100,7 +103,7 @@ export function useFlowDrag<StepId extends string = TaskStepId>(options: FlowDra
     options.select(from)
     const pointAt = (event: PointerEvent): Point => {
       const rect = options.surface.value?.getBoundingClientRect()
-      return { x: event.clientX - (rect?.left ?? 0), y: event.clientY - (rect?.top ?? 0) }
+      return { x: (event.clientX - (rect?.left ?? 0)) / zoom(), y: (event.clientY - (rect?.top ?? 0)) / zoom() }
     }
     const aim = (event: PointerEvent): Connecting<StepId> => {
       const at = pointAt(event)

@@ -1,13 +1,18 @@
 import {
   createTask as apiCreateTask,
   deleteTask as apiDeleteTask,
+  fetchTask,
   reviewTask as apiReviewTask,
+  syncTaskTracker as apiSyncTaskTracker,
   updateTask as apiUpdateTask
 } from '@/features/catalog/api/catalog.api'
 import type { TaskInput } from '@/features/catalog/api/catalog.api'
+import { convertTaskToEpic as apiConvertTaskToEpic } from '@/features/catalog/api/epic-conversion.api'
 import { createQuickTask as apiCreateQuickTask } from '@/features/catalog/api/quick-task.api'
 import type { QuickTaskInput, QuickTaskStarted } from '@/features/catalog/api/quick-task.api'
-import type { Task, TaskReview, TaskStatus } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskReview } from '@/features/steps/model/task-step'
+import type { TaskStatus } from '@/features/catalog/model/task-status'
 import type { ProjectId, TagId, TaskId } from '@/model/branded'
 import type { ConsoleState } from '../../../stores/console/console-state'
 import type { useConsoleNavigation } from '../../../stores/console/useConsoleNavigation'
@@ -21,7 +26,6 @@ function taskInput(
   change: Partial<Pick<TaskInput, 'status' | 'description' | 'tagId' | 'epicId'>>
 ): TaskInput {
   return {
-    label: task.label,
     title: task.title,
     status: task.status,
     description: task.description,
@@ -117,6 +121,14 @@ export function useTaskWrites(
     storeTask(await apiUpdateTask(id, taskInput(task, { epicId })))
   }
 
+  /** The server deletes what an epic cannot hold, so the plan, wrapup and the rest are read again. */
+  async function convertTaskToEpic(id: TaskId): Promise<void> {
+    storeTask(await apiConvertTaskToEpic(id))
+    steps.value = steps.value.filter((step) => step.taskId !== id)
+    wrapups.value = wrapups.value.filter((wrapup) => wrapup.taskId !== id)
+    await refreshes.refreshEverything()
+  }
+
   async function saveTaskDescription(id: TaskId, description: string): Promise<void> {
     const task = tasks.value.find((candidate) => candidate.id === id)
     if (!task) return
@@ -126,6 +138,23 @@ export function useTaskWrites(
       storeTask(await apiUpdateTask(id, taskInput(task, { description: next })))
     )
     await timers.resumeTimerOnWork(id)
+  }
+
+  /** Reads one task again from the server, for a change a session made behind the console's back. */
+  async function reloadTask(id: TaskId): Promise<Task> {
+    const fresh = await fetchTask(id)
+    storeTask(fresh)
+    return fresh
+  }
+
+  /** A refusal is kept on the task by the server, so the task is read again before the failure is rethrown. */
+  async function syncTaskTracker(id: TaskId): Promise<void> {
+    try {
+      storeTask(await apiSyncTaskTracker(id))
+    } catch (failure) {
+      await reloadTask(id)
+      throw failure
+    }
   }
 
   function applyTaskReview(review: TaskReview): void {
@@ -148,6 +177,11 @@ export function useTaskWrites(
     await timers.rereadTimerStoppedByAccept(id)
   }
 
+  /** Returns a task handed in whole to its session: its review line goes back to open. */
+  async function sendBackTask(id: TaskId): Promise<void> {
+    storeTask(await apiReviewTask(id, 'OPEN'))
+  }
+
   /** A session created a task. Nothing is selected: the reader stays where they were. */
   async function applyTaskCreated(): Promise<void> {
     await Promise.all([refreshes.refreshTasks(), refreshes.refreshProjects(), refreshes.refreshCompanies()])
@@ -161,9 +195,13 @@ export function useTaskWrites(
     setTaskStatus,
     setTaskTag,
     setTaskEpic,
+    convertTaskToEpic,
     saveTaskDescription,
+    reloadTask,
+    syncTaskTracker,
     applyTaskReview,
     applyTaskCreated,
-    acceptTask
+    acceptTask,
+    sendBackTask
   }
 }

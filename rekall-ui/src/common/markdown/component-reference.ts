@@ -51,8 +51,8 @@ export function markComponentReferences(md: MarkdownIt): void {
 }
 
 export function componentTitle(component: ProjectComponent): string {
-  const description = component.description.trim()
-  const shown = description.length > DESCRIPTION_TITLE_MAX ? `${description.slice(0, DESCRIPTION_TITLE_MAX)}…` : description
+  const summary = component.summary.trim()
+  const shown = summary.length > DESCRIPTION_TITLE_MAX ? `${summary.slice(0, DESCRIPTION_TITLE_MAX)}…` : summary
   return [component.folder, shown].filter((part) => part !== '').join('\n\n')
 }
 
@@ -61,7 +61,7 @@ export function missingComponentTitle(name: string): string {
 }
 
 /**
- * Settles every chip under `root` against the project's components: found (folder and description
+ * Settles every chip under `root` against the project's components: found (folder and summary
  * on hover), missing (a broken reference), or plain when the text has no project (`null`).
  */
 export function paintComponentReferences(root: ParentNode, components: readonly ProjectComponent[] | null): void {

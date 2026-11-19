@@ -1,7 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
+
+vi.mock('@/features/diagram/lib/static-diagram', () => ({ showStaticDiagram: vi.fn() }))
 
 /**
  * md-editor-v3 fetches highlight.js from unpkg unless it is handed a local instance, and it
@@ -15,6 +18,7 @@ const HLJS_STYLE_ID = 'md-editor-hlCss'
 const WITH_CODE = '# Contesto\n\n```java\nrecord Task(String name) {}\n```\n'
 
 describe('AppMarkdownEditor', () => {
+  beforeEach(() => setActivePinia(createPinia()))
   it('renders markdown as html when read only', async () => {
     const wrapper = mount(AppMarkdownEditor, {
       props: { modelValue: '# Contesto\n\nUsa `kubectl` qui.', readonly: true }
@@ -27,12 +31,22 @@ describe('AppMarkdownEditor', () => {
     expect(wrapper.find('code').exists()).toBe(true)
   })
 
-  it('offers the reading controls on a pane-sized page', async () => {
+  it('offers the page width menu on a pane-sized page', async () => {
     const wrapper = mount(AppMarkdownEditor, { props: { modelValue: 'Una riga.', readonly: true } })
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="read-settings-toggle"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="task-width"]').exists()).toBe(true)
     expect(wrapper.classes()).not.toContain('rekall-md--compact')
+  })
+
+  it('offers no width menu where the pane has its own, and keeps the search', async () => {
+    const wrapper = mount(AppMarkdownEditor, {
+      props: { modelValue: 'Una riga.', readonly: true, readSettings: false }
+    })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="task-width"]').exists()).toBe(false)
+    expect(wrapper.find('.rekall-read-controls').exists()).toBe(true)
   })
 
   it('drops the reading controls and the column width when compact, inside a card', async () => {
@@ -41,10 +55,9 @@ describe('AppMarkdownEditor', () => {
     })
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="read-settings-toggle"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="task-width"]').exists()).toBe(false)
     expect(wrapper.classes()).toContain('rekall-md--compact')
     expect(wrapper.attributes('style') ?? '').not.toContain('--rk-read-width')
-    expect(wrapper.attributes('data-align')).toBeUndefined()
   })
 
   it('renders a table, which the previous hand-written renderer could not', async () => {
@@ -77,14 +90,14 @@ describe('AppMarkdownEditor', () => {
     expect(wrapper.find('.hljs-keyword, .hljs-string, .hljs-title, .hljs-type').exists()).toBe(true)
   })
 
-  it('turns a mermaid fence into a diagram container without reaching for a cdn', async () => {
+  it('turns a mermaid fence into a frame for the console drawing without reaching for a cdn', async () => {
     const wrapper = mount(AppMarkdownEditor, {
       props: { modelValue: '```mermaid\ngraph TD\n  A --> B\n```', readonly: true }
     })
     await flushPromises()
     await nextTick()
 
-    expect(wrapper.find('.md-editor-mermaid').exists()).toBe(true)
+    expect(wrapper.find('.rk-mermaid-fence').exists()).toBe(true)
     expect(wrapper.find('pre code').exists()).toBe(false)
     expect(document.getElementById('md-editor-mermaid')).toBeNull()
     expect(document.getElementById('md-editor-mermaid-m')).toBeNull()
@@ -211,7 +224,7 @@ describe('AppMarkdownEditor', () => {
 
   it('draws a [[Name]] as a chip for a component of the project and flags one it does not have', async () => {
     const component = {
-      id: 'c-1', projectId: 'p-1', name: 'Auth Service', folder: 'services/auth', description: 'Issues tokens.',
+      id: 'c-1', projectId: 'p-1', name: 'Auth Service', folder: 'services/auth', summary: 'Issues tokens.', description: '',
       position: 0, createdAt: '', updatedAt: ''
     }
     const wrapper = mount(AppMarkdownEditor, {
@@ -238,7 +251,7 @@ describe('AppMarkdownEditor', () => {
 
   it('draws a [[Name]] in write mode as the component chip, and follows the project’s list', async () => {
     const component = {
-      id: 'c-1', projectId: 'p-1', name: 'Auth Service', folder: 'services/auth', description: 'Issues tokens.',
+      id: 'c-1', projectId: 'p-1', name: 'Auth Service', folder: 'services/auth', summary: 'Issues tokens.', description: '',
       position: 0, createdAt: '', updatedAt: ''
     }
     const wrapper = mount(AppMarkdownEditor, {

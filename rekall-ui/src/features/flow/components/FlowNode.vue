@@ -4,7 +4,7 @@ import StepSeal from '@/features/steps/components/StepSeal.vue'
 import ConnectionKindIcon from '@/features/connection/components/ConnectionKindIcon.vue'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
 import type { Box } from '@/features/diagram/lib/viewport'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { StepSessionMark } from '@/features/flow/lib/session-marks'
 
 /**

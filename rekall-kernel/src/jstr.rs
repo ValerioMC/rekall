@@ -27,11 +27,6 @@ pub fn strip_trailing(text: &str) -> &str {
     text.trim_end_matches(is_whitespace)
 }
 
-/// Without leading whitespace.
-pub fn strip_leading(text: &str) -> &str {
-    text.trim_start_matches(is_whitespace)
-}
-
 /// Empty, or whitespace only.
 pub fn is_blank(text: &str) -> bool {
     text.chars().all(is_whitespace)
@@ -259,6 +254,14 @@ fn single_lower(c: char) -> char {
 /// Lower case with no locale rules.
 pub fn lower(text: &str) -> String {
     text.to_lowercase()
+}
+
+/// `wanted`, or the first of `wanted-2`, `wanted-3`... that `is_taken` does not refuse.
+pub fn first_free_suffix(wanted: &str, is_taken: impl Fn(&str) -> bool) -> String {
+    if !is_taken(wanted) {
+        return wanted.to_string();
+    }
+    (2..).map(|suffix| format!("{wanted}-{suffix}")).find(|name| !is_taken(name)).expect("an unbounded range always finds a free name")
 }
 
 #[cfg(test)]

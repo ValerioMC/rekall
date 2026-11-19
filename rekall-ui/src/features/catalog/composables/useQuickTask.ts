@@ -3,14 +3,13 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useOpenSession } from '@/features/claude/composables/useOpenSession'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { preferredEffort, preferredLaunchKind, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
-import { activeQuickTask } from '@/features/catalog/lib/quick-task'
+import { launchChoices } from '@/common/config/session-launch'
+import type { SessionProvider } from '@/features/claude/model/session-provider'
 import type { ProjectId } from '@/model/branded'
 
 export interface QuickTaskLauncher {
   readonly busy: ComputedRef<boolean>
-  readonly working: ComputedRef<boolean>
-  start: (text: string) => Promise<boolean>
+  start: (text: string, provider?: SessionProvider) => Promise<boolean>
 }
 
 /** Starts a quick task on a project with the session preferences "Run here" uses, and shows its session. */
@@ -20,16 +19,11 @@ export function useQuickTask(projectId: ComputedRef<ProjectId>): QuickTaskLaunch
   const openSession = useOpenSession()
   const { run, isRunning } = useAsyncAction()
 
-  const working = computed(() => activeQuickTask(store.tasks, projectId.value) !== null)
-
-  async function start(text: string): Promise<boolean> {
+  async function start(text: string, provider?: SessionProvider): Promise<boolean> {
     const started = await run(() =>
       store.createQuickTask(projectId.value, {
         text,
-        skipPermissions: skipsPermissions(),
-        model: preferredModel(),
-        effort: preferredEffort(),
-        kind: preferredLaunchKind()
+        ...launchChoices(provider)
       })
     )
     if (started === null) return false
@@ -38,5 +32,5 @@ export function useQuickTask(projectId: ComputedRef<ProjectId>): QuickTaskLaunch
     return true
   }
 
-  return { busy: computed(() => isRunning.value), working, start }
+  return { busy: computed(() => isRunning.value), start }
 }

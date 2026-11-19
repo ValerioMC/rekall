@@ -1,9 +1,8 @@
 import hljs from 'highlight.js/lib/common'
-import mermaid from 'mermaid'
 import { config } from 'md-editor-v3'
 import { acceptCompletion } from '@codemirror/autocomplete'
 import { Prec } from '@codemirror/state'
-import { keymap } from '@codemirror/view'
+import { keymap, tooltips } from '@codemirror/view'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import 'md-editor-v3/lib/style.css'
@@ -12,17 +11,19 @@ import '@/assets/markdown-editor.css'
 import '@/assets/live-preview.css'
 import { markAnchorCode } from '@/common/config/anchor-code'
 import { markComponentReferences } from '@/common/markdown/component-reference'
+import { markMermaidFences } from '@/common/markdown/mermaid-fence'
 import { referenceCompletionIcons } from '@/common/markdown/reference-completion-icon'
 import { livePreview } from '@/common/live-preview/live-preview'
 
 config({
-  // Local instances so md-editor-v3 does not lazy-fetch highlight.js or mermaid from a CDN.
-  editorExtensions: { highlight: { instance: hljs }, mermaid: { instance: mermaid } },
+  // A local instance so md-editor-v3 does not lazy-fetch highlight.js from a CDN.
+  editorExtensions: { highlight: { instance: hljs } },
   markdownItConfig: (md) => {
     // Off, or every source newline in a hard-wrapped brief renders as a permanent <br>.
     md.set({ breaks: false })
     markAnchorCode(md)
     markComponentReferences(md)
+    markMermaidFences(md)
   },
   // linkShortener turns long slash-prefixed runs into an uneditable widget, which eats file paths.
   // The library parses CommonMark only; live preview needs GFM to see tables, tasks and strikethrough.
@@ -36,6 +37,7 @@ config({
       ),
     { type: 'livePreview', extension: livePreview() },
     { type: 'referenceIcons', extension: referenceCompletionIcons() },
+    { type: 'tooltipsOnBody', extension: tooltips({ parent: document.body }) },
     // Tab accepts an open suggestion (Enter already does); with none open it falls through to the editor's own Tab.
     { type: 'acceptCompletion', extension: Prec.highest(keymap.of([{ key: 'Tab', run: acceptCompletion }])) }
   ]

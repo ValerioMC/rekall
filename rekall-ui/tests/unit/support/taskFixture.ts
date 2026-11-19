@@ -5,7 +5,7 @@ import type { ProjectId, TaskId } from '@/model/branded'
 export function taskFixture(id: TaskId): Task {
   return {
     id,
-    label: id,
+    code: id, label: id,
     title: id,
     status: 'TODO',
     description: null,
@@ -33,7 +33,7 @@ export function taskFixture(id: TaskId): Task {
     epicId: null,
     quick: false,
     autoAccepted: false,
-    dependsOn: [],
+    dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, trackerContentSynced: true, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
     anchor: `project:vega task:${id}`,
     updatedAt: '2026-08-12T10:00:00Z'
   }

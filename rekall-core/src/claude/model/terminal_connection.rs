@@ -8,12 +8,14 @@ pub struct TerminalConnection {
     pub connection_id: Id,
     pub kind: ConnectionKind,
     pub label: String,
-    /// The GitLab project path, the Kubernetes namespace or the Jira project key.
+    /// The GitLab project path, the Kubernetes namespace, the Jira project key or the Confluence space key.
     pub target: Option<String>,
-    /// GitLab and Jira only: the instance or site pushes and API calls go to.
+    /// GitLab, Jira and Confluence only: the instance or site pushes and API calls go to.
     pub instance_url: Option<String>,
-    /// Jira only: the proxy API calls go through.
+    /// Jira, Confluence and Grafana only: the proxy API calls go through.
     pub proxy_url: Option<String>,
+    /// Grafana only: the instance serves a self-signed certificate the helper does not verify.
+    pub accept_self_signed: bool,
     pub secret_ref: String,
     pub credential_set: bool,
 }
@@ -27,6 +29,7 @@ impl TerminalConnection {
             target: binding.target.clone(),
             instance_url: connection.kind.reached_at_typed_url().then(|| connection.base_url.clone()).flatten(),
             proxy_url: connection.proxy_url.clone(),
+            accept_self_signed: connection.accept_self_signed,
             secret_ref: connection.secret_ref.clone(),
             credential_set: connection.has_credential(),
         }

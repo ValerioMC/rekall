@@ -1,6 +1,6 @@
 //! A company's connections as Rekall's services see them: the view a context names them by, the
 //! credential type that never prints, the store that keeps it outside the database, the kubeconfig
-//! a Kubernetes credential arrives as, and the Jira credential and issues a Jira connection reads.
+//! a Kubernetes credential arrives as, and the Atlassian credential, the Jira issues and the Confluence spaces a connection reads, and the task manager a project writes its tasks to.
 
 mod event;
 mod model;
@@ -19,20 +19,41 @@ pub use event::credential_access_stream_event::CredentialAccessStreamEvent;
 pub use model::credential_purpose::CredentialPurpose;
 pub use model::github_api_root::github_api_root;
 pub use model::hand_out::{HandOut, Refusal};
+#[cfg(any(test, feature = "testing"))]
 pub use port::in_memory_secret_store::InMemorySecretStore;
-pub use model::jira_credential::JiraCredential;
-pub use model::jira_deployment::JiraDeployment;
-pub use model::jira_failure::JiraFailure;
+pub use model::grafana_credential::GrafanaCredential;
+pub use model::grafana_instance::GrafanaInstance;
+pub use model::atlassian_credential::AtlassianCredential;
+pub use model::atlassian_deployment::AtlassianDeployment;
+pub use model::atlassian_failure::AtlassianFailure;
+pub use model::confluence_page::ConfluencePage;
+pub use model::confluence_space::ConfluenceSpace;
+pub use port::confluence_spaces::ConfluenceSpaces;
 pub use model::jira_issue::JiraIssue;
+pub use model::jira_project::JiraProject;
 pub use port::jira_issues::JiraIssues;
-pub use model::jira_site::JiraSite;
+pub use model::atlassian_site::AtlassianSite;
 pub use model::kube_access::KubeAccess;
 pub use model::kube_context_summary::KubeContextSummary;
 pub use model::kube_credential::KubeCredential;
 pub use model::kube_user_kind::KubeUserKind;
 pub use model::kubeconfig::Kubeconfig;
+pub use model::mergeability::Mergeability;
 pub use model::probe_outcome::ProbeOutcome;
+pub use model::pull_request::PullRequest;
+pub use model::pull_request_merge::PullRequestMerge;
+pub use port::pull_request_host::PullRequestHost;
+#[cfg(any(test, feature = "testing"))]
+pub use port::scripted_pull_request_host::{OpenedPullRequest, ScriptedPullRequestHost};
 pub use port::migrating_secret_store::MigratingSecretStore;
 pub use port::remembering_secret_store::RememberingSecretStore;
 pub use model::secret::Secret;
 pub use port::secret_store::SecretStore;
+#[cfg(any(test, feature = "testing"))]
+pub use port::scripted_task_tracker::ScriptedTaskTracker;
+pub use port::task_tracker::TaskTracker;
+pub use service::task_tracker_service::TaskTrackerService;
+pub use model::tracker_endpoint::TrackerEndpoint;
+pub use model::tracker_failure::TrackerFailure;
+pub use model::tracker_issue::TrackerIssue;
+pub use model::tracker_link::TrackerLink;

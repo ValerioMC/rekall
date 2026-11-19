@@ -1,23 +1,28 @@
 <script setup lang="ts">
+import { codedTitle } from '@/features/catalog/model/task-code'
 import CopyAnchorButton from '@/components/console/CopyAnchorButton.vue'
+import PullRequestMark from '@/features/catalog/components/PullRequestMark.vue'
 import QuickTaskMark from '@/features/catalog/components/QuickTaskMark.vue'
+import TaskTrackerMark from '@/features/catalog/components/TaskTrackerMark.vue'
 import TaskTokenChip from '@/features/tokens/components/TaskTokenChip.vue'
 import type { Task } from '@/features/catalog/model/catalog'
 
 /**
  * The task's name with what used to take a second line beside it: its status (`flags`), a button
  * that copies its `/rk` command, its generated tokens with their trend, and any `trailing` chip
- * to the right of them.
+ * to the right of them. The issue the task manager holds for it, or why writing it failed, sits beside the status.
  */
 defineProps<{ task: Task; copyTestid: string }>()
 </script>
 
 <template>
-  <div class="flex min-w-0 items-center gap-2">
-    <h2 class="min-w-0 truncate text-heading font-semibold tracking-[-0.015em] text-text">
-      {{ task.title }}
+  <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+    <h2 class="min-w-[12ch] max-w-full line-clamp-2 text-heading font-semibold tracking-[-0.015em] text-text">
+      {{ codedTitle(task) }}
     </h2>
     <QuickTaskMark :task="task" />
+    <TaskTrackerMark :task="task" />
+    <PullRequestMark :task="task" />
     <slot name="flags" />
     <CopyAnchorButton :anchor="task.anchor" :data-testid="copyTestid" />
     <TaskTokenChip :task="task" />

@@ -41,6 +41,7 @@ export function useConsoleLocation(): void {
   }
 
   function followStore(location: ConsoleLocation): void {
+    if (route.name !== 'console') return
     if (inUrl !== null && sameLocation(location, inUrl)) return
     writeToUrl(location, 'push')
   }

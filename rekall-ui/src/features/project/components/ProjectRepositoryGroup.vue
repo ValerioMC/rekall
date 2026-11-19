@@ -2,14 +2,16 @@
 import { onUnmounted, ref, watch } from 'vue'
 import AutoCommitSwitch from '@/features/catalog/components/AutoCommitSwitch.vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import PullRequestFlowSwitch from '@/features/project/components/PullRequestFlowSwitch.vue'
 import { fetchProjectRepository } from '@/features/catalog/api/catalog.api'
 import { desktopHost, pickFolder } from '@/common/native/desktop'
 import { useConsoleStore } from '@/stores/console.store'
+import { useToastStore } from '@/stores/toast.store'
 import type { Project, ProjectRepository } from '@/features/catalog/model/catalog'
 import type { ProjectId } from '@/model/branded'
 
 /**
- * Where the project's sessions run: its folder, and whether a claim commits it. Git is asked
+ * Where the project's sessions run: its folder, the branch accepted work is merged into, whether that happens through a pull request, and whether a claim commits it. Git is asked
  * about the folder once per project and again after every folder save, since auto-commit is only
  * offered on a repository.
  */
@@ -18,12 +20,15 @@ const props = defineProps<{ project: Project }>()
 const SAVE_DELAY_MS = 700
 
 const store = useConsoleStore()
+const toast = useToastStore()
 const canBrowse = desktopHost() !== null
 
 const draft = ref('')
+const branchDraft = ref('')
 const repository = ref<ProjectRepository | null>(null)
 const repositoryPending = ref(false)
 const autoCommitSaving = ref(false)
+const pullRequestFlowSaving = ref(false)
 let timer: ReturnType<typeof setTimeout> | null = null
 
 async function readRepository(id: ProjectId): Promise<void> {
@@ -63,6 +68,12 @@ async function browse(): Promise<void> {
   schedule()
 }
 
+async function saveMainBranch(): Promise<void> {
+  if (branchDraft.value.trim() === (props.project.mainBranch ?? '')) return
+  await store.saveProjectMainBranch(props.project.id, branchDraft.value)
+  branchDraft.value = props.project.mainBranch ?? ''
+}
+
 async function setAutoCommit(enabled: boolean): Promise<void> {
   autoCommitSaving.value = true
   try {
@@ -72,11 +83,23 @@ async function setAutoCommit(enabled: boolean): Promise<void> {
   }
 }
 
+async function setPullRequestFlow(enabled: boolean): Promise<void> {
+  pullRequestFlowSaving.value = true
+  try {
+    await store.saveProjectPullRequestFlow(props.project.id, enabled)
+  } catch (failure) {
+    toast.notifyError(failure)
+  } finally {
+    pullRequestFlowSaving.value = false
+  }
+}
+
 watch(
   () => props.project.id,
   (id, previous) => {
     if (timer && previous) void save(previous)
     draft.value = props.project.repoFolder ?? ''
+    branchDraft.value = props.project.mainBranch ?? ''
     repository.value = null
     void readRepository(id)
   },
@@ -108,6 +131,30 @@ onUnmounted(() => {
         @input="onInput"
       />
       <AppButton v-if="canBrowse" size="sm" variant="secondary" @click="browse">Browse</AppButton>
+    </div>
+    <h3 id="project-main-branch-heading" class="mt-4 text-body font-semibold text-text">Main branch</h3>
+    <p class="mb-2 mt-0.5 text-small text-text-subtle">
+      The branch a task's own branch starts from and is merged into once its work is accepted. Left empty, it is
+      whichever branch the folder is on.
+    </p>
+    <label class="sr-only" for="project-main-branch">Main branch</label>
+    <input
+      id="project-main-branch"
+      v-model="branchDraft"
+      data-testid="project-main-branch"
+      spellcheck="false"
+      autocomplete="off"
+      class="field text-text h-8 w-full max-w-[240px] rounded-control px-2.5 font-mono text-caption"
+      placeholder="main"
+      @blur="saveMainBranch"
+      @keydown.enter.prevent="saveMainBranch"
+    />
+    <div class="mt-4">
+      <PullRequestFlowSwitch
+        :model-value="project.pullRequestFlow"
+        :saving="pullRequestFlowSaving"
+        @update:model-value="setPullRequestFlow"
+      />
     </div>
     <div class="mt-4">
       <AutoCommitSwitch

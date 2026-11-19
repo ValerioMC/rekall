@@ -5,6 +5,7 @@
 //! A service records events on the transaction it runs in, and they reach the bus only once that
 //! transaction commits. A write that rolls back announces nothing.
 
+pub mod codex;
 pub mod backup;
 pub mod chat;
 pub mod claude;
@@ -41,10 +42,12 @@ pub mod wrapup;
 
 mod ctx;
 mod load;
+mod project_ref;
 mod services;
 mod text_rule;
 
 pub use ctx::{system_clock, Clock, Ctx};
 pub use events::{DomainEvent, EventBus, PublishedEvent, StreamEvent};
+pub use project_ref::ProjectRef;
 pub use services::Services;
 pub use tx::Tx;

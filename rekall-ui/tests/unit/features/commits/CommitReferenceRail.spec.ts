@@ -1,14 +1,9 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it, beforeEach } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { mount } from '@vue/test-utils'
 import CommitReferenceRail from '@/features/commits/components/CommitReferenceRail.vue'
-import { fetchCommitReferenceDiff } from '@/features/commits/api/commitReference.api'
 import type { CommitReference } from '@/features/commits/model/commitReference'
 import type { TaskId } from '@/model/branded'
-
-vi.mock('@/features/commits/api/commitReference.api', () => ({
-  fetchCommitReferenceDiff: vi.fn()
-}))
 
 const taskId = 't1' as TaskId
 
@@ -18,6 +13,8 @@ function reference(overrides: Partial<CommitReference> = {}): CommitReference {
     taskId,
     stepId: null,
     stepTitle: null,
+    componentId: null,
+    componentName: null,
     commitHash: 'abc1234def',
     comment: 'Wire up the button',
     inContext: false,
@@ -36,7 +33,6 @@ describe('CommitReferenceRail', () => {
   let pinia: Pinia
 
   beforeEach(() => {
-    vi.mocked(fetchCommitReferenceDiff).mockReset()
     pinia = createPinia()
     setActivePinia(pinia)
   })

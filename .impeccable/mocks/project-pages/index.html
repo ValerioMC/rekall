@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project pages with a large reference</title>
+<link rel="stylesheet" href="../redesign/shared.css">
+<link rel="stylesheet" href="tabs.css">
+<style>
+  :root { --rail: 248px; --outline: 216px; }
+  body { overflow: hidden; }
+  .app { display: flex; flex-direction: column; height: 100vh; }
+
+  .mockbar { flex: none; height: 34px; display: flex; align-items: center; gap: 4px; padding: 0 16px; background: #0a0d13; border-bottom: 1px solid var(--border); font-size: var(--t-caption); color: var(--subtle); }
+  .mockbar b { color: var(--muted); font-weight: 500; margin-right: 8px; }
+  .mockbar button { height: 22px; padding: 0 9px; border-radius: var(--r-key); color: var(--muted); }
+  .mockbar button:hover { background: var(--raised); color: var(--text); }
+  .mockbar button[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }
+  .mockbar .hint { margin-left: auto; }
+
+  .topbar { height: 48px; flex: none; display: grid; grid-template-columns: 1fr minmax(240px, 620px) 1fr; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .brand { font-weight: 600; font-size: var(--t-title); letter-spacing: -0.01em; }
+  .search { height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); color: var(--subtle); font-size: var(--t-small); }
+  .search kbd { margin-left: auto; font: 400 var(--t-micro) var(--font-mono); border: 1px solid var(--border-strong); border-radius: var(--r-key); padding: 0 5px; }
+
+  .page { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 24px; }
+  .scope { flex: none; display: flex; align-items: center; gap: 12px; height: 52px; }
+  .scope .proj { display: flex; align-items: center; gap: 10px; font-size: var(--t-title); font-weight: 600; letter-spacing: -0.01em; }
+  .scope .glyph { width: 24px; height: 24px; border-radius: 6px; background: linear-gradient(135deg, #3a5a7a, #243a52); box-shadow: inset 0 1px 0 rgb(255 255 255 / .18); }
+  .anchor { display: inline-flex; align-items: center; gap: 4px; font: 400 var(--t-caption) var(--font-mono); color: var(--anchor); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-key); padding: 1px 6px; }
+  .scope .sp { flex: 1; }
+  .dim { color: var(--subtle); }
+
+  .tabs { flex: none; height: 40px; display: flex; align-items: flex-end; gap: 22px; border-bottom: 1px solid var(--border); }
+  .tab { position: relative; height: 100%; display: flex; align-items: center; gap: 6px; font-size: var(--t-small); font-weight: 500; color: var(--muted); }
+  .tab:hover { color: var(--text); }
+  .tab .c { font: 400 var(--t-micro) var(--font-mono); color: var(--subtle); }
+  .tab[aria-current="page"] { color: var(--text); }
+  .tab[aria-current="page"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); border-radius: 2px; }
+
+  .work { flex: 1; min-height: 0; display: grid; grid-template-columns: var(--rail) minmax(0, 1fr); gap: 16px; padding: 16px 0; }
+
+  /* rail */
+  .rail { min-height: 0; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+  .rail-h { display: flex; align-items: center; gap: 2px; padding: 0 4px 0 12px; height: 28px; }
+  .rail-h .t { flex: 1; font-size: var(--t-small); font-weight: 600; color: var(--muted); }
+  .rail-h .t .n { margin-left: 6px; font: 400 var(--t-micro) var(--font-mono); color: var(--subtle); }
+  .iconbtn { width: 26px; height: 26px; display: grid; place-items: center; border-radius: var(--r-key); color: var(--muted); flex: none; }
+  .iconbtn:hover { background: var(--raised); color: var(--text); }
+  .iconbtn svg { width: 15px; height: 15px; }
+  .row { display: block; width: 100%; padding: 8px 12px; border-radius: var(--r-control); }
+  .row:hover { background: var(--raised); }
+  .row[aria-current="page"] { background: var(--raised); box-shadow: inset 0 0 0 1px var(--border-strong); }
+  .row .name { display: block; font-size: var(--t-body); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .sub { display: flex; align-items: center; gap: 8px; margin-top: 3px; font-size: var(--t-caption); color: var(--subtle); }
+  .row .sub .mono { font-size: var(--t-micro); }
+  .fillbar { display: block; height: 4px; margin-top: 7px; border-radius: 9999px; background: var(--border); overflow: hidden; }
+  .fillbar i { display: block; height: 100%; border-radius: 9999px; background: var(--border-field); min-width: 3px; }
+  .row[aria-current="page"] .fillbar { background: var(--border-strong); }
+  .row[aria-current="page"] .fillbar i { background: var(--muted); }
+  .row .sub .pct { margin-left: auto; font: 400 var(--t-micro) var(--font-mono); }
+  .rail-note { margin-top: auto; padding: 12px 12px 0; border-top: 1px solid var(--border); font-size: var(--t-caption); line-height: 1.55; color: var(--subtle); }
+  .rail-note code, .tip code { font: 400 var(--t-caption) var(--font-mono); color: var(--anchor); }
+
+  /* pane */
+  .pane { min-height: 0; min-width: 0; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; }
+  .pane-h { flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--border); }
+  .pane-h .who { flex: 1; min-width: 0; }
+  .title-in { display: block; width: 100%; padding: 2px 4px; margin: -2px -4px; border-radius: var(--r-key); font: 600 var(--t-title)/1.3 var(--font-sans); letter-spacing: -0.01em; color: var(--text); background: none; border: 0; overflow: hidden; text-overflow: ellipsis; }
+  .title-in:hover { background: var(--raised); }
+  .meta { margin-top: 2px; font-size: var(--t-small); color: var(--subtle); }
+  .meta .sep { padding: 0 5px; color: var(--border-strong); }
+  .btn { height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: var(--r-control); font-size: var(--t-small); font-weight: 500; white-space: nowrap; }
+  .btn svg { width: 14px; height: 14px; }
+  .btn.secondary { background: var(--raised); border: 1px solid var(--border-strong); box-shadow: inset 0 1px 0 rgb(255 255 255 / .07), 0 1px 1px rgb(0 0 0 / .35); }
+  .btn.secondary:hover { background: var(--hover); }
+  .btn.primary { background: linear-gradient(180deg, var(--accent-strong), var(--accent) 45%, #a8651a); color: var(--accent-ink); font-weight: 600; box-shadow: inset 0 1px 0 rgb(255 255 255 / .35), 0 1px 1px rgb(0 0 0 / .35); }
+  .btn.quiet { color: var(--muted); }
+  .btn.quiet:hover { background: var(--raised); color: var(--text); }
+  .btn.danger { color: var(--danger); }
+  .btn.danger:hover { background: #fb71851a; }
+  .btn[disabled] { opacity: .4; pointer-events: none; }
+  .seg { display: flex; gap: 2px; padding: 2px; border-radius: var(--r-control); background: var(--canvas); border: 1px solid var(--border); }
+  .seg button { height: 24px; padding: 0 10px; border-radius: var(--r-key); font-size: var(--t-small); font-weight: 500; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06); }
+
+  .gauge { flex: none; display: flex; align-items: center; gap: 16px; padding: 9px 20px; border-bottom: 1px solid var(--border); background: #11151d; font-size: var(--t-caption); color: var(--muted); }
+  .gauge .fig { font-family: var(--font-mono); color: var(--text); white-space: nowrap; }
+  .gauge .well { flex: 1; max-width: 280px; height: 6px; border-radius: 9999px; background: #0a0d13; overflow: hidden; box-shadow: inset 0 1px 2px rgb(0 0 0 / .6), 0 1px 0 rgb(255 255 255 / .035); }
+  .gauge .well i { display: block; height: 100%; background: var(--border-field); border-radius: 9999px; }
+  .gauge .well.over i { background: var(--danger); }
+  .gauge .grow { flex: 1; }
+  .out { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .out svg { width: 13px; height: 13px; color: var(--subtle); }
+
+  .reader { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) var(--outline); }
+  .doc { min-height: 0; overflow-y: auto; padding: 28px 32px 64px; scroll-behavior: smooth; }
+  .doc-col { max-width: var(--col, 1040px); margin: 0 auto; }
+  .doc h1 { font-size: var(--t-display); font-weight: 500; letter-spacing: -0.02em; line-height: 1.2; text-wrap: balance; }
+  .doc h2 { margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--border); font-size: var(--t-heading); font-weight: 500; letter-spacing: -0.015em; text-wrap: balance; scroll-margin-top: 8px; }
+  .doc h3 { margin-top: 26px; font-size: var(--t-title); font-weight: 600; scroll-margin-top: 8px; }
+  .doc p { margin-top: 12px; font-size: var(--t-body); line-height: 1.65; color: var(--text); }
+  .doc p.lead { color: var(--muted); }
+  .doc ul { margin: 12px 0 0; padding-left: 18px; font-size: var(--t-body); line-height: 1.65; color: var(--text); }
+  .doc li + li { margin-top: 4px; }
+  .doc code { font: 400 var(--t-small) var(--font-mono); color: var(--anchor); }
+  .doc pre { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-control); background: var(--canvas); overflow-x: auto; font: 400 var(--t-small)/1.6 var(--font-mono); color: var(--muted); }
+  .doc table { width: 100%; margin-top: 14px; border-collapse: collapse; font-size: var(--t-small); }
+  .doc th { text-align: left; font-weight: 500; color: var(--subtle); padding: 6px 12px 6px 0; border-bottom: 1px solid var(--border-strong); }
+  .doc td { padding: 8px 12px 8px 0; border-bottom: 1px solid var(--border); color: var(--muted); vertical-align: top; }
+  .doc td:first-child { color: var(--text); white-space: nowrap; }
+  .doc td code { white-space: nowrap; }
+
+  .toc { min-height: 0; overflow-y: auto; padding: 24px 16px 24px 4px; }
+  .toc-h { display: flex; align-items: center; justify-content: space-between; padding: 0 8px 8px 12px; font-size: var(--t-caption); font-weight: 500; color: var(--subtle); }
+  .toc a { display: block; padding: 4px 8px 4px 12px; border-radius: var(--r-key); font-size: var(--t-small); line-height: 1.35; color: var(--muted); cursor: pointer; }
+  .toc a.l3 { padding-left: 24px; color: var(--subtle); }
+  .toc a:hover { color: var(--text); background: var(--raised); }
+  .toc a.on { color: var(--accent-strong); background: var(--accent-soft); }
+
+  .writer { flex: 1; min-height: 0; overflow: auto; padding: 20px 32px; background: var(--canvas); }
+  .writer pre { max-width: var(--col, 1040px); margin: 0 auto; font: 400 var(--t-small)/1.7 var(--font-mono); color: var(--muted); white-space: pre-wrap; }
+  .writer .h { color: var(--accent-strong); }
+  .writer .fence { color: var(--subtle); }
+
+  /* import */
+  .pop { position: fixed; z-index: 10; min-width: 168px; padding: 4px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--raised); box-shadow: 0 10px 22px -8px rgb(0 0 0 / .65); }
+  .pop .ph { padding: 6px 10px 4px; font-size: var(--t-caption); font-weight: 500; color: var(--subtle); }
+  .pop button { width: 100%; display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px; border-radius: var(--r-key); font-size: var(--t-small); color: var(--text); }
+  .pop button:hover { background: var(--hover); }
+  .pop .px { margin-left: auto; font: 400 var(--t-micro) var(--font-mono); color: var(--subtle); }
+  .pop .ck { width: 12px; height: 12px; color: var(--accent); }
+  .import { flex: 1; min-height: 0; overflow-y: auto; padding: 28px 32px; }
+  .import-col { max-width: 640px; margin: 0 auto; display: grid; gap: 20px; }
+  .file { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--raised); }
+  .file svg { width: 20px; height: 20px; color: var(--subtle); flex: none; }
+  .file .fn { font: 500 var(--t-body) var(--font-mono); }
+  .file .fs { margin-left: auto; font: 400 var(--t-caption) var(--font-mono); color: var(--muted); }
+  .field-l { display: block; margin-bottom: 6px; font-size: var(--t-caption); font-weight: 500; color: var(--subtle); }
+  .field { width: 100%; height: 32px; padding: 0 12px; border: 1px solid var(--border-field); border-radius: var(--r-control); background: var(--canvas); box-shadow: inset 0 2px 4px rgb(0 0 0 / .5), 0 1px 0 rgb(255 255 255 / .035); font-size: var(--t-body); color: var(--text); }
+  .fit { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--border); border-radius: var(--r-card); background: #11151d; }
+  .fit .line { display: flex; align-items: baseline; justify-content: space-between; font-size: var(--t-small); color: var(--muted); }
+  .fit .line b { font: 500 var(--t-body) var(--font-mono); color: var(--text); }
+  .fit .well { height: 6px; border-radius: 9999px; background: #0a0d13; overflow: hidden; box-shadow: inset 0 1px 2px rgb(0 0 0 / .6); }
+  .fit .well i { display: block; height: 100%; background: var(--border-field); }
+  .fit.over .well i { background: var(--danger); }
+  .fit.over .line b.v { color: var(--danger); }
+  .verdict { font-size: var(--t-small); line-height: 1.55; color: var(--muted); }
+  .verdict strong { color: var(--text); font-weight: 500; }
+  .heads { display: grid; gap: 2px; max-height: 168px; overflow-y: auto; padding: 8px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--canvas); }
+  .heads div { display: flex; align-items: baseline; gap: 8px; padding: 2px 6px; font-size: var(--t-small); color: var(--muted); }
+  .heads .l3 { padding-left: 22px; color: var(--subtle); }
+  .heads .sz { margin-left: auto; font: 400 var(--t-micro) var(--font-mono); color: var(--subtle); }
+  .choices { display: grid; gap: 8px; }
+  .choice { display: grid; grid-template-columns: 16px 1fr; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-card); }
+  .choice[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+  .choice .dotr { width: 14px; height: 14px; margin-top: 2px; border: 1.5px solid var(--border-field); border-radius: 9999px; }
+  .choice[aria-pressed="true"] .dotr { border-color: var(--accent); box-shadow: inset 0 0 0 3px var(--surface), inset 0 0 0 8px var(--accent); }
+  .choice .ct { font-size: var(--t-body); font-weight: 500; }
+  .choice .cd { margin-top: 2px; font-size: var(--t-small); color: var(--muted); line-height: 1.5; }
+  .foot { display: flex; align-items: center; gap: 8px; }
+  .foot .sp { flex: 1; }
+
+  .empty { flex: 1; display: grid; place-items: center; padding: 32px; }
+  .drop { width: min(520px, 100%); padding: 40px 32px; text-align: center; border: 1px dashed var(--border-field); border-radius: var(--r-card); }
+  .drop > svg { width: 26px; height: 26px; color: var(--subtle); }
+  .drop h2 { margin-top: 12px; font-size: var(--t-title); font-weight: 600; }
+  .drop p { max-width: 44ch; margin: 6px auto 0; font-size: var(--t-small); line-height: 1.55; color: var(--muted); }
+  .drop .btns { margin-top: 18px; display: flex; justify-content: center; gap: 8px; }
+
+  @media (max-width: 1100px) { :root { --outline: 0px; } .toc { display: none; } }
+  @media (max-width: 760px) { .work { grid-template-columns: 1fr; } .rail { max-height: 30vh; } }
+  @media (prefers-reduced-motion: reduce) { .doc { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-plus" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8 9.6 6.4 14.2 8l-4.6 1.6L8 14.2 6.4 9.6 1.8 8l4.6-1.6Z"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10.5V2.5M5 5.2 8 2.4l3 2.8M2.5 10v2.2a1.3 1.3 0 0 0 1.3 1.3h8.4a1.3 1.3 0 0 0 1.3-1.3V10"/></symbol>
+    <symbol id="i-up" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 9.5 4-4 4 4"/></symbol>
+    <symbol id="i-down" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6.5 4 4 4-4"/></symbol>
+    <symbol id="i-eye-off" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8s2.2-4 6-4 6 4 6 4-2.2 4-6 4-6-4-6-4Z"/><circle cx="8" cy="8" r="1.7"/><path d="m3 13 10-10"/></symbol>
+    <symbol id="i-width" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3.5v9M14 3.5v9M5 8h6M5 8l1.6-1.6M5 8l1.6 1.6M11 8 9.4 6.4M11 8l-1.6 1.6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3.5 8.5 3 3 6-7"/></symbol>
+    <symbol id="i-search" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="7" cy="7" r="4.2"/><path d="m10.2 10.2 3.3 3.3"/></symbol>
+    <symbol id="i-open" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5H3.8A1.3 1.3 0 0 0 2.5 4.8v7.4a1.3 1.3 0 0 0 1.3 1.3h7.4a1.3 1.3 0 0 0 1.3-1.3V10M9 2.5h4.5V7M13.5 2.5 7.5 8.5"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="m5 6.5 2 1.5-2 1.5M8.5 10h2.5"/></symbol>
+    <symbol id="i-file" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.8h5l3 3V13a1.2 1.2 0 0 1-1.2 1.2H4A1.2 1.2 0 0 1 2.8 13V3A1.2 1.2 0 0 1 4 1.8Z"/><path d="M9 1.8V5h3.2"/></symbol>
+  </defs>
+</svg>
+
+<div class="app" id="app"></div>
+
+<script src="tabs.js"></script>
+<script>
+const PAGES = [
+  { id: 'ref', title: 'Platform reference', chars: 62410, edited: '2 hours ago' },
+  { id: 'dep', title: 'Deployment', chars: 3180, edited: 'yesterday' },
+  { id: 'con', title: 'Contributing', chars: 4720, edited: '3 days ago' },
+  { id: 'glo', title: 'Glossary', chars: 1260, edited: 'last week' }
+]
+const CAP = 100000
+const pctOf = (c) => (c / CAP * 100 < 1 ? '<1%' : Math.round(c / CAP * 100) + '%')
+const tokens = (c) => (c / 4 / 1000).toFixed(1) + 'k'
+const fmt = (n) => n.toLocaleString('en-US')
+
+const HEADS = [
+  ['l2', 'overview', 'Overview'],
+  ['l2', 'architecture', 'Architecture'],
+  ['l3', 'request-path', 'Request path'],
+  ['l3', 'background-work', 'Background work'],
+  ['l2', 'data-model', 'Data model'],
+  ['l2', 'services', 'Services'],
+  ['l3', 'billing', 'billing'],
+  ['l3', 'ledger', 'ledger'],
+  ['l2', 'conventions', 'Conventions'],
+  ['l2', 'release', 'Release and rollback']
+]
+
+const DOC = `
+<h1>Platform reference</h1>
+<p class="lead">How Vega is put together, written once for anyone, or any session, changing it. Read the part the work touches; nothing here is loaded on its own.</p>
+
+<h2 id="overview">Overview</h2>
+<p>Vega is the payments backend behind the checkout. It takes an order from the storefront, prices it, charges it through the acquirer and writes the result to the ledger. Everything else in the repository exists to make that path observable and replayable.</p>
+<ul><li>One deployable per service, one repository, one release train.</li><li>Services talk over HTTP inside the cluster and through the event bus across it.</li><li>The ledger is the only source of truth for money; every other table is a projection.</li></ul>
+
+<h2 id="architecture">Architecture</h2>
+<p>Requests enter through the gateway, which authenticates the caller and stamps a correlation id. The id travels through every call and every event, and is the first thing to search for when something looks wrong.</p>
+<h3 id="request-path">Request path</h3>
+<pre>storefront → gateway → billing → acquirer
+                         ↓
+                      ledger → event bus → projections</pre>
+<p>A charge is accepted only after the ledger entry is written. If the acquirer answers late, the entry stays <code>pending</code> and the reconciler settles it.</p>
+<h3 id="background-work">Background work</h3>
+<p>Reconciliation, invoice rendering and webhook delivery run as workers on the same image as their service, started with <code>--worker</code>. They share the service's configuration and nothing else.</p>
+
+<h2 id="data-model">Data model</h2>
+<table><thead><tr><th>Table</th><th>Owner</th><th>Holds</th></tr></thead><tbody>
+<tr><td><code>entry</code></td><td>ledger</td><td>One signed amount per account, append only</td></tr>
+<tr><td><code>charge</code></td><td>billing</td><td>An attempt to take money, with its acquirer reference</td></tr>
+<tr><td><code>invoice</code></td><td>billing</td><td>What the customer is shown, derived from charges</td></tr>
+<tr><td><code>webhook_delivery</code></td><td>billing</td><td>One row per attempt, kept for 30 days</td></tr></tbody></table>
+
+<h2 id="services">Services</h2>
+<h3 id="billing">billing</h3>
+<p>Owns prices, charges and invoices. It never writes an entry itself; it asks the ledger to. Configuration lives in <code>billing/config</code> and every secret comes from the cluster, never from a file.</p>
+<h3 id="ledger">ledger</h3>
+<p>Owns entries and balances. An entry is never updated or deleted: a mistake is corrected by a second entry that reverses the first, with a reason.</p>
+
+<h2 id="conventions">Conventions</h2>
+<ul><li>Money is an integer count of minor units with a currency code, never a float.</li><li>A migration ships in the same change as the code that needs it, and is safe to run while the old code is live.</li><li>A new endpoint is documented in the service's <code>openapi.yaml</code> before it is merged.</li></ul>
+
+<h2 id="release">Release and rollback</h2>
+<p>A tag on <code>main</code> builds every image and rolls them out one service at a time, ledger last. Rolling back is redeploying the previous tag; migrations are never rolled back, which is why they are written to be safe in both directions.</p>
+`
+
+const DEP_HEADS = [['l2', 'dep-env', 'Environments'], ['l2', 'dep-ship', 'Shipping a change'], ['l2', 'dep-back', 'Rolling back']]
+const DEP = `<h1>Deployment</h1>
+<p class="lead">How a change reaches production, and how to take it back.</p>
+<h2 id="dep-env">Environments</h2>
+<table><thead><tr><th>Name</th><th>Cluster</th><th>Deploys on</th></tr></thead><tbody>
+<tr><td>staging</td><td><code>vega-stg</code></td><td>Every merge to <code>main</code></td></tr>
+<tr><td>production</td><td><code>vega-prod</code></td><td>A tag, after staging has run for an hour</td></tr></tbody></table>
+<h2 id="dep-ship">Shipping a change</h2>
+<p>Tag <code>main</code> with the next version. The pipeline builds each image, applies the migrations and rolls the services out one at a time, ledger last.</p>
+<h2 id="dep-back">Rolling back</h2>
+<p>Redeploy the previous tag. A migration is never rolled back, so every migration must be safe with the old code still running.</p>`
+const CON_HEADS = [['l2', 'con-flow', 'From issue to merge'], ['l3', 'con-branch', 'Branch names'], ['l3', 'con-pr', 'The pull request'], ['l2', 'con-review', 'Review']]
+const CON = `<h1>Contributing</h1>
+<p class="lead">The procedure from an issue to a merged change. A session follows it when it files an issue, names a branch or opens a pull request.</p>
+<h2 id="con-flow">From issue to merge</h2>
+<p>Every change starts as an issue with a type and an owner. Work happens on a branch of its own and reaches <code>main</code> only through a pull request.</p>
+<h3 id="con-branch">Branch names</h3>
+<p>The task code, then a short slug: <code>vg-12-ledger-reversal</code>.</p>
+<h3 id="con-pr">The pull request</h3>
+<ul><li>Title in conventional-commit form.</li><li>The issue linked in the first line of the description.</li><li>Screenshots for anything a person sees.</li></ul>
+<h2 id="con-review">Review</h2>
+<p>One approval from someone who did not write the change. The author merges.</p>`
+const GLO_HEADS = []
+const GLO = `<h1>Glossary</h1>
+<p class="lead">Terms the code and the team use.</p>
+<ul><li><strong>Entry</strong>: one signed amount on one account in the ledger.</li><li><strong>Reconciler</strong>: the worker that settles pending charges.</li><li><strong>Acquirer</strong>: the bank-side service that takes the money.</li></ul>`
+const DOCS = { ref: [DOC, HEADS], dep: [DEP, DEP_HEADS], con: [CON, CON_HEADS], glo: [GLO, GLO_HEADS] }
+
+const WRITE = `<span class="h"># Platform reference</span>
+
+How Vega is put together, written once for anyone, or any session,
+changing it. Read the part the work touches; nothing here is loaded
+on its own.
+
+<span class="h">## Overview</span>
+
+Vega is the payments backend behind the checkout. It takes an order
+from the storefront, prices it, charges it through the acquirer and
+writes the result to the ledger.
+
+- One deployable per service, one repository, one release train.
+- Services talk over HTTP inside the cluster and through the event bus.
+
+<span class="h">## Architecture</span>
+
+<span class="fence">\`\`\`</span>
+storefront → gateway → billing → acquirer
+<span class="fence">\`\`\`</span>`
+
+const WIDTHS = [['narrow', 'Narrow', 760], ['standard', 'Standard', 1040], ['wide', 'Wide', 1360], ['full', 'Full', null]]
+const HASH = location.hash.slice(1).split(',')
+const S = { state: HASH[0] || 'reading', page: HASH[3] || 'ref', pick: 'split', width: HASH[1] || 'standard', menu: HASH[2] === 'menu', tab: HASH[4] || 'pages' }
+const colMax = () => { const w = WIDTHS.find((x) => x[0] === S.width)[2]; return w === null ? 'none' : w + 'px' }
+
+function icon(n) { return `<svg aria-hidden="true"><use href="#i-${n}"/></svg>` }
+
+function rail() {
+  if (S.state === 'empty') return `<nav class="rail" aria-label="Pages">
+    <div class="rail-h"><span class="t">Pages</span><button class="iconbtn" aria-label="Import a markdown file" title="Import a .md file">${icon('upload')}</button><button class="iconbtn" aria-label="New page" title="New page">${icon('plus')}</button></div>
+    <p class="rail-note" style="border:0;margin-top:0">Keep what the blueprint doesn't hold: deployment, conventions, a glossary, or a whole reference document.</p></nav>`
+  const rows = PAGES.map((p) => `<button class="row" data-page="${p.id}" ${S.page === p.id && S.state !== 'importing' && S.state !== 'toolarge' ? 'aria-current="page"' : ''}>
+      <span class="name">${p.title}</span>
+      <span class="sub"><span class="mono num">${p.chars >= 10000 ? Math.round(p.chars / 1000) + 'k' : fmt(p.chars)}</span><span>${p.edited}</span><span class="pct num">${pctOf(p.chars)}</span></span>
+      <span class="fillbar" title="${fmt(p.chars)} of ${fmt(CAP)} characters"><i style="width:${p.chars / CAP * 100}%"></i></span></button>`).join('')
+  return `<nav class="rail" aria-label="Pages">
+    <div class="rail-h"><span class="t">Pages<span class="n">${PAGES.length}</span></span>
+      <button class="iconbtn" aria-label="Autoconfigure from the repository" title="Autoconfigure: a session reads the repository and writes how to contribute">${icon('spark')}</button>
+      <button class="iconbtn" data-act="import" aria-label="Import a markdown file" title="Import a .md file">${icon('upload')}</button>
+      <button class="iconbtn" aria-label="New page" title="New page">${icon('plus')}</button></div>
+    ${rows}
+    <p class="rail-note">Pages stay out of Claude's context. A context lists their titles; a session reads one with <code>rekall_read_sections</code> when the work touches it.</p></nav>`
+}
+
+function gauge(p) {
+  const pct = p.chars / CAP * 100
+  return `<div class="gauge"><span class="fig num">${fmt(p.chars)} <span class="dim">of ${fmt(CAP)} characters</span></span>
+    <span class="well" title="A page holds up to ${fmt(CAP)} characters"><i style="width:${pct}%"></i></span>
+    <span class="fig num">≈ ${tokens(p.chars)} tokens when read</span><span class="grow"></span>
+    <span class="out">${icon('eye-off')}Not in context. Costs one line, its title.</span></div>`
+}
+
+function reading() {
+  const p = PAGES.find((x) => x.id === S.page)
+  const [docHtml, heads] = DOCS[p.id]
+  const writing = S.state === 'writing'
+  const toc = heads.length > 1 ? `<aside class="toc" aria-label="Outline"><div class="toc-h"><span>On this page</span><span class="mono num">${heads.length}</span></div>${heads.map(([l, id, t], i) => `<a class="${l} ${i === 0 ? 'on' : ''}" data-jump="${id}">${t}</a>`).join('')}</aside>` : ''
+  const body = writing
+    ? `<div class="writer" tabindex="0" aria-label="Markdown source"><pre>${WRITE}</pre></div>`
+    : `<div class="reader"><div class="doc" id="doc"><div class="doc-col">${docHtml}</div></div>${toc}</div>`
+  return `<section class="pane" aria-label="${p.title}" style="--col:${colMax()}">
+    <div class="pane-h"><div class="who"><input class="title-in" value="${p.title}" aria-label="Page title"><p class="meta">Edited ${p.edited}<span class="sep">/</span><span role="status">Saved</span></p></div>
+      <button class="btn quiet" data-act="import" title="Replace this page with a file">${icon('upload')}Replace from file</button>
+      <span style="display:flex;gap:0"><button class="iconbtn" aria-label="Move page up" ${p.id === 'ref' ? 'disabled style="opacity:.3"' : ''}>${icon('up')}</button><button class="iconbtn" aria-label="Move page down">${icon('down')}</button></span>
+      <button class="btn danger">Delete</button>
+      <button class="iconbtn" data-act="menu" aria-label="Page width" aria-haspopup="menu" aria-expanded="${S.menu}" title="Page width: ${S.width}" id="wbtn">${icon('width')}</button>
+      <div class="seg" role="group" aria-label="Mode"><button data-mode="reading" aria-pressed="${!writing}">Read</button><button data-mode="writing" aria-pressed="${writing}">Write</button></div></div>
+    ${gauge(p)}${body}</section>`
+}
+
+const FILE_HEADS = [['l2', 'Overview', '1.2k'], ['l2', 'Architecture', '8.4k'], ['l3', 'Request path', '3.1k'], ['l3', 'Background work', '2.2k'], ['l2', 'Data model', '11k'], ['l2', 'Services', '24k'], ['l3', 'billing', '9k'], ['l3', 'ledger', '8k'], ['l2', 'Conventions', '6k'], ['l2', 'Release and rollback', '4k']]
+
+function importing() {
+  const over = S.state === 'toolarge'
+  const chars = over ? 142806 : 84310
+  const name = over ? 'vega-engineering-handbook.md' : 'platform-reference.md'
+  const pct = Math.min(100, chars / CAP * 100)
+  const verdict = over
+    ? `<p class="verdict"><strong>${fmt(chars)} characters; a page holds ${fmt(CAP)}.</strong> Nothing was imported. Split it at its <code style="font:400 var(--t-small) var(--font-mono);color:var(--anchor)">##</code> headings into pages that each fit, or shorten the file and pick it again.</p>`
+    : `<p class="verdict"><strong>Fits in one page,</strong> with ${fmt(CAP - chars)} characters to spare. A session that reads it takes about ${tokens(chars)} tokens.</p>`
+  const choices = over ? `<div class="choices" role="group" aria-label="What to do with it">
+      <button class="choice" data-pick="split" aria-pressed="${S.pick === 'split'}"><span class="dotr"></span><span><span class="ct">Split at ## headings into 3 pages</span><span class="cd" style="display:block">Overview to Data model (48k), Services (49k), Conventions to Release (46k). Each is titled by its first heading.</span></span></button>
+      <button class="choice" data-pick="none" aria-pressed="${S.pick === 'none'}"><span class="dotr"></span><span><span class="ct">Don't import</span><span class="cd" style="display:block">Pick a different file.</span></span></button></div>` : ''
+  const action = over ? `<button class="btn primary" ${S.pick === 'none' ? 'disabled' : ''}>Import 3 pages</button>` : `<button class="btn primary">Import page</button>`
+  return `<section class="pane" aria-label="Import a markdown file">
+    <div class="pane-h"><div class="who"><p class="title-in" style="pointer-events:none">Import a markdown file</p><p class="meta">Read in the console; nothing leaves this machine.</p></div></div>
+    <div class="import"><div class="import-col">
+      <div class="file">${icon('file')}<span class="fn">${name}</span><span class="fs num">${fmt(chars)} characters</span><button class="btn quiet" style="margin-left:8px" data-act="cancel">Choose another</button></div>
+      <div><label class="field-l" for="t">Page title</label><input id="t" class="field" value="${over ? 'Engineering handbook' : 'Platform reference'}"></div>
+      <div class="fit ${over ? 'over' : ''}"><div class="line"><span>Size</span><b class="v num">${fmt(chars)} <span style="color:var(--subtle);font-weight:400">/ ${fmt(CAP)}</span></b></div><div class="well"><i style="width:${pct}%"></i></div>${verdict}</div>
+      ${choices}
+      <div><span class="field-l">${FILE_HEADS.length} headings found</span><div class="heads">${FILE_HEADS.map(([l, t, s]) => `<div class="${l}"><span>${t}</span><span class="sz">${s}</span></div>`).join('')}</div></div>
+      <div class="foot"><span class="dim" style="font-size:var(--t-caption)">Titles are unique on a project. An existing page of this title is replaced after a confirm.</span><span class="sp"></span><button class="btn secondary" data-act="cancel">Cancel</button>${action}</div>
+    </div></div></section>`
+}
+
+function empty() {
+  return `<section class="pane" aria-label="Pages"><div class="empty"><div class="drop">${icon('upload')}<h2>Drop a markdown file here</h2>
+    <p>A whole reference document, a contributing guide, a glossary. It becomes a page you can read here and a session can read on demand, and it never rides along in a task's context.</p>
+    <div class="btns"><button class="btn primary" data-act="import">${icon('upload')}Choose a .md file</button><button class="btn secondary">${icon('plus')}Write a page</button></div></div></div></section>`
+}
+
+function main() {
+  if (S.state === 'importing' || S.state === 'toolarge') return importing()
+  if (S.state === 'empty') return empty()
+  return reading()
+}
+
+const TAB_IDS = [['tasks', 'Tasks'], ['blueprint', 'Blueprint'], ['pages', 'Pages'], ['components', 'Components'], ['diagrams', 'Diagrams'], ['deployment', 'Deployment'], ['connections', 'Connections'], ['settings', 'Settings']]
+
+function render() {
+  const counts = { ...tabCounts(), pages: S.state === 'empty' ? 0 : PAGES.length }
+  const states = [['reading', 'Reading a large page'], ['writing', 'Writing'], ['importing', 'Import: fits'], ['toolarge', 'Import: too large'], ['empty', 'No pages yet']]
+  const bar = S.tab === 'pages' ? states.map(([k, l]) => `<button data-state="${k}" aria-pressed="${S.state === k}">${l}</button>`).join('') : `<span>Every tab fills the window. Demonstration data.</span>`
+  const view = S.tab === 'pages' ? `<div class="work">${rail()}${main()}</div>` : `<div class="work free">${VIEWS[S.tab]()}</div>`
+  document.getElementById('app').innerHTML = `
+  <div class="mockbar"><b>Mockup</b>${bar}<span class="hint">Page copy is shortened here; the figures are those of the real file.</span></div>
+  <header class="topbar"><span class="brand">Rekall</span><div class="search"><span>Search or type an anchor</span><kbd>⌘K</kbd></div><span></span></header>
+  <div class="page">
+    <div class="scope"><span class="proj"><span class="glyph"></span>Vega</span><span class="anchor">/rk project:vega</span><span class="sp"></span><span class="dim" style="font-size:var(--t-small)">Fintech Co</span></div>
+    <div class="tabs" role="tablist" aria-label="Project pages">${TAB_IDS.map(([k, l]) => `<button class="tab" role="tab" data-tab="${k}" ${S.tab === k ? 'aria-current="page"' : ''}>${l}${counts[k] ? `<span class="c num">${counts[k]}</span>` : ''}</button>`).join('')}</div>
+    ${view}
+  </div>${menu()}`
+  placeMenu()
+  bindDoc()
+}
+
+function menu() {
+  if (!S.menu) return ''
+  return `<div class="pop" role="menu" aria-label="Page width"><div class="ph">Page width</div>${WIDTHS.map(([k, l, px]) => `<button role="menuitemradio" aria-checked="${S.width === k}" data-width="${k}">${S.width === k ? icon('check').replace('<svg', '<svg class="ck"') : '<span class="ck"></span>'}${l}<span class="px">${px ?? 'window'}</span></button>`).join('')}</div>`
+}
+
+function placeMenu() {
+  const pop = document.querySelector('.pop'), b = document.getElementById('wbtn')
+  if (!pop || !b) return
+  const r = b.getBoundingClientRect()
+  pop.style.top = r.bottom + 6 + 'px'
+  pop.style.left = Math.max(8, r.right - pop.offsetWidth) + 'px'
+}
+
+function bindDoc() {
+  const doc = document.getElementById('doc')
+  if (!doc) return
+  const links = [...document.querySelectorAll('.toc a')]
+  const heads = links.map((a) => document.getElementById(a.dataset.jump))
+  doc.addEventListener('scroll', () => {
+    let at = 0
+    heads.forEach((h, i) => { if (h && h.offsetTop - doc.scrollTop < 80) at = i })
+    links.forEach((a, i) => a.classList.toggle('on', i === at))
+  })
+}
+
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-state],[data-page],[data-mode],[data-act],[data-pick],[data-jump],[data-width],[data-tab],[data-set]')
+  const wasOpen = S.menu
+  S.menu = false
+  if (!t) { if (wasOpen) render(); return }
+  const d = t.dataset
+  if (d.tab) S.tab = d.tab
+  else if (d.set) { const [k, v] = d.set.split(':'); T[k] = v }
+  else if (d.width) S.width = d.width
+  else if (d.act === 'menu') S.menu = !wasOpen
+  else if (d.state) S.state = d.state
+  else if (d.page) { S.page = d.page; S.state = 'reading' }
+  else if (d.mode) S.state = d.mode
+  else if (d.pick) S.pick = d.pick
+  else if (d.act === 'import') S.state = 'importing'
+  else if (d.act === 'cancel') S.state = 'reading'
+  else if (d.jump) { const doc = document.getElementById('doc'); doc.scrollTop = document.getElementById(d.jump).offsetTop - 8; return }
+  render()
+})
+render()
+</script>
+</body>
+</html>

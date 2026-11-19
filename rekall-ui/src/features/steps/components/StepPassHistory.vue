@@ -2,12 +2,13 @@
 import { ref, watch } from 'vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import { relativeTime } from '@/common/format/relative-time'
-import type { StepPass } from '@/features/catalog/model/catalog'
+import type { StepPass } from '@/features/steps/model/task-step'
 
 /**
- * The passes a step was sent back from, sealed above the feedback editor. Each holds what that
- * pass worked from and can no longer be edited, so feedback never overwrites the brief. The
- * latest stands open because it is what the feedback answers; earlier ones fold to a line.
+ * The passes a step was sent back from, sealed above the feedback editor and hung on one line
+ * like a history. Each holds what that pass worked from and can no longer be edited, so feedback
+ * never overwrites the brief. The latest stands open because it is what the feedback answers;
+ * earlier ones fold to a line.
  */
 const props = defineProps<{ passes: readonly StepPass[] }>()
 
@@ -30,46 +31,48 @@ function toggle(index: number): void {
 </script>
 
 <template>
-  <ol class="flex flex-col gap-1.5" aria-label="Earlier passes" data-testid="step-passes">
-    <li
-      v-for="(pass, index) in passes"
-      :key="pass.sentBackAt"
-      class="sealed-pass rounded-control border border-border bg-canvas"
-      data-testid="step-pass"
-    >
-      <button
-        type="button"
-        class="focus-ring flex w-full items-center gap-2 rounded-control px-2.5 py-1.5 text-left"
-        :aria-expanded="openIndexes.has(index)"
-        @click="toggle(index)"
-      >
-        <svg class="size-3 shrink-0 text-text-subtle" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-          <rect x="2.2" y="5.2" width="7.6" height="5.3" rx="1.2" stroke="currentColor" stroke-width="1.1" />
-          <path d="M4 5.2V3.9a2 2 0 0 1 4 0v1.3" stroke="currentColor" stroke-width="1.1" />
-        </svg>
-        <span class="text-caption font-medium text-text-muted">Pass {{ index + 1 }}</span>
-        <span class="min-w-0 flex-1 truncate text-micro text-text-subtle">
-          executed, sent back {{ relativeTime(pass.sentBackAt) }}
-        </span>
-        <svg
-          class="size-2.5 shrink-0 text-text-subtle transition-transform"
-          :class="openIndexes.has(index) && 'rotate-90'"
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden="true"
+  <ol
+    class="relative flex flex-col gap-2 before:absolute before:inset-y-3 before:left-1 before:w-px before:bg-border-strong"
+    aria-label="Earlier passes"
+    data-testid="step-passes"
+  >
+    <li v-for="(pass, index) in passes" :key="pass.sentBackAt" class="relative pl-6" data-testid="step-pass">
+      <span class="absolute left-0 top-3 size-2.5 rounded-full border-2 border-warn bg-surface" aria-hidden="true" />
+      <div class="sealed-pass rounded-control border border-border bg-canvas">
+        <button
+          type="button"
+          class="focus-ring flex w-full items-center gap-2 rounded-control px-2.5 py-1.5 text-left"
+          :aria-expanded="openIndexes.has(index)"
+          @click="toggle(index)"
         >
-          <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-      </button>
-      <div v-if="openIndexes.has(index)" class="border-t border-border px-2.5 pb-2 pt-1.5">
-        <AppMarkdownEditor
-          v-if="pass.detailMarkdown?.trim()"
-          :model-value="pass.detailMarkdown"
-          readonly
-          compact
-          data-testid="step-pass-detail"
-        />
-        <p v-else class="text-small text-text-subtle">Worked from the title alone.</p>
+          <svg class="size-3 shrink-0 text-text-subtle" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <rect x="2.2" y="5.2" width="7.6" height="5.3" rx="1.2" stroke="currentColor" stroke-width="1.1" />
+            <path d="M4 5.2V3.9a2 2 0 0 1 4 0v1.3" stroke="currentColor" stroke-width="1.1" />
+          </svg>
+          <span class="text-caption font-medium text-text-muted">Pass {{ index + 1 }}</span>
+          <span class="min-w-0 flex-1 truncate text-micro text-text-subtle">
+            executed, sent back {{ relativeTime(pass.sentBackAt) }}
+          </span>
+          <svg
+            class="size-2.5 shrink-0 text-text-subtle transition-transform"
+            :class="openIndexes.has(index) && 'rotate-90'"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <div v-if="openIndexes.has(index)" class="border-t border-border px-2.5 pb-2 pt-1.5">
+          <AppMarkdownEditor
+            v-if="pass.detailMarkdown?.trim()"
+            :model-value="pass.detailMarkdown"
+            readonly
+            compact
+            data-testid="step-pass-detail"
+          />
+          <p v-else class="text-small text-text-subtle">Worked from the title alone.</p>
+        </div>
       </div>
     </li>
   </ol>

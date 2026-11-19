@@ -1,8 +1,12 @@
+pub(super) mod confluence_space_service;
 pub(super) mod connection_access_query_service;
+pub(super) mod connection_credential_reveal_service;
 pub(super) mod connection_credential_service;
 pub(super) mod connection_service;
+pub(super) mod connection_target_service;
 pub(super) mod credential_hand_out_service;
 pub(super) mod jira_issue_service;
 pub(super) mod kubeconfig_preview_service;
 pub(super) mod project_connection_service;
 pub(super) mod repository_discovery_service;
+pub(super) mod task_tracker_sync_service;

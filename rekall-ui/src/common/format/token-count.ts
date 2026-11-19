@@ -1,3 +1,4 @@
+import { APP_LOCALE } from '@/common/format/app-locale'
 import type { TokenTotals } from '@/features/tokens/model/token-usage'
 
 const UNITS: readonly [number, string][] = [
@@ -21,7 +22,7 @@ export function formatTokens(count: number): string {
 
 /** The tooltip under a count: what was generated, then what was read to generate it. */
 export function describeTokens(totals: TokenTotals): string {
-  const format = (count: number): string => count.toLocaleString('en-US')
+  const format = (count: number): string => count.toLocaleString(APP_LOCALE)
   return [
     `${format(totals.generated)} tokens generated`,
     `${format(totals.input)} input · ${format(totals.cacheWrite)} cache write · ${format(totals.cacheRead)} cache read`

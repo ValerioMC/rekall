@@ -12,7 +12,10 @@ import {
   asTimeEntryId,
   asWrapupId
 } from '@/model/branded'
-import { PROJECT_STATUSES, TASK_KINDS, TASK_STATUSES, TASK_STEP_STATES } from '@/features/catalog/model/catalog'
+import { PROJECT_STATUSES } from '@/features/catalog/model/project-status'
+import { TASK_KINDS } from '@/features/catalog/model/catalog'
+import { TASK_STATUSES } from '@/features/catalog/model/task-status'
+import { TASK_STEP_STATES } from '@/features/steps/model/task-step'
 
 const companyId = z.string().uuid().transform(asCompanyId)
 const projectId = z.string().uuid().transform(asProjectId)
@@ -37,7 +40,7 @@ export const CompanySchema = z.object({
 
 export const TaskRefSchema = z.object({
   id: taskId,
-  label: z.string(),
+  code: z.string(),
   title: z.string(),
   projectLabel: z.string(),
   projectTitle: z.string(),
@@ -48,6 +51,7 @@ export const TaskRefSchema = z.object({
 export const ProjectSchema = z.object({
   id: projectId,
   label: z.string(),
+  taskKey: z.string(),
   title: z.string(),
   status: z.enum(PROJECT_STATUSES),
   icon: z.string(),
@@ -56,6 +60,8 @@ export const ProjectSchema = z.object({
   blueprintMarkdown: z.string().nullable(),
   repoFolder: z.string().nullable(),
   autoCommit: z.boolean(),
+  mainBranch: z.string().nullable(),
+  pullRequestFlow: z.boolean(),
   companyId,
   companyName: z.string(),
   taskCount: z.number().int(),
@@ -65,6 +71,7 @@ export const ProjectSchema = z.object({
 
 export const TaskSchema = z.object({
   id: taskId,
+  code: z.string(),
   label: z.string(),
   title: z.string(),
   status: z.enum(TASK_STATUSES),
@@ -94,6 +101,14 @@ export const TaskSchema = z.object({
   quick: z.boolean(),
   autoAccepted: z.boolean(),
   dependsOn: z.array(taskId).default([]),
+  trackerIssueKey: z.string().nullable(),
+  trackerIssueUrl: z.string().nullable(),
+  trackerSyncError: z.string().nullable(),
+  trackerContentSynced: z.boolean(),
+  pullRequestNumber: z.number().int().nullable(),
+  pullRequestUrl: z.string().nullable(),
+  pullRequestFailure: z.string().nullable(),
+  pullRequestMergedAt: z.string().nullable(),
   anchor: z.string(),
   updatedAt: z.string()
 })
@@ -147,20 +162,13 @@ export const TaskStepSchema = z.object({
   updatedAt: z.string()
 })
 
-export const NoteScopeSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('GLOBAL') }),
-  z.object({ kind: z.literal('COMPANY'), id: companyId }),
-  z.object({ kind: z.literal('PROJECT'), id: projectId })
-])
-
 export const DocumentSchema = z.object({
   id: documentId,
   title: z.string(),
   kind: z.string(),
   bodyMarkdown: z.string(),
-  tasks: z.array(TaskRefSchema),
+  taskId,
   contextMode: z.enum(['FULL', 'REFERENCE']),
-  scope: NoteScopeSchema,
   anchor: z.string(),
   updatedAt: z.string()
 })
@@ -168,7 +176,7 @@ export const DocumentSchema = z.object({
 export const WrapupSchema = z.object({
   id: wrapupId,
   taskId,
-  taskLabel: z.string(),
+  taskCode: z.string(),
   taskTitle: z.string(),
   projectLabel: z.string(),
   anchor: z.string(),
@@ -181,7 +189,7 @@ export const WrapupSchema = z.object({
 export const TimeEntrySchema = z.object({
   id: timeEntryId,
   taskId,
-  taskLabel: z.string(),
+  taskCode: z.string(),
   taskTitle: z.string(),
   projectLabel: z.string(),
   anchor: z.string(),

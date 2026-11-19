@@ -2,9 +2,11 @@
 import { toRef } from 'vue'
 import SkillField from '@/features/skills/components/SkillField.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import type { SkillAssignment } from '@/features/skills/model/skill-assignment'
 import { useStepSkills } from '@/features/skills/composables/useStepSkills'
 import { useConsoleStore } from '@/stores/console.store'
-import type { Task, TaskStep } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 
 /**
  * The skills for one step, opened with the step. The task's and the tag's skills are listed
@@ -16,8 +18,8 @@ const store = useConsoleStore()
 const { run } = useAsyncAction()
 const { taskLevel, own } = useStepSkills(toRef(props, 'step'), toRef(props, 'task'))
 
-function save(names: readonly string[]): void {
-  void run(() => store.assignStepSkills(props.step.id, names))
+function save(skills: readonly SkillAssignment[]): void {
+  void run(() => store.assignStepSkills(props.step.id, skills))
 }
 </script>
 

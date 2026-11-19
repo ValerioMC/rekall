@@ -1,8 +1,7 @@
 import { computed } from 'vue'
 import type { CompanyId, DocumentId, ProjectId, TaskId, TaskStepId } from '@/model/branded'
-import type { ConsoleLocation, NavMode, PaneFocus } from '@/model/console-location'
+import type { ConsoleLocation, PaneFocus } from '@/model/console-location'
 import { isEpic } from '@/features/catalog/model/catalog'
-import type { ReviewItem } from '@/features/catalog/model/review'
 import type { SearchHit } from '@/features/search/model/search'
 import type { ConsoleState } from './console-state'
 import type { useConsoleView } from './useConsoleView'
@@ -16,12 +15,11 @@ export function useConsoleNavigation(
   view: ReturnType<typeof useConsoleView>,
   selected: ReturnType<typeof useSelectedTask>
 ) {
-  const { tasks, documents, scopeCompany, scopeProject, navMode, selectedTaskId, selectedDocId, paneFocus, selectedDeviationStep } =
+  const { tasks, documents, scopeCompany, scopeProject, selectedTaskId, selectedDocId, paneFocus, selectedDeviationStep } =
     state
-  const { stepToOpen, noteComposerOpen } = state
+  const { stepToOpen } = state
 
   const location = computed<ConsoleLocation>(() => ({
-    mode: navMode.value,
     taskId: selectedTaskId.value,
     documentId: selectedDocId.value,
     pane: paneFocus.value,
@@ -31,7 +29,7 @@ export function useConsoleNavigation(
   function selectTask(id: TaskId): void {
     selectedTaskId.value = id
     selectedDeviationStep.value = null
-    const first = documents.value.find((document) => document.tasks.some((ref) => ref.id === id))
+    const first = documents.value.find((document) => document.taskId === id)
     selectedDocId.value = first?.id ?? null
     paneFocus.value = openingPaneOf(id)
   }
@@ -42,34 +40,16 @@ export function useConsoleNavigation(
     return task && isEpic(task) ? 'description' : 'note'
   }
 
-  /**
-   * Browsing tasks, a note has to bring one of its tasks along or the task panes disagree with
-   * the editor. Browsing notes, the panes are the note's own, so the task in view is left alone:
-   * that is what makes the Notes side a place to manage notes rather than a detour through tasks.
-   */
+  /** A note has to bring its task along or the task panes disagree with the editor. */
   function selectDocument(id: DocumentId): void {
     selectedDocId.value = id
     paneFocus.value = 'note'
-    noteComposerOpen.value = false
-    if (navMode.value === 'notes') return
     followDocumentToTask(id)
   }
 
   function followDocumentToTask(id: DocumentId): void {
     const document = documents.value.find((candidate) => candidate.id === id)
-    if (document && !document.tasks.some((ref) => ref.id === selectedTaskId.value)) {
-      selectedTaskId.value = document.tasks[0]?.id ?? null
-    }
-  }
-
-  function setNavMode(mode: NavMode): void {
-    navMode.value = mode
-    noteComposerOpen.value = false
-    if (mode === 'notes') {
-      if (selectedDocId.value !== null) paneFocus.value = 'note'
-      return
-    }
-    if (selectedDocId.value !== null) followDocumentToTask(selectedDocId.value)
+    if (document && document.taskId !== selectedTaskId.value) selectedTaskId.value = document.taskId
   }
 
   /**
@@ -81,12 +61,10 @@ export function useConsoleNavigation(
     const documentId = documents.value.some((document) => document.id === target.documentId)
       ? target.documentId
       : null
-    navMode.value = target.mode
     selectedTaskId.value = taskId
     selectedDocId.value = documentId
     selectedDeviationStep.value = target.deviationStep
     paneFocus.value = taskId === null || (target.pane === 'deviation' && target.deviationStep === null) ? 'note' : target.pane
-    noteComposerOpen.value = false
     return location.value
   }
 
@@ -121,11 +99,6 @@ export function useConsoleNavigation(
     if (paneFocus.value === 'deviation') paneFocus.value = 'note'
   }
 
-  function togglePane(pane: TaskPane): void {
-    if (selectedTaskId.value === null) return
-    paneFocus.value = paneFocus.value === pane ? 'note' : pane
-  }
-
   /** Brings a task into view on its steps pane, with one step open. */
   function openStep(taskId: TaskId, stepId: TaskStepId): void {
     if (selectedTaskId.value !== taskId) selectTask(taskId)
@@ -137,20 +110,10 @@ export function useConsoleNavigation(
     stepToOpen.value = null
   }
 
-  /** Opens a review item where it is reviewed: the step, or the description's review bar. */
-  function openReviewItem(item: ReviewItem): void {
-    if (item.stepId) {
-      openStep(item.taskId, item.stepId)
-      return
-    }
-    selectTask(item.taskId)
-    paneFocus.value = 'description'
-  }
-
   /** Opens whatever a search hit points at, on the pane that shows that text. */
   function openSearchHit(hit: SearchHit): void {
     if (hit.kind === 'NOTE' && hit.documentId) {
-      if (navMode.value === 'tasks' && hit.taskId) selectTask(hit.taskId)
+      if (hit.taskId) selectTask(hit.taskId)
       selectDocument(hit.documentId)
       return
     }
@@ -163,36 +126,18 @@ export function useConsoleNavigation(
     paneFocus.value = hit.kind === 'WRAPUP' ? 'wrapup' : 'description'
   }
 
-  function openNoteComposer(): void {
-    noteComposerOpen.value = true
-  }
-
-  function closeNoteComposer(): void {
-    noteComposerOpen.value = false
-  }
-
   return {
     location,
     selectTask,
     selectDocument,
-    setNavMode,
     showLocation,
     setScope,
     openWrapup: () => openPane('wrapup'),
-    openDescription: () => openPane('description'),
-    openSteps: () => openPane('steps'),
     openDeviation,
     closeDeviation,
     openTerminal: () => openPane('terminal'),
-    toggleDescription: () => togglePane('description'),
-    toggleWrapup: () => togglePane('wrapup'),
-    toggleSteps: () => togglePane('steps'),
-    toggleTerminal: () => togglePane('terminal'),
     openStep,
     clearStepToOpen,
-    openReviewItem,
-    openSearchHit,
-    openNoteComposer,
-    closeNoteComposer
+    openSearchHit
   }
 }

@@ -1,18 +1,17 @@
 import { computed, ref } from 'vue'
 import {
-  addFeedback as apiAddFeedback,
-  deleteFeedback as apiDeleteFeedback,
   discardRevision as apiDiscardRevision,
-  editFeedback as apiEditFeedback,
-  fetchFeedback
+  fetchFeedback,
+  retargetFeedback as apiRetargetFeedback,
+  startPass as apiStartPass
 } from '@/features/feedback/api/feedback.api'
-import { isPending, type Feedback, type FeedbackKind, type WrittenFeedbackKind } from '@/features/feedback/model/feedback'
+import { isRunning, isWaiting, type Feedback, type FeedbackKind } from '@/features/feedback/model/feedback'
 import type { TaskId } from '@/model/branded'
 import type { ConsoleState } from '../../../stores/console/console-state'
 import type { useConsoleRefreshes } from '../../../stores/console/useConsoleRefreshes'
-import { replaceById, trackSave, upsertById } from '../../../stores/console/rows'
+import { replaceById, trackSave } from '../../../stores/console/rows'
 
-/** The thread under each task's description: read when the task is shown and whenever the server says it changed. */
+/** The revisions of each task's description: read when the task is shown and whenever the server says it changed. */
 export function useFeedbackThread(state: ConsoleState, refreshes: ReturnType<typeof useConsoleRefreshes>) {
   const { selectedTaskId, saveState } = state
   const feedbackByTask = ref<Readonly<Record<string, readonly Feedback[]>>>({})
@@ -21,9 +20,11 @@ export function useFeedbackThread(state: ConsoleState, refreshes: ReturnType<typ
     selectedTaskId.value === null ? [] : (feedbackByTask.value[selectedTaskId.value] ?? [])
   )
 
-  function pendingCount(kind: FeedbackKind): number {
-    return selectedTaskFeedback.value.filter((entry) => entry.kind === kind && isPending(entry)).length
-  }
+  const waitingCount = computed<number>(() => selectedTaskFeedback.value.filter(isWaiting).length)
+
+  const runningPass = computed<number | null>(
+    () => selectedTaskFeedback.value.find(isRunning)?.pass ?? null
+  )
 
   function putThread(taskId: TaskId, thread: readonly Feedback[]): void {
     feedbackByTask.value = { ...feedbackByTask.value, [taskId]: thread }
@@ -37,19 +38,15 @@ export function useFeedbackThread(state: ConsoleState, refreshes: ReturnType<typ
     putThread(taskId, await fetchFeedback(taskId))
   }
 
-  async function addFeedback(taskId: TaskId, kind: WrittenFeedbackKind, bodyMarkdown: string): Promise<void> {
-    const added = await trackSave(saveState, () => apiAddFeedback(taskId, kind, bodyMarkdown))
-    putThread(taskId, upsertById(threadOf(taskId), added, 'last'))
+  /** Takes every waiting entry into the next pass; the entries it took replace their waiting rows. */
+  async function startPass(taskId: TaskId): Promise<void> {
+    const taken = await apiStartPass(taskId)
+    putThread(taskId, taken.reduce((thread, entry) => replaceById(thread, entry), threadOf(taskId)))
   }
 
-  async function editFeedback(entry: Feedback, bodyMarkdown: string): Promise<void> {
-    const edited = await trackSave(saveState, () => apiEditFeedback(entry.id, bodyMarkdown))
-    putThread(entry.taskId, replaceById(threadOf(entry.taskId), edited))
-  }
-
-  async function deleteFeedback(entry: Feedback): Promise<void> {
-    await apiDeleteFeedback(entry.id)
-    putThread(entry.taskId, threadOf(entry.taskId).filter((candidate) => candidate.id !== entry.id))
+  async function retargetFeedback(entry: Feedback, kind: FeedbackKind): Promise<void> {
+    const retargeted = await trackSave(saveState, () => apiRetargetFeedback(entry.id, kind))
+    putThread(entry.taskId, replaceById(threadOf(entry.taskId), retargeted))
   }
 
   /** The server puts the earlier description back, so the tasks are read again too. */
@@ -62,11 +59,11 @@ export function useFeedbackThread(state: ConsoleState, refreshes: ReturnType<typ
   return {
     feedbackByTask,
     selectedTaskFeedback,
-    pendingCount,
+    waitingCount,
+    runningPass,
     loadFeedback,
-    addFeedback,
-    editFeedback,
-    deleteFeedback,
+    startPass,
+    retargetFeedback,
     discardRevision
   }
 }

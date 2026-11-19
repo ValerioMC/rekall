@@ -7,14 +7,17 @@ mod service;
 mod view;
 
 pub use model::flow_place::FlowPlace;
+pub use model::new_step::NewStep;
 pub use model::proposed::Proposed;
 pub use model::removed::Removed;
 pub use model::staging::Staging;
+pub use model::step_edit::StepEdit;
 pub use model::step_flow_rows::StepFlowRows;
 pub use view::step_link_view::StepLinkView;
 pub use event::step_stream_event::StepStreamEvent;
 pub use view::step_visit_view::StepVisitView;
+pub use service::step_binding_service::StepBindingService;
 pub use service::task_step_service::{TaskStepService, PROPOSED_DRAFTS_MAX};
-pub use view::task_step_view::TaskStepView;
+pub use view::task_step_view::{flow_entry, TaskStepView};
 pub use model::visit_budget::VisitBudget;
 pub use rekall_store::TaskStepState;

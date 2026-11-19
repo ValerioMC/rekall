@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import ProjectsSubNav from '@/features/catalog/components/ProjectsSubNav.vue'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
 import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
@@ -8,19 +9,22 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import SegmentedControl, { type SegmentOption } from '@/components/ui/SegmentedControl.vue'
 import CompanyMark from '@/components/ui/CompanyMark.vue'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
 import TokenCount from '@/components/ui/TokenCount.vue'
-import StatusMixBar from '@/components/ui/StatusMixBar.vue'
+import ProjectCompositionBar from '@/features/catalog/components/ProjectCompositionBar.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
 import { useConsoleStore } from '@/stores/console.store'
+import { projectComposition, reviewWaiting } from '@/features/catalog/lib/project-composition'
+import { workRows } from '@/features/work/lib/work-rows'
 import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 import { projectDraft } from '@/features/catalog/model/record-draft'
 import { identityHue } from '@/common/identity'
-import { PROJECT_STATUSES, PROJECT_STATUS_LABEL } from '@/features/catalog/model/catalog'
-import type { ProjectStatus, Task } from '@/features/catalog/model/catalog'
+import { PROJECT_STATUSES, PROJECT_STATUS_LABEL } from '@/features/catalog/model/project-status'
+import type { ProjectStatus } from '@/features/catalog/model/project-status'
 import type { RecordDraft } from '@/features/catalog/model/record-draft'
 import type { Project } from '@/features/catalog/model/catalog'
 import type { CompanyId, ProjectId } from '@/model/branded'
@@ -31,7 +35,10 @@ const router = useRouter()
 const { run } = useAsyncAction()
 
 const search = ref('')
-const statusFilter = ref<ProjectStatus | null>(null)
+type StatusChoice = ProjectStatus | 'ALL'
+
+const statusChoice = ref<StatusChoice>('ALL')
+const statusFilter = computed(() => (statusChoice.value === 'ALL' ? null : statusChoice.value))
 const companyFilter = ref<CompanyId | null>((route.query.company as CompanyId) ?? null)
 
 const editing = ref<RecordDraft | null>(null)
@@ -66,10 +73,14 @@ const statusCounts = computed(() => {
   return counts
 })
 
-const STATUS_OPTIONS: readonly { value: ProjectStatus | null; label: string }[] = [
-  { value: null, label: 'All' },
-  ...PROJECT_STATUSES.map((status) => ({ value: status, label: PROJECT_STATUS_LABEL[status] }))
-]
+const statusOptions = computed<readonly SegmentOption<StatusChoice>[]>(() => [
+  { value: 'ALL', label: 'All', count: statusCounts.value.get(null) ?? 0 },
+  ...PROJECT_STATUSES.map((status) => ({
+    value: status,
+    label: PROJECT_STATUS_LABEL[status],
+    count: statusCounts.value.get(status) ?? 0
+  }))
+])
 
 const groups = computed(() =>
   store.companies
@@ -105,8 +116,16 @@ function blastOf(project: Project): string {
   return `${count} task${count === 1 ? '' : 's'} · every note left on nothing`
 }
 
-function tasksOf(projectId: ProjectId): Task[] {
-  return store.tasks.filter((t) => t.projectId === projectId)
+const rowsByProject = computed(() => {
+  const byProject = new Map<ProjectId, ReturnType<typeof workRows>>()
+  for (const row of workRows(store.tasks, store.steps, () => 0)) {
+    byProject.set(row.task.projectId, [...(byProject.get(row.task.projectId) ?? []), row])
+  }
+  return byProject
+})
+
+function rowsOf(projectId: ProjectId) {
+  return rowsByProject.value.get(projectId) ?? []
 }
 
 const tokenUsage = useTokenUsageStore()
@@ -120,7 +139,7 @@ async function confirmDelete(): Promise<void> {
 </script>
 
 <template>
-  <div class="flex-1 min-h-0 bg-canvas">
+  <div class="flex-1 min-h-0 page-scroll bg-canvas">
     <AppCatalogHeader title="Projects">
       <template #actions>
         <AppButton
@@ -135,42 +154,16 @@ async function confirmDelete(): Promise<void> {
       </template>
     </AppCatalogHeader>
 
-    <div class="mx-auto max-w-[1240px] px-8 py-6">
+    <div class="page-column pt-4">
+      <ProjectsSubNav active="projects" />
+    </div>
+
+    <div class="page-column py-6">
       <div class="mb-5 flex flex-wrap items-center gap-2.5">
         <div class="w-full max-w-[320px]">
           <AppInput v-model="search" type="search" placeholder="Find a project" />
         </div>
-        <!-- One segmented control rather than four loose pills: the options are exclusive, so
-             they read as one choice, sit at the search field's height, and each carries the
-             count it would show. -->
-        <div
-          class="flex h-(--spacing-control) items-center gap-0.5 rounded-control border border-border bg-surface p-0.5"
-          role="radiogroup"
-          aria-label="Status"
-        >
-          <button
-            v-for="option in STATUS_OPTIONS"
-            :key="option.label"
-            type="button"
-            role="radio"
-            :aria-checked="statusFilter === option.value"
-            class="focus-ring flex h-full items-center gap-1.5 rounded-[calc(var(--radius-control)-3px)] px-2.5 text-small transition-colors"
-            :class="
-              statusFilter === option.value
-                ? 'bg-surface-raised text-text shadow-[0_1px_2px_rgb(0_0_0/0.4)]'
-                : 'text-text-subtle hover:text-text'
-            "
-            @click="statusFilter = option.value"
-          >
-            {{ option.label }}
-            <span
-              class="font-mono text-micro tabular-nums"
-              :class="statusFilter === option.value ? 'text-accent' : 'text-text-subtle'"
-            >
-              {{ statusCounts.get(option.value) ?? 0 }}
-            </span>
-          </button>
-        </div>
+        <SegmentedControl v-model="statusChoice" :options="statusOptions" label="Status" />
 
         <button
           v-if="companyFilter"
@@ -258,10 +251,15 @@ async function confirmDelete(): Promise<void> {
                 </div>
               </div>
 
-              <StatusMixBar class="pointer-events-none" :tasks="tasksOf(project.id)" />
+              <ProjectCompositionBar class="pointer-events-none" :composition="projectComposition(rowsOf(project.id))" />
 
               <div class="pointer-events-none mt-auto flex items-center justify-between text-caption text-text-subtle">
-                <span>{{ project.taskCount }} task{{ project.taskCount === 1 ? '' : 's' }}</span>
+                <span>
+                  {{ project.taskCount }} task{{ project.taskCount === 1 ? '' : 's' }}
+                  <template v-if="reviewWaiting(rowsOf(project.id)) > 0">
+                    · <span class="text-accent" data-testid="project-needs">{{ reviewWaiting(rowsOf(project.id)) }} to review</span>
+                  </template>
+                </span>
                 <!-- Steps aside for the delete control under the pointer, rather than the card
                      keeping an empty row at its foot for a control that is hidden at rest. -->
                 <span class="transition-opacity duration-(--motion-quick) group-hover/card:opacity-0 group-focus-within/card:opacity-0">

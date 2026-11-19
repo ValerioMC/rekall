@@ -3,11 +3,18 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
+import ProjectReadingColumn from '@/features/project/components/ProjectReadingColumn.vue'
+import TaskWidthMenu from '@/features/task/components/TaskWidthMenu.vue'
+import { usePreferencesStore } from '@/features/settings/store/preferences.store'
+import ProjectComponentOutline from '@/features/project/components/ProjectComponentOutline.vue'
 import ProjectPaneFrame from '@/features/project/components/ProjectPaneFrame.vue'
+import ProjectSectionGauge from '@/features/project/components/ProjectSectionGauge.vue'
 import { relativeTime } from '@/common/format/relative-time'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useEditorMode } from '@/composables/useEditorMode'
 import { useProjectSectionsStore } from '@/features/project/store/projectSections.store'
+import { jumpToHeading } from '@/features/project/lib/heading-jump'
+import { outlineOf } from '@/features/project/lib/markdown-outline'
 import type { Direction } from '@/features/project/lib/section-order'
 import type { ProjectSection } from '@/features/project/model/project-section'
 
@@ -20,17 +27,20 @@ const props = defineProps<{
   canMoveDown: boolean
 }>()
 
-const emit = defineEmits<{ move: [direction: Direction]; delete: [] }>()
+const emit = defineEmits<{ move: [direction: Direction]; delete: []; replace: [] }>()
 
 const store = useProjectSectionsStore()
+const preferences = usePreferencesStore()
 const { run } = useAsyncAction()
 
 const titleDraft = ref('')
 const bodyDraft = ref('')
 const { mode, openFor } = useEditorMode('read')
 const saveState = ref<'saved' | 'unsaved' | 'saving'>('saved')
+const article = ref<HTMLElement | null>(null)
 let timer: ReturnType<typeof setTimeout> | null = null
 
+const headings = computed(() => outlineOf(bodyDraft.value))
 const saveLabel = computed(() => ({ saved: 'Saved', unsaved: 'Unsaved', saving: 'Saving' })[saveState.value])
 
 function adopt(section: ProjectSection): void {
@@ -103,6 +113,12 @@ onUnmounted(() => {
             <span :class="saveState === 'unsaved' ? 'text-warn' : ''" role="status" data-testid="section-save-state">{{ saveLabel }}</span>
           </p>
         </div>
+        <AppButton variant="quiet" size="sm" title="Replace the text with a markdown file" data-testid="section-replace" @click="emit('replace')">
+          <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M7 9V2M4.5 4.3 7 1.8l2.5 2.5M2 8.8v1.7a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V8.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          Replace from file
+        </AppButton>
         <div class="flex items-center gap-0.5">
           <AppButton
             variant="quiet"
@@ -134,22 +150,36 @@ onUnmounted(() => {
           </AppButton>
           <AppButton variant="danger-quiet" size="sm" data-testid="section-delete" @click="emit('delete')">Delete</AppButton>
         </div>
+        <TaskWidthMenu v-model="preferences.taskWidth" />
         <AppModeToggle v-model="mode" testid-prefix="section-mode" />
       </div>
+      <ProjectSectionGauge :characters="bodyDraft.length" />
     </template>
     <template #default="{ editorHeight }">
       <Transition name="fade-quick" mode="out-in">
-        <AppMarkdownEditor
-          v-if="mode === 'write'"
-          key="write"
-          v-model="bodyDraft"
-          :height="editorHeight"
-          grow
-          :path-root="repoFolder"
-          placeholder="Write in markdown. Anything about this project that isn't the blueprint."
-          @update:model-value="schedule"
-        />
-        <AppMarkdownEditor v-else key="read" :model-value="bodyDraft" readonly />
+        <ProjectReadingColumn v-if="mode === 'write'" key="write">
+          <AppMarkdownEditor
+            v-model="bodyDraft"
+            :height="editorHeight"
+            grow
+            :path-root="repoFolder"
+            placeholder="Write in markdown. Anything about this project that isn't the blueprint."
+            @update:model-value="schedule"
+          />
+        </ProjectReadingColumn>
+        <div v-else key="read" class="@container">
+          <div class="grid gap-x-10 @4xl:grid-cols-[minmax(0,1fr)_184px]">
+            <article ref="article" class="min-w-0" data-testid="section-page">
+              <AppMarkdownEditor :model-value="bodyDraft" readonly :read-settings="false" :path-root="repoFolder" />
+            </article>
+            <ProjectComponentOutline
+              v-if="headings.length > 1"
+              class="hidden @4xl:flex"
+              :headings="headings"
+              @jump="jumpToHeading(article, $event)"
+            />
+          </div>
+        </div>
       </Transition>
     </template>
   </ProjectPaneFrame>

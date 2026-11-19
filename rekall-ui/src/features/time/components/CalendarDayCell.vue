@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/common/format/app-locale'
 import { computed } from 'vue'
 import { formatDuration } from '@/common/format/duration'
 import { identityHue } from '@/common/identity'
@@ -29,7 +30,7 @@ const dayTotal = computed(() => totalSeconds(props.rows))
 const load = computed(() => dayLoad(dayTotal.value))
 
 const label = computed(() => {
-  const day = props.date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
+  const day = props.date.toLocaleDateString(APP_LOCALE, { weekday: 'long', day: 'numeric', month: 'long' })
   return dayTotal.value ? `${day}, ${formatDuration(dayTotal.value)} tracked` : `${day}, nothing tracked`
 })
 

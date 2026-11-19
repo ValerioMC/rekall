@@ -123,7 +123,7 @@ async fn a_chat_session_streams_its_turns_takes_a_message_and_resumes_from_the_l
     let mut events = EventStream::open(&app, &id, None).await;
     let first_turn = events.until(is_turn_finished).await;
     assert_eq!(first_turn[0].event["type"], "userMessage");
-    assert_eq!(first_turn[0].event["text"], "/rk project:alpha task:one");
+    assert_eq!(first_turn[0].event["text"], "/rk task:AL-1");
     assert!(first_turn.iter().any(|frame| frame.event["type"] == "assistantText" && frame.event["text"] == "pong"));
     assert_eq!(first_turn.iter().map(|frame| frame.id).collect::<Vec<_>>(), (1..=first_turn.len() as u64).collect::<Vec<_>>());
 

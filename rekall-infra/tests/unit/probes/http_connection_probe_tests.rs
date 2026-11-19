@@ -1,6 +1,10 @@
+use std::sync::Arc;
+
 use axum::http::{HeaderMap, StatusCode as AxumStatus};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use rustls_pki_types::pem::PemObject;
+use rustls_pki_types::{CertificateDer, PrivateKeyDer};
 
 use super::*;
 
@@ -114,14 +118,14 @@ fn jira_site() -> Router {
     )
 }
 
-fn direct(url: String) -> JiraSite {
-    JiraSite { url, proxy_url: None }
+fn direct(url: String) -> AtlassianSite {
+    AtlassianSite { url, proxy_url: None }
 }
 
 #[tokio::test]
 async fn a_good_jira_credential_is_accepted_and_names_its_account() {
     let site = direct(serve(jira_site()).await);
-    let credential = JiraCredential::cloud("ada@example.com", Secret::new("atl-good")).unwrap();
+    let credential = AtlassianCredential::cloud("ada@example.com", Secret::new("atl-good")).unwrap();
     let outcome = HttpConnectionProbe::new().jira(&site, &credential).await;
     assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("Ada Lovelace".into()), version: None });
 }
@@ -129,14 +133,14 @@ async fn a_good_jira_credential_is_accepted_and_names_its_account() {
 #[tokio::test]
 async fn a_bad_jira_credential_is_rejected() {
     let site = direct(serve(jira_site()).await);
-    let credential = JiraCredential::cloud("ada@example.com", Secret::new("atl-bad")).unwrap();
+    let credential = AtlassianCredential::cloud("ada@example.com", Secret::new("atl-bad")).unwrap();
     assert_eq!(HttpConnectionProbe::new().jira(&site, &credential).await, ProbeOutcome::Rejected { status: 401 });
 }
 
 #[tokio::test]
 async fn a_jira_site_behind_a_proxy_is_asked_through_it() {
-    let site = JiraSite { url: "http://jira.invalid".into(), proxy_url: Some(serve(jira_site()).await) };
-    let credential = JiraCredential::cloud("ada@example.com", Secret::new("atl-good")).unwrap();
+    let site = AtlassianSite { url: "http://jira.invalid".into(), proxy_url: Some(serve(jira_site()).await) };
+    let credential = AtlassianCredential::cloud("ada@example.com", Secret::new("atl-good")).unwrap();
     let outcome = HttpConnectionProbe::new().jira(&site, &credential).await;
     assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("Ada Lovelace".into()), version: None });
 }
@@ -153,7 +157,126 @@ async fn a_data_center_personal_access_token_is_checked_through_v2_and_names_its
         ))
         .await,
     );
-    let credential = JiraCredential::data_center(Secret::new("NjQ0Mj")).unwrap();
+    let credential = AtlassianCredential::data_center(Secret::new("NjQ0Mj")).unwrap();
     let outcome = HttpConnectionProbe::new().jira(&site, &credential).await;
     assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("vcasale".into()), version: None });
+}
+
+fn instance(url: &str) -> GrafanaInstance {
+    GrafanaInstance { url: url.into(), proxy_url: None, accept_self_signed: false }
+}
+
+fn grafana_instance() -> Router {
+    Router::new().route(
+        "/api/user",
+        get(|headers: HeaderMap| async move {
+            match bearer(&headers).as_deref() {
+                Some("Bearer glsa-good") => Ok(Json(json!({ "login": "sa-rekall" }))),
+                _ => Err(AxumStatus::UNAUTHORIZED),
+            }
+        }),
+    )
+}
+
+fn service_account(token: &str) -> GrafanaCredential {
+    GrafanaCredential::service_account_token(Secret::new(token)).unwrap()
+}
+
+#[tokio::test]
+async fn a_grafana_user_and_password_are_sent_as_basic_authentication() {
+    let base = serve(Router::new().route(
+        "/api/user",
+        get(|headers: HeaderMap| async move {
+            match bearer(&headers).as_deref() {
+                Some("Basic YWRtaW46cGE1NQ==") => Ok(Json(json!({ "login": "admin" }))),
+                _ => Err(AxumStatus::UNAUTHORIZED),
+            }
+        }),
+    ))
+    .await;
+    let credential = GrafanaCredential::password("admin", Secret::new("pa55")).unwrap();
+    let outcome = HttpConnectionProbe::new().grafana(&instance(&base), &credential).await;
+    assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("admin".into()), version: None });
+}
+
+#[tokio::test]
+async fn a_good_grafana_token_is_accepted_and_names_its_service_account() {
+    let base = serve(grafana_instance()).await;
+    let outcome = HttpConnectionProbe::new().grafana(&instance(&format!("{base}/")), &service_account("glsa-good")).await;
+    assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("sa-rekall".into()), version: None });
+}
+
+#[tokio::test]
+async fn a_bad_grafana_token_is_rejected() {
+    let base = serve(grafana_instance()).await;
+    let outcome = HttpConnectionProbe::new().grafana(&instance(&base), &service_account("glsa-bad")).await;
+    assert_eq!(outcome, ProbeOutcome::Rejected { status: 401 });
+}
+
+/// The fake instance answers the absolute-form requests a proxy receives, so it stands in for the proxy:
+/// the instance's own host does not resolve, and only a request sent through the proxy gets an answer.
+#[tokio::test]
+async fn a_grafana_instance_behind_a_proxy_is_asked_through_it() {
+    let proxy = serve(grafana_instance()).await;
+    let outcome = HttpConnectionProbe::new().grafana(&GrafanaInstance { proxy_url: Some(proxy), ..instance("http://grafana.invalid") }, &service_account("glsa-good")).await;
+    assert_eq!(outcome, ProbeOutcome::Accepted { identity: Some("sa-rekall".into()), version: None });
+}
+
+async fn serve_self_signed(router: Router) -> String {
+    let certificates: Vec<CertificateDer<'static>> = CertificateDer::pem_slice_iter(include_bytes!("../../fixtures/self_signed_cert.pem")).collect::<Result<_, _>>().unwrap();
+    let key = PrivateKeyDer::from_pem_slice(include_bytes!("../../fixtures/self_signed_key.pem")).unwrap();
+    let config = tokio_rustls::rustls::ServerConfig::builder_with_provider(Arc::new(tokio_rustls::rustls::crypto::ring::default_provider()))
+        .with_safe_default_protocol_versions()
+        .unwrap()
+        .with_no_client_auth()
+        .with_single_cert(certificates, key)
+        .unwrap();
+    let acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        loop {
+            let (stream, _) = listener.accept().await.unwrap();
+            let acceptor = acceptor.clone();
+            let service = hyper_util::service::TowerToHyperService::new(router.clone());
+            tokio::spawn(async move {
+                let Ok(tls) = acceptor.accept(stream).await else { return };
+                let _ = hyper_util::server::conn::auto::Builder::new(hyper_util::rt::TokioExecutor::new())
+                    .serve_connection(hyper_util::rt::TokioIo::new(tls), service)
+                    .await;
+            });
+        }
+    });
+    format!("https://{address}")
+}
+
+#[tokio::test]
+async fn a_grafana_instance_with_a_self_signed_certificate_is_unreachable_until_the_connection_accepts_it() {
+    let base = serve_self_signed(grafana_instance()).await;
+    let verified = HttpConnectionProbe::new().grafana(&instance(&base), &service_account("glsa-good")).await;
+    let ProbeOutcome::Unreachable { reason } = verified else { panic!("a certificate nobody vouches for must not be trusted") };
+    assert!(reason.contains("UnknownIssuer"), "{reason}");
+
+    let trusting = GrafanaInstance { accept_self_signed: true, ..instance(&base) };
+    let accepted = HttpConnectionProbe::new().grafana(&trusting, &service_account("glsa-good")).await;
+    assert_eq!(accepted, ProbeOutcome::Accepted { identity: Some("sa-rekall".into()), version: None });
+}
+
+/// Confluence Data Center serves `/rest/api/user/current` and names a user by display name.
+#[tokio::test]
+async fn a_confluence_personal_access_token_is_checked_and_names_its_user_and_a_wrong_one_is_rejected() {
+    let site = direct(
+        serve(Router::new().route(
+            "/rest/api/user/current",
+            get(|headers: HeaderMap| async move {
+                if bearer(&headers) == Some("Bearer NjQ0Mj".to_string()) { Ok(Json(json!({ "displayName": "Ada Lovelace", "username": "ada" }))) } else { Err(AxumStatus::UNAUTHORIZED) }
+            }),
+        ))
+        .await,
+    );
+    let accepted = AtlassianCredential::data_center(Secret::new("NjQ0Mj")).unwrap();
+    let wrong = AtlassianCredential::data_center(Secret::new("wrong")).unwrap();
+
+    assert_eq!(HttpConnectionProbe::new().confluence(&site, &accepted).await, ProbeOutcome::Accepted { identity: Some("Ada Lovelace".into()), version: None });
+    assert_eq!(HttpConnectionProbe::new().confluence(&site, &wrong).await, ProbeOutcome::Rejected { status: 401 });
 }

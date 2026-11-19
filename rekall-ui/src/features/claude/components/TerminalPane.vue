@@ -8,7 +8,8 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
-import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
+import { launchChoices, preferredProvider } from '@/common/config/session-launch'
+import { SESSION_PROVIDER_LABEL, SESSION_WORKFLOW_LABEL } from '@/features/claude/model/session-provider'
 import type { Terminal, TerminalEndedFrame } from '@/features/claude/model/terminal'
 
 const store = useConsoleStore()
@@ -17,6 +18,7 @@ const { selectedTask } = storeToRefs(store)
 const { terminals: allTerminals, activeTerminal, activeTerminalId } = storeToRefs(terminals)
 const { run, isRunning } = useAsyncAction()
 
+const launchProvider = preferredProvider()
 const connected = ref(false)
 const ended = ref<{ exitCode: number; detail: string } | null>(null)
 const switcherOpen = ref(false)
@@ -70,9 +72,8 @@ async function openHere(): Promise<void> {
   await run(
     () =>
       terminals.openForTask(task.id, {
-        skipPermissions: skipsPermissions(),
-        model: preferredModel(),
-        effort: preferredEffort()
+        ...launchChoices(),
+        kind: 'TERMINAL'
       }),
     'Terminal opened'
   )
@@ -85,9 +86,8 @@ async function restart(): Promise<void> {
   await run(async () => {
     await terminals.close(current)
     await terminals.openForTask(task.id, {
-      skipPermissions: skipsPermissions(),
-      model: preferredModel(),
-      effort: preferredEffort()
+      ...launchChoices(),
+      kind: 'TERMINAL'
     })
   }, 'Terminal restarted')
 }
@@ -145,7 +145,7 @@ watch(
               <template #flags>
               <span
                 v-if="activeTerminal"
-                class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-surface-raised px-2 py-0.5 text-[10.5px] font-semibold tracking-[0.02em]"
+                class="inline-flex shrink-0 items-center gap-1.5 rounded-key bg-surface-raised px-2 py-0.5 text-micro font-semibold tracking-[0.02em]"
                 :class="connected ? 'text-safe' : ended ? 'text-text-subtle' : 'text-accent'"
                 data-testid="terminal-status"
               >
@@ -172,7 +172,7 @@ watch(
           <div class="flex shrink-0 items-center gap-1.5">
             <div v-if="otherSessions.length > 0" class="relative" @keydown="onSwitcherKeydown">
               <button
-                class="rounded-[3px] focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px]"
+                class="rounded-key focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px]"
                 :class="switcherOpen ? 'key-lit' : 'key-quiet'"
                 data-testid="terminal-other-sessions"
                 aria-haspopup="true"
@@ -225,7 +225,7 @@ watch(
             </div>
             <button
               v-if="activeTerminal"
-              class="key-quiet rounded-[3px] focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px]"
+              class="key-quiet rounded-key focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px]"
               data-testid="terminal-restart"
               :disabled="isRunning"
               @click="restart"
@@ -234,7 +234,7 @@ watch(
             </button>
             <button
               v-if="activeTerminal"
-              class="key-danger rounded-[3px] focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px]"
+              class="key-danger rounded-key focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px]"
               data-testid="terminal-close"
               :disabled="isRunning"
               @click="closeActive"
@@ -243,7 +243,7 @@ watch(
             </button>
             <button
               v-else
-              class="key-gold rounded-[3px] focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px] font-medium disabled:cursor-not-allowed disabled:opacity-60"
+              class="key-gold rounded-key focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px] font-medium disabled:cursor-not-allowed disabled:opacity-60"
               data-testid="terminal-open"
               :disabled="isRunning || !folder"
               @click="openHere"
@@ -253,20 +253,18 @@ watch(
           </div>
         </header>
         <div class="relative flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border bg-surface px-5 py-2">
-          <span v-if="activeTerminal" class="truncate font-mono text-[10.5px] text-text-subtle">
-            {{ activeTerminal.workingDir }}
+          <span v-if="activeTerminal" class="truncate font-mono text-micro text-text-subtle">
+            {{ SESSION_PROVIDER_LABEL[activeTerminal.provider] }} · {{ activeTerminal.workingDir }}
           </span>
           <span
             v-if="activeTerminal"
-            class="rounded-full px-1.5 py-px text-[10px] font-semibold tracking-[0.02em]"
+            class="rounded-key px-1.5 py-px text-[10px] font-semibold tracking-[0.02em]"
             :class="activeTerminal.skipPermissions ? 'bg-warn-soft text-warn' : 'bg-safe-soft text-safe'"
           >
             {{ activeTerminal.skipPermissions ? 'permissions skipped' : 'permissions on' }}
           </span>
           <span v-else class="text-[11.5px] text-text-muted">
-            A real terminal running <code class="text-anchor/80">claude</code> in this project's folder. It
-            loads <code class="text-anchor/80">/rk {{ selectedTask.anchor }}</code> first. Caching and
-            context behave exactly as they do in your own terminal.
+            Opens a terminal in this project’s folder and loads <code class="text-anchor/80">{{ selectedTask.anchor }}</code>.
           </span>
         </div>
       </div>
@@ -297,10 +295,10 @@ watch(
               No terminal open on this task
             </h3>
             <p class="mt-2 text-[12.5px] leading-relaxed text-text-muted">
-              Opening one starts <code class="text-anchor/80">claude</code> in a pseudo-terminal in
+              Opening one starts <code class="text-anchor/80">{{ launchProvider.toLowerCase() }}</code> in a pseudo-terminal in
               <span v-if="folder" class="font-mono text-[11.5px] text-text">{{ folder }}</span>
               <template v-else>this project's folder</template>, loads the task context with
-              <code class="text-anchor/80">/rk</code>, and hands it to you.
+              <code class="text-anchor/80">{{ SESSION_WORKFLOW_LABEL[launchProvider] }}</code>, and hands it to you.
             </p>
             <RouterLink
               v-if="!folder"

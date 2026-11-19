@@ -1,3 +1,4 @@
+use rekall_infra::session::SessionProvider;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -9,4 +10,8 @@ pub struct ClaudeCodeLaunch {
     pub(super) anchors: String,
     #[serde(default)]
     pub(super) skip_permissions: bool,
+    #[serde(default)]
+    pub(super) provider: SessionProvider,
+    pub(super) model: Option<String>,
+    pub(super) effort: Option<String>,
 }

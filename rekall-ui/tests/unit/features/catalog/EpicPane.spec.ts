@@ -37,8 +37,8 @@ function seed() {
   const store = useConsoleStore()
   store.tasks = [
     task(epic, { kind: 'EPIC', title: 'Epics', description: 'The concept the tasks share.' }),
-    task(done, { epicId: epic, status: 'DONE' }),
-    task(open, { epicId: epic, status: 'IN_PROGRESS' }),
+    task(done, { epicId: epic, status: 'DONE', code: 'P-1' }),
+    task(open, { epicId: epic, status: 'IN_PROGRESS', code: 'P-2', stepCount: 4, stepsDone: 1 }),
     task(loose),
     task(elsewhere, { epicId: otherEpic }),
     task(otherEpic, { kind: 'EPIC', title: 'Another epic' }),
@@ -54,7 +54,7 @@ function seed() {
 function render() {
   return mount(EpicPane, {
     attachTo: document.body,
-    global: { plugins: [pinia], stubs: { AppMarkdownEditor: true, NotesButton: true, RecordDialog: true, TaskTitleRow: true, TaskLabelsStrip: true } }
+    global: { plugins: [pinia], stubs: { AppMarkdownEditor: true, RecordDialog: true, TaskTitleRow: true, TaskLabelsStrip: true } }
   })
 }
 
@@ -74,12 +74,22 @@ describe('EpicPane', () => {
 
     expect(wrapper.get('[data-testid="epic-progress-panel"]').text()).toContain('1')
     expect(wrapper.findAll('[data-testid="epic-task-row"]').map((row) => row.text())).toEqual([
-      expect.stringContaining('Task t2'),
-      expect.stringContaining('Task t1')
+      expect.stringContaining('Task t1'),
+      expect.stringContaining('Task t2')
     ])
     expect(wrapper.getComponent({ name: 'AppMarkdownEditor' }).props('modelValue')).toBe('The concept the tasks share.')
     expect(wrapper.findComponent({ name: 'OpenTerminalButton' }).exists()).toBe(false)
     expect(wrapper.findComponent({ name: 'LaunchClaudeCodeButton' }).exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('says the status of each task, oldest task first', async () => {
+    seed()
+    const wrapper = render()
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid="epic-task-status"]').map((pill) => pill.text())).toEqual(['Done', 'In progress'])
+    expect(wrapper.get('[data-testid="epic-task-list"]').text()).toContain('1/4')
     wrapper.unmount()
   })
 
@@ -106,7 +116,7 @@ describe('EpicPane', () => {
     const store = seed()
     const wrapper = render()
 
-    await wrapper.findAll('[data-testid="epic-remove-task"]')[0]!.trigger('click')
+    await wrapper.findAll('[data-testid="epic-remove-task"]')[1]!.trigger('click')
     await flushPromises()
     expect(store.setTaskEpic).toHaveBeenCalledWith(open, null)
 

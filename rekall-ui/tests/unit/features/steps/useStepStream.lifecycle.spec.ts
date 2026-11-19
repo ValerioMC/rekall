@@ -86,18 +86,20 @@ describe('useStepStream lifecycle', () => {
     vi.unstubAllGlobals()
   })
 
-  it('opens exactly one connection per scope and closes every one on dispose', () => {
+  it('shares one connection between every scope and closes it when the last is disposed', () => {
     const scopes = Array.from({ length: 20 }, () => {
       const scope = effectScope()
       scope.run(() => useStepStream(vi.fn()))
       return scope
     })
 
-    expect(FakeEventSource.instances).toHaveLength(20)
+    expect(FakeEventSource.instances).toHaveLength(1)
 
-    scopes.forEach((scope) => scope.stop())
+    scopes.slice(1).forEach((scope) => scope.stop())
+    expect(FakeEventSource.instances[0]!.closed).toBe(false)
 
-    expect(FakeEventSource.instances.every((source) => source.closed)).toBe(true)
+    scopes[0]!.stop()
+    expect(FakeEventSource.instances[0]!.closed).toBe(true)
   })
 
   it('registers each frame listener once, not once per checklist change', () => {

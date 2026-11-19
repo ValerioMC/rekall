@@ -14,13 +14,13 @@ import type {
   Company,
   Project,
   ProjectRepository,
-  ProjectStatus,
   Tag,
   Task,
-  TaskKind,
-  TaskStatus,
-  TaskStepState
+  TaskKind
 } from '@/features/catalog/model/catalog'
+import type { ProjectStatus } from '@/features/catalog/model/project-status'
+import type { TaskStatus } from '@/features/catalog/model/task-status'
+import type { TaskStepState } from '@/features/steps/model/task-step'
 import type { CompanyId, ProjectId, TagId, TaskId } from '@/model/branded'
 
 export interface CompanyInput {
@@ -30,6 +30,8 @@ export interface CompanyInput {
 
 export interface ProjectInput {
   label: string
+  /** Blank or null: the server suggests one from the label. On an update, null keeps the stored one. */
+  taskKey: string | null
   title: string
   status: ProjectStatus
   icon: string
@@ -37,11 +39,12 @@ export interface ProjectInput {
   blueprintMarkdown: string | null
   repoFolder: string | null
   autoCommit: boolean
+  mainBranch: string | null
+  pullRequestFlow: boolean
   companyId: CompanyId
 }
 
 export interface TaskInput {
-  label: string
   title: string
   status: TaskStatus
   description: string | null
@@ -165,6 +168,11 @@ export async function updateTask(id: TaskId, input: TaskInput): Promise<Task> {
 
 export async function deleteTask(id: TaskId): Promise<void> {
   await request(() => apiClient(`/api/tasks/${id}`, { method: 'DELETE' }))
+}
+
+/** Writes the task's title and description to its issue in the project's task manager, creating the issue if it has none. */
+export async function syncTaskTracker(id: TaskId): Promise<Task> {
+  return request(async () => TaskSchema.parse(await apiClient(`/api/tasks/${id}/tracker-sync`, { method: 'POST' })))
 }
 
 /** Accept (`DONE`) or send back (`OPEN`) a stepless task's review line; other states are refused. */

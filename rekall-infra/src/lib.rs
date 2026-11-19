@@ -7,12 +7,14 @@
 //! check a stored credential, the Jira search and the advisory database. It serves no route: each
 //! capability implements a port of `rekall-core`, and `rekall-app` injects it.
 
+pub mod codex;
 pub mod backup;
 pub mod bootstrap;
 pub mod chat;
 pub mod check;
 pub mod cli;
 pub mod config;
+pub mod confluence;
 pub mod connection;
 pub mod credentials;
 pub mod installer;
@@ -24,6 +26,7 @@ pub mod queue;
 pub mod resources;
 pub mod restart;
 pub mod secret;
+pub mod tracker;
 pub mod session;
 pub mod transcript;
 pub mod usage;

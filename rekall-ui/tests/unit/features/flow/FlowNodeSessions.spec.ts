@@ -5,7 +5,7 @@ import FlowCanvas from '@/features/flow/components/FlowCanvas.vue'
 import { NODE_HEIGHT } from '@/features/flow/lib/flow-layout'
 import { SESSION_RIBBON_HEIGHT } from '@/features/flow/lib/session-marks'
 import { readFlow } from '@/features/flow/lib/step-flow'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import { releaseFlow } from './flow.fixtures'
 
 function canvasOf(steps: TaskStep[]) {

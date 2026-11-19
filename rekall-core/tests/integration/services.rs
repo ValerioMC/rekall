@@ -11,9 +11,10 @@ use rekall_kernel::{Id, Instant};
 use rekall_store::TaskStepState;
 use rekall_core::commit::AutoCommitStatus;
 use rekall_core::component::ComponentReferences;
-use rekall_core::step::Staging;
+use rekall_core::step::{NewStep, Staging, StepEdit};
 use rekall_core::timeentry::IDLE_AFTER;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
+use rekall_core::ProjectRef;
 use support::{commit, git, init_with_identity, world, world_at};
 
 // ------------------------------------------------------------------------------ step snapshot
@@ -359,7 +360,7 @@ async fn a_step_claim_commits_the_pending_changes_and_logs_the_commit_against_th
     assert_eq!(reference.step_id, Some(step.id));
     assert_eq!(reference.commit_hash, git(repo.path(), &["rev-parse", "HEAD"]));
     let message = git(repo.path(), &["log", "-1", "--format=%B"]);
-    assert_eq!(message, "feat: Wire the export endpoint\n\nRefs: project:vega task:report-builder, step 3");
+    assert_eq!(message, "feat: Wire the export endpoint\n\nRefs: task:REPORT-BUILDER, step 3");
     assert!(outcome.describe().contains(&format!("`{}`", &reference.commit_hash[..7])));
     assert!(outcome.describe().contains("\"Wire the export endpoint\""));
 }
@@ -408,7 +409,7 @@ async fn the_claiming_sessions_own_message_becomes_the_commit_message() {
 
     assert_eq!(
         git(repo.path(), &["log", "-1", "--format=%B"]),
-        "fix: stream the export\n\nIt no longer buffers the file.\n\nRefs: project:vega task:report-builder, step 3"
+        "fix: stream the export\n\nIt no longer buffers the file.\n\nRefs: task:REPORT-BUILDER, step 3"
     );
 }
 
@@ -528,12 +529,12 @@ async fn the_refusals_of_the_commit_log_name_their_reason() {
 
     let no_folder = references.record_latest_commit(task.id, None).await.unwrap_err();
     assert!(no_folder.is_illegal_argument() && no_folder.message().contains("folder"));
-    assert!(references.recent_commits(task.id).await.unwrap_err().message().contains("folder"));
+    assert!(references.recent_commits(task.id, None).await.unwrap_err().message().contains("folder"));
     let unknown = references.record_latest_commit(Id::random(), None).await.unwrap_err();
     assert!(matches!(unknown, rekall_kernel::RekallError::NotFound(_)));
     let wrong_step = references.record_latest_commit(task.id, Some(foreign.id)).await.unwrap_err();
     assert!(wrong_step.message().contains("does not belong"));
-    let missing_label = references.record_commit_by_anchor(Some("vega"), "missing", None, None).await.unwrap_err();
+    let missing_label = references.record_commit_by_anchor(Some("vega"), "missing", None, None, None).await.unwrap_err();
     assert!(matches!(missing_label, rekall_kernel::RekallError::UnknownAnchor(_)));
     assert!(matches!(references.diff_for(Id::random()).await.unwrap_err(), rekall_kernel::RekallError::NotFound(_)));
     assert!(matches!(references.delete(Id::random()).await.unwrap_err(), rekall_kernel::RekallError::NotFound(_)));
@@ -547,7 +548,7 @@ async fn a_logged_commit_is_chosen_for_the_context_and_a_missing_flag_reads_as_o
     let project = world.project("vega", Some(&repo.path().to_string_lossy()), false).await;
     let task = world.task(&project, "report-builder").await;
     let references = &world.services.commit_references;
-    let logged = references.record_commit_by_anchor(Some("vega"), "report-builder", None, None).await.unwrap();
+    let logged = references.record_commit_by_anchor(Some("vega"), "report-builder", None, None, None).await.unwrap();
 
     assert!(references.set_in_context(logged.id, Some(true)).await.unwrap().in_context);
     assert!(!references.set_in_context(logged.id, None).await.unwrap().in_context);
@@ -630,7 +631,7 @@ async fn accepting_a_claimed_step_stops_the_tasks_timer() {
     let step = world.step(&task, "export", 0, TaskStepState::Claimed).await;
     world.services.time_entries.start(task.id).await.unwrap();
 
-    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+    world.services.steps.edit(step.id, StepEdit { done: Some(true), ..StepEdit::default() }).await.unwrap();
 
     assert_eq!(running_entries(&world).await, 0);
 }
@@ -643,7 +644,7 @@ async fn ticking_an_open_step_by_hand_keeps_the_timer_running() {
     let step = world.step(&task, "export", 0, TaskStepState::Open).await;
     world.services.time_entries.start(task.id).await.unwrap();
 
-    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+    world.services.steps.edit(step.id, StepEdit { done: Some(true), ..StepEdit::default() }).await.unwrap();
 
     assert_eq!(running_entries(&world).await, 1);
 }
@@ -804,15 +805,15 @@ async fn a_commit_named_by_its_hash_is_read_by_that_hash_and_a_blank_hash_means_
     let task = world.task(&project, "report-builder").await;
     let references = &world.services.commit_references;
 
-    let named = references.record_commit(task.id, None, Some(&format!(" {} ", &earlier[..7]))).await.unwrap();
+    let named = references.record_commit(task.id, None, Some(&format!(" {} ", &earlier[..7])), None).await.unwrap();
     assert_eq!(named.commit_hash, earlier);
     assert_eq!(named.comment, "seed");
 
-    let blank = references.record_commit(task.id, None, Some("   ")).await.unwrap();
+    let blank = references.record_commit(task.id, None, Some("   "), None).await.unwrap();
     assert_eq!(blank.commit_hash, tip, "a blank hash is the plain button: the tip");
     assert_eq!(blank.comment, "The later one");
 
-    let by_anchor = references.record_commit_by_anchor(Some("vega"), "report-builder", None, Some(&earlier)).await.unwrap();
+    let by_anchor = references.record_commit_by_anchor(Some("vega"), "report-builder", None, Some(&earlier), None).await.unwrap();
     assert_eq!(by_anchor.id, named.id, "the MCP path passes the hash through, to the same row");
 }
 
@@ -826,11 +827,134 @@ async fn the_recent_log_is_read_from_the_tasks_project_folder_newest_first() {
     let project = world.project("vega", Some(&repo.path().to_string_lossy()), false).await;
     let task = world.task(&project, "report-builder").await;
 
-    let recent = world.services.commit_references.recent_commits(task.id).await.unwrap();
+    let recent = world.services.commit_references.recent_commits(task.id, None).await.unwrap();
 
     let subjects: Vec<&str> = recent.iter().map(|entry| entry.subject.as_str()).collect();
     assert_eq!(subjects, ["The later one", "seed"]);
     assert_eq!(recent[0].hash, git(repo.path(), &["rev-parse", "HEAD"]));
+}
+
+#[tokio::test]
+async fn a_tasks_changes_are_its_logged_commits_patches_oldest_first_and_the_working_tree() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    fs::write(repo.path().join("seed.txt"), "seed\nsecond\n").unwrap();
+    git(repo.path(), &["add", "-A"]);
+    commit(repo.path(), "Extend the seed");
+    let first = git(repo.path(), &["rev-parse", "HEAD"]);
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), false).await;
+    let task = world.task(&project, "report-builder").await;
+    world.services.commit_references.record_commit(task.id, None, Some(&first), None).await.unwrap();
+
+    let clean = world.services.task_changes.of_task(task.id).await.unwrap();
+
+    assert_eq!(clean.repositories.len(), 1);
+    assert_eq!(clean.repositories[0].component_id, None);
+    assert_eq!(clean.repositories[0].commits.len(), 1);
+    let logged = &clean.repositories[0].commits[0];
+    assert_eq!((logged.commit_hash.as_str(), logged.subject.as_str(), logged.available), (first.as_str(), "Extend the seed", true));
+    assert_eq!(logged.files.len(), 1);
+    assert_eq!((logged.files[0].path.as_str(), logged.files[0].additions, logged.files[0].deletions), ("seed.txt", 2, 1));
+    assert!(clean.repositories[0].working_tree.is_none(), "a clean tree has no working-tree change");
+
+    fs::write(repo.path().join("fresh.txt"), "new\n").unwrap();
+    let dirty = world.services.task_changes.of_task(task.id).await.unwrap();
+
+    let paths: Vec<&str> = dirty.repositories[0].working_tree.as_ref().unwrap().files.iter().map(|file| file.path.as_str()).collect();
+    assert_eq!(paths, ["fresh.txt"]);
+}
+
+#[tokio::test]
+async fn a_commit_git_no_longer_knows_is_read_from_the_diff_stored_when_it_was_logged() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), false).await;
+    let task = world.task(&project, "report-builder").await;
+    let stored = "diff --git a/gone.txt b/gone.txt\n--- a/gone.txt\n+++ b/gone.txt\n@@ -1 +1 @@\n-a\n+b\n";
+    rekall_store::commit_reference::Model {
+        id: Id::random(),
+        task_id: task.id,
+        step_id: None,
+        component_id: None,
+        commit_hash: "deadbeefdeadbeef".to_string(),
+        comment: "Rebased away".to_string(),
+        diff: Some(stored.to_string()),
+        in_context: false,
+        created_at: Instant::now(),
+    }
+    .into_active_model()
+    .insert(world.db())
+    .await
+    .unwrap();
+
+    let changes = world.services.task_changes.of_task(task.id).await.unwrap();
+
+    assert!(changes.repositories[0].commits[0].available);
+    assert_eq!(changes.repositories[0].commits[0].files[0].path, "gone.txt");
+}
+
+async fn add_component(world: &crate::support::World, project: &rekall_store::project::Model, name: &str, folder: &std::path::Path) -> rekall_store::project_component::Model {
+    use sea_orm::{ActiveModelTrait, IntoActiveModel};
+    let now = Instant::now();
+    let component = rekall_store::project_component::Model {
+        id: Id::random(), project_id: project.id, name: name.into(), folder: folder.to_string_lossy().into_owned(),
+        summary: String::new(), description: String::new(), position: 0, created_at: now, updated_at: now,
+    };
+    component.clone().into_active_model().insert(world.db()).await.unwrap();
+    component
+}
+
+#[tokio::test]
+async fn changes_are_grouped_by_the_repository_each_commit_was_read_from() {
+    let world = world().await;
+    let own = ready_repo().await;
+    let other = ready_repo().await;
+    fs::write(other.path().join("site.txt"), "page\n").unwrap();
+    git(other.path(), &["add", "-A"]);
+    commit(other.path(), "Add the page");
+    let project = world.project("vega", Some(&own.path().to_string_lossy()), false).await;
+    let component = add_component(&world, &project, "Site", other.path()).await;
+    let task = world.task(&project, "report-builder").await;
+    let references = &world.services.commit_references;
+
+    let logged = references.record_commit_by_anchor(Some("vega"), "report-builder", None, None, Some(" site ")).await.unwrap();
+    references.record_commit(task.id, None, None, None).await.unwrap();
+    let changes = world.services.task_changes.of_task(task.id).await.unwrap();
+
+    assert_eq!((logged.component_id, logged.component_name.as_deref()), (Some(component.id), Some("Site")));
+    let groups: Vec<_> = changes.repositories.iter().map(|group| (group.component_id, group.commits.len())).collect();
+    assert_eq!(groups, [(None, 1), (Some(component.id), 1)]);
+    assert_eq!(changes.repositories[1].name, "Site");
+    assert_eq!(changes.repositories[1].commits[0].subject, "Add the page");
+    assert_eq!(changes.repositories[1].commits[0].files[0].path, "site.txt");
+}
+
+#[tokio::test]
+async fn a_commit_is_refused_for_a_component_that_is_not_of_the_project() {
+    let world = world().await;
+    let own = ready_repo().await;
+    let elsewhere = ready_repo().await;
+    let project = world.project("vega", Some(&own.path().to_string_lossy()), false).await;
+    let other_project = world.project("orion", Some(&elsewhere.path().to_string_lossy()), false).await;
+    let foreign = add_component(&world, &other_project, "Foreign", elsewhere.path()).await;
+    let task = world.task(&project, "report-builder").await;
+
+    let refused = world.services.commit_references.record_commit(task.id, None, None, Some(foreign.id)).await.unwrap_err();
+    let unknown = world.services.commit_references.record_commit_by_anchor(Some("vega"), "report-builder", None, None, Some("Nope")).await.unwrap_err();
+
+    assert!(refused.message().contains("does not belong"));
+    assert!(unknown.message().contains("No component named 'Nope'"));
+}
+
+#[tokio::test]
+async fn a_task_with_no_commit_and_no_folder_has_no_changes() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "report-builder").await;
+
+    let changes = world.services.task_changes.of_task(task.id).await.unwrap();
+
+    assert!(changes.repositories.is_empty());
 }
 
 #[tokio::test]
@@ -861,20 +985,20 @@ async fn a_search_in_a_project_finds_its_own_text_even_when_other_projects_have_
     world.task(&orion, "ledger").await;
     world.services.notes.write(Some("orion"), "ledger", Some("ledger.md"), Some("Settlement of the ledger."), OnTitleClash::Refuse).await.unwrap();
 
-    let scoped = world.services.search.search_in_project(Some("settlement"), "vega").await.unwrap();
+    let scoped = world.services.search.search_in_project(Some("settlement"), &ProjectRef::bare("vega")).await.unwrap();
 
     assert_eq!(scoped.len(), 1, "{scoped:?}");
-    assert_eq!(scoped[0].r#where, "project:vega task:export");
+    assert_eq!(scoped[0].r#where, "task:EXPORT");
     assert!(scoped[0].excerpt.contains("settlement batch runs nightly"));
     assert!(world.services.search.search(Some("settlement")).await.unwrap().len() > scoped.len());
-    let in_orion = world.services.search.search_in_project(Some("settlement"), "orion").await.unwrap();
+    let in_orion = world.services.search.search_in_project(Some("settlement"), &ProjectRef::bare("orion")).await.unwrap();
     assert!(in_orion.iter().any(|hit| hit.title == "ledger.md" && hit.context_anchor.starts_with("note:")));
 }
 
 #[tokio::test]
 async fn a_search_in_an_unknown_project_is_refused() {
     let world = world().await;
-    assert!(world.services.search.search_in_project(Some("settlement"), "nowhere").await.is_err());
+    assert!(world.services.search.search_in_project(Some("settlement"), &ProjectRef::bare("nowhere")).await.is_err());
 }
 
 // ------------------------------------------------------------------------------ wrapup versions
@@ -1012,7 +1136,7 @@ async fn a_commit_logged_against_the_task_itself_does_not_count() {
     use rekall_core::wrapup::Freshness;
     let (world, repo, task) = stale_world("It lives in `a/b.rs`.").await;
     let own = commit_file(repo.path(), "a/b.rs", "one");
-    world.services.commit_references.record_commit(task.id, None, Some(&own)).await.unwrap();
+    world.services.commit_references.record_commit(task.id, None, Some(&own), None).await.unwrap();
 
     assert_eq!(world.services.wrapup_freshness.check(task.id).await.unwrap(), Freshness::Fresh);
 }
@@ -1064,7 +1188,7 @@ async fn a_step_sent_back_hands_the_next_session_its_earlier_pass_and_the_feedba
     let task = world.task(&project, "report-builder").await;
     let step = world.step(&task, "Aggregate the rows", 0, TaskStepState::Open).await;
     let steps = &world.services.steps;
-    steps.edit(step.id, None, Some("Sum by month"), None, None).await.unwrap();
+    steps.edit(step.id, StepEdit { body_markdown: Some("Sum by month"), ..StepEdit::default() }).await.unwrap();
     steps.transition(Some("vega"), "report-builder", Some("1"), TaskStepState::Claimed).await.unwrap();
 
     let sent_back = steps.send_back(step.id).await.unwrap();
@@ -1072,7 +1196,7 @@ async fn a_step_sent_back_hands_the_next_session_its_earlier_pass_and_the_feedba
     assert_eq!(sent_back.body_markdown, None);
     assert_eq!(sent_back.passes[0].detail_markdown.as_deref(), Some("Sum by month"));
 
-    steps.edit(step.id, None, Some("Group by week instead"), None, None).await.unwrap();
+    steps.edit(step.id, StepEdit { body_markdown: Some("Group by week instead"), ..StepEdit::default() }).await.unwrap();
     let record = world.services.context.load_task("vega", "report-builder").await.unwrap();
     let rendered = world.services.renderer.render_steps(&record.steps, &record.step_connections, None, &mut ComponentReferences::new(None));
 
@@ -1109,7 +1233,8 @@ async fn a_component_named_in_a_task_text_is_expanded_in_the_context_but_not_in_
         project_id: project.id,
         name: "Auth Service".into(),
         folder: "services/auth".into(),
-        description: "Issues tokens.".into(),
+        summary: "Issues tokens.".into(),
+        description: "## Purpose\nChecks them too.".into(),
         position: 0,
         created_at: now,
         updated_at: now,
@@ -1122,12 +1247,12 @@ async fn a_component_named_in_a_task_text_is_expanded_in_the_context_but_not_in_
     row.description = ActiveValue::Set(Some("Call [[auth service]] and [[Billing]].".into()));
     row.update(world.db()).await.unwrap();
     let step = world.step(&task, "Check the tokens", 0, TaskStepState::Open).await;
-    world.services.steps.edit(step.id, None, Some("Again [[Auth Service]]"), None, None).await.unwrap();
+    world.services.steps.edit(step.id, StepEdit { body_markdown: Some("Again [[Auth Service]]"), ..StepEdit::default() }).await.unwrap();
 
     let records = world.services.context.for_task(task.id).await.unwrap();
     let rendered = world.services.renderer.render(&records);
 
-    assert!(rendered.contains("Call **Auth Service** (component, folder `services/auth`): Issues tokens. and [[Billing]] (component not found in this project)."), "{rendered}");
+    assert!(rendered.contains("Call **Auth Service** (component, folder `services/auth`):\n\nIssues tokens.\n\n## Purpose\nChecks them too. and [[Billing]] (component not found in this project)."), "{rendered}");
     assert!(rendered.contains("Again **Auth Service** (component, folder `services/auth`)\n"), "{rendered}");
     let stored = world.services.context.for_task(task.id).await.unwrap();
     assert_eq!(stored[1].description.as_deref(), Some("Call [[auth service]] and [[Billing]]."));
@@ -1152,12 +1277,12 @@ async fn a_task_named_in_a_task_text_is_loaded_once_as_background_without_its_ch
     row.description = ActiveValue::Set(Some("Reuse [[task:export]] and [[task:missing]].".into()));
     row.update(world.db()).await.unwrap();
     let step = world.step(&task, "Wire the button", 0, TaskStepState::Open).await;
-    world.services.steps.edit(step.id, None, Some("Like [[task:export]]"), None, None).await.unwrap();
+    world.services.steps.edit(step.id, StepEdit { body_markdown: Some("Like [[task:export]]"), ..StepEdit::default() }).await.unwrap();
 
     let records = world.services.context.for_task(task.id).await.unwrap();
     let rendered = world.services.renderer.render(&records);
 
-    assert!(rendered.contains("Reuse **Title of export** (task `task:export`) and [[task:missing]] (task not found in this project)."), "{rendered}");
+    assert!(rendered.contains("Reuse **Title of export** (task `task:EXPORT`) and [[task:missing]] (task not found in this project)."), "{rendered}");
     assert_eq!(rendered.matches("### Task: Title of export").count(), 1, "{rendered}");
     assert!(rendered.contains("Writes the CSV export."), "{rendered}");
     assert!(rendered.contains("- `referenced`: named in the text of the task above."), "{rendered}");
@@ -1187,7 +1312,7 @@ async fn a_task_of_an_epic_inherits_its_description_and_notes_and_the_epic_lists
     row.update(world.db()).await.unwrap();
 
     let rendered = world.services.renderer.render(&world.services.context.for_task(task.id).await.unwrap());
-    assert!(rendered.contains("- `epic`: belongs to the epic `task:checkout` below"), "{rendered}");
+    assert!(rendered.contains("- `epic`: belongs to the epic `task:CHECKOUT` below"), "{rendered}");
     assert!(rendered.contains("### Epic: Title of checkout"), "{rendered}");
     assert!(rendered.contains("Every payment goes through one ledger."), "{rendered}");
     assert!(rendered.contains("The ledger rules."), "{rendered}");
@@ -1195,7 +1320,7 @@ async fn a_task_of_an_epic_inherits_its_description_and_notes_and_the_epic_lists
     let rendered = world.services.renderer.render(&world.services.context.for_task(epic.id).await.unwrap());
     assert!(rendered.contains("## Epic: Title of checkout"), "{rendered}");
     assert!(rendered.contains("1 task belongs to it (0 done)"), "{rendered}");
-    assert!(rendered.contains("  - `task:pay`"), "{rendered}");
+    assert!(rendered.contains("  - `task:PAY`"), "{rendered}");
 }
 
 #[tokio::test]
@@ -1208,7 +1333,7 @@ async fn a_task_context_lists_the_tasks_it_waits_for_and_where_each_stands() {
 
     let rendered = world.services.renderer.render(&world.services.context.for_task(export.id).await.unwrap());
 
-    assert!(rendered.contains("- `depends-on`: `project:vega task:report` (not accepted)."), "{rendered}");
+    assert!(rendered.contains("- `depends-on`: `task:REPORT` (not accepted)."), "{rendered}");
     assert!(rendered.contains("The run queue starts this task only once all are accepted."), "{rendered}");
 }
 
@@ -1236,7 +1361,6 @@ fn routed(title: &str, routes: &[(&str, Option<usize>)]) -> rekall_core::flow::P
 fn brief(title: &str, description: Option<&str>) -> rekall_core::task::TaskBrief {
     rekall_core::task::TaskBrief {
         title: Some(title.into()),
-        label: None,
         description: description.map(str::to_string),
         kind: rekall_store::TaskKind::Task,
         epic: None,
@@ -1256,12 +1380,13 @@ async fn a_session_creates_an_epic_and_files_a_new_task_under_it() {
     let world = world().await;
     world.project("vega", None, false).await;
 
-    let epic = world.services.task_authoring.create("vega", &epic_brief("Checkout"), &plan(vec![])).await.unwrap();
-    world.services.task_authoring.create("vega", &brief_under("Pay", "checkout"), &plan(vec![draft("Charge")])).await.unwrap();
+    let epic = world.services.task_authoring.create(&ProjectRef::bare("vega"), &epic_brief("Checkout"), &plan(vec![])).await.unwrap();
+    world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief_under("Pay", "VE-1"), &plan(vec![draft("Charge")])).await.unwrap();
 
     assert_eq!(epic.kind, rekall_store::TaskKind::Epic);
-    let epic = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "checkout").await.unwrap().unwrap();
-    let pay = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "pay").await.unwrap().unwrap();
+    assert_eq!(epic.task_anchor, "task:VE-1");
+    let epic = rekall_store::repository::task::find_by_code(world.db(), "VE-1").await.unwrap().unwrap();
+    let pay = rekall_store::repository::task::find_by_code(world.db(), "VE-2").await.unwrap().unwrap();
     assert!(epic.is_epic());
     assert_eq!(pay.epic_id, Some(epic.id));
 }
@@ -1272,8 +1397,8 @@ async fn an_epic_created_with_steps_or_under_a_plain_task_is_refused_and_creates
     let project = world.project("vega", None, false).await;
     world.task(&project, "report").await;
 
-    let with_steps = world.services.task_authoring.create("vega", &epic_brief("Checkout"), &plan(vec![draft("First")])).await.unwrap_err();
-    let under_plain = world.services.task_authoring.create("vega", &brief_under("Pay", "report"), &plan(vec![])).await.unwrap_err();
+    let with_steps = world.services.task_authoring.create(&ProjectRef::bare("vega"), &epic_brief("Checkout"), &plan(vec![draft("First")])).await.unwrap_err();
+    let under_plain = world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief_under("Pay", "report"), &plan(vec![])).await.unwrap_err();
 
     assert!(with_steps.to_string().contains("An epic holds no steps"), "{with_steps}");
     assert!(under_plain.to_string().contains("is not an epic"), "{under_plain}");
@@ -1284,18 +1409,18 @@ async fn an_epic_created_with_steps_or_under_a_plain_task_is_refused_and_creates
 async fn a_session_files_an_existing_task_under_an_epic_and_moves_it_between_epics() {
     let world = world().await;
     let project = world.project("vega", None, false).await;
-    world.services.task_authoring.create("vega", &epic_brief("Checkout"), &plan(vec![])).await.unwrap();
-    world.services.task_authoring.create("vega", &epic_brief("Billing"), &plan(vec![])).await.unwrap();
+    world.services.task_authoring.create(&ProjectRef::bare("vega"), &epic_brief("Checkout"), &plan(vec![])).await.unwrap();
+    world.services.task_authoring.create(&ProjectRef::bare("vega"), &epic_brief("Billing"), &plan(vec![])).await.unwrap();
     world.task(&project, "pay").await;
 
-    let joined = world.services.epic_membership.join(Some("vega"), "pay", "checkout").await.unwrap();
-    let moved = world.services.epic_membership.join(Some("vega"), "pay", "billing").await.unwrap();
+    let joined = world.services.epic_membership.join(Some("vega"), "pay", "VE-1").await.unwrap();
+    let moved = world.services.epic_membership.join(Some("vega"), "pay", "VE-2").await.unwrap();
 
-    assert_eq!(joined.epic_anchor, "project:vega task:checkout");
+    assert_eq!(joined.epic_anchor, "task:VE-1");
     assert_eq!(joined.left, None);
-    assert_eq!(moved.left.as_deref(), Some("checkout"));
-    let pay = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "pay").await.unwrap().unwrap();
-    let billing = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "billing").await.unwrap().unwrap();
+    assert_eq!(moved.left.as_deref(), Some("VE-1"));
+    let pay = rekall_store::repository::task::find_by_code(world.db(), "PAY").await.unwrap().unwrap();
+    let billing = rekall_store::repository::task::find_by_code(world.db(), "VE-2").await.unwrap().unwrap();
     assert_eq!(pay.epic_id, Some(billing.id));
 }
 
@@ -1303,8 +1428,8 @@ async fn a_session_files_an_existing_task_under_an_epic_and_moves_it_between_epi
 async fn an_epic_is_never_run() {
     let world = world().await;
     world.project("vega", Some("/tmp"), false).await;
-    world.services.task_authoring.create("vega", &epic_brief("Checkout"), &plan(vec![])).await.unwrap();
-    let epic = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "checkout").await.unwrap().unwrap();
+    world.services.task_authoring.create(&ProjectRef::bare("vega"), &epic_brief("Checkout"), &plan(vec![])).await.unwrap();
+    let epic = rekall_store::repository::task::find_by_code(world.db(), "VE-1").await.unwrap().unwrap();
 
     let refused = world.services.terminal_launch.resolve(rekall_core::claude::TerminalTarget::Task(epic.id)).await.unwrap_err();
 
@@ -1319,13 +1444,13 @@ async fn a_created_task_starts_todo_with_its_description_and_its_steps_as_drafts
     let created = world
         .services
         .task_authoring
-        .create("vega", &brief("  Task creation ", Some("Let the llm open tasks.")), &plan(vec![draft("First"), draft("Second")]))
+        .create(&ProjectRef::bare("vega"), &brief("  Task creation ", Some("Let the llm open tasks.")), &plan(vec![draft("First"), draft("Second")]))
         .await
         .unwrap();
 
-    assert_eq!(created.task_anchor, "project:vega task:task-creation");
+    assert_eq!(created.task_anchor, "task:VE-1");
     assert_eq!((created.steps, created.routes), (2, 0));
-    let task = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "task-creation").await.unwrap().unwrap();
+    let task = rekall_store::repository::task::find_by_code(world.db(), "VE-1").await.unwrap().unwrap();
     assert_eq!(task.project_id, project.id);
     assert_eq!(task.title, "Task creation");
     assert_eq!(task.status, rekall_store::TaskStatus::Todo);
@@ -1337,21 +1462,51 @@ async fn a_created_task_starts_todo_with_its_description_and_its_steps_as_drafts
 }
 
 #[tokio::test]
-async fn a_label_the_project_already_uses_is_refused_and_creates_nothing() {
+async fn each_task_of_a_project_takes_the_next_number_after_the_last() {
     let world = world().await;
-    let project = world.project("vega", None, false).await;
-    world.task(&project, "report-builder").await;
+    world.project("vega", None, false).await;
 
-    let refused = world
-        .services
-        .task_authoring
-        .create("vega", &brief("Report builder", None), &plan(vec![draft("First")]))
-        .await
-        .unwrap_err();
+    let first = world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief("Report builder", None), &plan(vec![draft("First")])).await.unwrap();
+    let second = world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief("Report builder", None), &plan(vec![draft("First")])).await.unwrap();
 
-    assert!(refused.to_string().contains("already uses the label 'report-builder'"), "{refused}");
-    assert_eq!(rekall_store::repository::task::list_of_project(world.db(), project.id).await.unwrap().len(), 1);
-    assert!(world.services.steps.find_all().await.unwrap().is_empty());
+    assert_eq!((first.task_anchor.as_str(), second.task_anchor.as_str()), ("task:VE-1", "task:VE-2"));
+}
+
+#[tokio::test]
+async fn a_task_is_named_by_its_code_in_any_case_and_a_project_beside_it_must_be_its_own() {
+    let world = world().await;
+    world.project("vega", None, false).await;
+    world.project("beacon", None, false).await;
+    world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief("Report builder", None), &plan(vec![])).await.unwrap();
+
+    let context = &world.services.context;
+    let found = context.load(Some(rekall_core::context::AnchorEntity::Task), "ve-1").await.unwrap();
+    let with_project = context.load_task("VEGA", "VE-1").await.unwrap();
+    let wrong_project = context.load_task("beacon", "VE-1").await.unwrap_err();
+    let unknown = context.load(Some(rekall_core::context::AnchorEntity::Task), "VE-9").await.unwrap_err();
+
+    assert_eq!((found.anchor.as_str(), with_project.anchor.as_str()), ("task:VE-1", "task:VE-1"));
+    assert!(wrong_project.to_string().contains("No task 'VE-1' on project 'beacon'"), "{wrong_project}");
+    assert!(unknown.to_string().contains("A task is named by its code"), "{unknown}");
+}
+
+#[tokio::test]
+async fn an_anchor_written_with_a_project_and_a_label_before_codes_existed_still_finds_its_task() {
+    use sea_orm::{ActiveModelTrait, ActiveValue};
+
+    let world = world().await;
+    world.project("vega", None, false).await;
+    world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief("Report builder", None), &plan(vec![])).await.unwrap();
+    let task = rekall_store::repository::task::find_by_code(world.db(), "VE-1").await.unwrap().unwrap();
+    let mut row = task.clone().into_active_model();
+    row.label = ActiveValue::Set("report-builder".into());
+    row.update(world.db()).await.unwrap();
+
+    let by_label = world.services.context.load_task("vega", "report-builder").await.unwrap();
+    let without_project = world.services.context.load(Some(rekall_core::context::AnchorEntity::Task), "report-builder").await.unwrap_err();
+
+    assert_eq!(by_label.anchor, task.anchor());
+    assert!(without_project.to_string().contains("No task 'report-builder'"), "{without_project}");
 }
 
 #[tokio::test]
@@ -1362,7 +1517,7 @@ async fn a_step_title_sent_twice_or_past_the_draft_cap_is_refused_before_anythin
     let too_many = plan((0..21).map(|at| draft(&format!("Step {at}"))).collect());
 
     for steps in [&twice, &too_many] {
-        let result = world.services.task_authoring.create("vega", &brief("New", None), steps).await;
+        let result = world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief("New", None), steps).await;
         assert!(result.is_err());
     }
 
@@ -1382,10 +1537,10 @@ async fn a_task_created_with_routes_is_a_flow_whose_open_steps_keep_their_sessio
         },
     ];
 
-    let created = world.services.task_authoring.create("vega", &brief("Release", None), &plan(steps)).await.unwrap();
+    let created = world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief("Release", None), &plan(steps)).await.unwrap();
 
     assert_eq!((created.steps, created.routes), (2, 3));
-    let task = rekall_store::repository::task::find_by_anchor(world.db(), "vega", "release").await.unwrap().unwrap();
+    let task = rekall_store::repository::task::find_by_code(world.db(), "VE-1").await.unwrap().unwrap();
     let stored = world.services.steps.find_by_task(task.id).await.unwrap();
     assert!(stored.iter().all(|step| step.state == TaskStepState::Open));
     assert_eq!(stored.iter().map(|step| step.starts_session).collect::<Vec<_>>(), [false, true]);
@@ -1399,7 +1554,7 @@ async fn a_flow_that_could_loop_forever_is_refused_at_creation_and_creates_nothi
     let project = world.project("vega", None, false).await;
     let steps = vec![routed("Test", &[("app-error", Some(1))]), routed("Fix", &[("fixed", Some(0))])];
 
-    let refused = world.services.task_authoring.create("vega", &brief("Release", None), &plan(steps)).await.unwrap_err();
+    let refused = world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief("Release", None), &plan(steps)).await.unwrap_err();
 
     assert!(refused.to_string().contains("can loop forever"), "{refused}");
     assert!(rekall_store::repository::task::list_of_project(world.db(), project.id).await.unwrap().is_empty());
@@ -1411,8 +1566,8 @@ async fn a_proposed_step_joins_the_running_session_unless_it_asks_for_a_new_one(
     let project = world.project("vega", None, false).await;
     let task = world.task(&project, "report-builder").await;
 
-    let joining = world.services.steps.propose(Some("vega"), "report-builder", Some("Wire"), None, false, Staging::Draft).await.unwrap();
-    let opening = world.services.steps.propose(Some("vega"), "report-builder", Some("Docs"), None, true, Staging::Draft).await.unwrap();
+    let joining = world.services.steps.propose(Some("vega"), "report-builder", NewStep::titled("Wire", None), Staging::Draft).await.unwrap();
+    let opening = world.services.steps.propose(Some("vega"), "report-builder", NewStep { starts_session: true, ..NewStep::titled("Docs", None) }, Staging::Draft).await.unwrap();
 
     assert!(!joining.step.starts_session);
     assert!(opening.step.starts_session);
@@ -1425,9 +1580,9 @@ async fn a_step_added_ready_is_open_and_sits_ahead_of_the_drafts_left_on_the_she
     let world = world().await;
     let project = world.project("vega", None, false).await;
     let task = world.task(&project, "report-builder").await;
-    world.services.steps.propose(Some("vega"), "report-builder", Some("Review me"), None, false, Staging::Draft).await.unwrap();
+    world.services.steps.propose(Some("vega"), "report-builder", NewStep::titled("Review me", None), Staging::Draft).await.unwrap();
 
-    let added = world.services.steps.propose(Some("vega"), "report-builder", Some("Wire"), None, false, Staging::Ready).await.unwrap();
+    let added = world.services.steps.propose(Some("vega"), "report-builder", NewStep::titled("Wire", None), Staging::Ready).await.unwrap();
 
     assert_eq!(added.draft_count, 1);
     let stored = world.services.steps.find_by_task(task.id).await.unwrap();
@@ -1444,9 +1599,9 @@ async fn a_step_can_be_made_to_open_a_session_and_made_to_join_one_again() {
     let task = world.task(&project, "report-builder").await;
     let step = world.step(&task, "Docs", 0, TaskStepState::Open).await;
 
-    let opened = world.services.steps.begin_session(step.id, true).await.unwrap();
+    let opened = world.services.step_bindings.begin_session(step.id, true).await.unwrap();
     assert!(opened[0].starts_session);
-    let joined = world.services.steps.begin_session(step.id, false).await.unwrap();
+    let joined = world.services.step_bindings.begin_session(step.id, false).await.unwrap();
     assert!(!joined[0].starts_session);
 }
 
@@ -1455,8 +1610,8 @@ async fn a_task_needs_a_title_and_a_project_that_exists() {
     let world = world().await;
     world.project("vega", None, false).await;
 
-    let untitled = world.services.task_authoring.create("vega", &brief("   ", None), &plan(vec![])).await.unwrap_err();
-    let unknown = world.services.task_authoring.create("nowhere", &brief("New", None), &plan(vec![])).await.unwrap_err();
+    let untitled = world.services.task_authoring.create(&ProjectRef::bare("vega"), &brief("   ", None), &plan(vec![])).await.unwrap_err();
+    let unknown = world.services.task_authoring.create(&ProjectRef::bare("nowhere"), &brief("New", None), &plan(vec![])).await.unwrap_err();
 
     assert!(untitled.to_string().contains("needs a title"), "{untitled}");
     assert!(unknown.to_string().contains("No project matches 'nowhere'"), "{unknown}");
@@ -1479,7 +1634,7 @@ async fn a_task_reads_as_spent_when_the_next_open_step_opens_a_session_of_its_ow
     let next = world.step(&task, "Docs", 1, TaskStepState::Open).await;
 
     assert!(!world.services.task_work.read(task.id).await.unwrap().next_opens_session);
-    world.services.steps.begin_session(next.id, true).await.unwrap();
+    world.services.step_bindings.begin_session(next.id, true).await.unwrap();
 
     let work = world.services.task_work.read(task.id).await.unwrap();
     assert!(work.next_opens_session);
@@ -1493,7 +1648,7 @@ async fn the_first_step_opening_a_session_is_no_boundary() {
     let project = world.project("vega", None, false).await;
     let task = world.task(&project, "report-builder").await;
     let first = world.step(&task, "Move", 0, TaskStepState::Open).await;
-    world.services.steps.begin_session(first.id, true).await.unwrap();
+    world.services.step_bindings.begin_session(first.id, true).await.unwrap();
 
     assert!(!world.services.task_work.read(task.id).await.unwrap().next_opens_session);
 }

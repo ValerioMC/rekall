@@ -1,3 +1,9 @@
+use std::sync::Arc;
+
+use rekall_infra::codex::CodexCli;
+use rekall_infra::login_shell::LoginShellEnvironment;
+use rekall_infra::session::{SessionOptions, SessionProvider};
+
 use std::path::{Path, PathBuf};
 
 use super::{expand_tilde, ClaudeCodeLaunch};
@@ -9,8 +15,7 @@ const ANCHOR_LIMIT: usize = 300;
 const HOME_RELATIVE_BINARIES: [&str; 3] = [".local/bin/claude", ".claude/local/claude", "bin/claude"];
 const KNOWN_DIRECTORIES: [&str; 3] = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"];
 
-/// Opens a terminal already loading a working context. The page never names a command: it sends
-/// a folder, an anchor and one flag, each checked here before a line of shell is written.
+/// The native bridge takes provider choices and anchors, with no executable or shell input.
 #[tauri::command]
 pub async fn open_in_claude_code(launch: ClaudeCodeLaunch) -> Result<String, String> {
     let directory = expand_tilde(&launch.directory);
@@ -22,7 +27,9 @@ pub async fn open_in_claude_code(launch: ClaudeCodeLaunch) -> Result<String, Str
         return Err("That anchor has characters an anchor cannot have".into());
     }
     let home = dirs::home_dir().unwrap_or_default();
-    let script = script(&directory.to_string_lossy(), &launch.anchors, launch.skip_permissions, &claude_binary(&home));
+    let options = options_of(&launch)?;
+    let binary = terminal_binary(&home, launch.provider).await?;
+    let script = script(&directory.to_string_lossy(), &launch.anchors, &options, &binary);
     let file = write_script(&script).map_err(|e| e.to_string())?;
     open_terminal(&file)
 }
@@ -32,11 +39,36 @@ pub fn is_safe_anchor(anchors: &str) -> bool {
     !trimmed.is_empty() && trimmed.chars().count() <= ANCHOR_LIMIT && trimmed.chars().all(|c| ANCHOR_CHARACTERS.contains(c))
 }
 
-/// The whole session in four lines. It removes itself first (the shell already holds the file
-/// open), and `exec` puts Claude Code in the shell's place, so closing the window ends it.
-pub fn script(directory: &str, anchors: &str, skip_permissions: bool, claude: &str) -> String {
-    let flag = if skip_permissions { " --dangerously-skip-permissions" } else { "" };
-    let command = format!("{}{flag} {}", quote(claude), quote(&format!("/rk {}", anchors.trim_matches([' ', '\t']))));
+fn options_of(launch: &ClaudeCodeLaunch) -> Result<SessionOptions, String> {
+    let model = launch.model.as_deref();
+    let effort = launch.effort.as_deref();
+    match launch.provider {
+        SessionProvider::Claude => Ok(SessionOptions::chosen(launch.skip_permissions, model, effort)),
+        SessionProvider::Codex => SessionOptions::codex(launch.skip_permissions, model, effort).map_err(|failure| failure.to_string()),
+    }
+}
+
+async fn terminal_binary(home: &Path, provider: SessionProvider) -> Result<String, String> {
+    match provider {
+        SessionProvider::Claude => Ok(claude_binary(home)),
+        SessionProvider::Codex => {
+            let shell = LoginShellEnvironment::new(None, std::time::Duration::from_secs(3));
+            shell.warm();
+            CodexCli::new(home.to_owned(), Arc::new(shell)).require().await
+                .map(|path| path.to_string_lossy().into_owned())
+                .map_err(|failure| failure.to_string())
+        }
+    }
+}
+
+fn script(directory: &str, anchors: &str, options: &SessionOptions, binary: &str) -> String {
+    let prompt = options.provider.command_prompt(&format!("/rk {}", anchors.trim_matches([' ', '\t'])));
+    let arguments = options.arguments();
+    let command = std::iter::once(quote(binary))
+        .chain(arguments.iter().map(|argument| quote(&argument.to_string_lossy())))
+        .chain(std::iter::once(quote(&prompt)))
+        .collect::<Vec<_>>()
+        .join(" ");
     format!("#!/bin/sh\nrm -f \"$0\"\ncd {} || exit 1\nexec {command}\n", quote(directory))
 }
 

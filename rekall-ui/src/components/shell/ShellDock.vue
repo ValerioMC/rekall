@@ -5,36 +5,31 @@ import { useRoute } from 'vue-router'
 import { useConsoleStore } from '@/stores/console.store'
 import { useChatWindowShown } from '@/features/chat/composables/useChatWindowShown'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
-import { useDockLane } from '@/composables/useDockLane'
-import { useNow } from '@/composables/useNow'
-import { formatClock } from '@/common/format/duration'
+import type { Terminal } from '@/features/claude/model/terminal'
 import RunningTasksPanel from './RunningTasksPanel.vue'
+import TerminalFloat from './TerminalFloat.vue'
 import TerminalSessionsPanel from './TerminalSessionsPanel.vue'
 
 /**
- * The bottom right corner: one bar, two segments, one panel open at a time.
- *
- * Running timers and live Claude sessions used to be two pills stacked in this corner, each
- * with its own sheet, so opening both put one sheet across the other and only the lower pill
- * told the rest of the interface how much room it took. Here they are two segments of a single
- * bar, the bar is the one thing that publishes the lane (`useDockLane`), and the sheet above
- * it belongs to whichever segment was pressed last. Pressing the other switches; pressing the
- * same one again, Escape, or a click anywhere else closes it. A segment that has nothing to
- * show leaves, and takes its sheet with it; when neither has anything, so does the bar.
+ * Live work: one capsule in the bottom left corner of every screen, two segments, one panel open
+ * at a time. The sheet belongs to whichever segment was pressed last: pressing the other
+ * switches; pressing the same one again, Escape, or a click anywhere else closes it. A segment
+ * that has nothing to show leaves, and takes its sheet with it; when neither has anything, so
+ * does the capsule. A terminal session picked from the sessions sheet opens in a floating panel
+ * above the bar instead of the full terminal pane; it stays until minimized or the session is gone.
  */
 type DockPanel = 'running' | 'sessions'
 
 const store = useConsoleStore()
 const terminals = useTerminalStore()
 const { runningEntries, paneFocus } = storeToRefs(store)
-const { terminals: allTerminals } = storeToRefs(terminals)
+const { terminals: allTerminals, floatingId } = storeToRefs(terminals)
 const route = useRoute()
-const now = useNow()
-const bar = useDockLane()
 const root = ref<HTMLElement | null>(null)
 const chatWindowShown = useChatWindowShown()
 
 const open = ref<DockPanel | null>(null)
+const floating = computed(() => allTerminals.value.find((terminal) => terminal.id === floatingId.value) ?? null)
 
 const liveSessions = computed(() => allTerminals.value.filter((terminal) => terminal.live))
 
@@ -43,15 +38,7 @@ const onTerminalPane = computed(() => route.name === 'console' && paneFocus.valu
 
 const showsRunning = computed(() => runningEntries.value.length > 0)
 const showsSessions = computed(() => liveSessions.value.length > 0 && !onTerminalPane.value && !chatWindowShown.value)
-const visible = computed(() => showsRunning.value || showsSessions.value)
-
-const latestRunning = computed(
-  () => [...runningEntries.value].sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0] ?? null
-)
-
-const latestClock = computed(() =>
-  latestRunning.value ? formatClock((now.value - Date.parse(latestRunning.value.startedAt)) / 1000) : null
-)
+const visible = computed(() => showsRunning.value || showsSessions.value || floating.value !== null)
 
 const awaitingApproval = computed(() => liveSessions.value.some((terminal) => terminal.awaitingPermission))
 const sessionsLabel = computed(() =>
@@ -61,12 +48,21 @@ const sessionsLabel = computed(() =>
 )
 
 function toggle(panel: DockPanel): void {
+  terminals.unfloat()
   open.value = open.value === panel ? null : panel
+}
+
+function float(terminal: Terminal): void {
+  terminals.float(terminal.id)
 }
 
 function close(): void {
   open.value = null
 }
+
+watch([onTerminalPane, floatingId], ([onPane, floatedId]) => {
+  if (onPane && floatedId) terminals.unfloat()
+})
 
 watch([showsRunning, showsSessions], ([running, sessions]) => {
   if (open.value === 'running' && !running) close()
@@ -97,16 +93,17 @@ onUnmounted(() => {
   <div
     v-if="visible"
     ref="root"
-    class="fixed bottom-2.5 right-4 z-(--z-sticky) flex flex-col items-end gap-2"
+    class="fixed bottom-2.5 left-4 z-(--z-sticky) flex flex-col items-start gap-2"
     data-testid="shell-dock"
   >
     <Transition name="popover" mode="out-in">
-      <RunningTasksPanel v-if="open === 'running'" @close="close" />
-      <TerminalSessionsPanel v-else-if="open === 'sessions'" @close="close" />
+      <RunningTasksPanel v-if="open === 'running'" class="w-[320px]" @close="close" />
+      <TerminalSessionsPanel v-else-if="open === 'sessions'" class="w-[320px]" @close="close" @float="float" />
     </Transition>
 
+    <TerminalFloat v-if="floating" :terminal="floating" />
+
     <div
-      ref="bar"
       class="dock-bar glass flex h-10 items-stretch overflow-hidden rounded-full border border-border-strong shadow-lift"
       role="toolbar"
       aria-label="Live work"
@@ -121,10 +118,7 @@ onUnmounted(() => {
         @click="toggle('running')"
       >
         <span class="time-dial shrink-0" aria-hidden="true" />
-        <span class="whitespace-nowrap">{{ runningEntries.length }} running</span>
-        <span v-if="latestClock" class="font-mono text-small tabular-nums text-accent">
-          {{ latestClock }}
-        </span>
+        <span class="whitespace-nowrap">{{ runningEntries.length }} in progress</span>
       </button>
 
       <span v-if="showsRunning && showsSessions" class="dock-divider" aria-hidden="true" />

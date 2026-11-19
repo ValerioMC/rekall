@@ -9,6 +9,8 @@ use rekall_store::{project, task, task_step, wrapup};
 use rekall_store::repository as repo;
 use sea_orm::ConnectionTrait;
 
+use crate::ProjectRef;
+
 /// The task by id, or `UnknownAnchor`: the MCP tools report a missing task as an anchor that resolves to nothing.
 pub async fn task_or_unknown(db: &impl ConnectionTrait, id: Id) -> Result<task::Model> {
     repo::task::find_by_id(db, id)
@@ -36,39 +38,60 @@ pub async fn review_active(db: &impl ConnectionTrait, task_id: Id) -> Result<boo
     Ok(rekall_store::task::review_active(steps.iter().map(|s| &s.state)))
 }
 
-/// How every write path resolves `project:<label> task:<label>`, or a bare task label that has
-/// to be unique across projects.
-pub async fn resolve_task(db: &impl ConnectionTrait, project_label: Option<&str>, task_label: &str) -> Result<task::Model> {
-    if let Some(project_label) = project_label {
-        return repo::task::find_by_anchor(db, project_label, task_label)
-            .await?
-            .ok_or_else(|| {
-                RekallError::unknown_anchor(format!("No task '{task_label}' on project '{project_label}'"))
-            });
-    }
-    let mut found = repo::task::find_by_label(db, task_label).await?;
-    if found.is_empty() {
-        return Err(RekallError::unknown_anchor(format!("No task matches '{task_label}'")));
-    }
-    if found.len() > 1 {
-        let mut candidates = Vec::with_capacity(found.len());
-        for task in &found {
-            candidates.push(project_of(db, task).await?.anchor());
-        }
-        return Err(RekallError::ambiguous(task_label, candidates));
-    }
-    Ok(found.remove(0))
+/// How every write path resolves `task:<code>`. A project label beside it must be the task's own,
+/// and with one given, a task label written before codes existed still finds its task.
+pub async fn resolve_task(db: &impl ConnectionTrait, project_label: Option<&str>, task_code: &str) -> Result<task::Model> {
+    let found = match (repo::task::find_by_code(db, task_code).await?, project_label) {
+        (Some(task), Some(project_label)) => owned_by(db, task, project_label).await?,
+        (Some(task), None) => Some(task),
+        (None, Some(project_label)) => repo::task::find_by_project_and_label(db, project_label, task_code).await?,
+        (None, None) => None,
+    };
+    found.ok_or_else(|| unknown_task(task_code, project_label))
 }
 
-/// The project `project:<label>` names. Labels are unique within a company only, so a label two
-/// companies share is ambiguous, and the candidates say which is which.
-pub async fn resolve_project(db: &impl ConnectionTrait, label: &str) -> Result<project::Model> {
-    let mut found = repo::project::find_by_label(db, label).await?;
-    match found.len() {
-        0 => Err(RekallError::unknown_anchor(format!("No project matches '{label}'"))),
-        1 => Ok(found.remove(0)),
-        _ => Err(RekallError::ambiguous(label, found.iter().map(|project| format!("{} ({})", project.anchor(), project.title)).collect())),
+async fn owned_by(db: &impl ConnectionTrait, task: task::Model, project_label: &str) -> Result<Option<task::Model>> {
+    let owner = project_of(db, &task).await?;
+    Ok(owner.label.eq_ignore_ascii_case(project_label).then_some(task))
+}
+
+fn unknown_task(task_code: &str, project_label: Option<&str>) -> RekallError {
+    match project_label {
+        Some(project_label) => RekallError::unknown_anchor(format!("No task '{task_code}' on project '{project_label}'")),
+        None => RekallError::unknown_anchor(format!("No task '{task_code}'. A task is named by its code, such as RK-12.")),
     }
+}
+
+/// The project `project:<label>` names. Labels are unique within a company only, so a bare label
+/// two companies share is ambiguous, and the candidates say which company each belongs to.
+pub async fn resolve_project(db: &impl ConnectionTrait, reference: &ProjectRef) -> Result<project::Model> {
+    if let Some(company) = reference.company.as_deref() {
+        return repo::project::find_by_anchor(db, company, &reference.label)
+            .await?
+            .ok_or_else(|| unknown_project(reference));
+    }
+    let mut found = repo::project::find_by_label(db, &reference.label).await?;
+    match found.len() {
+        0 => Err(unknown_project(reference)),
+        1 => Ok(found.remove(0)),
+        _ => Err(RekallError::ambiguous(&reference.label, qualified_candidates(db, &found).await?)),
+    }
+}
+
+fn unknown_project(reference: &ProjectRef) -> RekallError {
+    match reference.company {
+        Some(_) => RekallError::unknown_anchor(format!("No project matches '{reference}'")),
+        None => RekallError::unknown_anchor(format!("No project matches '{}'", reference.label)),
+    }
+}
+
+async fn qualified_candidates(db: &impl ConnectionTrait, projects: &[project::Model]) -> Result<Vec<String>> {
+    let mut candidates = Vec::with_capacity(projects.len());
+    for project in projects {
+        let company = repo::company::require(db, project.company_id).await?;
+        candidates.push(ProjectRef::in_company(&company.name, &project.label).to_string());
+    }
+    Ok(candidates)
 }
 
 /// A step by its one-based number in the checklist, or by its exact title.

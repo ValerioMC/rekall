@@ -3,13 +3,14 @@ import { componentBranches, componentMatches, relativeToRoot } from '@/features/
 import type { ProjectComponent } from '@/features/project/model/project-component'
 import type { ProjectComponentId, ProjectId } from '@/model/branded'
 
-function component(name: string, folder: string, description = ''): ProjectComponent {
+function component(name: string, folder: string, summary = ''): ProjectComponent {
   return {
     id: name as ProjectComponentId,
     projectId: 'p-1' as ProjectId,
     name,
     folder,
-    description,
+    summary,
+    description: '',
     position: 0,
     createdAt: '2026-10-24T10:00:00Z',
     updatedAt: '2026-10-24T10:00:00Z'
@@ -62,7 +63,7 @@ describe('the components tree', () => {
 describe('filtering components', () => {
   const ledger = component('ledger', '/work/shop/billing/ledger', 'Double-entry ledger')
 
-  it('matches the name, the folder or the description, ignoring case', () => {
+  it('matches the name, the folder or the summary, ignoring case', () => {
     expect(componentMatches(ledger, 'LEDG')).toBe(true)
     expect(componentMatches(ledger, 'billing')).toBe(true)
     expect(componentMatches(ledger, 'double-entry')).toBe(true)

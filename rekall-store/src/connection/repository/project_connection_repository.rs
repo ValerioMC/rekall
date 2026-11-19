@@ -68,3 +68,8 @@ pub async fn unbind(db: &impl ConnectionTrait, project_id: Id, binding_id: Id) -
     let deleted = Entity::delete_many().filter(Column::ProjectId.eq(project_id)).filter(Column::Id.eq(binding_id)).exec(db).await?;
     Ok(deleted.rows_affected > 0)
 }
+
+/// The project's task manager: the one binding flagged as such, with the connection it names.
+pub async fn task_manager_of_project(db: &impl ConnectionTrait, project_id: Id) -> Result<Option<(Model, external_connection::Model)>, RekallError> {
+    Ok(list_of_project(db, project_id).await?.into_iter().find(|(binding, _)| binding.task_manager))
+}

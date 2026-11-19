@@ -1,3 +1,4 @@
+import { sessionCommandPrompt } from '@/features/claude/model/session-provider'
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 import {
@@ -9,8 +10,8 @@ import {
 } from '@/features/claude/api/terminal.api'
 import { sendMessage } from '@/features/chat/api/chat.api'
 import { awaitRenewedSession } from '@/features/claude/lib/renewed-session'
-import { rkPlanCommand, rkPlanFlowCommand, rkReplanCommand, rkReviseCommand } from '@/common/format/rk-command'
-import type { PlanMode, Terminal } from '@/features/claude/model/terminal'
+import { rkPlanCommand, rkPlanFlowCommand, rkReplanCommand, rkReviseCommand, rkRewriteCommand } from '@/common/format/rk-command'
+import type { PlanMode, RewriteMode, Terminal } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId, TerminalId } from '@/model/branded'
 
 /**
@@ -21,6 +22,7 @@ export const useTerminalStore = defineStore('terminal', () => {
   const terminals = ref<Terminal[]>([])
   const activeTerminalId = ref<TerminalId | null>(null)
   const lastOpened = shallowRef<Terminal | null>(null)
+  const floatingId = ref<TerminalId | null>(null)
 
   const activeTerminal = computed(
     () => terminals.value.find((terminal) => terminal.id === activeTerminalId.value) ?? null
@@ -58,7 +60,7 @@ export const useTerminalStore = defineStore('terminal', () => {
   /**
    * Have a session propose this task's checklist, or its flow, or redesign the steps it has
    * (`REPLAN`), bending them to a message about what the plan missed, or evaluate the pending
-   * entries of its thread (`REVISE`). A live session on the
+   * entries of its thread (`REVISE`), or rewrite its description (`REWRITE_FIX`, `REWRITE_RESTRUCTURE`). A live session on the
    * task gets the plan line typed into it; without one, a terminal is opened that starts on that
    * line, so a plan never needs a session already running. Either way it becomes the active one.
    */
@@ -66,7 +68,7 @@ export const useTerminalStore = defineStore('terminal', () => {
     taskId: TaskId,
     anchor: string,
     input: Omit<OpenTerminalInput, 'stepId' | 'mode'>,
-    mode: PlanMode = 'PLAN',
+    mode: PlanMode | RewriteMode = 'PLAN',
     message = ''
   ): Promise<Terminal> {
     const live = terminalForTask(taskId)
@@ -99,7 +101,9 @@ export const useTerminalStore = defineStore('terminal', () => {
     if (opened.kind === 'TERMINAL') activeTerminalId.value = opened.id
   }
 
-  function planLine(mode: PlanMode, anchor: string, message: string): string {
+  function planLine(mode: PlanMode | RewriteMode, anchor: string, message: string): string {
+    if (mode === 'REWRITE_FIX') return rkRewriteCommand(anchor, 'FIX')
+    if (mode === 'REWRITE_RESTRUCTURE') return rkRewriteCommand(anchor, 'RESTRUCTURE')
     if (mode === 'PLAN_FLOW') return rkPlanFlowCommand(anchor)
     if (mode === 'REVISE') return rkReviseCommand(anchor)
     return mode === 'REPLAN' ? rkReplanCommand(anchor, message) : rkPlanCommand(anchor)
@@ -120,6 +124,15 @@ export const useTerminalStore = defineStore('terminal', () => {
     activeTerminalId.value = id
   }
 
+  /** Shows a session in the floating panel above the dock instead of the full terminal pane. */
+  function float(id: TerminalId): void {
+    floatingId.value = id
+  }
+
+  function unfloat(): void {
+    floatingId.value = null
+  }
+
   function markEnded(id: TerminalId): void {
     terminals.value = terminals.value.map((terminal) =>
       terminal.id === id ? { ...terminal, live: false } : terminal
@@ -132,14 +145,15 @@ export const useTerminalStore = defineStore('terminal', () => {
     } finally {
       terminals.value = terminals.value.filter((terminal) => terminal.id !== id)
       if (activeTerminalId.value === id) activeTerminalId.value = null
+      if (floatingId.value === id) floatingId.value = null
     }
   }
 
   /** Hand a line to a live session: typed into a terminal's stdin as if pasted there, sent as a message to a chat. */
   async function sendCommand(id: TerminalId, line: string): Promise<void> {
-    const isChat = terminals.value.some((terminal) => terminal.id === id && terminal.kind === 'CHAT')
-    if (isChat) await sendMessage(id, line)
-    else await sendTerminalInput(id, `${line}\r`)
+    const session = terminals.value.find((terminal) => terminal.id === id)
+    if (session?.kind === 'CHAT') await sendMessage(id, line)
+    else await sendTerminalInput(id, `${sessionCommandPrompt(session?.provider ?? 'CLAUDE', line)}\r`)
   }
 
   return {
@@ -147,6 +161,7 @@ export const useTerminalStore = defineStore('terminal', () => {
     activeTerminalId,
     activeTerminal,
     lastOpened,
+    floatingId,
     terminalForTask,
     upsert,
     load,
@@ -156,6 +171,8 @@ export const useTerminalStore = defineStore('terminal', () => {
     planForTask,
     followNextSession,
     select,
+    float,
+    unfloat,
     markEnded,
     close,
     sendCommand

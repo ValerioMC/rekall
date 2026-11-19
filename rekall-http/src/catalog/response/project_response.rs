@@ -8,6 +8,7 @@ use serde::Serialize;
 pub struct ProjectResponse {
     pub id: Id,
     pub label: String,
+    pub task_key: String,
     pub title: String,
     pub status: ProjectStatus,
     pub icon: String,
@@ -17,6 +18,8 @@ pub struct ProjectResponse {
     pub blueprint_markdown: Option<String>,
     pub repo_folder: Option<String>,
     pub auto_commit: bool,
+    pub main_branch: Option<String>,
+    pub pull_request_flow: bool,
     pub company_id: Id,
     pub company_name: String,
     pub task_count: usize,
@@ -29,6 +32,7 @@ impl From<ProjectView> for ProjectResponse {
         Self {
             id: view.id,
             label: view.label,
+            task_key: view.task_key,
             title: view.title,
             status: view.status,
             icon: view.icon,
@@ -37,6 +41,8 @@ impl From<ProjectView> for ProjectResponse {
             blueprint_markdown: view.blueprint_markdown,
             repo_folder: view.repo_folder,
             auto_commit: view.auto_commit,
+            main_branch: view.main_branch,
+            pull_request_flow: view.pull_request_flow,
             company_id: view.company_id,
             company_name: view.company_name,
             task_count: view.task_count,

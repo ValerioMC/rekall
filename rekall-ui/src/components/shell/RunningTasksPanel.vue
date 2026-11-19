@@ -8,7 +8,7 @@ import { useNow } from '@/composables/useNow'
 import { formatClock } from '@/common/format/duration'
 import { identityHue } from '@/common/identity'
 import DockPanel from './DockPanel.vue'
-import type { TimeEntry } from '@/features/catalog/model/catalog'
+import type { TimeEntry } from '@/features/time/model/time-entry'
 import type { TaskId } from '@/model/branded'
 
 const emit = defineEmits<{ close: [] }>()
@@ -36,9 +36,8 @@ async function stop(taskId: TaskId): Promise<void> {
 }
 
 function jumpTo(taskId: TaskId): void {
-  store.selectTask(taskId)
   emit('close')
-  if (router.currentRoute.value.name !== 'console') void router.push({ name: 'console' })
+  void router.push(`/task/${taskId}`)
 }
 </script>
 

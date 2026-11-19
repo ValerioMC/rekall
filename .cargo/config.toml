@@ -1,0 +1,5 @@
+# Apple ld 27106.1 (Command Line Tools on macOS 27) writes chained-fixup dylibs that dyld rejects
+# ("mis-aligned LINKEDIT string pool") once the deployment target is 12 or higher, as Tauri sets
+# it. rustc then reports every proc-macro crate as "can't find crate".
+[target.'cfg(target_os = "macos")']
+rustflags = ["-C", "link-arg=-Wl,-no_fixup_chains"]

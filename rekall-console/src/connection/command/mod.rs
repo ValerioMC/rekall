@@ -1,3 +1,4 @@
+pub(super) mod confluence_import_command;
 pub(super) mod connection_access_page_command;
 pub(super) mod connection_command;
 pub(super) mod connection_credential_command;

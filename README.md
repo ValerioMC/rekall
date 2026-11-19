@@ -1,8 +1,19 @@
 # Rekall
 
-Rekall stores your projects, tasks and markdown notes, and loads one task in full into a Claude Code session on a single command.
+```mermaid
+sequenceDiagram
+    participant Console
+    participant Rekall
+    participant CLI as Claude Code or Codex
+    Console->>Rekall: Open a task session with the chosen provider
+    Rekall->>CLI: Start in the project folder with the task anchor
+    CLI->>Rekall: Load the task over MCP
+    Rekall-->>CLI: Return the context, checklist and notes
+```
 
-Projects, tasks and notes live in a local app. `/rk project:vega task:report-builder` loads that task, its project, its checklist and every attached note. `/rk project:vega task:report-builder wrapup` records what the implementation is now, so the next session starts from the current state instead of reading the code back.
+Rekall stores your projects, tasks and markdown notes and loads a task into Claude Code or Codex.
+
+Projects, tasks and notes live in a local app. `/rk task:VG-12` loads that task, its project, its checklist and every note on it. `/rk task:VG-12 wrapup` records what the implementation is now, so the next session starts from the current state instead of reading the code back.
 
 Source-available, not open source. See [License](#license).
 
@@ -32,7 +43,7 @@ make ui      # the frontend alone
 | UI      | `http://localhost:47355`     |
 | MCP     | `http://localhost:47355/mcp` |
 
-Port 47355 is fixed because the MCP endpoint is registered with Claude Code by URL, so a clash breaks the registration rather than moving the app. `SERVER_PORT` overrides it for the server, the desktop app and the tests.
+Port 47355 is fixed because the MCP endpoint is registered with each provider by URL, so a clash breaks the registration rather than moving the app. `SERVER_PORT` overrides it for the server, the desktop app and the tests.
 
 ### This machine only
 
@@ -68,9 +79,17 @@ powershell -ExecutionPolicy Bypass -File scripts\windows-installer.ps1
 
 The per-user setup is written to `target\release\bundle\nsis\Rekall_<version>_x64-setup.exe`. Options and details: [docs/guide/desktop.md](docs/guide/desktop.md#windows-installer).
 
-## Connect Claude Code
+## Connect a session provider
 
-**Settings > Claude Code** in the app registers the MCP server for every folder and installs the `/rk` command in one click, with its mode files in `~/.claude/rk/`. It also repairs a registration that points at the wrong port, carries an older command or a missing or older mode file, or is shadowed in one folder by a registration made without `--scope user`. While a registration is out of date, a warning triangle sits on the Settings key in the top bar until Repair is run.
+Choose **Claude Code** or **Codex** under **Settings > Sessions and run queue > Provider**. Each keeps its own model, reasoning effort and permission settings. **Connect Codex** registers the same MCP endpoint and installs the `$rekall` skill. When both CLIs are installed, the console shows their account usage percentages side by side. [Session settings and limits](docs/guide/sessions.md#provider-settings)
+
+When both CLIs are installed, the arrow beside **Run here** or **Start quick task** lets you choose the provider for that run. The main button uses your default provider.
+
+On macOS and Linux, either provider can use the project’s saved connections from a terminal opened with **Run here**.
+
+### Claude Code
+
+**Settings > Sessions and run queue** in the app registers the MCP server for every folder and installs the `/rk` command in one click, with its mode files in `~/.claude/rk/`. It also repairs a registration that points at the wrong port, carries an older command or a missing or older mode file, or is shadowed in one folder by a registration made without `--scope user`. While a registration is out of date, a warning triangle sits on the Settings key in the top bar until Repair is run.
 
 From a terminal:
 
@@ -84,10 +103,12 @@ mkdir -p ~/.claude/rk && cp .claude/rk/*.md ~/.claude/rk/
 `--scope user` registers the server for every directory. Without it, `/rk` works only in the directory `claude mcp add` ran from. Restart any open session, then:
 
 ```
-/rk project:vega task:report-builder
+/rk task:VG-12
 ```
 
-**Open in terminal**, on a task, hands the session to your own terminal app in the project's folder with `/rk` already running. Set the folder in the **Folder** field of the project page's **Settings** tab. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Claude Code** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside the desktop app. **Run here** runs a session inside the app instead, as a terminal or, if you pick **Chat** under **Settings > Claude Code > Session view**, as a chat window; see [Terminals](docs/guide/sessions.md) and its [Chat view](docs/guide/sessions.md#chat-view).
+**Fix wording** and **Restructure**, a split button on the description pane beside the Write/Read toggle, have a session rewrite the task's description with `/rk … rewrite fix` or `rewrite restructure` (see the table below). It is disabled while the description is blank or has unsaved changes. When the new text arrives an **Undo** puts the old one back; Rekall keeps no history, so that text is held in the console window only and is gone once you edit, leave the task or close the console.
+
+**Open in terminal**, on a task, hands the selected provider to your own terminal app in the project’s folder with the task already loading. Set the folder in the **Folder** field of the project page's **Settings** tab, under **Repository**. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Sessions and run queue** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside the desktop app. **Run here** runs a session inside the app instead, as a terminal or, if you pick **Chat** under **Settings > Sessions and run queue > Session view**, as a chat window; see [Terminals](docs/guide/sessions.md) and its [Chat view](docs/guide/sessions.md#chat-view).
 
 ## Anchor syntax
 
@@ -95,7 +116,7 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 
 | Form | Meaning |
 |------|---------|
-| `/rk project:vega task:report-builder` | The project and that task, both in full |
+| `/rk task:VG-12` | The project and that task, both in full |
 | `/rk project:vega` | The project, plus its tasks as a list of anchors |
 | `/rk vega report-builder` | Positional. Works while each term matches one record |
 | `/rk task:"report builder"` | Quote a value containing spaces |
@@ -104,6 +125,7 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 | `/rk … section "Deployment" "how we ship"` | Write a titled section on the task's project, or rewrite the one with that title |
 | `/rk … plan` | Propose the task's checklist, open and ready to work, with Mermaid diagrams of the solution where they help, then stop; `plan flow` proposes a flow |
 | `/rk … replan ["what the plan missed"]` | Redesign the task's draft and open steps as new ready-to-work steps, bending them to the quoted message when there is one; running, claimed and done steps stay |
+| `/rk … rewrite fix` / `rewrite restructure` | Replace the task's description with `rekall_description`: the same text with its wording corrected, or laid out under Goal, Problem, Solution, Implementation and Out of scope (a project page titled `Task template` replaces those headings); nothing keeps the old text, then stop |
 | `/rk … step:3 start` / `step:3 done` | Move a step to running / claimed; on a flow `done outcome:<name>` follows that route |
 | `/rk project:vega generate kinds:sequence,state "how checkout charges"` | Store a diagram answering the request, one sheet per type |
 | `/rk project:vega explain "how an order is placed"` | Store a walkthrough the console plays step by step |
@@ -111,7 +133,7 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 | `/rk project:vega assess advisory:GHSA-xxxx-xxxx-xxxx` | Record whether that advisory's vulnerable code is really reached; without `advisory:`, every one not assessed yet |
 | `/rk note:3f2a9c1e` | A note sent by reference, loaded in full |
 
-An anchor brings back the record, everything it references resolved in full with their notes, what references it as anchors, and its own markdown. A note can be attached to several tasks and arrives with each. If a bare term matches more than one record, the candidates come back and nothing loads. `project:` disambiguates a label two projects share.
+An anchor brings back the record, everything it references resolved in full with their notes, what references it as anchors, and its own markdown. A note belongs to one task and arrives with it. If a bare term matches more than one record, the candidates come back and nothing loads. A task is named by its code, `RK-12`, which is unique across every project.
 
 ## MCP tools
 
@@ -120,18 +142,21 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_context` | read | Resolve anchors, return markdown |
 | `rekall_wrapup` | write | Replace one task's wrapup |
 | `rekall_step` | write | Move one step: `open` to `running` to `claimed`; on a flow, a claim's `outcome` follows that route and its `report` reaches the step it leads to |
-| `rekall_record_commit` | write | Log a commit of the project's repo folder against one task or step |
+| `rekall_record_commit` | write | Log a commit of the project's repo folder, or of one component's repository, against one task or step |
 | `rekall_propose_step` | write | Add one step, open and ready to work (`draft: true` leaves it for a person to promote); `new_session` makes it open a fresh Claude session |
 | `rekall_replan` | write | Replace a task's draft and open steps with a new checklist or flow in one transaction; running, claimed and done steps stay, and a refused plan deletes nothing |
 | `rekall_delete_step` | write | Delete one draft or open step; a running, claimed or done step is refused |
 | `rekall_propose_flow` | write | Add a whole flow to a task with no steps: its steps and the routes between them, open and ready to work (`draft: true` leaves them for a person to promote) |
 | `rekall_create_task` | write | Create a task or an epic in a project with a description and up to 20 steps that start open, as a checklist or a flow with its sessions (none on an epic), optionally filed under an epic |
 | `rekall_join_epic` | write | File an existing task under an epic of its project, or move it from another epic |
+| `rekall_description` | write | Replace the description of one task with a new text, whole; the old text is not kept and no revision opens |
 | `rekall_note` | write | Write a note on one task, or rewrite one it carries by title with `replace` |
-| `rekall_feedback` | write | Reply to the pending entries of a task's thread, by seq; it cannot create, edit or delete an entry |
+| `rekall_feedback` | write | Reply to the open entries of a task's thread, by seq; it cannot create, edit or delete an entry |
 | `rekall_deviation` | write | Record where the work departed from the plan, on one task and for one step; kept apart from the notes |
 | `rekall_project_section` | write | Write a titled markdown section on a task's project, or rewrite one by title with `replace` |
 | `rekall_read_sections` | read | List a project's sections by title, or read one whole with `title` |
+| `rekall_component` | write | Record a folder of a project as a component: a name, a folder, a summary every context carries and a structured markdown description; the component with that name or folder is rewritten |
+| `rekall_read_components` | read | List a project's components with their summaries, or read one whole with `name` |
 | `rekall_search` | read | Find a phrase in descriptions, steps, wrapups and notes, optionally in one project; returns anchors and excerpts to load with `rekall_context` |
 | `rekall_diagram` | write | Store Mermaid sheets generated for a project or one of its tasks, or replace a diagram by id |
 | `rekall_inventory` | write | Replace a project's dependency inventory whole |
@@ -151,11 +176,12 @@ The guides describe each area as it behaves today, with its REST routes and prop
 | Deployment graphs | A project's route from commit to running app, laid on a task | [workflow](docs/guide/workflow.md#deployment-graphs) |
 | Epics | A task that gathers other tasks and passes its brief to them | [workflow](docs/guide/workflow.md#epics) |
 | Commits | A ledger of commits per task or step; commit on claim | [workflow](docs/guide/workflow.md#commits) |
-| Review | Accept a claim, send a step back, and keep corrections to a description in its thread (revisions, feedback on the work or the plan) that a session replies to; the review queue and its notifications | [workflow](docs/guide/workflow.md#description-review) |
-| Terminals | A real `claude` in a pseudo-terminal inside the app, or the same `claude` as a chat window (Settings > Claude Code > Session view); the run queue, which can work up to four tasks at once in git worktrees of their own; the usage meter | [sessions](docs/guide/sessions.md) |
+| Pull requests | A project that turns on **Merge through a pull request** pushes each task's branch and opens a GitHub pull request or GitLab merge request when its work is claimed, merges it with a merge commit when the task is accepted, and has a session resolve a conflict | [workflow](docs/guide/workflow.md#pull-request-flow) |
+| Review | Accept a claim, send a step back, and keep revisions of a description in a tab beside it (each aimed at the work or the plan), run as numbered passes that a session replies to; the review queue and its notifications | [workflow](docs/guide/workflow.md#description-review) |
+| Terminals | A real `claude` in a pseudo-terminal inside the app, or the same `claude` as a chat window (Settings > Sessions and run queue > Session view); the run queue, which can work up to four tasks at once in git worktrees of their own; the usage meter | [sessions](docs/guide/sessions.md) |
 | Token usage | Tokens Claude Code generated per task and step, read from its transcripts | [sessions](docs/guide/sessions.md#token-usage) |
-| Projects | Page, sections, components, icons, autoconfigure; connections to GitLab, GitHub, Kubernetes and Jira shared across companies | [projects](docs/guide/projects.md) |
-| Console | Search, notes and their scopes, tags, skills, the markdown editor, timers | [console](docs/guide/console.md) |
+| Projects | Page, sections, components, icons, autoconfigure; connections to GitLab, GitHub, Kubernetes, Jira, Confluence and Grafana shared across companies; a Confluence space that fills a project's description, blueprint and sections; a task manager (GitLab, GitHub or Jira) that receives the project's tasks, and a main branch their work is merged into | [projects](docs/guide/projects.md) |
+| Console | Search, notes, tags, skills, the markdown editor, timers | [console](docs/guide/console.md) |
 | Report | Hours per client over a week or a month | [console](docs/guide/console.md#report) |
 | Claude resources | Edit `~/.claude`: instructions, skills, commands, agents, memories, memory review | [claude-resources](docs/guide/claude-resources.md) |
 | Diagrams | Mermaid diagrams linked to code, and walkthroughs the console plays | [diagrams](docs/guide/diagrams.md) |

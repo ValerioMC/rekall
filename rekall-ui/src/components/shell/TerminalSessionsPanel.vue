@@ -13,7 +13,7 @@ import TerminalConnectionChips from '@/features/connection/components/TerminalCo
 import type { Terminal } from '@/features/claude/model/terminal'
 import type { TerminalId } from '@/model/branded'
 
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; float: [terminal: Terminal] }>()
 
 const terminals = useTerminalStore()
 const toast = useToastStore()
@@ -25,8 +25,16 @@ const live = computed(() => allTerminals.value.filter((terminal) => terminal.liv
 
 const sorted = computed(() => [...live.value].sort((a, b) => b.startedAt.localeCompare(a.startedAt)))
 
+const groups = computed(() =>
+  [
+    { id: 'task', title: 'Working on a task', terminals: sorted.value.filter((terminal) => terminal.taskId) },
+    { id: 'project', title: 'Not on a task', terminals: sorted.value.filter((terminal) => !terminal.taskId) }
+  ].filter((group) => group.terminals.length)
+)
+
 function jumpTo(terminal: Terminal): void {
-  openSession(terminal)
+  if (terminal.kind === 'TERMINAL' && terminal.taskId) emit('float', terminal)
+  else openSession(terminal)
   emit('close')
 }
 
@@ -52,7 +60,14 @@ async function logCommit(terminal: Terminal): Promise<void> {
     tint="session"
     @close="emit('close')"
   >
-    <li v-for="terminal in sorted" :key="terminal.id" data-testid="terminal-dock-row">
+    <template v-for="group in groups" :key="group.id">
+    <li
+      class="px-2 pb-1 pt-2 font-mono text-micro uppercase tracking-wide text-text-subtle"
+      :data-testid="`terminal-dock-group-${group.id}`"
+    >
+      {{ group.title }}
+    </li>
+    <li v-for="terminal in group.terminals" :key="terminal.id" data-testid="terminal-dock-row">
       <div
         class="flex items-center gap-2.5 rounded-control px-2 py-2 hover:bg-surface-raised"
       >
@@ -78,7 +93,7 @@ async function logCommit(terminal: Terminal): Promise<void> {
         </button>
         <span
           v-if="terminal.kind === 'CHAT'"
-          class="shrink-0 rounded-full px-1.5 py-px text-micro font-semibold"
+          class="shrink-0 rounded-key px-1.5 py-px text-micro font-semibold"
           :class="terminal.awaitingPermission ? 'bg-warn-soft text-warn' : 'bg-surface-raised text-text-muted'"
           data-testid="terminal-dock-kind"
         >
@@ -126,5 +141,6 @@ async function logCommit(terminal: Terminal): Promise<void> {
         :connections="terminal.connections"
       />
     </li>
+    </template>
   </DockPanel>
 </template>

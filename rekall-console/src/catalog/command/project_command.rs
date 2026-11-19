@@ -4,6 +4,7 @@ use rekall_store::ProjectStatus;
 #[derive(Clone, Debug, Default)]
 pub struct ProjectCommand {
     pub label: Option<String>,
+    pub task_key: Option<String>,
     pub title: Option<String>,
     pub status: Option<ProjectStatus>,
     pub icon: Option<String>,
@@ -11,5 +12,7 @@ pub struct ProjectCommand {
     pub blueprint_markdown: Option<String>,
     pub repo_folder: Option<String>,
     pub auto_commit: Option<bool>,
+    pub main_branch: Option<String>,
+    pub pull_request_flow: Option<bool>,
     pub company_id: Option<Id>,
 }

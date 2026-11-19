@@ -7,6 +7,7 @@ import { useGraphAttach } from '../features/graph/store/useGraphAttach'
 import { useConsoleNavigation } from './console/useConsoleNavigation'
 import { useConsoleRefreshes } from './console/useConsoleRefreshes'
 import { useConsoleView } from './console/useConsoleView'
+import { useConfluenceImport } from '../features/connection/store/useConfluenceImport'
 import { useJiraImport } from '../features/connection/store/useJiraImport'
 import { useNoteWrites } from '../features/notes/store/useNoteWrites'
 import { useProjectWrites } from '../features/catalog/store/useProjectWrites'
@@ -21,7 +22,6 @@ import { useVulnerabilityFix } from '../features/vulnerability/store/useVulnerab
 import { useWrapupWrites } from '../features/wrapup/store/useWrapupWrites'
 
 export type { SaveState } from './console/console-state'
-export type { NoteDraft } from '../features/notes/store/useNoteWrites'
 
 /**
  * The console's one store: every row the console shows and where the reader is in them. Each
@@ -48,6 +48,7 @@ export const useConsoleStore = defineStore('console', () => {
   const commitReferences = useCommitReferences(state)
   const skills = useSkillAssignments(state)
   const jiraImport = useJiraImport(state, refreshes)
+  const confluenceImport = useConfluenceImport(refreshes)
   const vulnerabilityFix = useVulnerabilityFix(state, refreshes)
 
   return {
@@ -57,11 +58,8 @@ export const useConsoleStore = defineStore('console', () => {
     scopedProject: view.scopedProject,
     scopePath: view.scopePath,
     scopeAnchor: view.scopeAnchor,
-    scopeName: view.scopeName,
+    scopedTasks: view.scopedTasks,
     visibleTasks: view.visibleTasks,
-    visibleDocuments: view.visibleDocuments,
-    recentDocuments: view.recentDocuments,
-    elsewhere: view.elsewhere,
     ...selected,
     ...navigation,
     load: refreshes.load,
@@ -86,6 +84,7 @@ export const useConsoleStore = defineStore('console', () => {
     ...commitReferences,
     ...skills,
     ...jiraImport,
+    ...confluenceImport,
     ...vulnerabilityFix
   }
 })

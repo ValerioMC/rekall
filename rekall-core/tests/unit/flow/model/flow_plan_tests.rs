@@ -116,3 +116,38 @@ fn the_shape_still_refuses_what_no_flow_could_hold() {
     assert!(FlowPlan::new(vec![step("Test", &[("again", Some(0))])]).check_shape().is_err());
     assert!(FlowPlan::new(vec![step("Test", &[]), step("test", &[])]).check_shape().is_err());
 }
+
+#[test]
+fn a_plan_that_follows_kept_steps_counts_its_routes_from_its_own_first_step() {
+    let plan = FlowPlan::new(vec![step("Build", &[("built", Some(3))]), step("Ship", &[])]);
+
+    let following = plan.following(&["Old one", "Old two"]).unwrap();
+
+    assert_eq!(following.steps[0].routes[0].to, Some(1));
+    following.check().unwrap();
+}
+
+#[test]
+fn a_route_into_a_kept_step_is_refused_naming_it() {
+    let plan = FlowPlan::new(vec![step("Build", &[("built", Some(1))]), step("Ship", &[])]);
+
+    let error = plan.following(&["Old one", "Old two"]).unwrap_err().to_string();
+
+    assert!(error.contains("to step 2, 'Old two', which stays as it is"), "{error}");
+}
+
+#[test]
+fn a_plan_following_kept_steps_quotes_whole_checklist_numbers_in_a_refusal() {
+    let plan = FlowPlan::new(vec![step("Build", &[("built", Some(9))])]).following(&["Old one"]).unwrap();
+
+    let error = plan.check().unwrap_err().to_string();
+
+    assert!(error.contains("to step 10, and the flow has 2 steps"), "{error}");
+}
+
+#[test]
+fn the_end_of_the_flow_stays_a_valid_target_after_kept_steps() {
+    let plan = FlowPlan::new(vec![step("Build", &[("built", None)])]).following(&["Old one"]).unwrap();
+
+    plan.check().unwrap();
+}

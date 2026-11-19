@@ -13,6 +13,8 @@ pub struct FeedbackView {
     pub reply_markdown: Option<String>,
     pub created_at: Instant,
     pub applied_at: Option<Instant>,
+    pub pass: Option<i32>,
+    pub taken_at: Option<Instant>,
 }
 
 impl FeedbackView {
@@ -28,6 +30,8 @@ impl FeedbackView {
             reply_markdown: entry.reply_markdown.clone(),
             created_at: entry.created_at,
             applied_at: entry.applied_at,
+            pass: entry.pass,
+            taken_at: entry.taken_at,
         }
     }
 }

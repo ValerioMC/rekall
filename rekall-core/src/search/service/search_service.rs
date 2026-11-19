@@ -1,8 +1,7 @@
 use rekall_kernel::{jstr, Id, RekallError, Result};
-use rekall_store::task;
 use rekall_store::repository as repo;
 
-use crate::{in_read, load, Ctx, Tx};
+use crate::{in_read, load, Ctx, ProjectRef, Tx};
 
 use crate::search::{SearchHit, SearchHitKind};
 
@@ -26,18 +25,18 @@ impl SearchService {
     }
 
     /// The same search restricted to what belongs to one project; a note counts when any of its tasks does.
-    pub async fn search_in_project(&self, raw_term: Option<&str>, project_label: &str) -> Result<Vec<SearchHit>> {
-        self.search_scoped(raw_term, Some(project_label)).await
+    pub async fn search_in_project(&self, raw_term: Option<&str>, project_ref: &ProjectRef) -> Result<Vec<SearchHit>> {
+        self.search_scoped(raw_term, Some(project_ref)).await
     }
 
-    async fn search_scoped(&self, raw_term: Option<&str>, project_label: Option<&str>) -> Result<Vec<SearchHit>> {
+    async fn search_scoped(&self, raw_term: Option<&str>, project_ref: Option<&ProjectRef>) -> Result<Vec<SearchHit>> {
         let term = jstr::collapse_whitespace(jstr::strip(raw_term.unwrap_or("")));
         if jstr::len(&term) < TERM_MIN {
             return Ok(Vec::new());
         }
         in_read!(&self.ctx, |tx| {
-            let scope = match project_label {
-                Some(label) => Some(load::resolve_project(tx.db(), label).await?.id),
+            let scope = match project_ref {
+                Some(reference) => Some(load::resolve_project(tx.db(), reference).await?.id),
                 None => None,
             };
             let mut hits = description_hits(&tx, &term, scope).await?;
@@ -60,7 +59,7 @@ async fn description_hits(tx: &Tx, term: &str, scope: Option<Id>) -> Result<Vec<
         if hits.len() == PER_KIND {
             break;
         }
-        let anchor = anchor_of(tx, &task).await?;
+        let anchor = task.anchor();
         hits.push(SearchHit {
             kind: SearchHitKind::Description,
             task_id: Some(task.id),
@@ -87,7 +86,7 @@ async fn step_hits(tx: &Tx, term: &str, scope: Option<Id>) -> Result<Vec<SearchH
             break;
         }
         let shown = if contains(step.body_markdown.as_deref(), term) { step.body_markdown.as_deref() } else { Some(step.title.as_str()) };
-        let anchor = anchor_of(tx, &task).await?;
+        let anchor = task.anchor();
         hits.push(SearchHit {
             kind: SearchHitKind::Step,
             task_id: Some(task.id),
@@ -112,7 +111,7 @@ async fn wrapup_hits(tx: &Tx, term: &str, scope: Option<Id>) -> Result<Vec<Searc
         if hits.len() == PER_KIND {
             break;
         }
-        let anchor = anchor_of(tx, &task).await?;
+        let anchor = task.anchor();
         hits.push(SearchHit {
             kind: SearchHitKind::Wrapup,
             task_id: Some(task.id),
@@ -127,16 +126,12 @@ async fn wrapup_hits(tx: &Tx, term: &str, scope: Option<Id>) -> Result<Vec<Searc
     Ok(hits)
 }
 
-/// A note opens on the first task it is attached to (the first one in the project, when scoped);
-/// a detached one has no anchor and is outside every project.
+/// A note opens on the task it belongs to.
 async fn note_hits(tx: &Tx, term: &str, scope: Option<Id>) -> Result<Vec<SearchHit>> {
     let mut hits = Vec::new();
     for document in repo::document::search_newest_first(tx.db(), term, candidates_wanted(scope)).await? {
-        let first = repo::document::tasks_of_document(tx.db(), document.id)
-            .await?
-            .into_iter()
-            .find(|task| in_scope(scope, task.project_id));
-        if scope.is_some() && first.is_none() {
+        let task = repo::task::require(tx.db(), document.task_id).await?;
+        if !in_scope(scope, task.project_id) {
             continue;
         }
         if hits.len() == PER_KIND {
@@ -145,14 +140,11 @@ async fn note_hits(tx: &Tx, term: &str, scope: Option<Id>) -> Result<Vec<SearchH
         let shown = if contains(Some(&document.body_markdown), term) { &document.body_markdown } else { &document.title };
         hits.push(SearchHit {
             kind: SearchHitKind::Note,
-            task_id: first.as_ref().map(|t| t.id),
+            task_id: Some(task.id),
             step_id: None,
             document_id: Some(document.id),
             title: document.title.clone(),
-            r#where: match &first {
-                Some(task) => anchor_of(tx, task).await?,
-                None => String::new(),
-            },
+            r#where: task.anchor(),
             context_anchor: document.anchor(),
             excerpt: excerpt(Some(shown), term),
         });
@@ -166,10 +158,6 @@ fn candidates_wanted(scope: Option<Id>) -> usize {
 
 fn in_scope(scope: Option<Id>, project_id: Id) -> bool {
     scope.is_none_or(|wanted| wanted == project_id)
-}
-
-async fn anchor_of(tx: &Tx, task: &task::Model) -> Result<String> {
-    Ok(task.anchor(&load::project_of(tx.db(), task).await?.label))
 }
 
 fn contains(text: Option<&str>, term: &str) -> bool {

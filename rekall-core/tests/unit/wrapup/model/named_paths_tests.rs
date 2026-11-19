@@ -18,7 +18,7 @@ fn files_and_rekall_folders_in_backticks_are_named() {
 
 #[test]
 fn names_that_are_not_paths_are_left_out() {
-    let wrapup = "`GET /api/tasks/{id}/check-results` and `rekall_context` and `project:vega task:x` and `.claude/rk/*.md` \
+    let wrapup = "`GET /api/tasks/{id}/check-results` and `rekall_context` and `task:X` and `.claude/rk/*.md` \
                   and `StepSnapshotService::take` and `https://example.com/a.md` and `/api/search.json` and `../x/y.rs` \
                   and `notes/readme` and `a/b.exe`.";
 

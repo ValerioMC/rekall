@@ -54,7 +54,7 @@ async function showEarlier(): Promise<void> {
         <li v-if="hidden > 0" class="flex justify-center">
           <button
             type="button"
-            class="focus-ring key-quiet h-7 cursor-pointer rounded-control px-3 text-caption"
+            class="focus-ring key-quiet h-7 cursor-pointer rounded-key px-3 text-caption"
             data-testid="chat-show-earlier"
             @click="showEarlier"
           >
@@ -81,7 +81,7 @@ async function showEarlier(): Promise<void> {
     <button
       v-if="!stuck"
       type="button"
-      class="focus-ring key-gold absolute bottom-3 left-1/2 h-7 -translate-x-1/2 cursor-pointer rounded-control px-3 text-caption font-semibold"
+      class="focus-ring key-gold absolute bottom-3 left-1/2 h-7 -translate-x-1/2 cursor-pointer rounded-key px-3 text-caption font-semibold"
       data-testid="chat-jump-to-latest"
       @click="jumpToLatest"
     >

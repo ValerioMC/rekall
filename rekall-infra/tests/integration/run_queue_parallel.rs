@@ -9,7 +9,9 @@ use std::time::Duration;
 
 use rekall_core::claude::{ClaudeUsageView, InMemoryTerminalHost, Limit, SessionKind, Severity, TerminalHost, TerminalMode, UsageReader};
 use rekall_core::queue::{QueueRunner, RunQueueService};
-use rekall_core::worktree::{ScriptedWorktreeHost, TaskWorktreeService};
+use rekall_core::step::StepEdit;
+use rekall_core::connection::{PullRequestMerge, ScriptedPullRequestHost};
+use rekall_core::worktree::{ScriptedWorktreeHost, TaskPullRequestService, TaskWorktreeService};
 use rekall_infra::queue::RunQueueRunner;
 use rekall_infra::worktree::WorktreeCleaner;
 use rekall_kernel::Instant;
@@ -71,8 +73,12 @@ async fn harness(world: &World, parallel: i32) -> Harness {
 }
 
 fn start_cleaner(world: &World, worktrees: TaskWorktreeService) -> Arc<InMemoryTerminalHost> {
+    start_cleaner_with(world, worktrees, world.pull_requests())
+}
+
+fn start_cleaner_with(world: &World, worktrees: TaskWorktreeService, pull_requests: TaskPullRequestService) -> Arc<InMemoryTerminalHost> {
     let sessions = Arc::new(InMemoryTerminalHost::new());
-    WorktreeCleaner::start(&world.events, world.services.task_work.clone(), worktrees, sessions.clone(), Duration::from_millis(50));
+    WorktreeCleaner::start(&world.events, world.services.task_work.clone(), worktrees, pull_requests, sessions.clone(), Duration::from_millis(50));
     sessions
 }
 
@@ -205,7 +211,7 @@ async fn accepting_a_task_removes_its_clean_worktree_and_the_task_forgets_it() {
     let folder = worktrees.ensure(task.id).await.unwrap();
     let _ = start_cleaner(&world, worktrees);
 
-    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+    world.services.steps.edit(step.id, StepEdit { done: Some(true), ..StepEdit::default() }).await.unwrap();
 
     eventually("the worktree to go", || async { worktree_of(&world, &task).await.is_none() }).await;
     assert!(!folder.exists());
@@ -223,10 +229,56 @@ async fn accepting_a_task_merges_its_branch_before_its_worktree_goes() {
     git.leave_commits("rekall/one");
     let _ = start_cleaner(&world, worktrees);
 
-    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+    world.services.steps.edit(step.id, StepEdit { done: Some(true), ..StepEdit::default() }).await.unwrap();
 
     eventually("the worktree to go", || async { worktree_of(&world, &task).await.is_none() }).await;
     assert_eq!(git.merged(), vec!["rekall/one".to_string()]);
+}
+
+#[tokio::test]
+async fn accepting_a_task_on_the_pull_request_flow_merges_its_pull_request_and_not_its_branch() {
+    let world = world().await;
+    let (worktrees, git) = world.worktrees();
+    let host = Arc::new(ScriptedPullRequestHost::new());
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    world.run_pull_request_flow(&project).await;
+    let task = world.task(&project, "one").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Claimed).await;
+    worktrees.ensure(task.id).await.unwrap();
+    git.leave_commits("rekall/one");
+    let link = rekall_store::task_tracker_link::Model { task_id: task.id, issue_key: Some("12".into()), issue_url: None, sync_error: None, synced_fingerprint: None, created_at: Instant::now(), updated_at: Instant::now() };
+    rekall_store::repository::task_tracker_link::save(world.db(), link).await.unwrap();
+    let _ = start_cleaner_with(&world, worktrees, world.pull_requests_over(git.clone(), host.clone()));
+
+    world.services.steps.edit(step.id, StepEdit { done: Some(true), ..StepEdit::default() }).await.unwrap();
+
+    eventually("the worktree to go", || async { worktree_of(&world, &task).await.is_none() }).await;
+    assert_eq!((host.opened().len(), host.merged(), host.closed_issues()), (1, vec![1], vec!["12".to_string()]));
+    assert_eq!((git.pushed(), git.merged()), (vec!["rekall/one".to_string()], Vec::<String>::new()));
+}
+
+#[tokio::test]
+async fn a_pull_request_the_host_refuses_keeps_the_worktree_and_records_why() {
+    let world = world().await;
+    let (worktrees, git) = world.worktrees();
+    let host = Arc::new(ScriptedPullRequestHost::new());
+    host.merge_answers_with(PullRequestMerge::Refused("Required status check is failing".into()));
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    world.run_pull_request_flow(&project).await;
+    let task = world.task(&project, "one").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Claimed).await;
+    worktrees.ensure(task.id).await.unwrap();
+    let _ = start_cleaner_with(&world, worktrees, world.pull_requests_over(git, host.clone()));
+
+    world.services.steps.edit(step.id, StepEdit { done: Some(true), ..StepEdit::default() }).await.unwrap();
+
+    eventually("the reason to be kept", || async {
+        let stored = rekall_store::repository::task_pull_request::find_of_task(world.db(), task.id).await.unwrap();
+        stored.and_then(|stored| stored.failure).is_some_and(|failure| failure.contains("Required status check is failing"))
+    })
+    .await;
+    assert!(worktree_of(&world, &task).await.is_some());
+    assert!(host.merged().is_empty());
 }
 
 #[tokio::test]
@@ -241,7 +293,7 @@ async fn accepting_a_task_whose_branch_conflicts_opens_one_merge_session_and_kee
     git.conflict_on("rekall/one");
     let sessions = start_cleaner(&world, worktrees);
 
-    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+    world.services.steps.edit(step.id, StepEdit { done: Some(true), ..StepEdit::default() }).await.unwrap();
 
     eventually("the merge session", || async { sessions.has_live_for(task.id) }).await;
     tokio::time::sleep(Duration::from_millis(300)).await;
@@ -250,6 +302,33 @@ async fn accepting_a_task_whose_branch_conflicts_opens_one_merge_session_and_kee
     assert_eq!(openings[0].mode, TerminalMode::Merge);
     assert!(git.merged().is_empty());
     assert!(folder.exists());
+}
+
+#[tokio::test]
+async fn a_conflicting_pull_request_opens_one_merge_session_and_merges_once_the_session_has_pushed() {
+    let world = world().await;
+    let (worktrees, git) = world.worktrees();
+    let host = Arc::new(ScriptedPullRequestHost::new());
+    host.merge_answers_with(PullRequestMerge::Conflicting);
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    world.run_pull_request_flow(&project).await;
+    let task = world.task(&project, "one").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Claimed).await;
+    let folder = worktrees.ensure(task.id).await.unwrap();
+    let sessions = start_cleaner_with(&world, worktrees, world.pull_requests_over(git, host.clone()));
+    world.services.steps.edit(step.id, StepEdit { done: Some(true), ..StepEdit::default() }).await.unwrap();
+    eventually("the merge session", || async { sessions.has_live_for(task.id) }).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(sessions.openings().len(), 1);
+    assert_eq!(sessions.openings()[0].mode, TerminalMode::MergePullRequest { base: "main".into() });
+    assert!(folder.exists() && host.merged().is_empty());
+
+    host.merge_answers_with(PullRequestMerge::Merged);
+
+    eventually("the worktree to go", || async { worktree_of(&world, &task).await.is_none() }).await;
+    assert_eq!(host.merged(), vec![1]);
+    assert!(!sessions.has_live_for(task.id));
+    assert_eq!(sessions.openings().len(), 1);
 }
 
 #[tokio::test]
@@ -263,7 +342,7 @@ async fn once_the_merge_session_resolves_the_conflict_the_branch_merges_and_the_
     git.leave_commits("rekall/one");
     git.conflict_on("rekall/one");
     let sessions = start_cleaner(&world, worktrees);
-    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+    world.services.steps.edit(step.id, StepEdit { done: Some(true), ..StepEdit::default() }).await.unwrap();
     eventually("the merge session", || async { sessions.has_live_for(task.id) }).await;
 
     git.resolve_conflict("rekall/one");
@@ -285,7 +364,7 @@ async fn a_merge_session_that_ends_with_the_conflict_unresolved_is_not_opened_ag
     git.leave_commits("rekall/one");
     git.conflict_on("rekall/one");
     let sessions = start_cleaner(&world, worktrees);
-    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+    world.services.steps.edit(step.id, StepEdit { done: Some(true), ..StepEdit::default() }).await.unwrap();
     eventually("the merge session", || async { sessions.has_live_for(task.id) }).await;
 
     sessions.end(sessions.list()[0].id);
@@ -306,7 +385,7 @@ async fn accepting_a_task_whose_worktree_has_unsaved_changes_leaves_it_alone() {
     git.leave_unsaved_changes("rekall/one");
     let _ = start_cleaner(&world, worktrees);
 
-    world.services.steps.edit(step.id, None, None, Some(true), None).await.unwrap();
+    world.services.steps.edit(step.id, StepEdit { done: Some(true), ..StepEdit::default() }).await.unwrap();
 
     tokio::time::sleep(Duration::from_millis(400)).await;
     assert!(folder.exists());
@@ -324,7 +403,7 @@ async fn a_task_with_work_still_open_keeps_its_worktree() {
     let folder = worktrees.ensure(task.id).await.unwrap();
     let _ = start_cleaner(&world, worktrees);
 
-    world.services.steps.edit(done.id, None, None, Some(true), None).await.unwrap();
+    world.services.steps.edit(done.id, StepEdit { done: Some(true), ..StepEdit::default() }).await.unwrap();
 
     tokio::time::sleep(Duration::from_millis(400)).await;
     assert!(folder.exists());

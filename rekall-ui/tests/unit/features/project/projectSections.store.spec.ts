@@ -59,6 +59,15 @@ describe('the project sections store', () => {
     expect(store.sectionsOf(PROJECT).map((s) => s.title)).toEqual(['Renamed', 'b'])
   })
 
+  it('creates a section with the text it is given', async () => {
+    vi.mocked(api.createProjectSection).mockResolvedValue(section('a', 0))
+    const store = useProjectSectionsStore()
+
+    await store.create(PROJECT, 'Reference', '# Reference')
+
+    expect(api.createProjectSection).toHaveBeenCalledWith(PROJECT, { title: 'Reference', bodyMarkdown: '# Reference' })
+  })
+
   it('shows a move at once and puts the list back when the server refuses it', async () => {
     vi.mocked(api.fetchProjectSections).mockResolvedValue([section('a', 0), section('b', 1)])
     vi.mocked(api.reorderProjectSections).mockRejectedValue(new Error('refused'))

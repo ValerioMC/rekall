@@ -6,8 +6,9 @@ use crate::component::ProjectComponentView;
 use crate::connection::ConnectionView;
 use crate::task::TaskReferenceView;
 
-/// How much of a component's description travels with its first reference.
-pub const COMPONENT_REFERENCE_MAX: usize = 1_000;
+/// How much of a component's description travels with its first reference; a longer one is cut and
+/// points at `rekall_read_components`.
+pub const COMPONENT_REFERENCE_MAX: usize = 8_000;
 
 /// What opens a reference to one of the project's connection bindings: `[[connection:label]]`.
 const CONNECTION_REFERENCE_PREFIX: &str = "connection:";
@@ -18,7 +19,8 @@ const TASK_REFERENCE_PREFIX: &str = "task:";
 /// Expands `[[Name]]`, `[[connection:label]]` and `[[task:label]]` in the text a session reads, from
 /// one project's components, connection bindings and tasks.
 ///
-/// The first reference to a component carries its description, later ones only name and folder.
+/// The first reference to a component carries its summary and its description, later ones only name and
+/// folder: a task's context holds a component's description only when the task names the component.
 /// Code spans and fenced blocks are left alone. A name that matches nothing is flagged, never dropped.
 pub struct ComponentReferences<'a> {
     components: Option<&'a [ProjectComponentView]>,
@@ -59,13 +61,12 @@ impl<'a> ComponentReferences<'a> {
         self.component_expansion_of(name)
     }
 
-    /// The task by its label. Its own context is loaded with the task that names it, under its anchor.
-    fn task_expansion_of(&self, name: &str, label: &str) -> String {
-        let wanted = jstr::lower(jstr::strip(label));
-        let Some(task) = self.tasks.iter().find(|t| jstr::lower(&t.label) == wanted) else {
+    /// The task by its code. Its own context is loaded with the task that names it, under its anchor.
+    fn task_expansion_of(&self, name: &str, reference: &str) -> String {
+        let Some(task) = self.tasks.iter().find(|t| names_task(&t.code, &t.label, reference)) else {
             return format!("[[{name}]] (task not found in this project)");
         };
-        format!("**{}** (task `task:{}`)", task.title, task.label)
+        format!("**{}** (task `task:{}`)", task.title, task.code)
     }
 
     /// The binding by its label, pointing at its `<connections>` line, which says how to reach it.
@@ -89,14 +90,28 @@ impl<'a> ComponentReferences<'a> {
             format!("component, folder `{}`", component.folder)
         };
         let head = format!("**{}** ({place})", component.name);
-        if !self.described.insert(component.id) || jstr::is_blank(&component.description) {
+        if !self.described.insert(component.id) {
             return head;
         }
-        format!("{head}: {}", jstr::prefix(jstr::strip(&component.description), COMPONENT_REFERENCE_MAX))
+        let summary = jstr::strip(&component.summary);
+        let description = jstr::strip(&component.description);
+        if description.is_empty() {
+            return if summary.is_empty() { head } else { format!("{head}: {summary}") };
+        }
+        let shown = jstr::prefix(description, COMPONENT_REFERENCE_MAX);
+        let cut = if shown.len() < description.len() { "\n\n(Cut here: read the rest with `rekall_read_components`.)" } else { "" };
+        let lead = if summary.is_empty() || summary == description { String::new() } else { format!("{summary}\n\n") };
+        format!("{head}:\n\n{lead}{shown}{cut}")
     }
 }
 
-/// The labels every `[[task:label]]` in `text` names, outside code, lowercased, in the order written.
+/// Whether `reference`, as written after `task:`, names the task: its code, or the label an older reference still carries.
+pub fn names_task(code: &str, label: &str, reference: &str) -> bool {
+    let wanted = jstr::lower(jstr::strip(reference));
+    jstr::lower(code) == wanted || jstr::lower(label) == wanted
+}
+
+/// What every `[[task:code]]` in `text` names, outside code, in the order written.
 pub fn referenced_task_labels(text: &str) -> Vec<String> {
     let mut labels = Vec::new();
     rewrite_references(text, |name| {

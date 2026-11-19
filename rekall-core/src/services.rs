@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{check, claude, commit, context, deviation, diagram, feedback, flow, inventory, note, review, search, section, step, task, timeentry, token, vulnerability, wrapup, Ctx};
+use crate::{check, claude, commit, component, context, deviation, diagram, feedback, flow, inventory, note, review, search, section, step, task, timeentry, token, vulnerability, wrapup, Ctx};
 
 /// Every service, built once over one context: what a controller or a tool is handed.
 #[derive(Clone)]
@@ -8,7 +8,10 @@ pub struct Services {
     pub ctx: Ctx,
     pub steps: step::TaskStepService,
     pub task_authoring: task::TaskAuthoringService,
+    pub task_descriptions: task::TaskDescriptionService,
     pub epic_membership: task::EpicMembershipService,
+    pub step_bindings: step::StepBindingService,
+    pub step_placement: flow::StepPlacementService,
     pub step_links: flow::StepLinkService,
     pub flow: flow::FlowService,
     pub flow_proposals: flow::FlowProposalService,
@@ -20,6 +23,7 @@ pub struct Services {
     pub feedback: feedback::FeedbackService,
     pub diagrams: diagram::DiagramService,
     pub sections: section::ProjectSectionService,
+    pub components: component::ProjectComponentService,
     pub time_entries: timeentry::TimeEntryService,
     pub token_usage: token::TokenUsageService,
     pub context: context::ContextService,
@@ -27,6 +31,7 @@ pub struct Services {
     pub context_size: context::ContextSizeService,
     pub search: search::SearchService,
     pub commit_references: commit::CommitReferenceService,
+    pub task_changes: commit::TaskChangesService,
     pub auto_commit: commit::AutoCommitService,
     pub step_snapshots: commit::StepSnapshotService,
     pub check_execution: check::CheckExecutionService,
@@ -42,19 +47,24 @@ pub struct Services {
 impl Services {
     pub fn new(ctx: Ctx, check_runner: Arc<dyn check::CheckRunner>) -> Self {
         let time_entries = timeentry::TimeEntryService::new(ctx.clone());
-        let review = review::TaskReviewService::new(ctx.clone(), time_entries.clone());
         let commit_references = commit::CommitReferenceService::new(ctx.clone());
         let context = context::ContextService::new(ctx.clone());
         let steps = step::TaskStepService::new(ctx.clone(), time_entries.clone());
+        let review = review::TaskReviewService::new(ctx.clone(), time_entries.clone(), steps.clone());
+        let step_bindings = step::StepBindingService::new(ctx.clone(), steps.clone());
+        let step_placement = flow::StepPlacementService::new(ctx.clone(), steps.clone());
         let step_links = flow::StepLinkService::new(ctx.clone(), steps.clone());
         let flow = flow::FlowService::new(ctx.clone(), steps.clone(), step_links.clone(), flow::StepVisitService::new(ctx.clone()));
-        let flow_proposals = flow::FlowProposalService::new(ctx.clone(), steps.clone(), step_links.clone());
+        let flow_proposals = flow::FlowProposalService::new(ctx.clone(), steps.clone(), step_links.clone(), step_placement.clone(), step_bindings.clone());
         let inventory = inventory::DependencyInventoryService::new(ctx.clone());
         let exposures = vulnerability::VulnerabilityExposureService::new(ctx.clone(), commit::GitRepositoryInspector);
         Self {
             task_authoring: task::TaskAuthoringService::new(ctx.clone(), steps.clone(), flow_proposals.clone()),
+            task_descriptions: task::TaskDescriptionService::new(ctx.clone()),
             epic_membership: task::EpicMembershipService::new(ctx.clone()),
             steps,
+            step_bindings,
+            step_placement,
             step_links,
             flow,
             flow_proposals,
@@ -65,9 +75,11 @@ impl Services {
             feedback: feedback::FeedbackService::new(ctx.clone()),
             diagrams: diagram::DiagramService::new(ctx.clone()),
             sections: section::ProjectSectionService::new(ctx.clone()),
+            components: component::ProjectComponentService::new(ctx.clone()),
             renderer: context::ContextRenderer,
             context_size: context::ContextSizeService::new(ctx.clone(), context.clone()),
             search: search::SearchService::new(ctx.clone()),
+            task_changes: commit::TaskChangesService::new(ctx.clone()),
             auto_commit: commit::AutoCommitService::new(ctx.clone(), commit_references.clone()),
             step_snapshots: commit::StepSnapshotService::new(ctx.clone()),
             check_execution: check::CheckExecutionService::new(ctx.clone(), check_runner),

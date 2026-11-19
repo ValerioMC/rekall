@@ -11,7 +11,7 @@ defineEmits<{ open: [] }>()
 <template>
   <button
     type="button"
-    class="focus-ring mb-2 flex w-full items-center gap-2.5 rounded-control border border-epic-line bg-epic-soft py-1.5 pl-2.5 pr-2 text-left transition-colors hover:border-epic"
+    class="focus-ring mb-2 flex items-center gap-2.5 rounded-control border border-epic-line bg-epic-soft py-1.5 pl-2.5 pr-2 text-left transition-colors hover:border-epic"
     :title="`Open the epic ${epic.title}`"
     data-testid="epic-membership"
     @click="$emit('open')"

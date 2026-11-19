@@ -5,7 +5,7 @@ use rekall_store::{ConnectionKind, Slug};
 
 pub(in crate::connection) fn kind_of(raw: Option<&str>) -> Result<ConnectionKind> {
     let raw = raw.map(jstr::strip).unwrap_or("");
-    ConnectionKind::value_of(&raw.to_uppercase()).ok_or_else(|| RekallError::illegal(format!("'{raw}' is not a connection kind. Use GITLAB, GITHUB, KUBERNETES or JIRA.")))
+    ConnectionKind::value_of(&raw.to_uppercase()).ok_or_else(|| RekallError::illegal(format!("'{raw}' is not a connection kind. Use GITLAB, GITHUB, KUBERNETES, JIRA or GRAFANA.")))
 }
 
 pub(in crate::connection) fn title_of(raw: Option<&str>) -> Result<String> {
@@ -17,7 +17,7 @@ pub(in crate::connection) fn label_of(label: Option<&str>, title: &str) -> Resul
     Slug::of(Some(label.filter(|label| !jstr::is_blank(label)).unwrap_or(title)))
 }
 
-/// A Kubernetes connection reads its server from the kubeconfig, so only GitLab, GitHub and Jira take a URL typed in.
+/// A Kubernetes connection reads its server from the kubeconfig, so only GitLab, GitHub, Jira and Grafana take a URL typed in.
 pub(in crate::connection) fn base_url_of(kind: ConnectionKind, raw: Option<&str>) -> Result<Option<String>> {
     let url = raw.map(jstr::strip).filter(|url| !url.is_empty()).map(|url| url.trim_end_matches('/').to_string());
     if kind == ConnectionKind::Kubernetes && url.is_some() {
@@ -43,10 +43,7 @@ pub(in crate::connection) fn target_of(raw: Option<&str>) -> Option<String> {
 
 /// `wanted`, or the first of `wanted-2`, `wanted-3`... that no binding of the project uses yet.
 pub(in crate::connection) fn first_free_label(wanted: &str, taken: &[String]) -> String {
-    if !taken.iter().any(|label| label == wanted) {
-        return wanted.to_string();
-    }
-    (2..).map(|suffix| format!("{wanted}-{suffix}")).find(|label| !taken.contains(label)).expect("an unbounded range always finds a free label")
+    jstr::first_free_suffix(wanted, |label| taken.iter().any(|used| used == label))
 }
 
 #[cfg(test)]

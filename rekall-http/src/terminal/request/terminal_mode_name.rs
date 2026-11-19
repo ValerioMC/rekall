@@ -17,4 +17,10 @@ pub enum TerminalModeName {
     #[serde(rename = "ASSESS_ALL")]
     AssessAll,
     Autoconfigure,
+    #[serde(rename = "SCAN_COMPONENTS")]
+    ScanComponents,
+    #[serde(rename = "REWRITE_FIX")]
+    RewriteFix,
+    #[serde(rename = "REWRITE_RESTRUCTURE")]
+    RewriteRestructure,
 }

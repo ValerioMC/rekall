@@ -31,11 +31,39 @@ describe('a Jira credential draft', () => {
   })
 })
 
+describe('a Confluence credential draft', () => {
+  it('is an Atlassian one: Cloud takes an email and a token, Data Center a token alone', () => {
+    expect(emptyDraft('CONFLUENCE')).toEqual({ kind: 'CONFLUENCE', deployment: 'CLOUD', email: '', token: '' })
+    expect(isComplete({ kind: 'CONFLUENCE', deployment: 'CLOUD', email: 'ada@example.com', token: 'atl' })).toBe(true)
+    expect(isComplete({ kind: 'CONFLUENCE', deployment: 'CLOUD', email: '', token: 'atl' })).toBe(false)
+    expect(isComplete({ kind: 'CONFLUENCE', deployment: 'DATA_CENTER', email: '', token: 'NjQ0Mj' })).toBe(true)
+    expect(isStarted({ kind: 'CONFLUENCE', deployment: 'CLOUD', email: 'a', token: '' })).toBe(true)
+    expect(credentialNoun('CONFLUENCE')).toBe('token')
+  })
+})
+
 describe('a GitHub credential draft', () => {
   it('is a token, complete once one is typed', () => {
     expect(emptyDraft('GITHUB')).toEqual({ kind: 'GITHUB', token: '' })
     expect(isComplete({ kind: 'GITHUB', token: ' ' })).toBe(false)
     expect(isComplete({ kind: 'GITHUB', token: 'github_pat_1' })).toBe(true)
     expect(credentialNoun('GITHUB')).toBe('token')
+  })
+})
+
+describe('a Grafana credential draft', () => {
+  it('starts as a service account token, complete once one is typed', () => {
+    expect(emptyDraft('GRAFANA')).toEqual({ kind: 'GRAFANA', authentication: 'SERVICE_ACCOUNT', user: '', token: '' })
+    expect(isStarted({ kind: 'GRAFANA', authentication: 'SERVICE_ACCOUNT', user: '', token: 'glsa_1' })).toBe(true)
+    expect(isComplete({ kind: 'GRAFANA', authentication: 'SERVICE_ACCOUNT', user: '', token: ' ' })).toBe(false)
+    expect(isComplete({ kind: 'GRAFANA', authentication: 'SERVICE_ACCOUNT', user: '', token: 'glsa_1' })).toBe(true)
+    expect(credentialNoun('GRAFANA')).toBe('token')
+  })
+
+  it('with a password needs the user as well', () => {
+    expect(isComplete({ kind: 'GRAFANA', authentication: 'PASSWORD', user: '', token: 'pa55' })).toBe(false)
+    expect(isComplete({ kind: 'GRAFANA', authentication: 'PASSWORD', user: 'admin', token: ' ' })).toBe(false)
+    expect(isComplete({ kind: 'GRAFANA', authentication: 'PASSWORD', user: 'admin', token: 'pa55' })).toBe(true)
+    expect(isStarted({ kind: 'GRAFANA', authentication: 'PASSWORD', user: 'admin', token: '' })).toBe(true)
   })
 })

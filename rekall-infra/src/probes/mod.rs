@@ -5,4 +5,4 @@ mod http_connection_probe;
 
 pub use http_connection_probe::HttpConnectionProbe;
 
-pub(crate) use http_connection_probe::failure_chain;
+pub(crate) use http_connection_probe::{client_through, failure_chain};

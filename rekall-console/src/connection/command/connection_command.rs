@@ -12,6 +12,8 @@ pub struct ConnectionCommand {
     pub base_url: Option<String>,
     /// Jira only; blank clears it.
     pub proxy_url: Option<String>,
+    /// Grafana only: trust the self-signed certificate the instance serves.
+    pub accept_self_signed: Option<bool>,
     /// GitLab and GitHub only: the group, namespace or owner the credential covers; blank clears it.
     pub root_path: Option<String>,
     pub company_ids: Option<Vec<Id>>,

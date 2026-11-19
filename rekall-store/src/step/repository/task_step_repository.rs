@@ -43,3 +43,8 @@ pub async fn search(db: &impl ConnectionTrait, term: &str, limit: usize) -> Resu
         .take(limit)
         .collect())
 }
+
+/// Deletes every step of the task; its routes, visits, snapshots and check results go with them.
+pub async fn delete_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<u64, RekallError> {
+    Ok(Entity::delete_many().filter(Column::TaskId.eq(task_id)).exec(db).await?.rows_affected)
+}

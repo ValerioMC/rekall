@@ -36,7 +36,7 @@ impl McpTool for DeviationTool {
         ToolSchema::object()
             .required_string(
                 "anchors",
-                "The task the deviation belongs to, e.g. `project:vega task:report-builder`. Labels, never titles, and \
+                "The task the deviation belongs to, e.g. `task:RK-12`. Labels, never titles, and \
                  it has to name exactly one task.",
             )
             .required_string("step", "The number of the step the deviation refers to, counted from 1 as the checklist lists them.")
@@ -51,7 +51,7 @@ impl McpTool for DeviationTool {
         let body = args.required_string("body")?;
         let written = self
             .deviations
-            .write(target.project_label.as_deref(), &target.task_label, step_number, Some(&body))
+            .write(target.project_label.as_deref(), &target.task_code, step_number, Some(&body))
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
         let verb = if written.replaced { "rewritten" } else { "recorded" };

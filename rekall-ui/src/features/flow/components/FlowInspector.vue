@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
 import { relativeTime } from '@/common/format/relative-time'
 import { routesInto } from '@/features/flow/lib/step-flow'
-import type { TaskStep } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { RouteTarget } from '@/features/flow/lib/route-target'
 import type { StepLinkId, TaskStepId } from '@/model/branded'
 import FlowRouteEditor from './FlowRouteEditor.vue'
@@ -54,7 +54,7 @@ const stateLabel = computed(() => (props.current ? 'the work stands here' : prop
       </div>
       <button
         type="button"
-        class="key-quiet focus-ring shrink-0 cursor-pointer rounded-control px-2.5 py-1 text-caption"
+        class="key-quiet focus-ring shrink-0 cursor-pointer rounded-key px-2.5 py-1 text-caption"
         data-testid="flow-open-detail"
         @click="emit('open-detail')"
       >
@@ -80,7 +80,7 @@ const stateLabel = computed(() => (props.current ? 'the work stands here' : prop
         <li v-for="{ link, source } in incoming" :key="link.id">
           <button
             type="button"
-            class="focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border px-2 py-0.5 text-caption text-text-muted transition-colors hover:border-border-strong hover:text-text"
+            class="focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-key border border-border px-2 py-0.5 text-caption text-text-muted transition-colors hover:border-border-strong hover:text-text"
             @click="emit('select', source.id)"
           >
             <span class="font-mono text-micro tabular-nums opacity-70">{{ source.position + 1 }}</span>

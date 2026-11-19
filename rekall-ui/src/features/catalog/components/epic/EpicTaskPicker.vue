@@ -2,7 +2,8 @@
 import { computed, onMounted, ref, useId } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
-import { TASK_STATUS_LABEL, isEpic, type Task } from '@/features/catalog/model/catalog'
+import { TASK_STATUS_LABEL } from '@/features/catalog/model/task-status'
+import { isEpic, type Task } from '@/features/catalog/model/catalog'
 import type { TaskId } from '@/model/branded'
 
 /**
@@ -35,7 +36,7 @@ const matches = computed<Task[]>(() => {
       (task) =>
         !term ||
         task.title.toLowerCase().includes(term) ||
-        task.label.includes(term) ||
+        task.code.toLowerCase().includes(term) ||
         task.anchor.toLowerCase().includes(term)
     )
     .sort(
@@ -107,7 +108,7 @@ onMounted(() => field.value?.focus())
       >
         <span class="truncate text-small text-text">{{ task.title }}</span>
         <span class="flex items-baseline gap-2 text-caption">
-          <span class="min-w-0 truncate font-mono text-anchor">{{ task.label }}</span>
+          <span class="min-w-0 truncate font-mono text-anchor">{{ task.code }}</span>
           <span class="ml-auto shrink-0 text-text-subtle">{{ whereItIs(task) }}</span>
         </span>
       </li>

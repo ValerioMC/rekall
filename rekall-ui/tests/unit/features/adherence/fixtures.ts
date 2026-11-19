@@ -1,5 +1,5 @@
 import type { PlanAdherence, ProjectAdherence } from '@/features/adherence/model/adherence'
-import type { TaskStep, TaskStepState } from '@/features/catalog/model/catalog'
+import type { TaskStep, TaskStepState } from '@/features/steps/model/task-step'
 import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
 
 export const TASK = 't-1' as TaskId
@@ -43,8 +43,8 @@ export function projectAdherence(changes: Partial<ProjectAdherence> = {}): Proje
     firstTimeShare: 0.25,
     deviations: 1,
     mostSentBack: [
-      { taskId: 'a' as TaskId, label: 'import', title: 'Import', sentBack: 2, passesTotal: 7 },
-      { taskId: 'b' as TaskId, label: 'export', title: 'Export', sentBack: 1, passesTotal: 2 }
+      { taskId: 'a' as TaskId, code: 'RK-1', title: 'Import', sentBack: 2, passesTotal: 7 },
+      { taskId: 'b' as TaskId, code: 'RK-2', title: 'Export', sentBack: 1, passesTotal: 2 }
     ],
     ...changes
   }

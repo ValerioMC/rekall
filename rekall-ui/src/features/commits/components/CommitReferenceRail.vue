@@ -44,7 +44,7 @@ const countLabel = computed(() => {
         />
         <span
           v-if="overflowCount > 0"
-          class="ml-1.5 shrink-0 rounded-full border border-border-strong bg-surface px-1.5 py-px font-mono text-micro text-text-subtle"
+          class="ml-1.5 shrink-0 rounded-key border border-border-strong bg-surface px-1.5 py-px font-mono text-micro text-text-subtle"
         >
           +{{ overflowCount }}
         </span>

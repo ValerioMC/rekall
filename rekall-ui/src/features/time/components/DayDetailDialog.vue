@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/common/format/app-locale'
 import { computed, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useConsoleStore } from '@/stores/console.store'
@@ -19,7 +20,7 @@ const tokenUsage = useTokenUsageStore()
 const router = useRouter()
 
 const heading = computed(() =>
-  props.date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
+  props.date.toLocaleDateString(APP_LOCALE, { weekday: 'long', day: 'numeric', month: 'long' })
 )
 
 const totalSeconds = computed(() => props.rows.reduce((sum, row) => sum + row.totalSeconds, 0))
@@ -48,9 +49,8 @@ const groups = computed<DayGroup[]>(() => {
 })
 
 function openTask(taskId: TaskId): void {
-  store.selectTask(taskId)
   emit('close')
-  if (router.currentRoute.value.name !== 'console') void router.push({ name: 'console' })
+  void router.push(`/task/${taskId}`)
 }
 
 onMounted(async () => {

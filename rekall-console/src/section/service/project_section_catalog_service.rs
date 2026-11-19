@@ -12,7 +12,8 @@ use rekall_core::section::{rule::rules, ProjectSectionView, SectionStreamEvent};
 use rekall_core::{in_write, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
-use crate::section::{ProjectSectionOrderCommand, ProjectSectionCommand};
+use crate::shared::require_by_id;
+use crate::section::{ProjectSectionCommand, ProjectSectionOrderCommand, SectionWriteOutcome};
 
 #[derive(Clone)]
 pub struct ProjectSectionCatalogService {
@@ -29,22 +30,47 @@ impl ProjectSectionCatalogService {
             repo::project::require(tx.db(), project_id).await?;
             let title = rules::title(command.title.as_deref())?;
             require_title_free(&tx, project_id, &title, None).await?;
-            let existing = repo::project_section::list_of_project(tx.db(), project_id).await?;
-            let now = self.ctx.now();
-            let section = project_section::Model {
-                id: Id::random(),
-                project_id,
-                title,
-                body_markdown: command.body_markdown.clone().unwrap_or_default(),
-                position: existing.iter().map(|section| section.position + 1).max().unwrap_or(0),
-                created_at: now,
-                updated_at: now,
-            };
-            section.validate()?;
-            section.clone().into_active_model().insert(tx.db()).await?;
-            tx.publish(SectionStreamEvent { project_id });
+            let section = self.insert_in(&mut tx, project_id, title, command.body_markdown.clone().unwrap_or_default()).await?;
             Ok::<_, RekallError>(ProjectSectionView::of(&section))
         })
+    }
+
+    /// Writes an imported section: a new title is added, one the project has is rewritten only when
+    /// `replace` and otherwise kept as a person left it.
+    pub async fn import_in(&self, tx: &mut Tx, project_id: Id, title: &str, body: String, replace: bool) -> Result<SectionWriteOutcome> {
+        let title = rules::title(Some(title))?;
+        let Some(existing) = rules::clashing(tx.db(), project_id, &title, None).await? else {
+            self.insert_in(tx, project_id, title, body).await?;
+            return Ok(SectionWriteOutcome::Created);
+        };
+        if !replace {
+            return Ok(SectionWriteOutcome::Kept);
+        }
+        let rewritten = project_section::Model { body_markdown: body, ..existing.clone() };
+        if rewritten != existing {
+            repo::update_if_changed(tx.db(), &existing, rewritten, self.ctx.now()).await?;
+            tx.publish(SectionStreamEvent { project_id });
+        }
+        Ok(SectionWriteOutcome::Replaced)
+    }
+
+    /// A new section goes last.
+    async fn insert_in(&self, tx: &mut Tx, project_id: Id, title: String, body: String) -> Result<project_section::Model> {
+        let existing = repo::project_section::list_of_project(tx.db(), project_id).await?;
+        let now = self.ctx.now();
+        let section = project_section::Model {
+            id: Id::random(),
+            project_id,
+            title,
+            body_markdown: body,
+            position: existing.iter().map(|section| section.position + 1).max().unwrap_or(0),
+            created_at: now,
+            updated_at: now,
+        };
+        section.validate()?;
+        section.clone().into_active_model().insert(tx.db()).await?;
+        tx.publish(SectionStreamEvent { project_id });
+        Ok(section)
     }
 
     pub async fn update(&self, id: Id, command: ProjectSectionCommand) -> Result<ProjectSectionView> {
@@ -85,7 +111,7 @@ impl ProjectSectionCatalogService {
             let now = self.ctx.now();
             let mut ordered = Vec::with_capacity(sections.len());
             for (position, id) in wanted.iter().enumerate() {
-                let mut section = sections.iter().find(|section| section.id == *id).cloned().expect("checked against the project's sections");
+                let mut section = require_by_id(&sections, *id, |section| section.id, "An order was checked against the project's sections")?;
                 if section.position != position as i32 {
                     section.position = position as i32;
                     section.updated_at = now;

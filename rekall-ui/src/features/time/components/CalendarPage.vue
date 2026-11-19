@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/common/format/app-locale'
 import { computed, ref } from 'vue'
+import TimeSubNav from '@/features/time/components/TimeSubNav.vue'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
 import CalendarDayCell from '@/features/time/components/CalendarDayCell.vue'
 import DayDetailDialog from '@/features/time/components/DayDetailDialog.vue'
@@ -21,7 +23,7 @@ const viewMonth = ref(today.getMonth())
 const selectedDay = ref<{ date: Date; rows: DaySummaryRow[] } | null>(null)
 
 const monthLabel = computed(() =>
-  new Date(viewYear.value, viewMonth.value, 1).toLocaleDateString(undefined, {
+  new Date(viewYear.value, viewMonth.value, 1).toLocaleDateString(APP_LOCALE, {
     month: 'long',
     year: 'numeric'
   })
@@ -81,10 +83,11 @@ const WEEKDAY_LABELS = weekdayLabels()
 </script>
 
 <template>
-  <div class="min-h-0 flex-1 overflow-y-auto bg-canvas">
-    <AppCatalogHeader title="Calendar" />
+  <div class="min-h-0 flex-1 page-scroll bg-canvas">
+    <AppCatalogHeader title="Time" />
 
-    <div class="mx-auto max-w-[1320px] px-8 py-6">
+    <div class="page-column pb-6 pt-4">
+      <TimeSubNav class="mb-5" active="calendar" />
       <div class="mb-5 flex flex-wrap items-end gap-x-6 gap-y-3">
         <div class="min-w-0">
           <h2 class="truncate text-heading font-semibold capitalize tracking-[-0.01em] text-text">{{ monthLabel }}</h2>

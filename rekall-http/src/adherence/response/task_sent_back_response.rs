@@ -6,7 +6,7 @@ use serde::Serialize;
 #[serde(rename_all = "camelCase")]
 pub struct TaskSentBackResponse {
     pub task_id: Id,
-    pub label: String,
+    pub code: String,
     pub title: String,
     pub sent_back: usize,
     pub passes_total: usize,
@@ -14,6 +14,6 @@ pub struct TaskSentBackResponse {
 
 impl From<TaskSentBackView> for TaskSentBackResponse {
     fn from(view: TaskSentBackView) -> Self {
-        Self { task_id: view.task_id, label: view.label, title: view.title, sent_back: view.sent_back, passes_total: view.passes_total }
+        Self { task_id: view.task_id, code: view.code, title: view.title, sent_back: view.sent_back, passes_total: view.passes_total }
     }
 }

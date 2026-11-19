@@ -81,3 +81,9 @@ impl TaskStepView {
         self.visits.iter().any(StepVisitView::is_open)
     }
 }
+
+/// Where an unstarted flow begins: the first released step that carries a route and is not
+/// finished. Finished steps before it are history a replan kept, routes included, and are not walked.
+pub fn flow_entry<'a>(steps: impl IntoIterator<Item = &'a TaskStepView>) -> Option<&'a TaskStepView> {
+    steps.into_iter().filter(|step| !step.state.draft() && !step.state.complete()).find(|step| !step.links.is_empty())
+}

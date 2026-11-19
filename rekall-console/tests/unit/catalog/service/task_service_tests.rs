@@ -1,11 +1,15 @@
 use rekall_kernel::Instant;
-use rekall_store::{company, ProjectStatus, TaskKind};
+use rekall_store::{company, task_pull_request, task_tracker_link, ProjectStatus, TaskKind, TaskStepState};
+use rekall_core::step::{NewStep, StepEdit};
+use rekall_core::task::TaskCreatedEvent;
 use rekall_core::{EventBus, Services};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use super::*;
 
 struct World {
+    db: sea_orm::DatabaseConnection,
+    events: EventBus,
     service: TaskService,
     steps: rekall_core::step::TaskStepService,
     project_id: Id,
@@ -14,7 +18,8 @@ struct World {
 
 async fn world() -> World {
     let database = rekall_store::open_in_memory().await.unwrap();
-    let ctx = Ctx::new(database.conn.clone(), EventBus::new());
+    let events = EventBus::new();
+    let ctx = Ctx::new(database.conn.clone(), events.clone());
     let now = Instant::now();
     let company = company::Model { id: Id::random(), name: "Acme".into(), description: None, created_at: now, updated_at: now };
     company.clone().into_active_model().insert(&database.conn).await.unwrap();
@@ -22,7 +27,7 @@ async fn world() -> World {
     let other_project_id = insert_project(&database.conn, company.id, "site").await;
     let services = Services::new(ctx.clone(), std::sync::Arc::new(rekall_core::check::ScriptedCheckRunner::new()));
     let service = TaskService::new(ctx, services.review.clone(), services.time_entries.clone());
-    World { service, steps: services.steps.clone(), project_id, other_project_id }
+    World { db: database.conn.clone(), events, service, steps: services.steps.clone(), project_id, other_project_id }
 }
 
 async fn insert_project(db: &sea_orm::DatabaseConnection, company_id: Id, label: &str) -> Id {
@@ -36,7 +41,7 @@ async fn insert_project(db: &sea_orm::DatabaseConnection, company_id: Id, label:
         description: None,
         blueprint_markdown: None,
         repo_folder: None,
-        auto_commit: false,
+        auto_commit: false, main_branch: None, pull_request_flow: false, task_key: label[..2].to_ascii_uppercase(),
         company_id,
         created_at: now,
         updated_at: now,
@@ -111,7 +116,7 @@ async fn an_empty_epic_turns_back_into_a_task() {
 async fn a_task_with_steps_cannot_become_an_epic() {
     let world = world().await;
     let task = world.service.create(command("checkout", world.project_id, TaskKind::Task, None)).await.unwrap();
-    world.steps.add(task.id, Some("Wire the form"), None).await.unwrap();
+    world.steps.add(task.id, NewStep::titled("Wire the form", None)).await.unwrap();
     let refused = world.service.update(task.id, command("checkout", world.project_id, TaskKind::Epic, None)).await;
     assert!(refused.is_err());
 }
@@ -120,7 +125,7 @@ async fn a_task_with_steps_cannot_become_an_epic() {
 async fn an_epic_takes_no_step() {
     let world = world().await;
     let epic = world.service.create(command("checkout", world.project_id, TaskKind::Epic, None)).await.unwrap();
-    assert!(world.steps.add(epic.id, Some("Wire the form"), None).await.is_err());
+    assert!(world.steps.add(epic.id, NewStep::titled("Wire the form", None)).await.is_err());
 }
 
 #[tokio::test]
@@ -130,4 +135,212 @@ async fn deleting_an_epic_leaves_its_tasks_on_their_own() {
     let task = world.service.create(command("pay", world.project_id, TaskKind::Task, Some(epic.id))).await.unwrap();
     world.service.delete(epic.id).await.unwrap();
     assert_eq!(world.service.get(task.id).await.unwrap().epic_id, None);
+}
+
+fn done_command(label: &str, project_id: Id) -> TaskCommand {
+    TaskCommand { status: Some(TaskStatus::Done), ..command(label, project_id, TaskKind::Task, None) }
+}
+
+#[tokio::test]
+async fn putting_a_task_with_steps_to_done_accepts_every_step_but_the_drafts() {
+    let world = world().await;
+    let task = world.service.create(command("checkout", world.project_id, TaskKind::Task, None)).await.unwrap();
+    let worked = world.steps.add(task.id, NewStep::titled("Wire the form", None)).await.unwrap();
+    world.steps.add(task.id, NewStep::titled("Maybe later", None)).await.unwrap();
+    world.steps.edit(worked.id, StepEdit { draft: Some(false), ..StepEdit::default() }).await.unwrap();
+
+    let saved = world.service.update(task.id, done_command("checkout", world.project_id)).await.unwrap();
+
+    let states: Vec<_> = world.steps.find_by_task(task.id).await.unwrap().into_iter().map(|step| step.state).collect();
+    assert_eq!(states, [TaskStepState::Done, TaskStepState::Draft]);
+    assert_eq!(saved.steps_done, 1);
+}
+
+#[tokio::test]
+async fn putting_a_task_without_steps_to_done_accepts_its_review_line() {
+    let world = world().await;
+    let task = world.service.create(command("checkout", world.project_id, TaskKind::Task, None)).await.unwrap();
+
+    let saved = world.service.update(task.id, done_command("checkout", world.project_id)).await.unwrap();
+
+    assert_eq!(saved.review_state, TaskStepState::Done);
+    assert!(saved.accepted_at.is_some());
+}
+
+#[tokio::test]
+async fn putting_an_epic_to_done_leaves_its_review_line_alone() {
+    let world = world().await;
+    let epic = world.service.create(command("checkout", world.project_id, TaskKind::Epic, None)).await.unwrap();
+    let done = TaskCommand { status: Some(TaskStatus::Done), ..command("checkout", world.project_id, TaskKind::Epic, None) };
+
+    let saved = world.service.update(epic.id, done).await.unwrap();
+
+    assert_eq!(saved.review_state, TaskStepState::Open);
+}
+
+fn announced_tasks(feed: &mut tokio::sync::broadcast::Receiver<rekall_core::PublishedEvent>) -> Vec<Id> {
+    let mut tasks = Vec::new();
+    while let Ok(event) = feed.try_recv() {
+        if let Some(changed) = event.downcast::<TaskCreatedEvent>() {
+            tasks.push(changed.task_id);
+        }
+    }
+    tasks
+}
+
+#[tokio::test]
+async fn a_created_task_is_announced_for_its_task_manager() {
+    let world = world().await;
+    let mut feed = world.events.subscribe();
+
+    let task = world.service.create(command("pay", world.project_id, TaskKind::Task, None)).await.unwrap();
+
+    assert_eq!(announced_tasks(&mut feed), [task.id]);
+}
+
+#[tokio::test]
+async fn a_task_imported_with_its_issue_is_not_announced_for_a_push_back() {
+    let world = world().await;
+    let mut feed = world.events.subscribe();
+    let imported = TaskCommand { tracker_issue_key: Some("ENG-1".into()), tracker_issue_url: Some("https://jira.example.com/browse/ENG-1".into()), ..command("eng-1", world.project_id, TaskKind::Task, None) };
+
+    let task = world.service.create(imported).await.unwrap();
+
+    assert!(announced_tasks(&mut feed).is_empty());
+    assert_eq!(task.tracker_issue_key.as_deref(), Some("ENG-1"));
+}
+
+#[tokio::test]
+async fn an_edit_is_never_announced_for_the_task_manager() {
+    let world = world().await;
+    let task = world.service.create(command("pay", world.project_id, TaskKind::Task, None)).await.unwrap();
+    let mut feed = world.events.subscribe();
+    let retitled = TaskCommand { title: Some("Pay the invoice".into()), description: Some("Before Friday.".into()), ..command("pay", world.project_id, TaskKind::Task, None) };
+
+    world.service.update(task.id, retitled).await.unwrap();
+
+    assert!(announced_tasks(&mut feed).is_empty());
+}
+
+#[tokio::test]
+async fn the_task_view_says_whether_the_content_was_written_to_the_issue() {
+    let world = world().await;
+    let imported = TaskCommand {
+        tracker_issue_key: Some("12".into()),
+        tracker_issue_url: Some("https://github.com/acme/app/issues/12".into()),
+        ..command("pay", world.project_id, TaskKind::Task, None)
+    };
+    let task = world.service.create(imported).await.unwrap();
+    assert!(!task.tracker_content_synced);
+    let model = rekall_store::repository::task::require(&world.db, task.id).await.unwrap();
+    let now = Instant::now();
+    let written = task_tracker_link::Model {
+        task_id: task.id,
+        issue_key: Some("12".into()),
+        issue_url: None,
+        sync_error: None,
+        synced_fingerprint: Some(rekall_store::task_tracker_link::content_fingerprint(&model.title, "")),
+        created_at: now,
+        updated_at: now,
+    };
+    rekall_store::repository::task_tracker_link::save(&world.db, written).await.unwrap();
+    assert!(world.service.get(task.id).await.unwrap().tracker_content_synced);
+
+    let edited = TaskCommand { description: Some("Before Friday.".into()), ..command("pay", world.project_id, TaskKind::Task, None) };
+    world.service.update(task.id, edited).await.unwrap();
+
+    assert!(!world.service.get(task.id).await.unwrap().tracker_content_synced);
+}
+
+#[tokio::test]
+async fn an_edit_keeps_the_issue_the_task_was_written_to() {
+    let world = world().await;
+    let imported = TaskCommand {
+        tracker_issue_key: Some("12".into()),
+        tracker_issue_url: Some("https://github.com/acme/app/issues/12".into()),
+        ..command("pay", world.project_id, TaskKind::Task, None)
+    };
+    let task = world.service.create(imported).await.unwrap();
+
+    let edited = world.service.update(task.id, TaskCommand { title: Some("Pay".into()), ..command("pay", world.project_id, TaskKind::Task, None) }).await.unwrap();
+
+    assert_eq!(edited.tracker_issue_key.as_deref(), Some("12"));
+}
+
+#[tokio::test]
+async fn the_task_view_carries_the_pull_request_opened_for_its_branch() {
+    let world = world().await;
+    let task = world.service.create(command("pay", world.project_id, TaskKind::Task, None)).await.unwrap();
+    assert_eq!(task.pull_request_number, None);
+    let now = Instant::now();
+    let opened = task_pull_request::Model { task_id: task.id, number: Some(5), url: Some("https://github.com/acme/app/pull/5".into()), failure: None, merged_at: None, created_at: now, updated_at: now };
+    rekall_store::repository::task_pull_request::save(&world.db, opened).await.unwrap();
+
+    let view = world.service.get(task.id).await.unwrap();
+
+    assert_eq!((view.pull_request_number, view.pull_request_url.as_deref(), view.pull_request_failure), (Some(5), Some("https://github.com/acme/app/pull/5"), None));
+}
+
+#[tokio::test]
+async fn accepting_a_task_with_steps_accepts_every_claimed_step_once_all_are_claimed() {
+    let world = world().await;
+    let task = world.service.create(command("checkout", world.project_id, TaskKind::Task, None)).await.unwrap();
+    for title in ["Wire the form", "Pay"] {
+        let step = world.steps.add(task.id, NewStep::titled(title, None)).await.unwrap();
+        world.steps.edit(step.id, StepEdit { draft: Some(false), ..StepEdit::default() }).await.unwrap();
+    }
+    world.steps.transition(Some("app"), "checkout", Some("Wire the form"), TaskStepState::Claimed).await.unwrap();
+
+    let early = world.service.review(task.id, TaskStepState::Done).await;
+    world.steps.transition(Some("app"), "checkout", Some("Pay"), TaskStepState::Claimed).await.unwrap();
+    world.service.review(task.id, TaskStepState::Done).await.unwrap();
+
+    assert!(matches!(early, Err(RekallError::IllegalArgument(_))));
+    let states: Vec<TaskStepState> = world.steps.find_by_task(task.id).await.unwrap().into_iter().map(|step| step.state).collect();
+    assert_eq!(states, [TaskStepState::Done, TaskStepState::Done]);
+    assert!(matches!(world.service.review(task.id, TaskStepState::Done).await, Err(RekallError::IllegalArgument(_))));
+}
+
+#[tokio::test]
+async fn a_deleted_task_announces_the_issue_it_held_and_one_without_an_issue_announces_nothing() {
+    let world = world().await;
+    let held = world.service.create(TaskCommand { tracker_issue_key: Some("7".into()), tracker_issue_url: Some("https://github.com/acme/app/issues/7".into()), ..command("pay", world.project_id, TaskKind::Task, None) }).await.unwrap();
+    let bare = world.service.create(command("ship", world.project_id, TaskKind::Task, None)).await.unwrap();
+    let mut feed = world.events.subscribe();
+
+    world.service.delete(held.id).await.unwrap();
+    world.service.delete(bare.id).await.unwrap();
+
+    let mut deleted = Vec::new();
+    while let Ok(event) = feed.try_recv() {
+        if let Some(event) = event.downcast::<rekall_core::task::TaskDeletedEvent>() {
+            deleted.push(event.clone());
+        }
+    }
+    assert_eq!(deleted, [rekall_core::task::TaskDeletedEvent { project_id: world.project_id, issue_key: Some("7".into()) }]);
+}
+
+#[tokio::test]
+async fn each_task_takes_the_next_number_of_its_project_and_a_moved_one_the_next_of_the_new_project() {
+    let world = world().await;
+    let first = world.service.create(command("a", world.project_id, TaskKind::Task, None)).await.unwrap();
+    let second = world.service.create(command("b", world.project_id, TaskKind::Task, None)).await.unwrap();
+    let other = world.service.create(command("c", world.other_project_id, TaskKind::Task, None)).await.unwrap();
+
+    assert_eq!((first.code.as_str(), second.code.as_str(), other.code.as_str()), ("AP-1", "AP-2", "SI-1"));
+    assert_eq!(second.anchor, "task:AP-2");
+
+    let moved = world.service.update(second.id, command("b", world.other_project_id, TaskKind::Task, None)).await.unwrap();
+
+    assert_eq!(moved.code, "SI-2");
+}
+
+#[tokio::test]
+async fn a_task_edited_in_place_keeps_its_code() {
+    let world = world().await;
+    let created = world.service.create(command("a", world.project_id, TaskKind::Task, None)).await.unwrap();
+
+    let edited = world.service.update(created.id, TaskCommand { title: Some("Renamed".into()), ..command("a", world.project_id, TaskKind::Task, None) }).await.unwrap();
+
+    assert_eq!((edited.code.as_str(), edited.title.as_str()), ("AP-1", "Renamed"));
 }

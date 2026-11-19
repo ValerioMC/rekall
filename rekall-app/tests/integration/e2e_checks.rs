@@ -10,7 +10,7 @@ use rekall_core::check::{CheckOutcome, ScriptedCheckRunner};
 use serde_json::{json, Value};
 use support::{a_git_repo_with_one_commit, app_with, run_git, uuid_value, App};
 
-const STEP_ANCHORS: &str = "project:vega task:report-builder";
+const STEP_ANCHORS: &str = "task:VE-1";
 
 struct World {
     app: App,

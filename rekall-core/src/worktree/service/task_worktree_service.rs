@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use rekall_kernel::{jstr, Id, Result};
 use rekall_store::repository as repo;
+use rekall_store::TaskStatus;
 use tracing::warn;
 
 use crate::worktree::{BranchReview, MergeOutcome, OrphanReclaimService, Worktree, WorktreeHost, WorktreeLayout};
@@ -34,6 +35,15 @@ pub enum Merge {
     NothingToMerge,
 }
 
+/// What the project of a task says about where its work happens.
+struct Site {
+    task: rekall_store::task::Model,
+    project_folder: Option<String>,
+    project_label: String,
+    /// The branch the task's branch starts from and is merged into: the project's main branch, or the folder's current one.
+    base: String,
+}
+
 /// Gives a task a worktree to work in, and keeps the tasks and the worktrees on disk in step.
 /// The task row names its worktree (`worktree_folder`), which is what makes its session, its
 /// checks and its commit work there.
@@ -52,22 +62,36 @@ impl TaskWorktreeService {
     /// The task's worktree: the one it already has when its folder is there, else a new one on
     /// `rekall/<task-label>` (the branch is reused when it exists), named on the task.
     pub async fn ensure(&self, task_id: Id) -> Result<PathBuf> {
-        let (task, project_folder, project_label) = self.read(task_id).await?;
+        let Site { task, project_folder, project_label, base } = self.read(task_id).await?;
         if let Some(folder) = task.worktree_folder.as_deref().map(PathBuf::from).filter(|folder| folder.is_dir()) {
             return Ok(folder);
         }
         let project_folder = project_folder.ok_or_else(|| rekall_kernel::RekallError::illegal("Set this project's folder on its page before working here."))?;
         let branch = self.layout.branch_for(&task.label)?;
         let folder = self.layout.folder_for(&project_label, &task.label)?;
-        let worktree = self.host.create(Path::new(&project_folder), &branch, &folder).await?;
+        let worktree = self.host.create(Path::new(&project_folder), &branch, &folder, &base).await?;
         self.name_on_task(task_id, Some(worktree.folder.to_string_lossy().into_owned())).await?;
         Ok(worktree.folder)
+    }
+
+    /// Whether the task's project wants every task on a branch of its own: it has a task manager
+    /// and a folder to branch in. A quick task never goes through the task manager, so it has none.
+    pub async fn requires_branch(&self, task_id: Id) -> Result<bool> {
+        in_read!(&self.ctx, |tx| {
+            let task = load::task_or_unknown(tx.db(), task_id).await?;
+            if task.quick {
+                return Ok(false);
+            }
+            let project = load::project_of(tx.db(), &task).await?;
+            let has_folder = project.repo_folder.as_deref().is_some_and(|folder| !jstr::is_blank(folder));
+            Ok(has_folder && repo::project_connection::task_manager_of_project(tx.db(), project.id).await?.is_some())
+        })
     }
 
     /// Takes the task's worktree away once its work is accepted, or when a person asks. A worktree
     /// with unsaved changes is left alone; the branch and its commits always stay.
     pub async fn release(&self, task_id: Id) -> Result<Release> {
-        let (task, project_folder, _) = self.read(task_id).await?;
+        let Site { task, project_folder, .. } = self.read(task_id).await?;
         let Some(folder) = task.worktree_folder.clone() else { return Ok(Release::NoWorktree) };
         let Some(project_folder) = project_folder else { return Ok(Release::NoWorktree) };
         let worktree = Worktree { project_folder: PathBuf::from(project_folder), folder: PathBuf::from(&folder), branch: self.layout.branch_for(&task.label)? };
@@ -81,8 +105,9 @@ impl TaskWorktreeService {
         Ok(Release::Removed)
     }
 
-    /// Merges the task's branch into the project folder's current `HEAD` once its work is accepted.
-    /// A branch with unsaved work in its worktree, or one that conflicts, is left as it is.
+    /// Merges the task's branch into the project's main branch once its work is accepted (the
+    /// folder's current branch when the project names none). A branch with unsaved work in its
+    /// worktree, or one that conflicts, is left as it is.
     pub async fn merge_accepted(&self, task_id: Id) -> Result<Merge> {
         let Some(review) = self.review_branch(task_id).await? else { return Ok(Merge::NothingToMerge) };
         if review.has_unsaved_changes {
@@ -94,21 +119,33 @@ impl TaskWorktreeService {
         if review.merges_cleanly == Some(false) {
             return Ok(Merge::Conflicts(format!("{} conflicts with the project's current branch", review.branch)));
         }
-        let (_, project_folder, _) = self.read(task_id).await?;
+        let Site { project_folder, base, .. } = self.read(task_id).await?;
         let Some(project_folder) = project_folder else { return Ok(Merge::NothingToMerge) };
-        match self.host.merge_branch(Path::new(&project_folder), &review.branch).await? {
+        match self.host.merge_branch(Path::new(&project_folder), &review.branch, &base).await? {
             MergeOutcome::Merged => Ok(Merge::Merged),
+            MergeOutcome::Conflicts(reason) => Ok(Merge::Conflicts(reason)),
             MergeOutcome::Refused(reason) => Ok(Merge::Refused(reason)),
         }
     }
 
+    /// Closes the task once its branch is merged: its status becomes done.
+    pub async fn close_merged(&self, task_id: Id) -> Result<()> {
+        in_write!(&self.ctx, |tx| {
+            let before = load::task_or_unknown(tx.db(), task_id).await?;
+            let mut task = before.clone();
+            task.status = TaskStatus::Done;
+            repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
+            Ok(())
+        })
+    }
+
     /// What the task's branch holds, while the branch exists: the worktree or not.
     pub async fn review_branch(&self, task_id: Id) -> Result<Option<BranchReview>> {
-        let (task, project_folder, _) = self.read(task_id).await?;
+        let Site { task, project_folder, base, .. } = self.read(task_id).await?;
         let Some(project_folder) = project_folder else { return Ok(None) };
         let branch = self.layout.branch_for(&task.label)?;
         let worktree = task.worktree_folder.as_deref().map(Path::new).filter(|folder| folder.is_dir());
-        self.host.review_branch(Path::new(&project_folder), &branch, worktree).await
+        self.host.review_branch(Path::new(&project_folder), &branch, worktree, &base).await
     }
 
     /// After a restart: a task whose worktree folder is gone forgets it (its branch stays and the
@@ -135,12 +172,13 @@ impl TaskWorktreeService {
         Ok(())
     }
 
-    async fn read(&self, task_id: Id) -> Result<(rekall_store::task::Model, Option<String>, String)> {
+    async fn read(&self, task_id: Id) -> Result<Site> {
         in_read!(&self.ctx, |tx| {
             let task = load::task_or_unknown(tx.db(), task_id).await?;
             let project = load::project_of(tx.db(), &task).await?;
-            let folder = project.repo_folder.clone().filter(|folder| !jstr::is_blank(folder));
-            Ok((task, folder, project.label))
+            let project_folder = project.repo_folder.clone().filter(|folder| !jstr::is_blank(folder));
+            let base = project.main_branch.as_deref().map(jstr::strip).filter(|branch| !branch.is_empty()).unwrap_or("HEAD").to_string();
+            Ok(Site { task, project_folder, project_label: project.label, base })
         })
     }
 

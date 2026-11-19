@@ -1,10 +1,6 @@
 import { z } from 'zod'
 import { apiClient, request } from '../../../api/client'
-import {
-  CommitReferenceDiffSchema,
-  CommitReferenceSchema,
-  RecentCommitSchema
-} from './schemas/commitReference.schema'
+import { CommitReferenceSchema, RecentCommitSchema } from './schemas/commitReference.schema'
 import type { CommitReference, RecentCommit } from '@/features/commits/model/commitReference'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
@@ -26,10 +22,14 @@ export async function recordLatestCommit(
   )
 }
 
-/** The newest commits of the task's project folder, for picking one by hand. */
-export async function fetchRecentCommits(taskId: TaskId): Promise<RecentCommit[]> {
+/** The newest commits of the task's project folder, or of a component's repository, for picking one by hand. */
+export async function fetchRecentCommits(
+  taskId: TaskId,
+  componentId: string | null
+): Promise<RecentCommit[]> {
+  const query = componentId === null ? '' : `?componentId=${componentId}`
   return request(async () =>
-    z.array(RecentCommitSchema).parse(await apiClient(`/api/tasks/${taskId}/recent-commits`))
+    z.array(RecentCommitSchema).parse(await apiClient(`/api/tasks/${taskId}/recent-commits${query}`))
   )
 }
 
@@ -37,22 +37,16 @@ export async function fetchRecentCommits(taskId: TaskId): Promise<RecentCommit[]
 export async function recordCommit(
   taskId: TaskId,
   stepId: TaskStepId | null,
-  commitHash: string
+  commitHash: string,
+  componentId: string | null
 ): Promise<CommitReference> {
   return request(async () =>
     CommitReferenceSchema.parse(
       await apiClient(`/api/tasks/${taskId}/commit-references`, {
         method: 'POST',
-        body: { stepId: stepId ?? null, commitHash }
+        body: { stepId: stepId ?? null, commitHash, componentId }
       })
     )
-  )
-}
-
-/** Fetched on demand, not with the list: most rows are never opened. */
-export async function fetchCommitReferenceDiff(id: string): Promise<string | null> {
-  return request(
-    async () => CommitReferenceDiffSchema.parse(await apiClient(`/api/commit-references/${id}/diff`)).diff
   )
 }
 

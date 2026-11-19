@@ -1,6 +1,6 @@
 ## Noting
 
-`/rk project:vega task:report-builder note "the export formats we settled on"` means: write a note
+`/rk task:RK-12 note "the export formats we settled on"` means: write a note
 on that task and attach it there, or rewrite the one it already carries on that subject.
 
 The text in double quotes after `note` says what the note has to hold, in my words. It is not an

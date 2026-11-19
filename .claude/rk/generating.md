@@ -3,7 +3,7 @@
 `/rk project:vega generate kinds:sequence,state "how checkout decides what to charge"` means: work
 out what the code does to answer that request, describe it as Mermaid sheets whose elements are
 linked to the code, and store them with `rekall_diagram`. The console draws them; you never do.
-A `task:` anchor may come too (`/rk project:vega task:report-builder generate ...`): the diagram is
+A `task:` anchor may come too (`/rk task:RK-12 generate ...`): the diagram is
 then stored on that task as well as on its project.
 
 The text in double quotes is the request, in my words: what the diagram has to make clear. It is not

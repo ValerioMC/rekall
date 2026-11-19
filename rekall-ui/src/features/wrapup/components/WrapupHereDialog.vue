@@ -70,7 +70,7 @@ onMounted(async () => {
         type="text"
         data-testid="wrapup-here-message"
         :disabled="sending"
-        class="field text-text h-10 w-full rounded-control px-3 text-body disabled:opacity-60"
+        class="field text-text h-(--spacing-control) w-full rounded-control px-3 text-body disabled:opacity-60"
         placeholder="What to focus the wrapup on, in your own words"
         @keydown.enter.prevent="send"
       />
@@ -82,7 +82,7 @@ onMounted(async () => {
         class="anchor-chip mt-4 flex items-center gap-2 truncate px-2.5 py-1.5 font-mono text-caption"
         data-testid="wrapup-here-preview"
       >
-        <span class="shrink-0 opacity-60">&gt;</span>
+        <span class="shrink-0 opacity-80">&gt;</span>
         <span class="min-w-0 flex-1 truncate">{{ preview }}</span>
       </p>
     </div>

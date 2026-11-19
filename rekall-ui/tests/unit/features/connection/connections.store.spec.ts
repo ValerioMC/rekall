@@ -20,6 +20,7 @@ function connection(id: string, over: Partial<Connection> = {}): Connection {
     baseUrl: null,
     kubeContext: null,
     proxyUrl: null,
+    acceptSelfSigned: false,
     credentialSetAt: null,
     projectCount: 0,
     updatedAt: '2026-10-21T10:00:00Z',
@@ -149,7 +150,7 @@ describe('the connections store', () => {
       reason: null,
       terminalId: 't-1',
       taskId: null,
-      taskLabel: null,
+      taskCode: null,
       taskTitle: null
     }))
     vi.mocked(api.fetchConnectionAccess)
@@ -181,6 +182,7 @@ describe('a project in the connections store', () => {
       baseUrl: null,
       kubeContext: null,
       target,
+      taskManager: false,
       credentialSetAt: null
     }
   }
@@ -188,6 +190,23 @@ describe('a project in the connections store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.resetAllMocks()
+  })
+
+  it('reads an opened project again when a connection frame arrives, through one subscription', async () => {
+    const listeners: Array<() => void> = []
+    const sources = vi.fn(() => ({ addEventListener: (_name: string, listener: () => void) => listeners.push(listener) }))
+    vi.stubGlobal('EventSource', sources)
+    vi.mocked(api.fetchProjectConnections).mockResolvedValueOnce([]).mockResolvedValueOnce([binding('admin')])
+    const store = useConnectionsStore()
+    await store.loadProject(PROJECT)
+
+    store.followChanges(vi.fn())
+    store.followChanges(vi.fn())
+    listeners.forEach((listener) => listener())
+    await vi.waitFor(() => expect(store.projectConnectionsOf(PROJECT).map((known) => known.label)).toEqual(['admin']))
+
+    expect(sources).toHaveBeenCalledTimes(1)
+    vi.unstubAllGlobals()
   })
 
   it('binds a connection twice under two labels and reads the company counts again', async () => {

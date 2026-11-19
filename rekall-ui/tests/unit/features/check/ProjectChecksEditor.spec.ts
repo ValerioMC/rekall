@@ -72,7 +72,7 @@ describe('the project checks editor', () => {
     vi.mocked(api.deleteCheck).mockResolvedValue(undefined)
     const wrapper = await render()
 
-    await wrapper.findAll('[data-testid="check-delete"]')[0].trigger('click')
+    await wrapper.findAll('[data-testid="check-delete"]')[0]!.trigger('click')
     await flushPromises()
 
     expect(api.deleteCheck).toHaveBeenCalledWith('a')
@@ -106,7 +106,7 @@ describe('the project checks editor', () => {
     vi.mocked(api.reorderProjectChecks).mockResolvedValue([check('b', 0), check('a', 1)])
     const wrapper = await render()
 
-    await wrapper.findAll('[data-testid="check-down"]')[0].trigger('click')
+    await wrapper.findAll('[data-testid="check-down"]')[0]!.trigger('click')
     await flushPromises()
 
     expect(api.reorderProjectChecks).toHaveBeenCalledWith(PROJECT, ['b', 'a'])

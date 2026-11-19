@@ -7,7 +7,7 @@ import AppButton from './AppButton.vue'
 export interface SplitButtonOption<OptionId extends string> {
   readonly id: OptionId
   readonly label: string
-  readonly hint: string
+  readonly hint?: string
 }
 
 /**
@@ -23,8 +23,10 @@ withDefaults(
     size?: 'sm' | 'md'
     loading?: boolean
     disabled?: boolean
+    /** The arrow stays usable while the main action is disabled, for alternatives that need none of what the main one needs. */
+    keepsArrow?: boolean
   }>(),
-  { variant: 'secondary', size: 'md', loading: false, disabled: false }
+  { variant: 'secondary', size: 'md', loading: false, disabled: false, keepsArrow: false }
 )
 
 const emit = defineEmits<{ click: []; choose: [id: Id] }>()
@@ -66,7 +68,7 @@ function choose(id: Id): void {
       ref="arrow"
       :variant="variant"
       :size="size"
-      :disabled="disabled || loading"
+      :disabled="(disabled && !keepsArrow) || loading"
       class="rounded-l-none !px-1.5"
       aria-haspopup="menu"
       :aria-expanded="open"
@@ -113,8 +115,11 @@ function choose(id: Id): void {
         :data-testid="`split-button-option-${option.id}`"
         @click="choose(option.id)"
       >
-        <span class="text-small font-medium text-text">{{ option.label }}</span>
-        <span class="text-caption leading-snug text-text-muted">{{ option.hint }}</span>
+        <span class="flex items-center gap-2 text-small font-medium text-text">
+          <slot :id="option.id" name="option-mark" />
+          {{ option.label }}
+        </span>
+        <span v-if="option.hint" class="text-caption leading-snug text-text-muted">{{ option.hint }}</span>
       </button>
     </div>
   </Teleport>

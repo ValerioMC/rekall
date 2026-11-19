@@ -3,14 +3,12 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import NotePane from '@/features/notes/components/NotePane.vue'
 import { useConsoleStore } from '@/stores/console.store'
-import type { RekallDocument, Task, TaskStatus } from '@/features/catalog/model/catalog'
+import type { RekallDocument } from '@/features/notes/model/document'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskStatus } from '@/features/catalog/model/task-status'
 import type { DocumentId, ProjectId, TaskId } from '@/model/branded'
 
-/**
- * The membership strip. Tasks still in play are always on it; finished ones fold behind a count
- * so a note that turned out to be transversal does not open onto a wall of dead anchors. The
- * write path is `store.saveNote`, stubbed here and covered in `console.spec`.
- */
+/** The note pane's context mode. The write path is `store.saveNote`, stubbed here and covered in `console.spec`. */
 const rekall = 'p1' as ProjectId
 
 const live = 't1' as TaskId
@@ -20,6 +18,7 @@ const archived = 't4' as TaskId
 
 const task = (id: TaskId, label: string, title: string, status: TaskStatus): Task => ({
   id,
+  code: label,
   label,
   title,
   status,
@@ -44,7 +43,7 @@ const task = (id: TaskId, label: string, title: string, status: TaskStatus): Tas
   graphLaidAt: null,
   releaseSkipped: false,
   kind: 'TASK',
-  epicId: null, quick: false, autoAccepted: false, dependsOn: [],
+  epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, trackerContentSynced: true, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
   anchor: `project:rekall task:${label}`,
   updatedAt: '2026-09-01T10:00:00Z'
 })
@@ -56,25 +55,14 @@ const tasks: Task[] = [
   task(archived, 'old-layout', 'Old layout', 'DONE')
 ]
 
-const taskRef = (t: Task) => ({
-  id: t.id,
-  label: t.label,
-  title: t.title,
-  projectLabel: t.projectLabel,
-  projectTitle: t.projectTitle,
-  companyName: t.companyName,
-  anchor: t.anchor
-})
-
-function makeDocument(on: Task[]): RekallDocument {
+function makeDocument(on: Task): RekallDocument {
   return {
     id: 'd1' as DocumentId,
     title: 'conventions.md',
     kind: 'notes',
     bodyMarkdown: 'body',
-    tasks: on.map(taskRef),
+    taskId: on.id,
     contextMode: 'FULL',
-    scope: { kind: 'GLOBAL' },
     anchor: 'note:00000000',
     updatedAt: '2026-09-05T10:00:00Z'
   }
@@ -100,82 +88,12 @@ function render() {
       plugins: [pinia],
       stubs: {
         AppMarkdownEditor: true,
-        NoteAssignmentDialog: true,
         LaunchClaudeCodeButton: true,
         AppConfirm: true
       }
     }
   })
 }
-
-describe('NotePane membership strip', () => {
-  beforeEach(() => {
-    pinia = createPinia()
-    setActivePinia(pinia)
-  })
-
-  it('shows tasks in play and folds finished ones behind a count', async () => {
-    seed(makeDocument([tasks[0]!, tasks[1]!, tasks[2]!, tasks[3]!]), live)
-    const wrapper = render()
-    await flushPromises()
-
-    const liveChips = wrapper.findAll('[data-testid="note-task-chip"]').map((c) => c.text())
-    expect(liveChips.join(' ')).toContain('rekall/note-refactor')
-    expect(liveChips.join(' ')).toContain('rekall/filing-drawer')
-
-    expect(wrapper.findAll('[data-testid="note-task-chip-done"]')).toHaveLength(0)
-    expect(wrapper.get('[data-testid="note-done-toggle"]').text()).toContain('2 done')
-    expect(wrapper.text()).toContain('On 4 tasks')
-  })
-
-  it('keeps the task in view as a chip and folds the other open ones behind a count', async () => {
-    const extra = { ...tasks[1]!, id: 't-extra' as TaskId, label: 'extra-work' }
-    const store = seed(makeDocument([tasks[0]!, tasks[1]!, extra]), live)
-    store.tasks = [...tasks, extra]
-    const wrapper = render()
-    await flushPromises()
-
-    const shown = () => wrapper.findAll('[data-testid="note-task-chip"]').map((c) => c.text()).join(' ')
-    expect(shown()).toContain('rekall/note-refactor')
-    expect(shown()).not.toContain('rekall/filing-drawer')
-    expect(wrapper.get('[data-testid="note-open-toggle"]').text()).toContain('2 more open')
-
-    await wrapper.get('[data-testid="note-open-toggle"]').trigger('click')
-    expect(shown()).toContain('rekall/filing-drawer')
-    expect(shown()).toContain('rekall/extra-work')
-  })
-
-  it('reveals the finished chips when the count is clicked', async () => {
-    seed(makeDocument([tasks[0]!, tasks[2]!, tasks[3]!]), live)
-    const wrapper = render()
-    await flushPromises()
-
-    await wrapper.get('[data-testid="note-done-toggle"]').trigger('click')
-
-    const doneChips = wrapper.findAll('[data-testid="note-task-chip-done"]').map((c) => c.text())
-    expect(doneChips.join(' ')).toContain('rekall/sse-conduit')
-    expect(doneChips.join(' ')).toContain('rekall/old-layout')
-  })
-
-  it('shows the finished chips outright when every task the note is on is done', async () => {
-    seed(makeDocument([tasks[2]!, tasks[3]!]), shipped)
-    const wrapper = render()
-    await flushPromises()
-
-    expect(wrapper.findAll('[data-testid="note-task-chip-done"]')).toHaveLength(2)
-    expect(wrapper.find('[data-testid="note-done-toggle"]').exists()).toBe(false)
-  })
-
-  it('detaches a task from its chip, keeping the rest', async () => {
-    const store = seed(makeDocument([tasks[0]!, tasks[1]!]), live)
-    const wrapper = render()
-    await flushPromises()
-
-    await wrapper.get('[aria-label="Remove this note from Filing drawer"]').trigger('click')
-
-    expect(store.saveNote).toHaveBeenCalledWith('d1', { taskIds: [live] })
-  })
-})
 
 describe('NotePane context mode', () => {
   beforeEach(() => {
@@ -184,7 +102,7 @@ describe('NotePane context mode', () => {
   })
 
   it('sends a note by reference, and back in full, saving only the mode', async () => {
-    const store = seed(makeDocument([tasks[0]!]), live)
+    const store = seed(makeDocument(tasks[0]!), live)
     const wrapper = render()
     await flushPromises()
 
@@ -195,7 +113,7 @@ describe('NotePane context mode', () => {
   })
 
   it('does not save when the mode picked is the one it has', async () => {
-    const store = seed(makeDocument([tasks[0]!]), live)
+    const store = seed(makeDocument(tasks[0]!), live)
     const wrapper = render()
     await flushPromises()
 

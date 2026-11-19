@@ -1,17 +1,18 @@
 import { z } from 'zod'
 import { asCompanyId, asConnectionId, asProjectConnectionId, asProjectId, asTaskId, asTerminalId } from '@/model/branded'
 
-const KindSchema = z.enum(['GITLAB', 'GITHUB', 'KUBERNETES', 'JIRA'])
+export const ConnectionKindSchema = z.enum(['GITLAB', 'GITHUB', 'KUBERNETES', 'JIRA', 'CONFLUENCE', 'GRAFANA'])
 
 export const ConnectionSchema = z.object({
   id: z.string().uuid().transform(asConnectionId),
   companyIds: z.array(z.string().uuid().transform(asCompanyId)),
-  kind: KindSchema,
+  kind: ConnectionKindSchema,
   label: z.string(),
   title: z.string(),
   baseUrl: z.string().nullable(),
   kubeContext: z.string().nullable(),
   proxyUrl: z.string().nullable(),
+  acceptSelfSigned: z.boolean(),
   rootPath: z.string().nullable(),
   credentialSetAt: z.string().nullable(),
   projectCount: z.number().int(),
@@ -45,6 +46,13 @@ export const KubeContextListSchema = z.array(
   })
 )
 
+export const RevealedCredentialSchema = z.object({
+  token: z.string().nullable(),
+  kubeconfig: z.string().nullable(),
+  email: z.string().nullable(),
+  user: z.string().nullable()
+})
+
 export const ConnectionCheckSchema = z.object({
   ok: z.boolean(),
   detail: z.string(),
@@ -59,7 +67,7 @@ export const ConnectionAccessListSchema = z.array(
     reason: z.string().nullable(),
     terminalId: z.string(),
     taskId: z.string().uuid().transform(asTaskId).nullable(),
-    taskLabel: z.string().nullable(),
+    taskCode: z.string().nullable(),
     taskTitle: z.string().nullable()
   })
 )
@@ -75,6 +83,17 @@ export const JiraIssueListSchema = z.array(
   })
 )
 
+export const TargetSuggestionListSchema = z.array(z.object({ value: z.string(), name: z.string() }))
+
+export const ConfluenceImportSchema = z.object({
+  spaceKey: z.string(),
+  spaceName: z.string(),
+  pagesRead: z.number().int(),
+  descriptionWritten: z.boolean(),
+  blueprintWritten: z.boolean(),
+  sections: z.array(z.object({ title: z.string(), pages: z.number().int(), outcome: z.enum(['created', 'replaced', 'kept']) }))
+})
+
 export const ConnectionRemovedSchema = z.object({ unboundProjects: z.number().int() })
 
 export const ConnectionStreamEventSchema = z.object({ companyIds: z.array(z.string().uuid().transform(asCompanyId)) })
@@ -83,12 +102,13 @@ export const ProjectConnectionSchema = z.object({
   id: z.string().uuid().transform(asProjectConnectionId),
   connectionId: z.string().uuid().transform(asConnectionId),
   projectId: z.string().uuid().transform(asProjectId),
-  kind: KindSchema,
+  kind: ConnectionKindSchema,
   label: z.string(),
   title: z.string(),
   baseUrl: z.string().nullable(),
   kubeContext: z.string().nullable(),
   target: z.string().nullable(),
+  taskManager: z.boolean(),
   credentialSetAt: z.string().nullable()
 })
 

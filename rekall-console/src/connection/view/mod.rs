@@ -1,3 +1,4 @@
+pub(super) mod confluence_import_view;
 pub(super) mod connection_access_view;
 pub(super) mod connection_company_view;
 pub(super) mod connection_detail_view;
@@ -9,4 +10,6 @@ pub(super) mod discovery_outcome;
 pub(super) mod jira_issue_view;
 pub(super) mod kube_context_view;
 pub(super) mod project_connection_view;
+pub(super) mod revealed_credential_view;
+pub(super) mod target_suggestion_view;
 pub(super) mod repository_discovery_view;

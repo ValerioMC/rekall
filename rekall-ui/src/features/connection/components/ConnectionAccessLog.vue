@@ -43,7 +43,7 @@ defineExpose({ reload: load })
         }}</AppBadge>
         <span class="min-w-0 flex-1">
           <span class="block truncate text-small text-text">
-            <template v-if="access.taskLabel">task:{{ access.taskLabel }}</template>
+            <template v-if="access.taskCode">task:{{ access.taskCode }}</template>
             <template v-else>a project terminal</template>
           </span>
           <span v-if="access.reason" class="block text-caption text-danger">{{ access.reason }}</span>

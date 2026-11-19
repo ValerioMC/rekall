@@ -150,3 +150,43 @@ fn a_kubernetes_or_jira_connection_takes_no_root_path() {
 fn a_root_path_over_the_cap_is_refused() {
     assert!(gitlab_covering(&"a".repeat(ROOT_PATH_MAX_CHARACTERS + 1)).validate().is_err());
 }
+
+fn grafana(base_url: Option<&str>) -> Model {
+    Model::new("grafana".into(), "Grafana".into(), ConnectionKind::Grafana, base_url.map(str::to_string), Instant::now())
+}
+
+#[test]
+fn a_grafana_connection_without_its_instance_url_is_refused() {
+    let error = grafana(None).validate().unwrap_err();
+    assert!(error.to_string().contains("instance URL"));
+    assert!(grafana(Some("https://grafana.example.com")).validate().is_ok());
+}
+
+#[test]
+fn a_grafana_connection_takes_neither_a_kubeconfig_context_nor_a_root_path() {
+    let mut context = grafana(Some("https://grafana.example.com"));
+    context.kube_context = Some("prod".into());
+    let mut root = grafana(Some("https://grafana.example.com"));
+    root.root_path = Some("acme".into());
+    assert!(context.validate().is_err());
+    assert!(root.validate().is_err());
+}
+
+#[test]
+fn a_grafana_connection_takes_an_http_or_https_proxy() {
+    let mut proxied = grafana(Some("https://grafana.example.com"));
+    proxied.proxy_url = Some("http://10.250.0.1:33128".into());
+    assert!(proxied.validate().is_ok());
+    proxied.proxy_url = Some("socks5://10.250.0.1:1080".into());
+    assert!(proxied.validate().is_err());
+}
+
+#[test]
+fn only_a_grafana_connection_can_accept_a_self_signed_certificate() {
+    let mut trusting = grafana(Some("https://grafana.example.com"));
+    trusting.accept_self_signed = true;
+    assert!(trusting.validate().is_ok());
+    let mut jira = jira(Some("https://example.atlassian.net"));
+    jira.accept_self_signed = true;
+    assert!(jira.validate().is_err());
+}

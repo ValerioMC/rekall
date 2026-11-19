@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { preferredEffort, preferredLaunchKind, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
+import { launchChoices } from '@/common/config/session-launch'
 import { useToastStore } from '@/stores/toast.store'
 import { sessionAtWork } from '@/model/session-at-work'
 import { NOTHING_TO_RUN_MESSAGE, nothingToRun } from '@/model/nothing-to-run'
@@ -12,7 +12,9 @@ import StepSeal from '@/features/steps/components/StepSeal.vue'
 import RunMenuArrow from '@/features/claude/components/RunMenuArrow.vue'
 import ReplanConfirm from '@/features/claude/components/ReplanConfirm.vue'
 import { usePlanTask } from '@/features/claude/composables/usePlanTask'
+import { useSessionProviderChoice } from '@/features/claude/composables/useSessionProviderChoice'
 import type { RunMenuAction } from '@/features/claude/model/runMenu'
+import { SESSION_PROVIDERS, type SessionProvider } from '@/features/claude/model/session-provider'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { queuePlacement } from '@/features/queue/model/runQueue'
 import { useReleaseOnRun } from '@/features/graph/composables/useReleaseOnRun'
@@ -54,6 +56,7 @@ const toast = useToastStore()
 const runQueue = useRunQueueStore()
 const { run } = useAsyncAction()
 const { releaseBeforeRun } = useReleaseOnRun()
+const canChooseProvider = useSessionProviderChoice()
 const { tasks, steps } = storeToRefs(console_)
 const { terminals: openTerminals } = storeToRefs(terminals)
 
@@ -65,6 +68,7 @@ const planTask = usePlanTask(
 )
 
 const launchPhase = ref<LaunchPhase>('idle')
+const preparing = ref(false)
 const handingOff = ref(false)
 const returning = ref(false)
 const pendingTimers = new Set<number>()
@@ -82,13 +86,14 @@ const phase = computed<ButtonPhase>(() => {
   if (launchPhase.value !== 'idle') return launchPhase.value
   return atWork.value || handingOff.value ? 'working' : 'idle'
 })
-const busy = computed(() => phase.value !== 'idle')
+const busy = computed(() => preparing.value || phase.value !== 'idle')
 /** The key sits pressed in while the seal stamps and for as long as Claude works. */
 const pressed = computed(() => phase.value === 'done' || phase.value === 'working')
 
 const taskSteps = computed(() => steps.value.filter((step) => step.taskId === props.taskId))
 const replaceableSteps = computed(() => taskSteps.value.filter((step) => step.state === 'DRAFT' || step.state === 'OPEN').length)
 const menuActions = computed<readonly RunMenuAction[]>(() => [
+  ...(ready.value && canChooseProvider.value ? SESSION_PROVIDERS : []),
   'RUN_IN_QUEUE',
   'PLAN',
   ...(taskSteps.value.length === 0 ? (['PLAN_FLOW'] as const) : []),
@@ -113,13 +118,15 @@ function pause(milliseconds: number): Promise<void> {
   })
 }
 
-async function launch(): Promise<void> {
+async function launch(provider?: SessionProvider): Promise<void> {
   if (busy.value) return
   if (!ready.value) {
     toast.notifyError(new Error(props.missingHint))
     return
   }
+  preparing.value = true
   await releaseBeforeRun(props.taskId)
+  preparing.value = false
   const task = tasks.value.find((candidate) => candidate.id === props.taskId) ?? null
   if (nothingToRun(task, steps.value, props.stepId)) {
     toast.notifyError(new Error(NOTHING_TO_RUN_MESSAGE))
@@ -129,10 +136,7 @@ async function launch(): Promise<void> {
   const opening = run(() =>
     terminals.openForTask(props.taskId, {
       stepId: props.stepId,
-      skipPermissions: skipsPermissions(),
-      model: preferredModel(),
-      effort: preferredEffort(),
-      kind: preferredLaunchKind()
+      ...launchChoices(provider)
     })
   )
   await pause(TRAVEL_MS)
@@ -171,7 +175,8 @@ async function runInQueue(): Promise<void> {
 }
 
 function chooseFromMenu(action: RunMenuAction): void {
-  if (action === 'RUN_IN_QUEUE') void runInQueue()
+  if (action === 'CLAUDE' || action === 'CODEX') void launch(action)
+  else if (action === 'RUN_IN_QUEUE') void runInQueue()
   else planTask.start(action)
 }
 
@@ -199,12 +204,12 @@ onBeforeUnmount(() => {
       :aria-disabled="busy"
       :title="
         phase === 'working'
-          ? 'Claude is working on this. It returns once the work is claimed or the session ends.'
+          ? 'A session is working on this. This button becomes available once the work is claimed or the session ends.'
           : undefined
       "
       :data-phase="phase"
       data-testid="open-terminal"
-      @click="launch"
+      @click="launch()"
     >
       <span class="grid size-3.5 [&>*]:[grid-area:1/1]">
         <svg
@@ -265,7 +270,7 @@ onBeforeUnmount(() => {
       </span>
 
       <span class="sr-only" aria-live="polite">{{
-        phase === 'done' ? 'Session started' : phase === 'working' ? 'Claude is working' : ''
+        phase === 'done' ? 'Session started' : phase === 'working' ? 'Session is working' : ''
       }}</span>
     </button>
     <RunMenuArrow

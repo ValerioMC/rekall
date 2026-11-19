@@ -8,13 +8,15 @@ import {
   updateProjectComponent
 } from '@/features/project/api/project-components.api'
 import { movedOne, type Direction } from '@/features/project/lib/section-order'
+import { launchChoices } from '@/common/config/session-launch'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import type { Terminal } from '@/features/claude/model/terminal'
 import type { ProjectComponent, ProjectComponentInput } from '@/features/project/model/project-component'
 import type { ProjectComponentId, ProjectId } from '@/model/branded'
 
 /**
- * The components of the projects the console has opened, each list kept in the order shown.
- * Only the console writes them, so a list is fetched when its project is opened and then
- * follows this store's own writes.
+ * The components of the projects the console has opened, each list kept in the order shown. A
+ * list is fetched when its project is opened and again whenever the event stream says it changed.
  */
 export const useProjectComponentsStore = defineStore('projectComponents', () => {
   const byProject = ref<Readonly<Record<string, readonly ProjectComponent[]>>>({})
@@ -58,6 +60,16 @@ export const useProjectComponentsStore = defineStore('projectComponents', () => 
     return created
   }
 
+  /** A session that reads the project's folder and writes each part of it as a component. */
+  function scan(projectId: ProjectId): Promise<Terminal> {
+    return useTerminalStore().openForProject(projectId, { ...launchChoices(), mode: 'SCAN_COMPONENTS' })
+  }
+
+  /** A change made elsewhere (a session, another window): read that project's list again if it is open here. */
+  async function applyEvent(projectId: ProjectId): Promise<void> {
+    if (isLoaded(projectId)) await load(projectId)
+  }
+
   async function update(id: ProjectComponentId, input: ProjectComponentInput): Promise<ProjectComponent> {
     const saved = await updateProjectComponent(id, input)
     put(
@@ -85,5 +97,5 @@ export const useProjectComponentsStore = defineStore('projectComponents', () => 
     put(projectId, componentsOf(projectId).filter((component) => component.id !== id))
   }
 
-  return { componentsOf, isLoaded, isLoading, load, ensureLoaded, create, update, move, remove }
+  return { componentsOf, isLoaded, isLoading, load, ensureLoaded, create, scan, update, move, remove, applyEvent }
 })

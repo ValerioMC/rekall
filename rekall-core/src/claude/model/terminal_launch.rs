@@ -11,7 +11,7 @@ pub struct TerminalLaunch {
     pub anchors: String,
     pub working_dir: String,
     pub project_label: String,
-    pub task_label: Option<String>,
+    pub task_code: Option<String>,
     pub task_title: Option<String>,
     /// What the project reaches outside Rekall, for the terminal's credential helpers.
     pub connections: Vec<TerminalConnection>,

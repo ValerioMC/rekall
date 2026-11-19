@@ -7,6 +7,7 @@ use serde::Serialize;
 #[serde(rename_all = "camelCase")]
 pub struct TaskResponse {
     pub id: Id,
+    pub code: String,
     pub label: String,
     pub title: String,
     pub status: TaskStatus,
@@ -36,6 +37,14 @@ pub struct TaskResponse {
     pub quick: bool,
     pub auto_accepted: bool,
     pub depends_on: Vec<Id>,
+    pub tracker_issue_key: Option<String>,
+    pub tracker_issue_url: Option<String>,
+    pub tracker_sync_error: Option<String>,
+    pub tracker_content_synced: bool,
+    pub pull_request_number: Option<i64>,
+    pub pull_request_url: Option<String>,
+    pub pull_request_failure: Option<String>,
+    pub pull_request_merged_at: Option<Instant>,
     pub anchor: String,
     pub updated_at: Instant,
 }
@@ -44,6 +53,7 @@ impl From<TaskView> for TaskResponse {
     fn from(view: TaskView) -> Self {
         Self {
             id: view.id,
+            code: view.code,
             label: view.label,
             title: view.title,
             status: view.status,
@@ -73,6 +83,14 @@ impl From<TaskView> for TaskResponse {
             quick: view.quick,
             auto_accepted: view.auto_accepted,
             depends_on: view.depends_on,
+            tracker_issue_key: view.tracker_issue_key,
+            tracker_issue_url: view.tracker_issue_url,
+            tracker_sync_error: view.tracker_sync_error,
+            tracker_content_synced: view.tracker_content_synced,
+            pull_request_number: view.pull_request_number,
+            pull_request_url: view.pull_request_url,
+            pull_request_failure: view.pull_request_failure,
+            pull_request_merged_at: view.pull_request_merged_at,
             anchor: view.anchor,
             updated_at: view.updated_at,
         }

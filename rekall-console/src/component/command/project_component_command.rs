@@ -6,5 +6,6 @@
 pub struct ProjectComponentCommand {
     pub name: Option<String>,
     pub folder: Option<String>,
+    pub summary: Option<String>,
     pub description: Option<String>,
 }

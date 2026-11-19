@@ -1,4 +1,5 @@
 use rekall_core::search::{SearchHit, SearchHitKind};
+use rekall_core::ProjectRef;
 
 use super::{is_too_short, project_of, report, too_short_message};
 
@@ -8,7 +9,7 @@ fn hit(kind: SearchHitKind, title: &str, anchor: &str, excerpt: &str) -> SearchH
 
 #[test]
 fn a_result_shows_its_kind_title_anchor_and_excerpt_and_nothing_more() {
-    let found = report("pdf", Some("vega"), &[hit(SearchHitKind::Wrapup, "Export", "project:vega task:export", "…renders the PDF…")]);
+    let found = report("pdf", Some(&ProjectRef::bare("vega")), &[hit(SearchHitKind::Wrapup, "Export", "project:vega task:export", "…renders the PDF…")]);
 
     assert!(found.starts_with("1 result for \"pdf\" in `project:vega`."), "{found}");
     assert!(found.contains("- wrapup \"Export\": `project:vega task:export`\n  …renders the PDF…"), "{found}");
@@ -28,7 +29,7 @@ fn a_note_is_loaded_by_its_own_anchor_not_by_the_task_it_opens_on() {
 #[test]
 fn no_result_says_where_it_looked() {
     assert_eq!(report("pdf", None, &[]), "Nothing in every project matches \"pdf\".");
-    assert_eq!(report("pdf", Some("vega"), &[]), "Nothing in `project:vega` matches \"pdf\".");
+    assert_eq!(report("pdf", Some(&ProjectRef::bare("vega")), &[]), "Nothing in `project:vega` matches \"pdf\".");
 }
 
 #[test]
@@ -42,7 +43,8 @@ fn a_term_under_three_characters_is_answered_with_a_message_not_an_error() {
 #[test]
 fn only_a_project_anchor_narrows_the_search() {
     assert_eq!(project_of(None).unwrap(), None);
-    assert_eq!(project_of(Some("project:vega")).unwrap().as_deref(), Some("vega"));
-    assert_eq!(project_of(Some("project:vega task:report")).unwrap().as_deref(), Some("vega"));
+    assert_eq!(project_of(Some("project:vega")).unwrap(), Some(ProjectRef::bare("vega")));
+    assert_eq!(project_of(Some("project:vega task:report")).unwrap(), Some(ProjectRef::bare("vega")));
+    assert_eq!(project_of(Some("company:Acme project:vega")).unwrap(), Some(ProjectRef::in_company("Acme", "vega")));
     assert!(project_of(Some("company:acme")).is_err());
 }

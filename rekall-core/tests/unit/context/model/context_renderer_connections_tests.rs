@@ -1,4 +1,6 @@
 use super::*;
+use rekall_store::ConnectionKind;
+use crate::connection::ConnectionView;
 
 fn connection(kind: ConnectionKind, label: &str, target: Option<&str>, credential_set: bool) -> ConnectionView {
     ConnectionView {
@@ -68,4 +70,12 @@ fn a_github_connection_names_its_repository_and_how_to_open_issues_and_pull_requ
     assert!(rendered.contains("GitHub at https://github.com, repository `storytold/lightcraft`"));
     assert!(rendered.contains("configured credential helper"));
     assert!(rendered.contains("`rekall-github --connection github <METHOD> <path> [curl options]`"));
+}
+
+#[test]
+fn a_grafana_connection_names_its_instance_and_how_to_call_its_api() {
+    let grafana = ConnectionView { instance_url: Some("https://grafana.example.com".into()), ..connection(ConnectionKind::Grafana, "grafana", Some("ops"), true) };
+    let rendered = ContextRenderer.render_connections(&[grafana]);
+    assert!(rendered.contains("Grafana at https://grafana.example.com, folder `ops`"));
+    assert!(rendered.contains("`rekall-grafana --connection grafana <METHOD> <path> [curl options]`"));
 }

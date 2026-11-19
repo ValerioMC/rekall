@@ -18,4 +18,5 @@ pub use model::route_choice::choose_route;
 pub use model::route_target::RouteTarget;
 pub use model::step_progress::{progress_of, StepProgress, StepProgressState};
 pub use service::step_link_service::StepLinkService;
+pub use service::step_placement_service::StepPlacementService;
 pub use service::step_visit_service::StepVisitService;

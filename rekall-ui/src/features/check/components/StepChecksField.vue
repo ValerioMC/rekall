@@ -3,7 +3,8 @@ import { computed, watch } from 'vue'
 import CheckList from '@/features/check/components/CheckList.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useChecksStore } from '@/features/check/store/checks.store'
-import { stepIsComplete, type Task, type TaskStep } from '@/features/catalog/model/catalog'
+import { stepIsComplete, type TaskStep } from '@/features/steps/model/task-step'
+import { type Task } from '@/features/catalog/model/catalog'
 
 /**
  * The checks only this step has to pass, on top of the project's. Hidden on a finished step that

@@ -2,18 +2,15 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use rekall_core::claude::TerminalLaunch;
+use rekall_core::claude::{SessionProvider, TerminalLaunch};
 use rekall_core::telemetry::TelemetrySettingsService;
 use rekall_kernel::{Id, RekallError, Result};
 use tracing::{info, warn};
 
-use super::ClaudeOptions;
+use super::SessionOptions;
 use crate::cli::ClaudeCli;
 use crate::connection::CredentialBroker;
 
-/// What starting any kind of `claude` session needs from the machine: the project's folder, the
-/// CLI, the person's shell environment, a credential session when the project has connections, and
-/// the tracing variables.
 #[derive(Clone)]
 pub struct SessionLauncher {
     cli: ClaudeCli,
@@ -26,6 +23,13 @@ impl SessionLauncher {
         Self { cli, broker, telemetry }
     }
 
+    pub async fn require_terminal_cli(&self, provider: SessionProvider) -> Result<PathBuf> {
+        match provider {
+            SessionProvider::Claude => self.require_cli().await,
+            SessionProvider::Codex => self.cli.codex().require().await,
+        }
+    }
+
     pub async fn require_cli(&self) -> Result<PathBuf> {
         self.cli.locate().await.ok_or_else(|| {
             RekallError::conflict("Claude Code's command line tool isn't on this machine. Install it, then try again.")
@@ -33,13 +37,19 @@ impl SessionLauncher {
     }
 
     /// The environment session `id` runs in. A credential session's settings land in `options`.
-    pub async fn environment(&self, id: Id, launch: &TerminalLaunch, options: &mut ClaudeOptions) -> Result<HashMap<String, String>> {
-        let mut environment = self.cli.environment().await;
-        if let Some(session) = self.broker.open(id, launch).await? {
+    pub async fn environment(&self, id: Id, launch: &TerminalLaunch, options: &mut SessionOptions) -> Result<HashMap<String, String>> {
+        let mut environment = match options.provider {
+            SessionProvider::Claude => self.cli.environment().await,
+            SessionProvider::Codex => self.cli.codex().environment().await,
+        };
+        if let Some(session) = self.broker.open(id, launch, options.provider).await? {
             session.apply(&mut environment);
-            options.settings = session.claude_settings.clone();
+            options.settings = session.claude_settings;
+            options.codex_credential_session = options.provider == SessionProvider::Codex;
         }
-        environment.extend(self.telemetry_variables(id, launch).await);
+        if options.provider == SessionProvider::Claude {
+            environment.extend(self.telemetry_variables(id, launch).await);
+        }
         Ok(environment)
     }
 

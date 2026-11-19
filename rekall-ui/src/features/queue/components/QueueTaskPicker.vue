@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { codedTitle } from '@/features/catalog/model/task-code'
 /**
  * Adds a task to the queue by typing: its title, its label or its anchor, the same three ways the
  * console finds a task anywhere else. Arrow keys move through the matches, Enter adds the one
@@ -31,7 +32,7 @@ const matches = computed<Task[]>(() => {
     .filter(
       (task) =>
         task.title.toLowerCase().includes(term) ||
-        task.label.includes(term) ||
+        task.code.toLowerCase().includes(term) ||
         task.anchor.toLowerCase().includes(term)
     )
     .sort((a, b) => Number(a.status === 'DONE') - Number(b.status === 'DONE'))
@@ -112,7 +113,7 @@ function onInput(): void {
           @mousedown.prevent="pick(task)"
           @mouseenter="active = index"
         >
-          <span class="truncate text-small text-text">{{ task.title }}</span>
+          <span class="truncate text-small text-text">{{ codedTitle(task) }}</span>
           <span class="flex items-baseline gap-2 text-caption">
             <span class="min-w-0 truncate font-mono text-anchor">{{ task.anchor }}</span>
             <span class="ml-auto shrink-0 text-text-subtle">{{ workLine(task) }}</span>

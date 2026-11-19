@@ -7,4 +7,6 @@ pub struct SourceExcerptQuery {
     pub file: Option<String>,
     pub start: Option<u32>,
     pub end: Option<u32>,
+    /// Every line of the file, with the span only marked.
+    pub whole: Option<bool>,
 }

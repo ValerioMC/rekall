@@ -64,7 +64,7 @@ async fn place(State(state): State<ApiState>, Path(id): Path<String>, JsonBody(r
             Some(FlowPlace::new(x.unwrap_or_default(), y.unwrap_or_default())?)
         }
     };
-    Ok(Json(state.steps.place_in_flow(id, place).await?))
+    Ok(Json(state.step_placement.place_in_flow(id, place).await?))
 }
 
 async fn limit_visits(
@@ -74,9 +74,9 @@ async fn limit_visits(
 ) -> ApiResult<Json<Vec<TaskStepView>>> {
     let id = uuid("id", &id)?;
     let budget = request.max_visits.map(VisitBudget::new).transpose()?;
-    Ok(Json(state.steps.limit_visits(id, budget).await?))
+    Ok(Json(state.step_placement.limit_visits(id, budget).await?))
 }
 
 async fn clear_places(State(state): State<ApiState>, Path(task_id): Path<String>) -> ApiResult<Json<Vec<TaskStepView>>> {
-    Ok(Json(state.steps.clear_flow_places(uuid("taskId", &task_id)?).await?))
+    Ok(Json(state.step_placement.clear_flow_places(uuid("taskId", &task_id)?).await?))
 }

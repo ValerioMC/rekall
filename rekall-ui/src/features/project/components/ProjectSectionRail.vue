@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue'
 import { relativeTime } from '@/common/format/relative-time'
+import { compactCharacters } from '@/features/project/lib/section-size'
 import type { ProjectSection } from '@/features/project/model/project-section'
 import type { ProjectSectionId } from '@/model/branded'
 
@@ -13,7 +14,7 @@ const props = defineProps<{
   autoconfiguring: boolean
 }>()
 
-const emit = defineEmits<{ select: [id: ProjectSectionId]; create: [title: string]; autoconfigure: [] }>()
+const emit = defineEmits<{ select: [id: ProjectSectionId]; create: [title: string]; autoconfigure: []; import: [] }>()
 
 const composing = ref(false)
 const title = ref('')
@@ -55,6 +56,19 @@ function submit(): void {
       >
         <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
           <path d="M7 1.5 8.2 5.8 12.5 7 8.2 8.2 7 12.5 5.8 8.2 1.5 7 5.8 5.8Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" />
+        </svg>
+      </button>
+      <button
+        v-if="!composing"
+        type="button"
+        class="key-quiet focus-ring grid size-6 place-items-center rounded-key"
+        aria-label="Import a markdown file"
+        title="Import a .md file as a section"
+        data-testid="rail-import"
+        @click="emit('import')"
+      >
+        <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <path d="M7 9V2M4.5 4.3 7 1.8l2.5 2.5M2 8.8v1.7a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V8.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
       </button>
       <button
@@ -108,7 +122,7 @@ function submit(): void {
           <span class="min-w-0 flex-1">
             <span class="block truncate text-body text-text">{{ section.title }}</span>
             <span class="block truncate text-caption text-text-subtle">
-              {{ section.bodyMarkdown.trim() === '' ? 'Empty' : `Edited ${relativeTime(section.updatedAt)}` }}
+              {{ section.bodyMarkdown.trim() === '' ? 'Empty' : `${compactCharacters(section.bodyMarkdown.length)} · Edited ${relativeTime(section.updatedAt)}` }}
             </span>
           </span>
         </button>

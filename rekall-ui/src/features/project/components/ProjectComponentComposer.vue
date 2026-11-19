@@ -6,8 +6,9 @@ import { folderName } from '@/features/project/lib/component-folder'
 import type { ProjectComponentInput } from '@/features/project/model/project-component'
 
 /**
- * The form that adds a component. The folder comes first because it names the component: until
- * a name is typed, the folder's own name stands in, and the field shows it as its placeholder.
+ * The form that adds a component by hand. The folder comes first because it names the component: until
+ * a name is typed, the folder's own name stands in, and the field shows it as its placeholder. Its
+ * page is written afterwards, in the component's own pane, or by a scan.
  */
 defineProps<{ root: string | null; creating: boolean }>()
 
@@ -15,7 +16,7 @@ const emit = defineEmits<{ submit: [input: ProjectComponentInput]; cancel: [] }>
 
 const folder = ref('')
 const name = ref('')
-const description = ref('')
+const summary = ref('')
 const folderInput = ref<HTMLInputElement | null>(null)
 
 const suggestedName = computed(() => folderName(folder.value))
@@ -26,7 +27,7 @@ function submit(): void {
   emit('submit', {
     folder: folder.value.trim(),
     name: name.value.trim() || suggestedName.value,
-    description: description.value.trim()
+    summary: summary.value.trim()
   })
 }
 
@@ -67,14 +68,14 @@ onMounted(() => folderInput.value?.focus())
       data-testid="new-component-name"
     />
 
-    <label class="mb-1 mt-2 block text-caption text-text-muted" for="new-component-description">Description</label>
+    <label class="mb-1 mt-2 block text-caption text-text-muted" for="new-component-summary">Summary</label>
     <textarea
-      id="new-component-description"
-      v-model="description"
-      rows="2"
+      id="new-component-summary"
+      v-model="summary"
+      rows="3"
       class="field text-text block w-full resize-y rounded-control p-2 text-small leading-relaxed"
-      placeholder="What this component is and what it owns."
-      data-testid="new-component-description"
+      placeholder="What this component is for and what it owns, in two or three sentences."
+      data-testid="new-component-summary"
       @keydown.meta.enter.prevent="submit"
       @keydown.ctrl.enter.prevent="submit"
     />

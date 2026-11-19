@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/task-plan-sessions/index.html"
+        ],
+        "createdAt": "2026-11-18T22:16:00.241Z",
+        "reason": "sanctioned exception: DESIGN.md defines the session orb pulse as state made visible for a session at work; here it marks the one running session and running step, not decoration"
+      }
+    ]
+  }
+}

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import SkillField from '@/features/skills/components/SkillField.vue'
+import type { SkillAssignment } from '@/features/skills/model/skill-assignment'
 
 /** The skills every task under a tag runs with. Changing them changes every one of those tasks. */
-const skills = defineModel<readonly string[]>({ required: true })
+const skills = defineModel<readonly SkillAssignment[]>({ required: true })
 </script>
 
 <template>

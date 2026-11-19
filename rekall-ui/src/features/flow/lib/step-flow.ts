@@ -1,4 +1,4 @@
-import type { StepLink, TaskStep } from '@/features/catalog/model/catalog'
+import type { StepLink, TaskStep } from '@/features/steps/model/task-step'
 import { groupBySession } from '@/features/steps/lib/step-sessions'
 import type { StepLinkId, TaskStepId } from '@/model/branded'
 

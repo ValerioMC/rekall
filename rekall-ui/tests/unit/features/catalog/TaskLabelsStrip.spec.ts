@@ -51,6 +51,13 @@ describe('TaskLabelsStrip', () => {
     expect(wrapper.get('[data-testid="skill-add"]').text()).toBe('Add a skill')
   })
 
+  it('lays the tag, the skills and the dependencies out as labelled fields when stacked', () => {
+    const wrapper = mount(TaskLabelsStrip, { props: { task: taskWith(), stacked: true } })
+
+    const labels = wrapper.findAll('span.text-caption').map((label) => label.text())
+    expect(labels).toEqual(expect.arrayContaining(['Tag', 'Skills', 'Depends on']))
+  })
+
   it('leaves the context size chip to the title row', () => {
     const wrapper = mount(TaskLabelsStrip, { props: { task: taskWith() } })
 
@@ -59,8 +66,8 @@ describe('TaskLabelsStrip', () => {
 
   it("shows the task's own skills removable and the tag's dashed", () => {
     const store = useConsoleStore()
-    store.taskSkills = [{ taskId: id, stepId: null, skillName: 'rust-standards' }]
-    store.tagSkills = [{ tagId, skillName: 'code-review' }]
+    store.taskSkills = [{ taskId: id, stepId: null, skillName: 'rust-standards', arguments: null }]
+    store.tagSkills = [{ tagId, skillName: 'code-review', arguments: null }]
     const wrapper = mount(TaskLabelsStrip, {
       props: { task: taskWith({ tagId, tagName: 'Backend', tagIcon: 'star', tagColor: 'crimson' }) }
     })
@@ -75,16 +82,16 @@ describe('TaskLabelsStrip', () => {
   it('sends the whole list without the skill that was removed', async () => {
     const store = useConsoleStore()
     store.taskSkills = [
-      { taskId: id, stepId: null, skillName: 'a' },
-      { taskId: id, stepId: null, skillName: 'b' }
+      { taskId: id, stepId: null, skillName: 'a', arguments: null },
+      { taskId: id, stepId: null, skillName: 'b', arguments: null }
     ]
-    api.setTaskSkills.mockResolvedValue([{ taskId: id, stepId: null, skillName: 'b' }])
+    api.setTaskSkills.mockResolvedValue([{ taskId: id, stepId: null, skillName: 'b', arguments: null }])
     const wrapper = mount(TaskLabelsStrip, { props: { task: taskWith() } })
 
     await wrapper.findAll('[data-testid="skill-chip-remove"]')[0]!.trigger('click')
     await flushPromises()
 
-    expect(api.setTaskSkills).toHaveBeenCalledWith(id, ['b'])
+    expect(api.setTaskSkills).toHaveBeenCalledWith(id, [{ name: 'b', arguments: null }])
   })
 
   it('picks a tag from the list and saves it at once', async () => {

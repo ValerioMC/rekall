@@ -4,6 +4,7 @@ import { layoutSequence, type SequenceLayout } from './layout/sequence-layout'
 import { renderMermaid } from './mermaid/mermaid-runtime'
 import { placeNativeSvg } from './mermaid/native-svg'
 import { readSheet } from './mermaid/sheet-reader'
+import { drawnKindOf } from './mermaid/source-kind'
 import type { GraphScene } from './scene/graph-scene'
 import type { SequenceScene } from './scene/sequence-scene'
 import type { Box } from './viewport'
@@ -26,9 +27,19 @@ export async function drawSheet(sheet: DiagramSheet): Promise<SheetDrawing> {
       const layout = layoutGraph(read.scene)
       return { drawing: 'graph', scene: read.scene, layout, bounds: layout.bounds }
     }
-    case 'native': {
-      const placed = placeNativeSvg(await renderMermaid(sheet.mermaid))
-      return { drawing: 'native', svg: placed.markup, bounds: placed.bounds }
-    }
+    case 'native':
+      return drawNative(sheet.mermaid)
   }
+}
+
+/** A bare Mermaid source drawn the way a sheet of its kind is. */
+export async function drawSource(source: string): Promise<SheetDrawing> {
+  const kind = drawnKindOf(source)
+  if (!kind) return drawNative(source)
+  return drawSheet({ kind, title: null, mermaid: source, links: {}, walkthrough: null })
+}
+
+async function drawNative(source: string): Promise<SheetDrawing> {
+  const placed = placeNativeSvg(await renderMermaid(source))
+  return { drawing: 'native', svg: placed.markup, bounds: placed.bounds }
 }

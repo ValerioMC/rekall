@@ -14,6 +14,7 @@ pub struct ProjectConnectionView {
     pub base_url: Option<String>,
     pub kube_context: Option<String>,
     pub target: Option<String>,
+    pub task_manager: bool,
     pub credential_set_at: Option<Instant>,
 }
 
@@ -29,6 +30,7 @@ impl ProjectConnectionView {
             base_url: connection.base_url.clone(),
             kube_context: connection.kube_context.clone(),
             target: binding.target.clone(),
+            task_manager: binding.task_manager,
             credential_set_at: connection.secret_set_at,
         }
     }

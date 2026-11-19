@@ -2,7 +2,7 @@ use rekall_store::ConnectionKind;
 use serde::Deserialize;
 
 /// Which helper is asking, which decides the shape of the answer: an `ExecCredential` for kubectl,
-/// git's credential lines, or the header a GitLab, GitHub or Jira API call carries.
+/// git's credential lines, or the header a GitLab, GitHub, Jira, Confluence or Grafana API call carries.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CredentialPurpose {
@@ -11,6 +11,8 @@ pub enum CredentialPurpose {
     Gitlab,
     Github,
     Jira,
+    Confluence,
+    Grafana,
 }
 
 impl CredentialPurpose {
@@ -21,6 +23,8 @@ impl CredentialPurpose {
             Self::Gitlab => kind == ConnectionKind::Gitlab,
             Self::Github => kind == ConnectionKind::Github,
             Self::Jira => kind == ConnectionKind::Jira,
+            Self::Confluence => kind == ConnectionKind::Confluence,
+            Self::Grafana => kind == ConnectionKind::Grafana,
         }
     }
 }

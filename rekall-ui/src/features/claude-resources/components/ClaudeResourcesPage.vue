@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { storeToRefs } from 'pinia'
+import LibrarySubNav from '@/features/diagram/components/LibrarySubNav.vue'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
@@ -102,63 +103,67 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 <template>
   <div class="relative flex min-h-0 flex-1 flex-col bg-canvas">
-    <AppCatalogHeader title="Claude">
+    <AppCatalogHeader title="Library">
       <template #title-suffix>
         <span v-if="catalog" class="hidden truncate font-mono text-caption text-text-subtle lg:block" :title="catalog.root">{{ catalog.root }}</span>
       </template>
     </AppCatalogHeader>
 
-    <main class="flex min-h-0 flex-1" aria-label="Claude resources">
-      <ResourceRail
-        :catalog="catalog"
-        :section="section"
-        :query="query"
-        :selected-path="selectedPath"
-        :projects="console_.projects"
-        :placements="placements"
-        :analysis="analysis"
-        :reviewing="reviewing"
-        @update:section="chooseSection"
-        @update:query="query = $event"
-        @select="select"
-        @create="creating = true"
-        @review="openReview"
-        @move-skill="moveSkill"
-        @rename-group="renameGroup"
-      />
+    <div class="page-column shrink-0 pt-4"><LibrarySubNav active="claude" /></div>
 
-      <Transition name="pane" mode="out-in">
-        <MemoryReviewPanel
-          v-if="reviewing"
-          key="review"
+    <main class="page-column flex min-h-0 flex-1 pb-6 pt-6" aria-label="Claude resources">
+      <div class="flex min-h-0 flex-1 overflow-hidden rounded-card border border-border bg-surface">
+        <ResourceRail
+          :catalog="catalog"
+          :section="section"
+          :query="query"
+          :selected-path="selectedPath"
+          :projects="console_.projects"
+          :placements="placements"
           :analysis="analysis"
-          :analysing="analysing"
-          :groups="catalog?.memoryGroups ?? []"
-          @open="select"
-          @rerun="run(() => store.analyse())"
+          :reviewing="reviewing"
+          @update:section="chooseSection"
+          @update:query="query = $event"
+          @select="select"
+          @create="creating = true"
+          @review="openReview"
+          @move-skill="moveSkill"
+          @rename-group="renameGroup"
         />
-        <ResourceEditor
-          v-else-if="file"
-          :key="file.summary.path"
-          :file="file"
-          :draft="draft"
-          :dirty="dirty"
-          :saving="saving"
-          :conflict="conflict"
-          @update:draft="draft = $event"
-          @save="save"
-          @revert="store.revert()"
-          @remove="confirmingDelete = true"
-          @reload="run(() => store.reloadFromDisk())"
-          @overwrite="run(() => store.overwrite(), 'Overwritten.')"
-        />
-        <div v-else class="grid min-w-0 flex-1 place-items-center p-8" data-testid="resource-empty">
-          <AppEmptyState
-            :title="loaded ? 'Pick a file to read or edit' : 'Reading the Claude folder'"
-            description="Instructions, memories, skills, commands and agents are plain markdown files. Changes are written straight to disk, where your next session reads them."
+
+        <Transition name="pane" mode="out-in">
+          <MemoryReviewPanel
+            v-if="reviewing"
+            key="review"
+            :analysis="analysis"
+            :analysing="analysing"
+            :groups="catalog?.memoryGroups ?? []"
+            @open="select"
+            @rerun="run(() => store.analyse())"
           />
-        </div>
-      </Transition>
+          <ResourceEditor
+            v-else-if="file"
+            :key="file.summary.path"
+            :file="file"
+            :draft="draft"
+            :dirty="dirty"
+            :saving="saving"
+            :conflict="conflict"
+            @update:draft="draft = $event"
+            @save="save"
+            @revert="store.revert()"
+            @remove="confirmingDelete = true"
+            @reload="run(() => store.reloadFromDisk())"
+            @overwrite="run(() => store.overwrite(), 'Overwritten.')"
+          />
+          <div v-else class="grid min-w-0 flex-1 place-items-center p-8" data-testid="resource-empty">
+            <AppEmptyState
+              :title="loaded ? 'Pick a file to read or edit' : 'Reading the Claude folder'"
+              description="Instructions, memories, skills, commands and agents are plain markdown files. Changes are written straight to disk, where your next session reads them."
+            />
+          </div>
+        </Transition>
+      </div>
     </main>
 
     <Transition name="dialog">

@@ -1,5 +1,5 @@
 use rekall_kernel::Id;
-use rekall_store::{company, project, tag, task, task_step};
+use rekall_store::{company, project, tag, task, task_pull_request, task_step, task_tracker_link};
 
 /// Everything a task row is built from.
 pub struct TaskGraph<'a> {
@@ -11,4 +11,6 @@ pub struct TaskGraph<'a> {
     pub has_wrapup: bool,
     pub tag: Option<&'a tag::Model>,
     pub depends_on: Vec<Id>,
+    pub tracker_link: Option<&'a task_tracker_link::Model>,
+    pub pull_request: Option<&'a task_pull_request::Model>,
 }

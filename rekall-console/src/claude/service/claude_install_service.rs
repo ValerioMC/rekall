@@ -3,6 +3,8 @@ use std::sync::Arc;
 use rekall_core::claude::{ClaudeCodeSetup, Installation};
 use rekall_kernel::Result;
 
+use crate::claude::support::blocking_job::blocking;
+
 /// Whether Claude Code knows Rekall, and the install that makes it so. Both run a process, so
 /// each runs off the async workers.
 #[derive(Clone)]
@@ -15,14 +17,14 @@ impl ClaudeInstallService {
         Self { setup }
     }
 
-    pub async fn status(&self) -> Installation {
+    pub async fn status(&self) -> Result<Installation> {
         let setup = self.setup.clone();
-        tokio::task::spawn_blocking(move || setup.status()).await.expect("status never panics")
+        blocking(move || Ok(setup.status())).await
     }
 
     pub async fn install(&self) -> Result<Installation> {
         let setup = self.setup.clone();
-        tokio::task::spawn_blocking(move || setup.install()).await.expect("install never panics")
+        blocking(move || setup.install()).await
     }
 }
 

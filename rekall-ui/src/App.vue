@@ -1,38 +1,28 @@
 <script setup lang="ts">
-import { defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import AnchorBar from '@/components/console/AnchorBar.vue'
-import DescriptionPane from '@/features/catalog/components/DescriptionPane.vue'
-import DeviationPane from '@/features/deviations/components/DeviationPane.vue'
-import EpicPane from '@/features/catalog/components/epic/EpicPane.vue'
-import NavigatorPane from '@/components/console/NavigatorPane.vue'
-import NoteListPane from '@/features/notes/components/NoteListPane.vue'
-import NotePane from '@/features/notes/components/NotePane.vue'
-import NoteComposerPane from '@/features/notes/components/NoteComposerPane.vue'
-import NotePlacementsPane from '@/features/notes/components/NotePlacementsPane.vue'
-import StepsPane from '@/features/steps/components/StepsPane.vue'
-import WrapupPane from '@/features/wrapup/components/WrapupPane.vue'
-import SettingsPanel from '@/features/settings/components/SettingsPanel.vue'
-import TagsPanel from '@/features/tags/components/TagsPanel.vue'
+import { useRoute, useRouter } from 'vue-router'
+import ConsoleHeader from '@/components/console/ConsoleHeader.vue'
+import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
+import ReviewPage from '@/features/review/components/ReviewPage.vue'
+import TaskPage from '@/features/task/components/TaskPage.vue'
+import WorkPage from '@/features/work/components/WorkPage.vue'
 import RunQueuePanel from '@/features/queue/components/RunQueuePanel.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
 import ChatReopenTag from '@/features/chat/components/ChatReopenTag.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useDeviationsStore } from '@/features/deviations/store/deviations.store'
 import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
-import { useChatStore } from '@/features/chat/store/chat.store'
-import { useChatDockStore } from '@/features/chat/store/chatDock.store'
+import { useCodexStore } from '@/features/codex/store/codex.store'
 import { useChatDockArea } from '@/features/chat/composables/useChatDockArea'
 import { useChatWindowShown } from '@/features/chat/composables/useChatWindowShown'
-import { preferredSessionKind } from '@/common/config/claude-launch'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { useQueueSessionSync } from '@/features/queue/composables/useQueueSessionSync'
-import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useModalGate } from '@/composables/useModalGate'
 import { useStepStream } from '@/features/steps/composables/useStepStream'
 import { useClaimNotifications } from '@/composables/useClaimNotifications'
 import { useConsoleLocation } from '@/composables/useConsoleLocation'
-import { isEpic, type TaskStatus } from '@/features/catalog/model/catalog'
+import { useTaskEditor } from '@/features/catalog/composables/useTaskEditor'
 
 // xterm and its stylesheet are only parsed once a terminal is opened: most sessions never do,
 // and the console's first paint should not pay for them.
@@ -41,22 +31,20 @@ const TerminalPane = defineAsyncComponent(() => import('@/features/claude/compon
 const ChatWindow = defineAsyncComponent(() => import('@/features/chat/components/ChatWindow.vue'))
 
 const store = useConsoleStore()
-const { selectedTaskId, selectedTask, navMode, paneFocus, noteComposerOpen, reviewQueue, isLoading } = storeToRefs(store)
+const route = useRoute()
+const taskEditor = useTaskEditor()
+const onWork = computed(() => route.name === 'work' || route.name === 'work-board')
+const onTask = computed(() => route.name === 'task')
+const onReview = computed(() => route.name === 'review')
+const { selectedTaskId, selectedTask, paneFocus, reviewQueue, isLoading } = storeToRefs(store)
 const runQueue = useRunQueueStore()
 const deviations = useDeviationsStore()
 const { panelOpen: runQueueOpen } = storeToRefs(runQueue)
-const { run } = useAsyncAction()
 const { isModalOpen } = useModalGate()
-const chat = useChatStore()
-const chatDock = useChatDockStore()
 const noteArea = ref<HTMLElement | null>(null)
 useChatDockArea(noteArea, true)
 
 const chatWindowShown = useChatWindowShown()
-
-function chatOwnsTerminalKey(): boolean {
-  return chat.sessionFor(selectedTaskId.value) !== null || preferredSessionKind() === 'chat'
-}
 
 useStepStream(
   (taskId, steps) => store.applyStepEvent(taskId, steps),
@@ -74,37 +62,21 @@ useQueueSessionSync()
 useClaimNotifications(reviewQueue, isLoading)
 useConsoleLocation()
 
-const STATUS_BY_KEY: Record<string, TaskStatus> = {
-  '1': 'IN_PROGRESS',
-  '2': 'TODO',
-  '3': 'BLOCKED',
-  '4': 'DONE',
-  '5': 'BACKLOG'
-}
-
-const anchorBar = ref<InstanceType<typeof AnchorBar> | null>(null)
-const navigator = ref<InstanceType<typeof NavigatorPane> | null>(null)
-const descriptionPane = ref<InstanceType<typeof DescriptionPane> | null>(null)
-const epicPane = ref<InstanceType<typeof EpicPane> | null>(null)
-const notePane = ref<InstanceType<typeof NotePane> | null>(null)
-const deviationPane = ref<InstanceType<typeof DeviationPane> | null>(null)
-const settingsOpen = ref(false)
 const claudeConnection = useClaudeConnectionStore()
-const tagsOpen = ref(false)
+const codex = useCodexStore()
+const router = useRouter()
 
-/**
- * Browsing tasks, a note lands on the task in view, in its project, with no questions. Browsing
- * notes, the task in view is not on screen, so the composer asks where the note goes.
- */
-async function newNote(): Promise<void> {
-  if (navMode.value === 'notes') {
-    store.openNoteComposer()
-    return
-  }
-  const taskId = selectedTaskId.value
-  if (!taskId) return
-  await run(() => store.createNote({ scope: store.projectScopeOf(taskId), taskIds: [taskId] }), 'Note created')
-}
+/** `/console` hosts the terminal and nothing else: a task shown on any other pane is on its page. */
+const showsTerminal = computed(() => paneFocus.value === 'terminal' && selectedTask.value !== null)
+
+watch(
+  [() => route.name, showsTerminal, () => store.isLoading, chatWindowShown],
+  ([name, terminal, loading, chatShown]) => {
+    if (name !== 'console' || terminal || loading || chatShown) return
+    void router.replace(selectedTaskId.value ? `/task/${selectedTaskId.value}` : '/')
+  },
+  { immediate: true }
+)
 
 function onKeydown(event: KeyboardEvent): void {
   if (isModalOpen.value > 0) return
@@ -114,111 +86,21 @@ function onKeydown(event: KeyboardEvent): void {
     !!target &&
     (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable)
 
-  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-    event.preventDefault()
-    anchorBar.value?.focus()
-    return
-  }
-
   // Shortcuts are bare keys; a Cmd/Ctrl/Alt chord belongs to the browser.
   if (event.metaKey || event.ctrlKey || event.altKey) return
 
   if (typing) return
 
   const key = event.key.toLowerCase()
-
-  if (paneFocus.value === 'deviation') {
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      store.closeDeviation()
-      return
-    }
-    if (event.key === '[' || event.key === ']') {
-      event.preventDefault()
-      deviationPane.value?.step(event.key === ']' ? 1 : -1)
-      return
-    }
-  }
-
-  if (key === 'n') {
-    event.preventDefault()
-    void newNote()
-    return
-  }
-
-  if (key === 'w' || key === 'd' || key === 's') {
-    event.preventDefault()
-    if (key === 'w') store.toggleWrapup()
-    else if (key === 's') store.toggleSteps()
-    else store.toggleDescription()
-    document.getElementById('note')?.focus()
-    return
-  }
-
-  if (key === 'r') {
-    event.preventDefault()
-    if (paneFocus.value === 'description') (epicPane.value ?? descriptionPane.value)?.toggleMode()
-    else if (paneFocus.value === 'note') notePane.value?.toggleMode()
-    return
-  }
-
-  if (key === 'c' && chatOwnsTerminalKey()) {
-    event.preventDefault()
-    if (event.shiftKey) {
-      chatDock.open(selectedTaskId.value)
-      chatDock.toggleExpanded()
-    } else if (chatWindowShown.value) chatDock.hide()
-    else chatDock.open(selectedTaskId.value)
-    return
-  }
-
-  if (key === 'c') {
-    event.preventDefault()
-    store.toggleTerminal()
-    document.getElementById('note')?.focus()
-    return
-  }
-
   if (key === 'q') {
     event.preventDefault()
     runQueue.openPanel()
-    return
-  }
-
-  if (key === 'b') {
+  } else if (key === 't') {
     event.preventDefault()
-    store.setNavMode(navMode.value === 'tasks' ? 'notes' : 'tasks')
-    return
-  }
-
-  if (key === 't') {
+    taskEditor.beginCreate()
+  } else if (key === 'e' && onTask.value) {
     event.preventDefault()
-    navigator.value?.beginCreate()
-    return
-  }
-
-  if (key === 'e') {
-    event.preventDefault()
-    navigator.value?.editSelected()
-    return
-  }
-
-  if (key === 'j' || key === 'k') {
-    event.preventDefault()
-    const list = navMode.value === 'tasks' ? store.visibleTasks : store.visibleDocuments
-    const currentId = navMode.value === 'tasks' ? store.selectedTaskId : store.selectedDocId
-    const at = list.findIndex((item) => item.id === currentId)
-    const next = list[at + (key === 'j' ? 1 : -1)]
-    if (!next) return
-    if (navMode.value === 'tasks') store.selectTask(next.id as never)
-    else store.selectDocument(next.id as never)
-    return
-  }
-
-  const status = STATUS_BY_KEY[event.key]
-  if (status && navMode.value === 'tasks' && selectedTaskId.value) {
-    event.preventDefault()
-    void run(() => store.setTaskStatus(selectedTaskId.value!, status))
+    taskEditor.editSelected()
   }
 }
 
@@ -232,10 +114,7 @@ onMounted(() => {
   // The beacon needs the queue from the first paint; the SSE feed only carries changes.
   void runQueue.load().catch(() => undefined)
   void refreshClaudeConnection()
-})
-// Settings is where the registration gets repaired or changed by hand, so read it again on leaving.
-watch(settingsOpen, (open) => {
-  if (!open) void refreshClaudeConnection()
+  void codex.loadSetup().catch(() => undefined)
 })
 onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
@@ -249,33 +128,16 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       Skip to the editor
     </a>
 
-    <AnchorBar
-      ref="anchorBar"
-      @new-note="newNote"
-      @open-settings="settingsOpen = true"
-      @open-tags="tagsOpen = true"
-    />
-
+    <ConsoleHeader />
     <div class="flex min-h-0 flex-1">
-      <NavigatorPane ref="navigator" />
-      <Transition name="pane" mode="out-in">
-        <NoteListPane v-if="navMode === 'tasks'" />
-        <NoteComposerPane v-else-if="noteComposerOpen" />
-        <NotePlacementsPane v-else />
-      </Transition>
-      <!-- A place focus is sent to (the skip link, a pane shortcut), never a control, so it
-           draws no ring: the pane that appears in it is what says where you are. -->
-      <div ref="noteArea" class="relative flex min-h-0 min-w-0 flex-1">
+      <WorkPage v-if="onWork" />
+      <TaskPage v-else-if="onTask" />
+      <ReviewPage v-else-if="onReview" />
+      <div v-else ref="noteArea" class="relative flex min-h-0 min-w-0 flex-1" data-testid="console-terminal">
+        <!-- A place focus is sent to (the skip link), never a control, so it draws no ring: the pane
+             that appears in it is what says where you are. -->
         <div id="note" class="flex min-h-0 min-w-0 flex-1 outline-none" tabindex="-1">
-          <Transition name="pane" mode="out-in">
-            <WrapupPane v-if="paneFocus === 'wrapup'" />
-            <EpicPane v-else-if="paneFocus === 'description' && selectedTask && isEpic(selectedTask)" ref="epicPane" />
-            <DescriptionPane v-else-if="paneFocus === 'description'" ref="descriptionPane" />
-            <StepsPane v-else-if="paneFocus === 'steps' && !(selectedTask && isEpic(selectedTask))" />
-            <DeviationPane v-else-if="paneFocus === 'deviation' && !(selectedTask && isEpic(selectedTask))" ref="deviationPane" />
-            <TerminalPane v-else-if="paneFocus === 'terminal' && !(selectedTask && isEpic(selectedTask))" />
-            <NotePane v-else ref="notePane" />
-          </Transition>
+          <TerminalPane v-if="showsTerminal" />
         </div>
         <Transition name="pane">
           <ChatWindow v-if="chatWindowShown" />
@@ -285,10 +147,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     </div>
 
     <Transition name="dialog">
-      <SettingsPanel v-if="settingsOpen" @close="settingsOpen = false" />
+      <RecordDialog v-if="taskEditor.editing.value" :draft="taskEditor.editing.value" @close="taskEditor.close()" />
     </Transition>
     <Transition name="dialog">
-      <TagsPanel v-if="tagsOpen" @close="tagsOpen = false" />
     </Transition>
     <Transition name="dialog">
       <RunQueuePanel v-if="runQueueOpen" @close="runQueue.closePanel()" />

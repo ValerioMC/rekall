@@ -2,17 +2,20 @@
 import { computed, ref, watch } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import ConnectionUnbindButton from '@/features/connection/components/ConnectionUnbindButton.vue'
+import TargetSuggestionList from '@/features/connection/components/TargetSuggestionList.vue'
+import { useTargetSuggestions } from '@/features/connection/composables/useTargetSuggestions'
 import { TARGET_FIELD } from '@/features/connection/lib/connection-fields'
 import { expectedTargetPrefix } from '@/features/connection/lib/target-scope'
 import type { ProjectConnection, ProjectConnectionInput } from '@/features/connection/model/connection'
 
 /**
  * One binding on its connection's line: the label a session names it by and its target, both
- * edited in place, and a way to stop using it. A Jira one with a credential and a project key
- * also opens the import of its issues.
+ * edited in place, and a way to stop using it. A Jira or Confluence one with a credential offers the
+ * projects or spaces of its site while the target is typed; a Jira one with a project key also
+ * opens the import of its issues and a Confluence one with a space key the filling of the project.
  */
 const props = defineProps<{ binding: ProjectConnection; rootPath: string | null }>()
-const emit = defineEmits<{ save: [input: ProjectConnectionInput]; unbind: []; importIssues: [] }>()
+const emit = defineEmits<{ save: [input: ProjectConnectionInput]; unbind: []; importIssues: []; fillProject: [] }>()
 
 const draft = ref(props.binding.target ?? '')
 const labelDraft = ref(props.binding.label)
@@ -21,6 +24,17 @@ const expectedPrefix = computed(() => expectedTargetPrefix(props.rootPath, draft
 const canImport = computed(
   () => props.binding.kind === 'JIRA' && !!props.binding.credentialSetAt && !!props.binding.target
 )
+
+const takesSuggestions = computed(
+  () => (props.binding.kind === 'JIRA' || props.binding.kind === 'CONFLUENCE') && !!props.binding.credentialSetAt
+)
+const canFillProject = computed(
+  () => props.binding.kind === 'CONFLUENCE' && !!props.binding.credentialSetAt && !!props.binding.target
+)
+const suggestionListId = computed(() => `target-suggestions-${props.binding.id}`)
+const { suggestions, unavailable, ask } = useTargetSuggestions(() => props.binding.connectionId, () => takesSuggestions.value)
+
+watch(draft, (typed) => ask(typed))
 
 watch(
   () => props.binding.target,
@@ -53,7 +67,7 @@ function commitLabel(): void {
 </script>
 
 <template>
-  <div class="group flex min-h-[34px] items-center gap-2 rounded-control pr-1 hover:bg-surface-raised" data-testid="project-connection">
+  <div class="group flex min-h-(--spacing-row) items-center gap-2 rounded-control pr-1 hover:bg-surface-raised" data-testid="project-connection">
     <input
       v-model="labelDraft"
       spellcheck="false"
@@ -72,14 +86,23 @@ function commitLabel(): void {
       data-testid="connection-target"
       class="quiet-input text-text min-w-0 flex-1 font-mono text-caption"
       :placeholder="targetField.placeholder"
+      :list="takesSuggestions ? suggestionListId : undefined"
+      @focus="ask(draft)"
       @blur="commit"
       @keydown.enter.prevent="commit"
     />
+    <TargetSuggestionList v-if="takesSuggestions" :id="suggestionListId" :suggestions="suggestions" />
+    <span v-if="unavailable" class="shrink-0 text-caption text-text-subtle" role="status" data-testid="suggestions-unavailable"
+      >Suggestions unavailable: {{ unavailable }}</span
+    >
     <span v-if="expectedPrefix" class="shrink-0 text-caption text-warn" role="status" data-testid="target-warning"
       >Expected to start with {{ expectedPrefix }}</span
     >
     <AppButton v-if="canImport" size="sm" variant="ghost" data-testid="import-jira-issues" @click="emit('importIssues')"
       >Import issues as tasks</AppButton
+    >
+    <AppButton v-if="canFillProject" size="sm" variant="ghost" data-testid="fill-from-confluence" @click="emit('fillProject')"
+      >Fill project from Confluence</AppButton
     >
     <ConnectionUnbindButton :subject="binding.label" testid="unbind-connection" @confirm="emit('unbind')" />
   </div>

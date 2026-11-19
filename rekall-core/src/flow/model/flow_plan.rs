@@ -13,11 +13,25 @@ use crate::step::PROPOSED_DRAFTS_MAX;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FlowPlan {
     pub steps: Vec<PlannedStep>,
+    /// Steps of the task that stay before the plan; they only shift the numbers a refusal quotes.
+    kept_before: usize,
 }
 
 impl FlowPlan {
     pub fn new(steps: Vec<PlannedStep>) -> Self {
-        Self { steps }
+        Self { steps, kept_before: 0 }
+    }
+
+    /// The plan as it lands after `kept`: a route's `to` counts the whole checklist as the console
+    /// lists it, so it is moved to count from the plan's first step. A route into a kept step is refused.
+    pub fn following(&self, kept: &[&str]) -> Result<Self> {
+        let mut steps = self.steps.clone();
+        for step in &mut steps {
+            for route in &mut step.routes {
+                route.to = route.to.map(|to| rebased(&step.title, &route.outcome, to, kept)).transpose()?;
+            }
+        }
+        Ok(Self { steps, kept_before: kept.len() })
     }
 
     pub fn route_count(&self) -> usize {
@@ -109,8 +123,8 @@ impl FlowPlan {
                     return Err(RekallError::illegal(format!(
                         "'{}' routes by `{outcome}` to step {}, and the flow has {} steps.",
                         step.title,
-                        to + 1,
-                        self.steps.len()
+                        to + 1 + self.kept_before,
+                        self.steps.len() + self.kept_before
                     )));
                 }
                 _ => {}
@@ -173,6 +187,16 @@ impl FlowPlan {
             return Ok(());
         }
         Err(RekallError::illegal(format!("{problem} {}. {remedy}", failing.join(", "))))
+    }
+}
+
+fn rebased(step_title: &str, outcome: &str, to: usize, kept: &[&str]) -> Result<usize> {
+    match kept.get(to) {
+        Some(kept_title) => Err(RekallError::illegal(format!(
+            "'{step_title}' routes by `{outcome}` to step {}, '{kept_title}', which stays as it is. A route leads to a new step or `end`.",
+            to + 1
+        ))),
+        None => Ok(to - kept.len()),
     }
 }
 

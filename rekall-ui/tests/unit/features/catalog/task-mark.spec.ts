@@ -2,12 +2,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import TaskMark from '@/features/catalog/components/TaskMark.vue'
 import { taskMark } from '@/features/catalog/model/task-mark'
-import type { Task, TaskStatus, TaskStep, TaskStepState } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskStatus } from '@/features/catalog/model/task-status'
+import type { TaskStep, TaskStepState } from '@/features/steps/model/task-step'
 import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
 
 function task(overrides: Partial<Task> = {}): Task {
   return {
     id: 't1' as TaskId,
+    code: 'T-1',
     label: 't1',
     title: 'Task',
     status: 'IN_PROGRESS',
@@ -33,7 +36,7 @@ function task(overrides: Partial<Task> = {}): Task {
     graphLaidAt: null,
     releaseSkipped: false,
     kind: 'TASK',
-    epicId: null, quick: false, autoAccepted: false, dependsOn: [],
+    epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, trackerContentSynced: true, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
     anchor: 'project:vega task:t1',
     updatedAt: '2026-09-20T10:00:00Z',
     ...overrides

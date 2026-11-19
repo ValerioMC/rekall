@@ -6,6 +6,8 @@ export const CommitReferenceSchema = z.object({
   taskId: z.string().uuid().transform(asTaskId),
   stepId: z.string().uuid().transform(asTaskStepId).nullable(),
   stepTitle: z.string().nullable(),
+  componentId: z.string().uuid().nullable(),
+  componentName: z.string().nullable(),
   commitHash: z.string(),
   comment: z.string(),
   inContext: z.boolean(),
@@ -15,10 +17,6 @@ export const CommitReferenceSchema = z.object({
 export const CommitReferenceStreamEventSchema = z.object({
   taskId: z.string().uuid().transform(asTaskId),
   reference: CommitReferenceSchema
-})
-
-export const CommitReferenceDiffSchema = z.object({
-  diff: z.string().nullable()
 })
 
 export const RecentCommitSchema = z.object({

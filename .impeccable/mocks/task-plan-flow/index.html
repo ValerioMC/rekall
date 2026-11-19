@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Task Plan flow and step view</title>
+<style>
+  @font-face { font-family: 'Fira Sans'; font-weight: 400; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 500; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 600; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Code'; font-weight: 300 700; src: url('../../../rekall-ui/node_modules/@fontsource-variable/fira-code/files/fira-code-latin-wght-normal.woff2') format('woff2'); }
+
+  :root {
+    --canvas: #0d1017; --surface: #151922; --raised: #1d2330; --hover: #262d3c;
+    --border: #2a3243; --border-strong: #3b4558; --border-field: #5e6a82;
+    --text: #f2f5f9; --muted: #a3acba; --subtle: #8c96a6;
+    --accent: #eaa43c; --accent-strong: #ffd88e; --accent-deep: #a8651a; --accent-soft: #eaa43c24; --accent-ink: #2b1804;
+    --anchor: #55c9ea; --anchor-soft: #55c9ea1f;
+    --session: #7c83f7; --session-strong: #b4b9ff;
+    --safe: #3ddc97; --safe-soft: #3ddc971a; --warn: #f3c04a; --warn-soft: #f3c04a1a;
+    --font-sans: 'Fira Sans', ui-sans-serif, -apple-system, sans-serif;
+    --font-mono: 'Fira Code', ui-monospace, Menlo, monospace;
+    --t-micro: 11px; --t-caption: 11.5px; --t-small: 12.5px; --t-body: 13.5px; --t-title: 15px; --t-heading: 19px;
+    --r-key: 3px; --r-control: 5px; --r-card: 8px;
+    --ease: cubic-bezier(.22, 1, .36, 1);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--canvas); color: var(--text); font: 400 var(--t-body)/1.4 var(--font-sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; text-align: left; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .mono { font-family: var(--font-mono); }
+  svg.i { width: 14px; height: 14px; flex: none; }
+
+  .app { display: flex; flex-direction: column; height: 100vh; }
+  .topbar { height: 48px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .brand { font-weight: 600; font-size: var(--t-title); }
+  .search { margin: 0 auto; width: min(620px, 44vw); height: 32px; display: flex; align-items: center; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); color: var(--subtle); font-size: var(--t-small); }
+
+  .head { flex: none; padding: 10px 24px 0; }
+  .crumbs { display: flex; align-items: center; gap: 12px; min-height: 32px; }
+  .crumbs nav { flex: 1; display: flex; gap: 8px; color: var(--muted); font-size: var(--t-small); }
+  .crumbs nav span { color: var(--subtle); }
+  .actions { display: flex; gap: 6px; }
+  .btn { height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: var(--r-control); font-size: var(--t-small); font-weight: 500; white-space: nowrap; }
+  .btn.secondary { background: var(--raised); border: 1px solid var(--border-strong); box-shadow: inset 0 1px 0 rgb(255 255 255 / .07), 0 1px 1px rgb(0 0 0 / .35); }
+  .btn.primary { background: linear-gradient(180deg, var(--accent-strong), var(--accent) 45%, var(--accent-deep)); color: var(--accent-ink); font-weight: 600; }
+  h1 { margin: 2px 0 8px; font-size: 22px; font-weight: 500; letter-spacing: -0.015em; display: flex; align-items: center; gap: 10px; }
+  h1 .pill { font-size: var(--t-caption); font-weight: 500; letter-spacing: 0; color: var(--warn); border: 1px solid #f3c04a55; background: var(--warn-soft); border-radius: var(--r-key); padding: 1px 7px; }
+
+  .tabs { flex: none; height: 40px; display: flex; align-items: flex-end; gap: 22px; padding: 0 24px; border-bottom: 1px solid var(--border); }
+  .tab { position: relative; height: 100%; display: flex; align-items: center; gap: 6px; font-size: var(--t-body); color: var(--muted); }
+  .tab .c { font: 400 var(--t-micro) var(--font-mono); color: var(--subtle); }
+  .tab[aria-current="page"] { color: var(--text); }
+  .tab[aria-current="page"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); border-radius: 2px 2px 0 0; }
+
+  .plan { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+
+  /* the plan bar: one row, whatever the view */
+  .bar { flex: none; height: 44px; display: flex; align-items: center; gap: 16px; padding: 0 16px 0 24px; border-bottom: 1px solid var(--border); position: relative; z-index: 6; }
+  .tube { width: 168px; height: 8px; flex: none; display: flex; gap: 2px; border-radius: 9999px; overflow: hidden; background: #0a0d13; box-shadow: inset 0 2px 3px rgb(0 0 0 / .6); }
+  .tube i { flex: 1; background: linear-gradient(180deg, var(--accent-strong), var(--accent) 45%, var(--accent-deep)); }
+  .tube i:first-child { border-radius: 9999px 0 0 9999px; } .tube i:last-child { border-radius: 0 9999px 9999px 0; }
+  .tally { font-size: var(--t-small); color: var(--muted); white-space: nowrap; }
+  .tally b { font-weight: 600; color: var(--text); }
+  .chips { display: flex; align-items: center; gap: 2px; min-width: 0; }
+  .chip { display: inline-flex; align-items: baseline; gap: 6px; height: 28px; padding: 0 10px; border-radius: var(--r-control); font-size: var(--t-small); color: var(--muted); align-items: center; white-space: nowrap; }
+  .chip:hover, .chip[aria-expanded="true"] { background: var(--raised); color: var(--text); }
+  .chip b { font: 500 var(--t-small) var(--font-mono); color: var(--text); }
+  .chip.warn b, .chip.warn { color: var(--warn); }
+  .chip svg { width: 9px; height: 9px; color: var(--subtle); transition: transform 140ms var(--ease); }
+  .chip[aria-expanded="true"] svg { transform: rotate(90deg); }
+  .sp { flex: 1; }
+  .seg { display: flex; gap: 2px; padding: 2px; border-radius: var(--r-control); background: var(--canvas); border: 1px solid var(--border); }
+  .seg button { height: 22px; padding: 0 10px; border-radius: var(--r-key); font-size: var(--t-small); font-weight: 500; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06); }
+  .btn.quiet { color: var(--muted); } .btn.quiet:hover { background: var(--raised); color: var(--text); }
+
+  .pop { position: absolute; z-index: 20; top: 50px; left: 24px; width: 640px; max-width: calc(100vw - 48px); border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--surface); box-shadow: 0 1px 2px rgb(0 0 0 / .55), 0 18px 36px -10px rgb(0 0 0 / .75); padding: 16px 18px 14px; display: none; }
+  .pop.open { display: block; }
+  .pop h2 { font-size: var(--t-title); font-weight: 600; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .pop h2 small { font-size: var(--t-caption); font-weight: 400; color: var(--subtle); }
+  .figures { margin-top: 12px; display: grid; grid-template-columns: repeat(3, 1fr); }
+  .figure { padding: 0 18px; border-left: 1px solid var(--border); }
+  .figure:first-child { padding-left: 0; border-left: 0; }
+  .figure .l { font-size: var(--t-caption); font-weight: 500; color: var(--subtle); }
+  .figure .v { font: 400 26px/1.2 var(--font-mono); letter-spacing: -0.02em; }
+  .figure .d { font-size: var(--t-caption); color: var(--subtle); }
+  .visits { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); display: grid; grid-template-columns: 1fr 1fr; gap: 2px 28px; }
+  .visits h3 { grid-column: 1 / -1; font-size: var(--t-small); font-weight: 600; color: var(--muted); margin-bottom: 2px; }
+  .visits li { list-style: none; display: flex; align-items: baseline; gap: 8px; font-size: var(--t-caption); }
+  .visits li .n { width: 14px; text-align: right; font-family: var(--font-mono); color: var(--subtle); }
+  .visits li .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+  .visits li .v { font-family: var(--font-mono); }
+  .visits li .s { color: var(--warn); font-weight: 600; }
+
+  .moves { left: auto; right: 360px; top: 14px; width: 340px; padding: 12px 14px; }
+  .moves h2 { font-size: var(--t-small); }
+  .moves ol { margin-top: 8px; padding: 0; list-style: none; max-height: 280px; overflow-y: auto; display: grid; gap: 1px; }
+  .moves li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; font-size: var(--t-caption); padding: 3px 4px; border-radius: var(--r-key); }
+  .moves li:hover { background: var(--raised); }
+  .moves li .n { text-align: right; font-family: var(--font-mono); color: var(--subtle); }
+  .moves li .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+  .moves li .o { font-family: var(--font-mono); color: var(--subtle); }
+  .moves li.open .t { color: var(--accent-strong); }
+  .moves .foot { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; }
+
+  /* workspace: the graph owns it */
+  .work { flex: 1; min-height: 0; display: flex; position: relative; }
+  .graph { flex: 1; min-width: 0; position: relative; overflow: hidden; background-color: var(--canvas); background-image: radial-gradient(circle, #ffffff12 1px, transparent 1.2px); background-size: 22px 22px; }
+  .stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .stage svg.edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+  .node { position: absolute; width: 220px; height: 64px; padding: 8px 12px 8px 12px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--surface); box-shadow: 0 1px 2px rgb(0 0 0 / .5); display: grid; grid-template-columns: 22px minmax(0, 1fr) 20px; gap: 0 6px; align-items: start; }
+  .node:hover { background: var(--raised); }
+  .node[aria-current="true"] { border-color: var(--anchor); box-shadow: 0 0 0 1px var(--anchor), 0 1px 2px rgb(0 0 0 / .5); }
+  .node .no { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); padding-top: 1px; }
+  .node .ti { font-size: var(--t-small); font-weight: 500; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .node .seal { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; }
+  .node .seal svg { width: 10px; height: 10px; }
+  .node .vis { position: absolute; right: 10px; bottom: 5px; font: 400 var(--t-micro) var(--font-mono); color: var(--subtle); }
+  .node .vis.spent { color: var(--warn); }
+  .term { position: absolute; height: 34px; padding: 0 16px; display: inline-flex; align-items: center; gap: 8px; border-radius: 9999px; font-size: var(--t-small); font-weight: 500; border: 1px solid #eaa43c80; background: #eaa43c1c; color: var(--accent-strong); }
+  .term svg { width: 12px; height: 12px; }
+  .term.end { border-color: var(--border-strong); background: var(--surface); color: var(--muted); }
+  .gate { position: absolute; transform: translate(-50%, -50%); height: 20px; padding: 0 9px; display: inline-flex; align-items: center; border-radius: 9999px; border: 1px solid var(--border-strong); background: var(--canvas); font: 400 var(--t-micro) var(--font-mono); color: var(--muted); white-space: nowrap; }
+  .gate.walked { border-color: #eaa43c66; color: var(--accent-strong); }
+  .gate.lit { border-color: var(--anchor); color: var(--anchor); }
+
+  .hud { position: absolute; z-index: 4; display: flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: var(--r-card); background: #151922e6; backdrop-filter: blur(6px); box-shadow: 0 1px 2px rgb(0 0 0 / .5); }
+  .hud.tl { left: 14px; top: 12px; }
+  .hud.tr { right: 14px; top: 12px; }
+  .hud .chip { height: 26px; }
+  .hud .chip b { color: var(--accent); }
+  .hud .ic { width: 26px; height: 26px; display: grid; place-items: center; border-radius: var(--r-control); color: var(--muted); }
+  .hud .ic:hover { background: var(--raised); color: var(--text); }
+  .hud .div { width: 1px; height: 16px; background: var(--border); margin: 0 3px; }
+
+  /* the picked step's routes, beside the graph */
+  .insp { flex: none; width: 336px; border-left: 1px solid var(--border); background: var(--surface); overflow-y: auto; padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 16px; }
+  .insp .top { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; align-items: start; }
+  .insp .top .seal { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; }
+  .insp .top .seal svg { width: 12px; height: 12px; }
+  .insp .eyebrow { font-size: var(--t-caption); color: var(--subtle); }
+  .insp .name { font-size: var(--t-title); font-weight: 500; line-height: 1.3; letter-spacing: -0.005em; }
+  .insp .st { font-size: var(--t-caption); color: var(--subtle); }
+  .insp h2 { font-size: var(--t-small); font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  .insp .rt { display: grid; grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1.4fr); align-items: center; gap: 6px; }
+  .insp .fld { height: 28px; display: flex; align-items: center; padding: 0 9px; border: 1px solid var(--border-field); border-radius: var(--r-control); background: var(--canvas); font-size: var(--t-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .insp .fld.mono { font-family: var(--font-mono); }
+  .insp .fld.ph { color: var(--subtle); }
+  .insp .arrow { color: var(--subtle); text-align: center; }
+  .insp .hint { margin-top: 8px; font-size: var(--t-caption); line-height: 1.5; color: var(--subtle); }
+  .insp .vl { display: flex; justify-content: space-between; font-size: var(--t-small); font-family: var(--font-mono); color: var(--muted); padding: 3px 0; }
+  .insp .vl span:last-child { color: var(--subtle); font-family: var(--font-sans); font-size: var(--t-caption); }
+  .insp .group { display: flex; flex-direction: column; }
+
+  /* list view: steps beside the step being read */
+  .work[hidden] { display: none; }
+  .list { flex: none; width: 400px; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border); }
+  .work.focused .list { display: none; }
+  .steps { list-style: none; padding: 8px 10px 12px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; flex: 1; }
+  .step { width: 100%; display: grid; grid-template-columns: 22px 16px minmax(0, 1fr); gap: 0 10px; padding: 8px 10px; border-radius: var(--r-control); align-items: start; }
+  .step:hover { background: var(--hover); }
+  .step[aria-current="true"] { background: var(--accent-soft); box-shadow: inset 0 0 0 1px #eaa43c59; }
+  .step .sl { width: 20px; height: 20px; border-radius: 50%; background: var(--safe); color: #06281b; display: grid; place-items: center; }
+  .step .sl svg { width: 11px; height: 11px; }
+  .step .no { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); padding-top: 2px; text-align: right; }
+  .step .ti { font-size: var(--t-body); line-height: 1.35; color: var(--subtle); text-decoration: line-through; text-decoration-color: #8c96a680; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .step[aria-current="true"] .ti { color: var(--text); }
+  .step .meta { margin-top: 2px; font-size: var(--t-caption); color: var(--subtle); }
+  .dossier { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--surface); }
+  .d-head { flex: none; border-bottom: 1px solid var(--border); padding: 12px 24px 10px 28px; }
+  .d-top { display: flex; align-items: flex-start; gap: 12px; }
+  .d-top .lead { width: 26px; height: 26px; border-radius: 50%; background: var(--safe); color: #06281b; display: grid; place-items: center; margin-top: 1px; }
+  .d-top .lead svg { width: 13px; height: 13px; }
+  .d-title { flex: 1; min-width: 0; font-size: var(--t-heading); font-weight: 500; letter-spacing: -0.015em; line-height: 1.3; }
+  .ctl { display: flex; gap: 2px; align-items: center; }
+  .ctl .ic { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--r-control); color: var(--muted); }
+  .ctl .ic:hover { background: var(--raised); color: var(--text); }
+  .ctl .ic[aria-pressed="true"] { background: var(--raised); color: var(--accent); }
+  .facts { margin: 6px 0 0 38px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 14px; font-size: var(--t-small); color: var(--muted); }
+  .facts .pillok { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 9999px; font-size: var(--t-caption); font-weight: 500; color: var(--safe); border: 1px solid #3ddc9744; background: var(--safe-soft); }
+  .facts .push { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .d-body { flex: 1; min-height: 0; overflow-y: auto; }
+  .d-inner { padding: 20px 28px 32px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 40px; align-items: start; }
+  .work.focused .d-inner { grid-template-columns: minmax(0, 1fr) 22rem; }
+  .rail { display: none; border-left: 1px solid var(--border); padding-left: 32px; min-height: 12rem; flex-direction: column; gap: 22px; }
+  .work.focused .rail { display: flex; }
+  .rail h3 { font-size: var(--t-small); font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  .rail li { list-style: none; display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 8px; font-size: var(--t-small); padding: 4px 0; color: var(--muted); }
+  .rail li svg { width: 12px; height: 12px; color: var(--safe); transform: translateY(3px); }
+  .rail li .h { font-family: var(--font-mono); color: var(--anchor); }
+  .prose { font-size: var(--t-body); line-height: 1.65; }
+  .prose > * + * { margin-top: 12px; }
+  .prose h3 { font-size: var(--t-body); font-weight: 600; margin-top: 20px; }
+  .prose code { font: 400 var(--t-small) var(--font-mono); padding: 1px 5px; border-radius: var(--r-key); background: var(--raised); color: var(--accent-strong); }
+  .prose table { width: 100%; border-collapse: collapse; font-size: var(--t-small); border: 1px solid var(--border); border-radius: var(--r-control); }
+  .prose th { text-align: left; font-weight: 600; color: var(--muted); background: var(--canvas); padding: 7px 12px; border-bottom: 1px solid var(--border-strong); }
+  .prose td { padding: 7px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+  .prose tr:last-child td { border-bottom: 0; }
+  .prose td.m { font-family: var(--font-mono); color: var(--muted); }
+  .figure-d { border: 1px solid var(--border); border-radius: var(--r-control); background: var(--canvas); padding: 18px; display: grid; place-items: center; overflow-x: auto; }
+  .figure-d svg { max-width: 100%; height: auto; }
+</style>
+
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-check" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.2 6.4 4.8 9l5-5.6"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="i-play" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.2v9.6a.6.6 0 0 0 .9.5l7.4-4.8a.6.6 0 0 0 0-1L5.9 2.7a.6.6 0 0 0-.9.5Z"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></symbol>
+    <symbol id="i-tidy" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/><path d="M7 4.7h2.5a1.5 1.5 0 0 1 1.5 1.5V9"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M4 8h8"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M4 8h8M8 4v8"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M10 3v10"/></symbol>
+    <symbol id="i-x" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="m3 3 6 6M9 3 3 9"/></symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <header class="topbar">
+    <span class="brand">Work <span class="mono" style="font-size:11px;color:var(--accent);margin-left:4px">37</span></span>
+    <div class="search"><span class="mono" style="color:var(--text)">/rk&nbsp; task:RV-53</span></div>
+    <span style="width:160px"></span>
+  </header>
+
+  <div class="head">
+    <div class="crumbs">
+      <nav>Work <span>/</span> VFORGE · Rekall vR</nav>
+      <div class="actions">
+        <span class="btn secondary">Log commit</span>
+        <span class="btn secondary">Open in terminal</span>
+        <span class="btn primary"><svg class="i"><use href="#i-play"/></svg>Run here</span>
+      </div>
+    </div>
+    <h1>[RV-53] Updated showcase website <span class="pill">Not opened</span></h1>
+  </div>
+
+  <nav class="tabs" aria-label="Task">
+    <span class="tab">Description</span>
+    <span class="tab" aria-current="page">Plan <span class="c">8</span></span>
+    <span class="tab">Changes <span class="c">1</span></span>
+    <span class="tab">Wrapup</span>
+    <span class="tab">Notes <span class="c">3</span></span>
+    <span class="tab">Time</span>
+    <span class="tab">Deviations</span>
+  </nav>
+
+  <main class="plan">
+    <div class="bar" data-testid="plan-bar">
+      <div class="tube" role="img" aria-label="8 of 8 steps done"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <p class="tally"><b>8 of 8</b> done</p>
+      <div class="chips">
+        <button class="chip" id="adh" aria-expanded="false" aria-controls="adherence"><b>8/8</b> first time</button>
+        <button class="chip" aria-controls="adherence"><b>0</b> sent back</button>
+        <button class="chip" aria-controls="adherence"><b>0</b> deviations</button>
+        <button class="chip warn" aria-controls="adherence"><b>2</b> budgets spent<svg><use href="#i-chev"/></svg></button>
+      </div>
+      <span class="sp"></span>
+      <button class="btn quiet">Hide done</button>
+      <div class="seg" role="group" aria-label="View"><button aria-pressed="false">List</button><button aria-pressed="true">Flow</button></div>
+    </div>
+
+    <section class="pop" id="adherence" aria-label="Plan adherence">
+      <h2>Plan adherence <small>A high share of steps sent back usually means steps are too large or their detail too vague.</small></h2>
+      <div class="figures">
+        <div class="figure"><div class="l">Accepted first time</div><div class="v">8 of 8</div><div class="d">100% of the accepted steps</div></div>
+        <div class="figure"><div class="l">Sent back</div><div class="v">0</div><div class="d">8 passes in all</div></div>
+        <div class="figure"><div class="l">Deviations</div><div class="v">0</div><div class="d">the plan was built as drawn</div></div>
+      </div>
+      <ul class="visits" id="visit-list"><h3>Flow visits <span style="font-weight:400;color:var(--subtle)">8 steps, 13 visits</span></h3></ul>
+    </section>
+
+    <div class="work" id="flow-view">
+      <div class="graph" id="graph">
+        <div class="hud tl">
+          <button class="chip" id="mv" aria-expanded="false" aria-controls="moves"><b>13</b> moves<svg><use href="#i-chev"/></svg></button>
+        </div>
+        <div class="hud tr">
+          <button class="ic" title="Tidy the layout"><svg class="i"><use href="#i-tidy"/></svg></button>
+          <span class="div"></span>
+          <button class="ic" title="Zoom out"><svg class="i"><use href="#i-minus"/></svg></button>
+          <span class="mono" style="font-size:11px;color:var(--subtle);width:34px;text-align:center" id="zoom">100%</span>
+          <button class="ic" title="Zoom in"><svg class="i"><use href="#i-plus"/></svg></button>
+          <button class="ic" title="Fit to view"><svg class="i"><use href="#i-fit"/></svg></button>
+        </div>
+        <div class="stage" id="stage"><svg class="edges" id="edges" width="1160" height="660"></svg></div>
+
+        <section class="pop moves" id="moves" aria-label="Moves through the flow">
+          <h2>Moves <span style="font-weight:400;color:var(--subtle)">oldest first</span></h2>
+          <ol id="move-list"></ol>
+          <div class="foot"><button class="btn quiet">Reset moves</button></div>
+        </section>
+      </div>
+
+      <aside class="insp" aria-label="Step 1">
+        <div class="top">
+          <span class="seal"><svg class="i"><use href="#i-check"/></svg></span>
+          <div><div class="eyebrow">Step 1</div><div class="name">List the features released after 0.4.5 and where each appears on the site</div><div class="st">done</div></div>
+          <span class="btn quiet">Detail</span>
+        </div>
+        <div class="group">
+          <h2>When it ends</h2>
+          <div class="rt"><span class="fld mono">done</span><span class="arrow">→</span><span class="fld">2. Seed the demo world…</span></div>
+          <p class="hint">A session claims this step with the outcome that happened and the work moves to its step, or finishes at End. One route needs no outcome.</p>
+        </div>
+        <div class="group">
+          <h2>Visit budget</h2>
+          <div class="rt" style="grid-template-columns: 88px 1fr"><span class="fld ph">none</span><span style="font-size:var(--t-small);color:var(--subtle)">no limit</span></div>
+        </div>
+        <div class="group">
+          <h2>Reached from</h2>
+          <p style="font-size:var(--t-small);color:var(--subtle)">No route leads here.</p>
+        </div>
+        <div class="group">
+          <h2>Visits <span class="mono" style="font-weight:400;color:var(--subtle)">1</span></h2>
+          <div class="vl"><span>#1&nbsp;&nbsp; left by done</span><span>13 days ago</span></div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="work" id="list-view" hidden>
+      <section class="list" aria-label="Steps"><ol class="steps"><li><button class="step" ><span class="sl"><svg class="i"><use href="#i-check"/></svg></span><span class="no">1</span><span><span class="ti">List the features released after 0.4.5 and where each appears on the site</span><span class="meta" style="display:block">Done 12 days ago</span></span></button></li><li><button class="step" ><span class="sl"><svg class="i"><use href="#i-check"/></svg></span><span class="no">2</span><span><span class="ti">Seed the demo world and add the scenes for the new features</span><span class="meta" style="display:block">Done 12 days ago</span></span></button></li><li><button class="step" aria-current="true"><span class="sl"><svg class="i"><use href="#i-check"/></svg></span><span class="no">3</span><span><span class="ti">Capture the real screens with the full build</span><span class="meta" style="display:block">Done 12 days ago</span></span></button></li><li><button class="step" ><span class="sl"><svg class="i"><use href="#i-check"/></svg></span><span class="no">4</span><span><span class="ti">Rebuild the page around the new features and the real UI</span><span class="meta" style="display:block">Done 12 days ago</span></span></button></li><li><button class="step" ><span class="sl"><svg class="i"><use href="#i-check"/></svg></span><span class="no">5</span><span><span class="ti">Review the rendered site and judge it</span><span class="meta" style="display:block">Done 12 days ago</span></span></button></li><li><button class="step" ><span class="sl"><svg class="i"><use href="#i-check"/></svg></span><span class="no">6</span><span><span class="ti">Apply the design review findings</span><span class="meta" style="display:block">Done 12 days ago</span></span></button></li><li><button class="step" ><span class="sl"><svg class="i"><use href="#i-check"/></svg></span><span class="no">7</span><span><span class="ti">Update completely the showcase webiste</span><span class="meta" style="display:block">Done yesterday</span></span></button></li><li><button class="step" ><span class="sl"><svg class="i"><use href="#i-check"/></svg></span><span class="no">8</span><span><span class="ti">improvements</span><span class="meta" style="display:block">Done 12 days ago</span></span></button></li></ol></section>
+      <section class="dossier" aria-label="Decision">
+        <header class="d-head">
+          <div class="d-top">
+            <span class="lead"><svg class="i"><use href="#i-check"/></svg></span>
+            <h2 class="d-title">Capture the real screens with the full build</h2>
+            <div class="ctl">
+              <button class="ic" title="Previous step (K)"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10l4-4 4 4"/></svg></button>
+              <button class="ic" title="Next step (J)"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg></button>
+              <button class="ic" id="focus" aria-pressed="false" title="Hide the steps to read this one"><svg class="i"><use href="#i-panel"/></svg></button>
+            </div>
+          </div>
+          <p class="facts"><span class="pillok">Done</span><span>Step 3 of 8</span><span>12 days ago</span>
+            <span class="push"><span class="seg"><button aria-pressed="false">Write</button><button aria-pressed="true">Read</button></span><span class="btn secondary">Reopen</span><span class="btn quiet">Overview <span class="mono" style="color:var(--subtle)">Esc</span></span></span></p>
+        </header>
+        <div class="d-body"><div class="d-inner">
+          <article class="prose">
+            <p>Run <code>SHOWCASE_DIR=/private/tmp/rkshow scripts/rekall-showcase/build.sh</code> from <code>astro-starter</code> (about three minutes; a seed change or any re-capture means a full build, a used world shows the running timer). It writes <code>public/rekall/ui/*.html</code> and <code>src/data/rekall-scenes.json</code>.</p>
+            <p>Open each new and each changed view and compare it with the live console at 1440x900 in the same state (the README's "Checking it is the same"): anything that looks close but not identical means something was redrawn, which is a failure. Check the invented content: no real path, name or token (<code>snapshot.py</code> swaps scratch folders for <code>/Users/mara/…</code>).</p>
+            <h3>Scenes to compare</h3>
+            <table>
+              <thead><tr><th>Scene</th><th>State to freeze</th><th>Output</th><th>Compared at</th></tr></thead>
+              <tbody>
+                <tr><td>Plan, flow view</td><td>8 steps, 13 moves, two budgets spent</td><td class="m">plan-flow.html</td><td class="m">1440×900</td></tr>
+                <tr><td>Plan, step pane</td><td>Step 3 done, passes sealed</td><td class="m">plan-step.html</td><td class="m">1440×900</td></tr>
+                <tr><td>Adherence panel</td><td>Open, visits listed</td><td class="m">plan-adherence.html</td><td class="m">1440×900</td></tr>
+                <tr><td>Task rail</td><td>Folded</td><td class="m">task-rail.html</td><td class="m">1280×800</td></tr>
+              </tbody>
+            </table>
+            <h3>How the step ends</h3>
+            <div class="figure-d">
+              <svg width="720" height="120" viewBox="0 0 720 120" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="10" y="40" width="150" height="40" rx="6" fill="#1d2330" stroke="#3b4558"/><text x="85" y="65" text-anchor="middle" fill="#f2f5f9" font-size="12.5" font-family="Fira Sans">Seed and scenes</text>
+                <rect x="285" y="40" width="150" height="40" rx="6" fill="#1d2330" stroke="#eaa43c"/><text x="360" y="65" text-anchor="middle" fill="#f2f5f9" font-size="12.5" font-family="Fira Sans">Capture the screens</text>
+                <rect x="560" y="40" width="150" height="40" rx="6" fill="#1d2330" stroke="#3b4558"/><text x="635" y="65" text-anchor="middle" fill="#f2f5f9" font-size="12.5" font-family="Fira Sans">Rebuild the page</text>
+                <path d="M160 60H285" stroke="#8c96a6" stroke-width="1.5"/><path d="M435 60H560" stroke="#eaa43c" stroke-width="1.5"/>
+                <text x="497" y="52" text-anchor="middle" fill="#ffd88e" font-size="11" font-family="Fira Code">captured</text>
+                <path d="M300 40C270 6 175 6 150 40" stroke="#8c96a6" stroke-width="1.5" stroke-dasharray="4 4"/>
+                <text x="225" y="14" text-anchor="middle" fill="#a3acba" font-size="11" font-family="Fira Code">capture-failed</text>
+              </svg>
+            </div>
+            <p>Claim <code>outcome:captured</code> when every scene exists and matches. Claim <code>outcome:capture-failed</code> with <code>report</code> naming the scene, the error or the difference, when a scene cannot be captured or does not match; the work returns to the seed and scenes step.</p>
+          </article>
+          <aside class="rail" aria-label="Record">
+            <div><h3>Checks</h3><ul style="padding:0"><li><svg class="i"><use href="#i-check"/></svg><span>Build passes</span></li><li><svg class="i"><use href="#i-check"/></svg><span>Scenes match the console</span></li></ul></div>
+            <div><h3>Commits</h3><ul style="padding:0"><li style="grid-template-columns:62px minmax(0,1fr)"><span class="h">3919eb8</span><span>chore: seed the demo world</span></li></ul></div>
+          </aside>
+        </div></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+  const NODE_W = 220, NODE_H = 64
+  const nodes = [
+    { n: 1, t: 'List the features released after 0.4.5 and where each appears on the site', x: 100, y: 96, v: '×1', sel: true },
+    { n: 2, t: 'Seed the demo world and add the scenes for the new features', x: 100, y: 224, v: '×1/4' },
+    { n: 3, t: 'Capture the real screens with the full build', x: 100, y: 352, v: '×1' },
+    { n: 4, t: 'Rebuild the page around the new features and the demo', x: 100, y: 480, v: '×1' },
+    { n: 5, t: 'Review the rendered site against the design', x: 440, y: 96, v: '×4/4', spent: true },
+    { n: 6, t: 'Apply the design review findings', x: 860, y: 96, v: '×3/3', spent: true },
+    { n: 7, t: 'Check the site on a phone-sized window', x: 440, y: 256, v: '×1' },
+    { n: 8, t: 'Publish the build to the showcase host', x: 440, y: 384, v: '×1' }
+  ]
+  const terms = [
+    { kind: 'start', x: 152, y: 28, label: 'Start' },
+    { kind: 'end', x: 497, y: 512, label: 'End' }
+  ]
+  const edges = [
+    { d: 'M210 62 V96', lit: true },
+    { d: 'M210 160 V224', gate: ['done', 210, 192], lit: true },
+    { d: 'M210 288 V352', gate: ['done', 210, 320], walked: true },
+    { d: 'M100 396 C60 396 60 284 100 284', gate: ['capture-failed', 60, 340], quiet: true },
+    { d: 'M210 416 V480', gate: ['captured', 210, 448], walked: true },
+    { d: 'M320 512 H380 V128 H440', gate: ['done', 380, 320], walked: true },
+    { d: 'M660 118 H860', gate: ['changes-needed', 760, 118], walked: true },
+    { d: 'M860 138 H660', gate: ['applied', 760, 138], walked: true },
+    { d: 'M550 160 V256', gate: ['approved', 550, 208], walked: true },
+    { d: 'M550 320 V384', gate: ['done', 550, 352], walked: true },
+    { d: 'M550 448 V512', gate: ['done', 550, 480], walked: true }
+  ]
+  const trail = [
+    [1, 'List the features released…', 'done'], [2, 'Seed the demo world…', 'done'], [3, 'Capture the real screens…', 'captured'],
+    [4, 'Rebuild the page around…', 'done'], [5, 'Review the rendered site…', 'changes-needed'], [6, 'Apply the design review…', 'applied'],
+    [5, 'Review the rendered site…', 'changes-needed'], [6, 'Apply the design review…', 'applied'], [5, 'Review the rendered site…', 'changes-needed'],
+    [6, 'Apply the design review…', 'applied'], [5, 'Review the rendered site…', 'approved'], [7, 'Check the site on a phone…', 'done'], [8, 'Publish the build…', 'done']
+  ]
+  const visits = [
+    [1, 'List the features released…', '1'], [2, 'Seed the demo world…', '1 of 4'], [3, 'Capture the real screens…', '1'], [4, 'Rebuild the page…', '1'],
+    [5, 'Review the rendered site…', '4 of 4', true], [6, 'Apply the design review…', '3 of 3', true], [7, 'Check the site on a phone…', '1'], [8, 'Publish the build…', '1']
+  ]
+
+  const stage = document.getElementById('stage')
+  const svg = document.getElementById('edges')
+  const ns = 'http://www.w3.org/2000/svg'
+  const colorOf = (e) => (e.lit ? '#55c9ea' : e.walked ? '#eaa43c' : '#3b4558')
+
+  svg.insertAdjacentHTML('beforeend', `<defs>${['#55c9ea', '#eaa43c', '#3b4558'].map((c) => `<marker id="a${c.slice(1)}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1l8 4-8 4z" fill="${c}"/></marker>`).join('')}</defs>`)
+  for (const e of edges) {
+    const p = document.createElementNS(ns, 'path')
+    p.setAttribute('d', e.d)
+    p.setAttribute('fill', 'none')
+    p.setAttribute('stroke', colorOf(e))
+    p.setAttribute('stroke-width', e.lit ? 2 : 1.6)
+    p.setAttribute('stroke-linejoin', 'round')
+    if (e.quiet) p.setAttribute('stroke-dasharray', '4 4')
+    p.setAttribute('marker-end', `url(#a${colorOf(e).slice(1)})`)
+    svg.appendChild(p)
+    if (e.gate) stage.insertAdjacentHTML('beforeend', `<span class="gate ${e.lit ? 'lit' : e.walked ? 'walked' : ''}" style="left:${e.gate[1]}px;top:${e.gate[2]}px">${e.gate[0]}</span>`)
+  }
+  for (const t of terms) {
+    stage.insertAdjacentHTML('beforeend', t.kind === 'start'
+      ? `<span class="term" style="left:${t.x}px;top:${t.y}px"><svg class="i"><use href="#i-play"/></svg>${t.label}</span>`
+      : `<span class="term end" style="left:${t.x}px;top:${t.y}px">${t.label}</span>`)
+  }
+  for (const n of nodes) {
+    stage.insertAdjacentHTML('beforeend', `<button class="node" ${n.sel ? 'aria-current="true"' : ''} style="left:${n.x}px;top:${n.y}px"><span class="no">${String(n.n).padStart(2, '0')}</span><span class="ti">${n.t}</span><span class="seal"><svg class="i"><use href="#i-check"/></svg></span><span class="vis ${n.spent ? 'spent' : ''}">${n.v}</span></button>`)
+  }
+
+  document.getElementById('move-list').innerHTML = trail.map(([n, t, o], i) => `<li><span class="n">${i + 1}</span><span class="t">${t}</span><span class="o">${o} ›</span></li>`).join('')
+  document.getElementById('visit-list').insertAdjacentHTML('beforeend', visits.map(([n, t, v, s]) => `<li><span class="n">${n}</span><span class="t">${t}</span><span class="v">${v}</span>${s ? '<span class="s">budget spent</span>' : ''}</li>`).join(''))
+
+  function fit() {
+    const g = document.getElementById('graph')
+    const bounds = { w: 1100, h: 590 }
+    const scale = Math.min(1, (g.clientWidth - 40) / bounds.w, (g.clientHeight - 70) / bounds.h)
+    const left = (g.clientWidth - bounds.w * scale) / 2
+    const top = Math.max(52, (g.clientHeight - bounds.h * scale) / 2 + 14)
+    stage.style.transform = `translate(${left}px, ${top}px) scale(${scale})`
+    document.getElementById('zoom').textContent = Math.round(scale * 100) + '%'
+  }
+  fit(); addEventListener('resize', fit)
+
+  function toggle(buttonId, popId) {
+    const b = document.getElementById(buttonId), p = document.getElementById(popId)
+    const wasOpen = p.classList.contains('open')
+    document.querySelectorAll('.pop').forEach((o) => o.classList.remove('open'))
+    document.querySelectorAll('[aria-expanded]').forEach((o) => o.setAttribute('aria-expanded', 'false'))
+    if (wasOpen) return
+    p.classList.add('open')
+    b.setAttribute('aria-expanded', 'true')
+  }
+  document.getElementById('adh').onclick = () => toggle('adh', 'adherence')
+  document.querySelectorAll('.chips .chip').forEach((c) => (c.onclick = () => toggle('adh', 'adherence')))
+  document.getElementById('mv').onclick = () => toggle('mv', 'moves')
+  if (location.hash === '#adherence') toggle('adh', 'adherence')
+  if (location.hash === '#moves') toggle('mv', 'moves')
+
+  const views = { flow: document.getElementById('flow-view'), list: document.getElementById('list-view') }
+  function show(view) {
+    views.flow.hidden = view !== 'flow'
+    views.list.hidden = view !== 'list'
+    document.querySelectorAll('.seg button').forEach((b) => { if (['List','Flow'].includes(b.textContent)) b.setAttribute('aria-pressed', String(b.textContent.toLowerCase() === view)) })
+    if (view === 'flow') fit()
+  }
+  document.querySelectorAll('.bar .seg button').forEach((b) => (b.onclick = () => show(b.textContent.toLowerCase())))
+  document.getElementById('focus').onclick = (e) => {
+    const on = views.list.classList.toggle('focused')
+    e.currentTarget.setAttribute('aria-pressed', String(on))
+  }
+  if (location.hash.startsWith('#list')) { show('list'); if (location.hash === '#list-focus') document.getElementById('focus').click() }
+</script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { subscribeToFrame } from '@/common/stream/consoleEventStream'
 import * as api from '@/features/connection/api/connections.api'
 import type {
   Connection,
@@ -11,10 +12,12 @@ import type {
   ConnectionRemoved,
   CredentialDraft,
   JiraIssue,
+  TargetSuggestion,
   KubeContextOption,
   ProjectConnection,
   ProjectConnectionInput,
-  RepositoryDiscovery
+  RepositoryDiscovery,
+  RevealedCredential
 } from '@/features/connection/model/connection'
 import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId } from '@/model/branded'
 
@@ -34,6 +37,7 @@ export const useConnectionsStore = defineStore('connections', () => {
   const accessLogs = ref<Readonly<Record<string, readonly ConnectionAccess[]>>>({})
   const accessEnded = ref<ReadonlySet<string>>(new Set())
   const byProject = ref<Readonly<Record<string, readonly ProjectConnection[]>>>({})
+  let following = false
 
   /** The connections shared with a company: the ones its projects can bind. */
   function connectionsOf(companyId: CompanyId): readonly Connection[] {
@@ -127,6 +131,11 @@ export const useConnectionsStore = defineStore('connections', () => {
     return saved
   }
 
+  /** Read fresh each time and handed straight back: the store never keeps a credential. */
+  async function revealCredential(id: ConnectionId): Promise<RevealedCredential> {
+    return await api.revealCredential(id)
+  }
+
   async function remove(connection: Connection): Promise<ConnectionRemoved> {
     const removed = await api.deleteConnection(connection.id)
     connections.value = connections.value.filter((known) => known.id !== connection.id)
@@ -140,6 +149,11 @@ export const useConnectionsStore = defineStore('connections', () => {
   /** The open issues a project's Jira binding reaches; read fresh each time, never kept. */
   async function jiraIssues(projectId: ProjectId, bindingId: ProjectConnectionId): Promise<JiraIssue[]> {
     return await api.fetchJiraIssues(projectId, bindingId)
+  }
+
+  /** The projects or spaces of the site whose key or name holds the query; read fresh each time, never kept. */
+  async function targetSuggestions(id: ConnectionId, query: string): Promise<TargetSuggestion[]> {
+    return await api.fetchTargetSuggestions(id, query)
   }
 
   async function check(id: ConnectionId): Promise<ConnectionCheck> {
@@ -184,6 +198,22 @@ export const useConnectionsStore = defineStore('connections', () => {
 
   async function loadProject(projectId: ProjectId): Promise<void> {
     byProject.value = { ...byProject.value, [projectId]: await api.fetchProjectConnections(projectId) }
+  }
+
+  /**
+   * Opens the one subscription that reads every opened project's bindings again whenever a
+   * connection changes, so a binding made anywhere shows in the editors without a reload.
+   */
+  function followChanges(onFailure: (failure: unknown) => void): void {
+    if (following) return
+    following = true
+    subscribeToFrame('connection', () => {
+      void reloadOpenedProjects().catch(onFailure)
+    })
+  }
+
+  async function reloadOpenedProjects(): Promise<void> {
+    await Promise.all(Object.keys(byProject.value).map((projectId) => loadProject(projectId as ProjectId)))
   }
 
   /** Binds the connection once more; the counts and the open detail follow from the server. */
@@ -274,15 +304,18 @@ export const useConnectionsStore = defineStore('connections', () => {
     setCompanies,
     setCredential,
     clearCredential,
+    revealCredential,
     remove,
     check,
     jiraIssues,
+    targetSuggestions,
     loadAccess,
     loadMoreAccess,
     previewKubeconfig,
     projectConnectionsOf,
     isProjectLoaded,
     loadProject,
+    followChanges,
     bind,
     updateBinding,
     unbind,

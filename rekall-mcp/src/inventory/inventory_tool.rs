@@ -48,7 +48,7 @@ impl McpTool for InventoryTool {
         let args = Arguments::of(arguments);
         let target = AnchoredProject::from(&Anchor::parse_all(Some(&args.required_string("anchors")?))?)?;
         let declared = declared_of(args.value("dependencies"))?;
-        let recorded = self.recording.record(&target.project_label, &declared).await.map_err(|e| told(e, ""))?;
+        let recorded = self.recording.record(&target.project, &declared).await.map_err(|e| told(e, ""))?;
         Ok(report(&recorded))
     }
 }

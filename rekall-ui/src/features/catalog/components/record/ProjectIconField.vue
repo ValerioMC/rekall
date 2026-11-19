@@ -26,6 +26,7 @@ const storedVersion = computed(
 )
 
 defineExpose({
+  hasPendingChange: computed(() => imageField.value?.hasPendingChange ?? false),
   /** Uploads the picked picture, or takes the stored one off, once the project has its id. */
   async apply(projectId: ProjectId): Promise<void> {
     await imageField.value?.apply((file) => store.setProjectIconImage(projectId, file))

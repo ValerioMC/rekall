@@ -22,7 +22,7 @@
  * Only a change of state animates, and only once: a list loading in draws nothing.
  */
 import { onUnmounted, ref, useId, watch } from 'vue'
-import type { TaskStatus } from '@/features/catalog/model/catalog'
+import type { TaskStatus } from '@/features/catalog/model/task-status'
 import type { TaskMarkState } from '@/features/catalog/model/task-mark'
 
 const props = withDefaults(
@@ -383,7 +383,7 @@ onUnmounted(() => {
 }
 
 .mark[data-arrive='ACCEPTED'] .mark-disc {
-  animation: mark-stamp 440ms cubic-bezier(0.2, 0.9, 0.3, 1.35);
+  animation: mark-stamp 440ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .mark-ripple {

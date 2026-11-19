@@ -8,7 +8,7 @@ import {
   updateProjectSection
 } from '@/features/project/api/project-sections.api'
 import { movedOne, type Direction } from '@/features/project/lib/section-order'
-import { launchChoices } from '@/common/config/claude-launch'
+import { launchChoices } from '@/common/config/session-launch'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import type { Terminal } from '@/features/claude/model/terminal'
 import type { ProjectSection, ProjectSectionInput } from '@/features/project/model/project-section'
@@ -49,8 +49,8 @@ export const useProjectSectionsStore = defineStore('projectSections', () => {
     }
   }
 
-  async function create(projectId: ProjectId, title: string): Promise<ProjectSection> {
-    const created = await createProjectSection(projectId, { title, bodyMarkdown: '' })
+  async function create(projectId: ProjectId, title: string, bodyMarkdown = ''): Promise<ProjectSection> {
+    const created = await createProjectSection(projectId, { title, bodyMarkdown })
     put(projectId, [...sectionsOf(projectId), created])
     return created
   }

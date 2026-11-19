@@ -14,6 +14,7 @@ export function aConnection(id: string, over: Partial<Connection> = {}): Connect
     baseUrl: 'https://gitlab.example.com',
     kubeContext: null,
     proxyUrl: null,
+    acceptSelfSigned: false,
     rootPath: null,
     credentialSetAt: '2026-10-21T10:00:00Z',
     projectCount: 0,

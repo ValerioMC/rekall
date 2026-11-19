@@ -1,15 +1,15 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use rekall_core::commit::CommitReferenceService;
+use rekall_core::commit::{CommitReferenceService, TaskChangesService};
 use rekall_core::connection::ConnectionCheckService;
 use rekall_core::context::ContextSizeService;
 use rekall_core::diagram::DiagramService;
-use rekall_core::flow::{FlowService, StepLinkService};
+use rekall_core::flow::{FlowService, StepLinkService, StepPlacementService};
 use rekall_core::inventory::DependencyInventoryService;
 use rekall_core::search::SearchService;
 use rekall_core::section::ProjectSectionService;
-use rekall_core::step::TaskStepService;
+use rekall_core::step::{StepBindingService, TaskStepService};
 use rekall_core::telemetry::TelemetrySettingsService;
 use rekall_core::timeentry::TimeEntryService;
 use rekall_core::version::RUNNING_VERSION;
@@ -28,6 +28,8 @@ use crate::{ApiPorts, StepEventStream};
 #[derive(Clone)]
 pub struct ApiState {
     pub steps: TaskStepService,
+    pub step_bindings: StepBindingService,
+    pub step_placement: StepPlacementService,
     pub step_links: StepLinkService,
     pub flow: FlowService,
     pub wrapups: WrapupService,
@@ -35,6 +37,7 @@ pub struct ApiState {
     pub time_entries: TimeEntryService,
     pub token_usage: TokenUsageService,
     pub commit_references: CommitReferenceService,
+    pub task_changes: TaskChangesService,
     pub context_size: ContextSizeService,
     pub search: SearchService,
     pub diagrams: DiagramService,
@@ -50,6 +53,7 @@ pub struct ApiState {
     pub logos: catalog::CompanyLogoService,
     pub projects: catalog::ProjectService,
     pub tasks: catalog::TaskService,
+    pub epic_conversions: catalog::TaskEpicConversionService,
     pub documents: note::DocumentService,
     pub tags: tag::TagService,
     pub skill_assignments: skill::SkillAssignmentService,
@@ -68,11 +72,15 @@ pub struct ApiState {
     pub graph_attach: graph::GraphAttachService,
     pub connections: connection::ConnectionService,
     pub connection_credentials: connection::ConnectionCredentialService,
+    pub connection_credential_reveals: connection::ConnectionCredentialRevealService,
     pub kubeconfig_preview: connection::KubeconfigPreviewService,
     pub project_connections: connection::ProjectConnectionService,
     pub repository_discovery: connection::RepositoryDiscoveryService,
     pub connection_access: connection::ConnectionAccessQueryService,
     pub jira_issues: connection::JiraIssueService,
+    pub confluence_spaces: connection::ConfluenceSpaceService,
+    pub connection_targets: connection::ConnectionTargetService,
+    pub task_tracker_sync: connection::TaskTrackerSyncService,
     pub icons: catalog::ProjectIconService,
     pub directories: filesystem::DirectoryListingService,
     pub chat: chat::ChatService,
@@ -81,6 +89,7 @@ pub struct ApiState {
     pub terminal_pipe: terminal::TerminalPipeService,
     pub run_queue: queue::RunQueueControlService,
     pub usage_meter: claude::UsageMeterService,
+    pub codex: rekall_console::codex::CodexService,
     pub claude_folder: claude::ClaudeFolderService,
     pub claude_install: claude::ClaudeInstallService,
     pub guard_protection: claude::GuardProtectionService,
@@ -91,6 +100,69 @@ pub struct ApiState {
     pub database_folders: settings::DatabaseFolderService,
     pub update_check: version::UpdateCheckService,
     pub stream: Arc<StepEventStream>,
+}
+
+/// The services the API builds from other services, before the state is assembled.
+struct Wired {
+    tasks: catalog::TaskService,
+    project_connections: connection::ProjectConnectionService,
+    projects: catalog::ProjectService,
+    connections: connection::ConnectionService,
+    component_catalog: component::ProjectComponentCatalogService,
+    repository_discovery: connection::RepositoryDiscoveryService,
+    jira_issues: connection::JiraIssueService,
+    confluence_spaces: connection::ConfluenceSpaceService,
+    connection_targets: connection::ConnectionTargetService,
+    task_tracker_sync: connection::TaskTrackerSyncService,
+    vulnerability_fixes: vulnerability::VulnerabilityFixService,
+    graphs: graph::DeploymentGraphService,
+    graph_attach: graph::GraphAttachService,
+    terminals: terminal::TerminalService,
+    quick_tasks: quick::QuickTaskService,
+}
+
+impl Wired {
+    fn of(ctx: &rekall_core::Ctx, services: &Services, ports: &ApiPorts) -> Self {
+        let tasks = catalog::TaskService::new(ctx.clone(), services.review.clone(), services.time_entries.clone());
+        let project_connections = connection::ProjectConnectionService::new(ctx.clone());
+        let projects = catalog::ProjectService::new(ctx.clone(), services.repositories, rekall_core::worktree::PullRequestFlowService);
+        let connections = connection::ConnectionService::new(ctx.clone(), ports.secrets.clone());
+        let component_catalog = component::ProjectComponentCatalogService::new(ctx.clone());
+        let repository_discovery = connection::RepositoryDiscoveryService::new(
+            ctx.clone(),
+            services.repositories,
+            projects.clone(),
+            connections.clone(),
+            project_connections.clone(),
+            component_catalog.clone(),
+        );
+        let jira_issues = connection::JiraIssueService::new(ctx.clone(), project_connections.clone(), tasks.clone(), ports.secrets.clone(), ports.jira.clone());
+        let section_catalog = section::ProjectSectionCatalogService::new(ctx.clone());
+        let confluence_spaces = connection::ConfluenceSpaceService::new(
+            ctx.clone(),
+            project_connections.clone(),
+            projects.clone(),
+            section_catalog,
+            ports.secrets.clone(),
+            ports.confluence.clone(),
+        );
+        let connection_targets = connection::ConnectionTargetService::new(ctx.clone(), project_connections.clone(), ports.secrets.clone(), ports.jira.clone(), ports.confluence.clone());
+        let task_tracker_sync = connection::TaskTrackerSyncService::new(ports.task_tracker.clone(), tasks.clone());
+        let vulnerability_fixes = vulnerability::VulnerabilityFixService::new(ctx.clone(), services.exposures.clone(), tasks.clone(), services.steps.clone());
+        let graphs = graph::DeploymentGraphService::new(ctx.clone());
+        let graph_attach = graph::GraphAttachService::new(
+            ctx.clone(),
+            graphs.clone(),
+            tasks.clone(),
+            services.steps.clone(),
+            services.step_links.clone(),
+            services.step_placement.clone(),
+            services.step_bindings.clone(),
+        );
+        let terminals = terminal::TerminalService::new(ports.terminals.clone(), ports.task_worktrees.clone());
+        let quick_tasks = quick::QuickTaskService::new(ctx.clone(), tasks.clone(), terminals.clone());
+        Self { tasks, project_connections, projects, connections, component_catalog, repository_discovery, jira_issues, confluence_spaces, connection_targets, task_tracker_sync, vulnerability_fixes, graphs, graph_attach, terminals, quick_tasks }
+    }
 }
 
 impl ApiState {
@@ -106,37 +178,14 @@ impl ApiState {
         ports: ApiPorts,
     ) -> Self {
         let ctx = services.ctx.clone();
-        let tasks = catalog::TaskService::new(ctx.clone(), services.review.clone(), services.time_entries.clone());
-        let project_connections = connection::ProjectConnectionService::new(ctx.clone());
-        let projects = catalog::ProjectService::new(ctx.clone(), services.repositories);
-        let connections = connection::ConnectionService::new(ctx.clone(), ports.secrets.clone());
-        let component_catalog = component::ProjectComponentCatalogService::new(ctx.clone());
-        let repository_discovery = connection::RepositoryDiscoveryService::new(
-            ctx.clone(),
-            services.repositories,
-            projects.clone(),
-            connections.clone(),
-            project_connections.clone(),
-            component_catalog.clone(),
-        );
-        let jira_issues = connection::JiraIssueService::new(ctx.clone(), project_connections.clone(), tasks.clone(), ports.secrets.clone(), ports.jira);
-        let vulnerability_fixes = vulnerability::VulnerabilityFixService::new(ctx.clone(), services.exposures.clone(), tasks.clone(), services.steps.clone());
-        let graphs = graph::DeploymentGraphService::new(ctx.clone());
-        let graph_attach = graph::GraphAttachService::new(
-            ctx.clone(),
-            graphs.clone(),
-            tasks.clone(),
-            services.steps.clone(),
-            services.step_links.clone(),
-            rekall_core::flow::StepVisitService::new(ctx.clone()),
-        );
-        let terminals = terminal::TerminalService::new(ports.terminals.clone());
-        let quick_tasks = quick::QuickTaskService::new(ctx.clone(), tasks.clone(), terminals.clone());
+        let Wired { tasks, project_connections, projects, connections, component_catalog, repository_discovery, jira_issues, confluence_spaces, connection_targets, task_tracker_sync, vulnerability_fixes, graphs, graph_attach, terminals, quick_tasks } =
+            Wired::of(&ctx, &services, &ports);
         Self {
             companies: catalog::CompanyService::new(ctx.clone()),
             logos: catalog::CompanyLogoService::new(ctx.clone()),
             projects,
             tasks,
+            epic_conversions: catalog::TaskEpicConversionService::new(ctx.clone(), services.time_entries.clone()),
             documents: note::DocumentService::new(ctx.clone()),
             tags: tag::TagService::new(ctx.clone()),
             skill_assignments: skill::SkillAssignmentService::new(ctx.clone()),
@@ -147,7 +196,7 @@ impl ApiState {
             checks: check::CheckService::new(ctx.clone()),
             task_dependencies: dependency::TaskDependencyService::new(ctx.clone(), RunQueueService::new(ctx.clone())),
             task_deviations: deviation::TaskDeviationService::new(ctx.clone()),
-            feedback: feedback::FeedbackService::new(ctx.clone(), services.review.clone()),
+            feedback: feedback::FeedbackService::new(ctx.clone()),
             task_branches: worktree::TaskBranchService::new(ports.task_worktrees.clone()),
             adherence: adherence::PlanAdherenceService::new(ctx.clone()),
             graphs,
@@ -155,14 +204,20 @@ impl ApiState {
             graph_attach,
             connections,
             connection_credentials: connection::ConnectionCredentialService::new(ctx.clone(), ports.secrets.clone()),
+            connection_credential_reveals: connection::ConnectionCredentialRevealService::new(ctx.clone(), ports.secrets.clone()),
             kubeconfig_preview: connection::KubeconfigPreviewService::new(),
             project_connections,
             repository_discovery,
             connection_access: connection::ConnectionAccessQueryService::new(ctx.clone()),
             jira_issues,
+            confluence_spaces,
+            connection_targets,
+            task_tracker_sync,
             icons: catalog::ProjectIconService::new(ctx.clone()),
             directories: filesystem::DirectoryListingService::new(user_home),
             steps: services.steps,
+            step_bindings: services.step_bindings,
+            step_placement: services.step_placement,
             step_links: services.step_links,
             flow: services.flow,
             wrapups: services.wrapups,
@@ -170,6 +225,7 @@ impl ApiState {
             time_entries: services.time_entries,
             token_usage: services.token_usage,
             commit_references: services.commit_references,
+            task_changes: services.task_changes,
             context_size: services.context_size,
             search: services.search,
             diagrams: services.diagrams,
@@ -187,6 +243,7 @@ impl ApiState {
             terminal_pipe: terminal::TerminalPipeService::new(ports.terminal_pipe),
             run_queue: queue::RunQueueControlService::new(RunQueueService::new(ctx.clone()), ports.queue_runner),
             usage_meter: claude::UsageMeterService::new(ports.usage),
+            codex: rekall_console::codex::CodexService::new(ports.codex),
             claude_folder: claude::ClaudeFolderService::new(ports.claude_folder),
             claude_install: claude::ClaudeInstallService::new(ports.claude_setup),
             guard_protection: claude::GuardProtectionService::new(ports.guard_installer),

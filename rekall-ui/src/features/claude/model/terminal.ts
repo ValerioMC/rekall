@@ -1,15 +1,16 @@
+import type { SessionProvider } from '@/features/claude/model/session-provider'
 import type { ConnectionKind } from '@/features/connection/model/connection'
 import type { ConnectionId, ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
 /**
  * What a terminal is opened to do: `WORK` types `/rk <anchor>`, `PLAN` types `/rk <anchor> plan`,
- * `PLAN_FLOW` types `/rk <anchor> plan flow`, `REPLAN` types `/rk <anchor> replan`, `REVISE` types `/rk <anchor> revise`, `GENERATE` types `/rk <anchor> generate "<request>"`,
+ * `PLAN_FLOW` types `/rk <anchor> plan flow`, `REPLAN` types `/rk <anchor> replan`, `REVISE` types `/rk <anchor> revise`, `REWRITE_FIX` and `REWRITE_RESTRUCTURE` type `/rk <anchor> rewrite fix` and `... rewrite restructure`, `GENERATE` types `/rk <anchor> generate "<request>"`,
  * `INVENTORY` types `/rk <anchor> inventory`, `ASSESS` types `/rk <anchor> assess advisory:<id>`,
  * `ASSESS_ALL` types `/rk <anchor> assess` to judge every advisory not assessed yet, `AUTOCONFIGURE`
- * types `/rk <anchor> autoconfigure` to learn how the project takes a contribution, `MERGE` types
+ * types `/rk <anchor> autoconfigure` to learn how the project takes a contribution, `SCAN_COMPONENTS` types `/rk <anchor> components` to record its parts, `MERGE` types
  * `/rk <anchor> merge` to resolve the conflicts of an accepted task's branch.
  */
-export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'REPLAN' | 'REVISE' | 'GENERATE' | 'EXPLAIN' | 'INVENTORY' | 'ASSESS' | 'ASSESS_ALL' | 'AUTOCONFIGURE' | 'MERGE'
+export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'REPLAN' | 'REVISE' | 'REWRITE_FIX' | 'REWRITE_RESTRUCTURE' | 'GENERATE' | 'EXPLAIN' | 'INVENTORY' | 'ASSESS' | 'ASSESS_ALL' | 'AUTOCONFIGURE' | 'SCAN_COMPONENTS' | 'MERGE'
 
 /**
  * A terminal that acts on a task's plan or thread: a checklist of drafts, a flow, drafts joined by
@@ -18,7 +19,13 @@ export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'REPLAN' | 'REVISE' |
  */
 export type PlanMode = Extract<TerminalMode, 'PLAN' | 'PLAN_FLOW' | 'REPLAN' | 'REVISE'>
 
-/** What a terminal is opened on: a task, or a project alone, which draws a diagram, inventories, assesses or autoconfigures. */
+/** How a rewrite treats the description: `FIX` corrects the wording, `RESTRUCTURE` lays it out under standard headings. */
+export type RewriteStyle = 'FIX' | 'RESTRUCTURE'
+
+/** A terminal that rewrites a task's description and stores it with `rekall_description`. */
+export type RewriteMode = Extract<TerminalMode, `REWRITE_${RewriteStyle}`>
+
+/** What a terminal is opened on: a task, or a project alone, which draws a diagram, inventories, assesses, autoconfigures or scans its components. */
 export type TerminalTarget = { readonly taskId: TaskId } | { readonly projectId: ProjectId }
 
 /** How a session runs `claude`: the interactive TUI in a PTY, or headless over stream-json with its own window. */
@@ -36,9 +43,10 @@ export interface Terminal {
   readonly anchors: string
   readonly workingDir: string
   readonly projectLabel: string
-  readonly taskLabel: string | null
+  readonly taskCode: string | null
   readonly taskTitle: string | null
   readonly mode: TerminalMode
+  readonly provider: SessionProvider
   readonly skipPermissions: boolean
   readonly model: string | null
   readonly effort: string | null

@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { passesOf, passesSummary, shareDetail, stepsLabel } from '@/features/adherence/lib/adherence-figures'
+import { passesOf, passesSummary, shareDetail, spentBudgets, stepsLabel, visitsSummary } from '@/features/adherence/lib/adherence-figures'
 import { step } from './fixtures'
 
 describe('the passes of a step', () => {
-  it('are one segment for each send-back and one for the pass under way', () => {
-    expect(passesOf(step(1, 'DONE', 2))).toEqual(['sent-back', 'sent-back', 'current'])
-    expect(passesOf(step(1, 'RUNNING'))).toEqual(['current'])
+  it('are one segment for each send-back and one for the pass accepted or in hand', () => {
+    expect(passesOf(step(1, 'DONE', 2))).toEqual(['sent-back', 'sent-back', 'accepted'])
+    expect(passesOf(step(1, 'RUNNING'))).toEqual(['in-hand'])
+    expect(passesOf(step(1, 'CLAIMED', 1))).toEqual(['sent-back', 'in-hand'])
   })
 
   it('are only the earlier ones for a step sent back and not started again', () => {
@@ -37,5 +38,21 @@ describe('naming steps', () => {
   it('uses the singular for one', () => {
     expect(stepsLabel([2])).toBe('step 2')
     expect(stepsLabel([2, 5])).toBe('steps 2, 5')
+  })
+})
+
+describe('the visits of a flow', () => {
+  const visits = [
+    { visits: 1, budgetSpent: false },
+    { visits: 3, budgetSpent: true }
+  ]
+
+  it('are summed up as steps entered and visits made', () => {
+    expect(visitsSummary(visits)).toBe('2 steps, 4 visits')
+    expect(visitsSummary([{ visits: 1, budgetSpent: false }])).toBe('1 step, 1 visit')
+  })
+
+  it('count the budgets already spent', () => {
+    expect(spentBudgets(visits)).toBe(1)
   })
 })

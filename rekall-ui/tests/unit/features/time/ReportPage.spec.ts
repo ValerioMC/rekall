@@ -6,7 +6,9 @@ import ReportPage from '@/features/time/components/ReportPage.vue'
 import { router } from '@/router'
 import { useConsoleStore } from '@/stores/console.store'
 import { mountWithHeaderChrome } from '../../support/mountWithHeaderChrome'
-import type { Company, Task, TaskStep, TimeEntry } from '@/features/catalog/model/catalog'
+import type { Company, Task } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
+import type { TimeEntry } from '@/features/time/model/time-entry'
 import type { CompanyId, ProjectId, TaskId, TaskStepId, TimeEntryId } from '@/model/branded'
 
 /**
@@ -53,21 +55,21 @@ const companies: Company[] = [
 
 const tasks: Task[] = [
   {
-    id: builder, label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS',
+    id: builder, code: 'report-builder', label: 'report-builder', title: 'Report builder', status: 'IN_PROGRESS',
     description: null, projectId: vega, projectLabel: 'vega', projectTitle: 'Vega Platform',
     companyName: 'acme', projectRepoFolder: null, documentCount: 0, stepCount: 0, stepsDone: 0, draftStepCount: 0, hasWrapup: false, reviewState: 'OPEN', reviewActive: true, claimedAt: null, acceptedAt: null,
     tagId: null, tagName: null, tagIcon: null, tagColor: null, graphLaidAt: null, releaseSkipped: false,
     kind: 'TASK',
-    epicId: null, quick: false, autoAccepted: false, dependsOn: [],
+    epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, trackerContentSynced: true, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
     anchor: 'project:vega task:report-builder', updatedAt: ''
   },
   {
-    id: signal, label: 'signal-ingest', title: 'Signal ingest', status: 'TODO',
+    id: signal, code: 'signal-ingest', label: 'signal-ingest', title: 'Signal ingest', status: 'TODO',
     description: null, projectId: beacon, projectLabel: 'beacon', projectTitle: 'Beacon',
     companyName: 'globex', projectRepoFolder: null, documentCount: 0, stepCount: 0, stepsDone: 0, draftStepCount: 0, hasWrapup: false, reviewState: 'OPEN', reviewActive: true, claimedAt: null, acceptedAt: null,
     tagId: null, tagName: null, tagIcon: null, tagColor: null, graphLaidAt: null, releaseSkipped: false,
     kind: 'TASK',
-    epicId: null, quick: false, autoAccepted: false, dependsOn: [],
+    epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, trackerContentSynced: true, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
     anchor: 'project:beacon task:signal-ingest', updatedAt: ''
   }
 ]
@@ -78,7 +80,7 @@ function session(id: string, taskId: TaskId, day: number, hours: number): TimeEn
   return {
     id: id as TimeEntryId,
     taskId,
-    taskLabel: task.label,
+    taskCode: task.label,
     taskTitle: task.title,
     projectLabel: task.projectLabel,
     anchor: task.anchor,
@@ -196,7 +198,7 @@ describe('ReportPage', () => {
   it('scrolls its own content when it is taller than the window', async () => {
     const wrapper = await mountReport()
 
-    expect(wrapper.get('[data-testid="report-scroller"]').classes()).toContain('overflow-y-auto')
+    expect(wrapper.get('[data-testid="report-scroller"]').classes()).toContain('page-scroll')
   })
 
   it('narrows to the companies picked, and back to all of them', async () => {
@@ -237,7 +239,7 @@ describe('ReportPage', () => {
   it('reframes the same sessions as a month without moving off them', async () => {
     const wrapper = await mountReport()
 
-    await wrapper.get('[data-testid="report-period-month"]').trigger('click')
+    await wrapper.get('[data-testid="segment-month"]').trigger('click')
 
     expect(wrapper.get('[data-testid="report-total"]').text()).toBe('5h')
     expect(wrapper.findAll('[data-testid="ridge-column"]')).toHaveLength(30)

@@ -8,12 +8,14 @@ const tagId = z.string().uuid().transform(asTagId)
 export const TaskSkillSchema = z.object({
   taskId,
   stepId: taskStepId.nullable(),
-  skillName: z.string()
+  skillName: z.string(),
+  arguments: z.string().nullable()
 })
 
 export const TagSkillSchema = z.object({
   tagId,
-  skillName: z.string()
+  skillName: z.string(),
+  arguments: z.string().nullable()
 })
 
 export const SkillAssignmentsSchema = z.object({

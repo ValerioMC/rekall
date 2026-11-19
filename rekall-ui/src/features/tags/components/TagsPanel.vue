@@ -18,7 +18,7 @@ import {
   type TagColorKey,
   type TagIconKey
 } from '@/features/tags/model/tag'
-import { skillsOfTag } from '@/features/skills/model/skill-assignment'
+import { skillsOfTag, type SkillAssignment } from '@/features/skills/model/skill-assignment'
 import type { Tag } from '@/features/catalog/model/catalog'
 import type { TagId } from '@/model/branded'
 
@@ -34,7 +34,7 @@ const isNew = ref(false)
 const name = ref('')
 const icon = ref<TagIconKey>('star')
 const color = ref<TagColorKey>('crimson')
-const skills = ref<readonly string[]>([])
+const skills = ref<readonly SkillAssignment[]>([])
 const submitting = ref(false)
 const error = ref<string | null>(null)
 const deleting = ref<Tag | null>(null)
@@ -58,7 +58,7 @@ function openEdit(tag: Tag): void {
   name.value = tag.name
   icon.value = TAG_ICON_KEYS.includes(tag.icon as TagIconKey) ? (tag.icon as TagIconKey) : 'star'
   color.value = TAG_COLOR_KEYS.includes(tag.color as TagColorKey) ? (tag.color as TagColorKey) : 'crimson'
-  skills.value = skillsOfTag(tag.id, store.tagSkills).map((skill) => skill.name)
+  skills.value = skillsOfTag(tag.id, store.tagSkills).map((skill): SkillAssignment => ({ name: skill.name, arguments: skill.arguments }))
   error.value = null
   focusName()
 }
@@ -189,7 +189,7 @@ onMounted(async () => {
             ref="nameField"
             v-model="name"
             data-testid="tag-name"
-            class="field text-text h-9 w-full rounded-control px-3 text-body"
+            class="field text-text h-8 w-full rounded-control px-3 text-body"
             placeholder="Bug, Idea, Blocked…"
             @keydown.enter="save"
           />

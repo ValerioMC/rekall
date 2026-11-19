@@ -1,10 +1,10 @@
 ## Wrapping up
 
-`/rk project:vega task:report-builder wrapup` means: record what that task's implementation looks
+`/rk task:RK-12 wrapup` means: record what that task's implementation looks
 like **now**, replacing what was there.
 
 Anything in double quotes after `wrapup` is a **directive**: what I want the wrapup to say, in my
-words, not an anchor. `/rk project:vega task:report-builder wrapup "solo il modulo di export"`.
+words, not an anchor. `/rk task:RK-12 wrapup "solo il modulo di export"`.
 
 1. Drop the `wrapup` term and the directive, and call `rekall_context` with the anchors that are
    left, so you are working from the current wrapup and notes rather than from memory of this

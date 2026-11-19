@@ -1,4 +1,5 @@
-import type { StepLink, StepVisit, Task, TaskStep, TaskStepState } from '@/features/catalog/model/catalog'
+import type { StepLink, StepVisit, TaskStep, TaskStepState } from '@/features/steps/model/task-step'
+import type { Task } from '@/features/catalog/model/catalog'
 import type { ProjectId, StepLinkId, StepVisitId, TaskId, TaskStepId } from '@/model/branded'
 
 /** A release flow: build, deploy, test, a fix that loops back to deploy. */
@@ -110,7 +111,7 @@ export function finishedFlow(): TaskStep[] {
 export function releaseTask(): Task {
   return {
     id: TASK,
-    label: 'release',
+    code: 'release', label: 'release',
     title: 'Release',
     status: 'IN_PROGRESS',
     description: null,
@@ -135,7 +136,7 @@ export function releaseTask(): Task {
     graphLaidAt: null,
     releaseSkipped: false,
     kind: 'TASK',
-    epicId: null, quick: false, autoAccepted: false, dependsOn: [],
+    epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, trackerContentSynced: true, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
     anchor: 'project:vega task:release',
     updatedAt: '2026-10-01T10:00:00Z'
   }

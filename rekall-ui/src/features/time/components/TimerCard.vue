@@ -4,7 +4,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import { relativeTime } from '@/common/format/relative-time'
 import { formatClock, formatDuration } from '@/common/format/duration'
 import { useNow } from '@/composables/useNow'
-import type { TimeEntry } from '@/features/catalog/model/catalog'
+import type { TimeEntry } from '@/features/time/model/time-entry'
 
 const props = defineProps<{
   entries: readonly TimeEntry[]

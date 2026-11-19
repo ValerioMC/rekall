@@ -15,5 +15,6 @@ pub use model::check_ran::CheckRan;
 pub use model::check_report::CheckReport;
 pub use model::check_run::CheckRun;
 pub use port::check_runner::CheckRunner;
+#[cfg(any(test, feature = "testing"))]
 pub use port::scripted_check_runner::ScriptedCheckRunner;
 pub use service::check_execution_service::CheckExecutionService;

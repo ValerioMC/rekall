@@ -38,7 +38,7 @@ const drawing = computed(() => props.pending.filter((generation) => projectIds.v
 
 function taskAnchorOf(taskId: string | null): string | null {
   const task = taskId ? props.tasks.find((candidate) => candidate.id === taskId) : null
-  return task ? `task:${task.label}` : null
+  return task ? `task:${task.code}` : null
 }
 
 function anchorsOf(generation: PendingGeneration): string {
@@ -49,8 +49,8 @@ function anchorsOf(generation: PendingGeneration): string {
 </script>
 
 <template>
-  <div class="min-h-0 flex-1 overflow-y-auto" data-testid="diagram-gallery">
-    <div class="mx-auto flex max-w-[1240px] flex-col gap-8 px-6 pb-16 pt-6">
+  <div class="min-h-0 flex-1 page-scroll" data-testid="diagram-gallery">
+    <div class="page-column flex flex-col gap-8 pb-16 pt-6">
       <section v-if="drawing.length > 0" aria-labelledby="gallery-drawing">
         <h2 id="gallery-drawing" class="section-label mb-3">Being drawn</h2>
         <div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
@@ -66,24 +66,29 @@ function anchorsOf(generation: PendingGeneration): string {
         </div>
       </section>
 
-      <section v-for="{ project, diagrams } in sections" :key="project.id" :aria-labelledby="`gallery-${project.id}`">
-        <h2 :id="`gallery-${project.id}`" class="mb-3 flex items-center gap-2">
-          <span class="size-2 shrink-0 rounded-full" :style="{ backgroundColor: identityHue(project.id).base }" aria-hidden="true" />
-          <span class="text-body font-semibold text-text">{{ project.title }}</span>
-          <span class="anchor-chip px-1.5 py-px text-micro">project:{{ project.label }}</span>
-          <span class="text-caption tabular-nums text-text-subtle">{{ diagrams.length }}</span>
-        </h2>
-        <div class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
-          <DiagramCard
-            v-for="summary in diagrams"
-            :key="summary.id"
-            :summary="summary"
-            :task-anchor="taskAnchorOf(summary.taskId)"
-            :arrived="summary.id === arrivedId"
-            @open="emit('open', summary.id)"
-          />
-        </div>
-      </section>
+      <div v-if="sections.length > 0" class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-x-3 gap-y-8">
+        <section v-for="{ project, diagrams } in sections" :key="project.id" :class="diagrams.length > 1 && 'col-span-full'" :aria-labelledby="`gallery-${project.id}`">
+          <h2 :id="`gallery-${project.id}`" class="mb-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <span class="size-2 shrink-0 rounded-full" :style="{ backgroundColor: identityHue(project.id).base }" aria-hidden="true" />
+            <span class="min-w-0 break-words text-body font-semibold text-text">{{ project.title }}</span>
+            <span class="shrink-0 text-caption text-text-subtle">{{ project.companyName }}</span>
+            <span class="flex min-w-0 items-center gap-2">
+              <span class="anchor-chip min-w-0 break-all px-1.5 py-px text-micro">project:{{ project.label }}</span>
+              <span class="shrink-0 text-caption tabular-nums text-text-subtle">{{ diagrams.length }}</span>
+            </span>
+          </h2>
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
+            <DiagramCard
+              v-for="summary in diagrams"
+              :key="summary.id"
+              :summary="summary"
+              :task-anchor="taskAnchorOf(summary.taskId)"
+              :arrived="summary.id === arrivedId"
+              @open="emit('open', summary.id)"
+            />
+          </div>
+        </section>
+      </div>
 
       <div v-if="loaded && sections.length === 0 && drawing.length === 0" class="grid place-items-center pt-10">
         <AppEmptyState

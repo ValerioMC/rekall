@@ -149,7 +149,7 @@ async fn a_terminal_opened_after_saving_the_tracing_settings_starts_claude_with_
     await_until(10, || async { traces.exists() && std::fs::read_to_string(&traces).is_ok_and(|text| text.ends_with('\n')) }).await;
     assert_eq!(
         std::fs::read_to_string(&traces).unwrap().trim(),
-        "http://localhost:3000/api/public/otel rekall.project=vega,rekall.task=report-builder"
+        "http://localhost:3000/api/public/otel rekall.project=vega,rekall.task=VE-1"
     );
     close_live_terminals(&app).await;
     app.stop().await;
@@ -359,7 +359,7 @@ async fn a_task_run_by_hand_goes_on_in_a_fresh_terminal_when_the_next_step_opens
     open_step_in_new_session(&app, &task_id, "Document it").await;
     let first = app.post(&format!("/api/tasks/{task_id}/terminals"), json!({ "skipPermissions": true })).await.str("id");
 
-    app.call_tool("rekall_step", json!({ "anchors": "task:report-builder", "step": "1", "state": "claimed" })).await;
+    app.call_tool("rekall_step", json!({ "anchors": "task:VE-1", "step": "1", "state": "claimed" })).await;
 
     await_until(15, || async {
         let live = app.get("/api/terminals").await.list();
@@ -427,7 +427,7 @@ async fn crossing_the_ceiling_at_a_claim_closes_the_session_and_puts_the_task_ba
 
     q.usage_at(82.0);
     q.app
-        .call_tool("rekall_step", json!({ "anchors": "project:vega task:report-builder", "step": "2", "state": "running" }))
+        .call_tool("rekall_step", json!({ "anchors": "task:VE-1", "step": "2", "state": "running" }))
         .await;
     q.claim("report-builder", "1").await;
 

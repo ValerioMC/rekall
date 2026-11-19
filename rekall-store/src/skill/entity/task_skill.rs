@@ -4,7 +4,7 @@
 use rekall_kernel::{Id, Instant, RekallError};
 use sea_orm::entity::prelude::*;
 
-use crate::skill_name;
+use crate::{skill_arguments, skill_name};
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "task_skill")]
@@ -14,6 +14,7 @@ pub struct Model {
     pub task_id: Id,
     pub step_id: Option<Id>,
     pub skill_name: String,
+    pub arguments: Option<String>,
     pub position: i32,
     pub created_at: Instant,
 }
@@ -52,6 +53,7 @@ impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
     pub fn validate(&self) -> Result<(), RekallError> {
-        skill_name::validate(&self.skill_name)
+        skill_name::validate(&self.skill_name)?;
+        skill_arguments::validate(self.arguments.as_deref())
     }
 }

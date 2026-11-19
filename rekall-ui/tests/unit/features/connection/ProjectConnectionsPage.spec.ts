@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
+import * as catalogApi from '@/features/catalog/api/catalog.api'
 import * as api from '@/features/connection/api/connections.api'
 import * as componentsApi from '@/features/project/api/project-components.api'
 import ProjectConnectionsPage from '@/features/connection/components/ProjectConnectionsPage.vue'
@@ -14,6 +15,7 @@ import type { Connection, ConnectionKind, ProjectConnection, RepositoryDiscovery
 import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId } from '@/model/branded'
 
 vi.mock('@/features/connection/api/connections.api')
+vi.mock('@/features/catalog/api/catalog.api')
 vi.mock('@/features/project/api/project-components.api')
 
 const COMPANY = 'c-1' as CompanyId
@@ -46,6 +48,7 @@ function connection(id: string, over: Partial<Connection> = {}): Connection {
     baseUrl: null,
     kubeContext: null,
     proxyUrl: null,
+    acceptSelfSigned: false,
     credentialSetAt: null,
     projectCount: 0,
     updatedAt: '2026-10-21T10:00:00Z',
@@ -64,7 +67,7 @@ function binding(id: string, credentialSetAt: string | null, kind: ConnectionKin
     baseUrl: null,
     kubeContext: null,
     target: null,
-    credentialSetAt
+    taskManager: false, credentialSetAt
   }
 }
 
@@ -384,5 +387,97 @@ describe('ProjectConnectionsPage with a Jira connection', () => {
     const withoutCredential = await mountPage()
     await flushPromises()
     expect(withoutCredential.find('[data-testid="import-jira-issues"]').exists()).toBe(false)
+  })
+})
+
+describe('ProjectConnectionsPage with a Confluence connection', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.resetAllMocks()
+    vi.useRealTimers()
+    vi.mocked(api.fetchConnections).mockResolvedValue([])
+    vi.mocked(catalogApi.fetchProjects).mockResolvedValue([])
+    vi.mocked(catalogApi.fetchCompanies).mockResolvedValue([])
+  })
+
+  function confluence(target: string | null, credentialSetAt: string | null): ProjectConnection {
+    return { ...binding('wiki', credentialSetAt), kind: 'CONFLUENCE', baseUrl: 'https://example.atlassian.net/wiki', target }
+  }
+
+  it('offers the spaces of the site while the key is typed', async () => {
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([confluence(null, '2026-10-21T10:00:00Z')])
+    vi.mocked(api.fetchTargetSuggestions).mockResolvedValue([{ value: 'DOCS', name: 'Documentation' }])
+    const wrapper = await mountPage()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="connection-target"]').setValue('do')
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    await flushPromises()
+
+    expect(api.fetchTargetSuggestions).toHaveBeenCalledWith('wiki', 'do')
+    expect(wrapper.get('[data-testid="connection-target"]').attributes('list')).toBe('target-suggestions-b-wiki')
+    expect(wrapper.findAll('datalist option').map((option) => option.attributes('value'))).toEqual(['DOCS'])
+    expect(wrapper.find('[data-testid="suggestions-unavailable"]').exists()).toBe(false)
+  })
+
+  it('says why the site could not suggest instead of raising a toast on every key', async () => {
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([confluence(null, '2026-10-21T10:00:00Z')])
+    vi.mocked(api.fetchTargetSuggestions).mockRejectedValue(new Error('Confluence rejected the stored credential (HTTP 401).'))
+    const wrapper = await mountPage()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="connection-target"]').trigger('focus')
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="suggestions-unavailable"]').text()).toContain('HTTP 401')
+  })
+
+  it('asks the site for nothing without a credential and offers no filling without a space key', async () => {
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([confluence('DOCS', null)])
+    const withoutCredential = await mountPage()
+    await flushPromises()
+    await withoutCredential.get('[data-testid="connection-target"]').trigger('focus')
+    await new Promise((resolve) => setTimeout(resolve, 300))
+
+    expect(api.fetchTargetSuggestions).not.toHaveBeenCalled()
+    expect(withoutCredential.find('[data-testid="fill-from-confluence"]').exists()).toBe(false)
+
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([confluence(null, '2026-10-21T10:00:00Z')])
+    const withoutKey = await mountPage()
+    await flushPromises()
+    expect(withoutKey.find('[data-testid="fill-from-confluence"]').exists()).toBe(false)
+  })
+
+  it('fills the project from the space and says what became of each section', async () => {
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([confluence('DOCS', '2026-10-21T10:00:00Z')])
+    vi.mocked(api.importConfluenceSpace).mockResolvedValue({
+      spaceKey: 'DOCS',
+      spaceName: 'Documentation',
+      pagesRead: 3,
+      descriptionWritten: true,
+      blueprintWritten: false,
+      sections: [
+        { title: 'Architecture', pages: 1, outcome: 'created' },
+        { title: 'Deployment', pages: 1, outcome: 'kept' }
+      ]
+    })
+    const wrapper = await mountPage()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="fill-from-confluence"]').trigger('click')
+    await wrapper.get('[data-testid="confluence-replace"] input').setValue(true)
+    await wrapper.get('[data-testid="fill-project"]').trigger('click')
+    await flushPromises()
+
+    expect(api.importConfluenceSpace).toHaveBeenCalledWith('p-1', 'b-wiki', true)
+    const result = wrapper.get('[data-testid="confluence-import-result"]').text()
+    expect(result).toContain('Read 3 pages of Documentation.')
+    expect(result).toContain('Description: written')
+    expect(result).toContain('Blueprint: kept')
+    expect(wrapper.findAll('[data-testid="confluence-section"]').map((row) => row.text())).toEqual([
+      expect.stringContaining('Architecture'),
+      expect.stringContaining('Deployment')
+    ])
   })
 })

@@ -1,15 +1,16 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::Mutex;
 
 use async_trait::async_trait;
 use rekall_kernel::{RekallError, Result};
 
-use crate::worktree::{BranchReview, MergeOutcome, Worktree, WorktreeHost, WorktreeStatus};
+use crate::worktree::{BranchReview, MergeOutcome, PushOutcome, Worktree, WorktreeHost, WorktreeStatus};
 
 /// A `WorktreeHost` that keeps its worktrees in memory and makes their folders on disk, for tests
 /// of what decides when to make one. `refuse` makes `create` fail for a branch; a branch can be
-/// scripted to hold commits or to conflict, and `merged` lists the branches merged.
+/// scripted to hold commits or to conflict, and `merged` lists the branches merged and `bases` the branch each started from or went into.
+/// `refuse_push` makes pushes of a branch fail with a reason; a branch pushed twice is up to date the second time.
 #[derive(Default)]
 pub struct ScriptedWorktreeHost {
     worktrees: Mutex<Vec<Worktree>>,
@@ -18,6 +19,9 @@ pub struct ScriptedWorktreeHost {
     ahead: Mutex<HashSet<String>>,
     conflicting: Mutex<HashSet<String>>,
     merged: Mutex<Vec<String>>,
+    bases: Mutex<Vec<String>>,
+    pushed: Mutex<Vec<String>>,
+    push_refusals: Mutex<HashMap<String, String>>,
 }
 
 impl ScriptedWorktreeHost {
@@ -45,8 +49,22 @@ impl ScriptedWorktreeHost {
         self.conflicting.lock().expect("scripted host lock").remove(branch_name);
     }
 
+    pub fn refuse_push(&self, branch_name: &str, reason: &str) {
+        self.push_refusals.lock().expect("scripted host lock").insert(branch_name.to_string(), reason.to_string());
+    }
+
+    /// The branches pushed, once each, in the order they first went.
+    pub fn pushed(&self) -> Vec<String> {
+        self.pushed.lock().expect("scripted host lock").clone()
+    }
+
     pub fn merged(&self) -> Vec<String> {
         self.merged.lock().expect("scripted host lock").clone()
+    }
+
+    /// The base each worktree was started from and each merge went into, in the order they happened.
+    pub fn bases(&self) -> Vec<String> {
+        self.bases.lock().expect("scripted host lock").clone()
     }
 
     pub fn branches(&self) -> Vec<String> {
@@ -56,7 +74,8 @@ impl ScriptedWorktreeHost {
 
 #[async_trait]
 impl WorktreeHost for ScriptedWorktreeHost {
-    async fn create(&self, project_folder: &Path, branch_name: &str, folder: &Path) -> Result<Worktree> {
+    async fn create(&self, project_folder: &Path, branch_name: &str, folder: &Path, base: &str) -> Result<Worktree> {
+        self.bases.lock().expect("scripted host lock").push(base.to_string());
         if self.refused.lock().expect("scripted host lock").contains(branch_name) {
             return Err(RekallError::illegal(format!("git could not make a worktree for {branch_name}.")));
         }
@@ -76,7 +95,7 @@ impl WorktreeHost for ScriptedWorktreeHost {
         Ok(self.worktrees.lock().expect("scripted host lock").iter().filter(|worktree| worktree.project_folder == project_folder).cloned().collect())
     }
 
-    async fn review_branch(&self, _: &Path, branch_name: &str, worktree_folder: Option<&Path>) -> Result<Option<BranchReview>> {
+    async fn review_branch(&self, _: &Path, branch_name: &str, worktree_folder: Option<&Path>, _: &str) -> Result<Option<BranchReview>> {
         let known = self.worktrees.lock().expect("scripted host lock").iter().any(|worktree| worktree.branch == branch_name);
         let dirty = self.dirty.lock().expect("scripted host lock").contains(branch_name);
         let ahead = self.ahead.lock().expect("scripted host lock").contains(branch_name);
@@ -96,9 +115,22 @@ impl WorktreeHost for ScriptedWorktreeHost {
         Ok(WorktreeStatus { has_unsaved_changes: dirty, commits_ahead: 0 })
     }
 
-    async fn merge_branch(&self, _: &Path, branch_name: &str) -> Result<MergeOutcome> {
+    async fn merge_branch(&self, _: &Path, branch_name: &str, base: &str) -> Result<MergeOutcome> {
+        self.bases.lock().expect("scripted host lock").push(base.to_string());
         self.ahead.lock().expect("scripted host lock").remove(branch_name);
         self.merged.lock().expect("scripted host lock").push(branch_name.to_string());
         Ok(MergeOutcome::Merged)
+    }
+
+    async fn push_branch(&self, _: &Path, branch_name: &str) -> Result<PushOutcome> {
+        if let Some(reason) = self.push_refusals.lock().expect("scripted host lock").get(branch_name) {
+            return Ok(PushOutcome::Refused(reason.clone()));
+        }
+        let mut pushed = self.pushed.lock().expect("scripted host lock");
+        if pushed.iter().any(|branch| branch == branch_name) {
+            return Ok(PushOutcome::UpToDate);
+        }
+        pushed.push(branch_name.to_string());
+        Ok(PushOutcome::Pushed)
     }
 }

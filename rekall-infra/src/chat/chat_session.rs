@@ -8,7 +8,7 @@ use rekall_kernel::{Id, Instant, RekallError, Result};
 
 use super::chat_process::ChatProcess;
 use super::event_journal::EventJournal;
-use crate::session::ClaudeOptions;
+use crate::session::SessionOptions;
 
 /// One live chat session: its process, the task and step it works, and the journal its clients follow.
 pub(super) struct ChatSession {
@@ -35,7 +35,7 @@ impl ChatSession {
         launch: TerminalLaunch,
         step_id: Option<Id>,
         mode: TerminalMode,
-        options: ClaudeOptions,
+        options: SessionOptions,
         process: ChatProcess,
         backlog_bytes: usize,
     ) -> Self {
@@ -78,9 +78,10 @@ impl ChatSession {
             anchors: self.launch.anchors.clone(),
             working_dir: self.launch.working_dir.clone(),
             project_label: self.launch.project_label.clone(),
-            task_label: self.launch.task_label.clone(),
+            task_code: self.launch.task_code.clone(),
             task_title: self.launch.task_title.clone(),
             mode: self.mode.clone(),
+            provider: Default::default(),
             skip_permissions: self.skip_permissions,
             model: self.model.clone(),
             effort: self.effort.clone(),

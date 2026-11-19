@@ -6,7 +6,7 @@ mod support;
 use serde_json::json;
 use support::{app, id};
 
-const ANCHORS: &str = "project:vega task:report-builder";
+const ANCHORS: &str = "task:VE-1";
 
 async fn titles(app: &support::App, project_id: &str) -> Vec<String> {
     app.get(&format!("/api/projects/{project_id}/sections")).await.list().iter().map(|s| s["title"].as_str().unwrap().to_string()).collect()

@@ -1,6 +1,6 @@
 ## Sectioning
 
-`/rk project:vega task:report-builder section "Deployment" "how we ship to production"` means: write a
+`/rk task:RK-12 section "Deployment" "how we ship to production"` means: write a
 section named Deployment on that task's project, or rewrite the one it already has under that title.
 
 A section is a page of the project, shown beside its blueprint in the console. A context carries only

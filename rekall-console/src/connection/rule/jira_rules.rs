@@ -53,8 +53,12 @@ pub(in crate::connection) fn task_label(key: &str) -> String {
     key.to_lowercase()
 }
 
-pub(in crate::connection) fn task_request(project_id: Id, site: &str, issue: &JiraIssue) -> TaskCommand {
+/// `linked` says the issue's Jira site is the project's task manager, so the task is the issue's twin
+/// from the start and is not pushed there again.
+pub(in crate::connection) fn task_request(project_id: Id, site: &str, issue: &JiraIssue, linked: bool) -> TaskCommand {
     TaskCommand {
+        tracker_issue_key: linked.then(|| issue.key.clone()),
+        tracker_issue_url: linked.then(|| issue_url(site, &issue.key)),
         label: Some(task_label(&issue.key)),
         title: Some(task_title(issue)),
         description: Some(task_description(site, issue)),

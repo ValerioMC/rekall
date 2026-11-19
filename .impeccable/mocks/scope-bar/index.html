@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rekall scope bar on the prototype CSS</title>
+<link rel="stylesheet" href="../redesign/app/css/app.css">
+<style>
+/* Only what the scope bar adds. Every surface, control, pill, tab and row below comes from the
+   prototype stylesheet unchanged, so this page differs from the live console in exactly two ways:
+   the prototype's flat CSS, and the shared scope bar. */
+#app { grid-template-rows: auto 48px 1fr; }
+.mockbar { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 16px; background: #090c11; border-bottom: 1px solid var(--border); font-size: var(--t-small); color: var(--subtle); }
+.mockbar b { font-weight: 500; color: var(--muted); margin-right: 4px; }
+.mockbar button { height: 24px; padding: 0 10px; border-radius: var(--r-control); color: var(--muted); }
+.mockbar button:hover { background: var(--hover); color: var(--text); }
+.mockbar button[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.mockbar .hint { margin-left: auto; }
+
+.sb { padding-top: 20px; }
+.sb-row { display: flex; align-items: center; gap: 12px; min-height: 40px; }
+.sc-trig { display: inline-flex; align-items: center; gap: 10px; height: 40px; margin-left: -10px; padding: 0 10px; border-radius: var(--r-card); transition: background var(--m-hover); }
+.sc-trig:hover, .sc-trig[aria-expanded="true"] { background: var(--raised); }
+.sc-trig .crumb { font-size: var(--t-heading); color: var(--subtle); }
+.sc-trig .slash { font-size: var(--t-heading); color: var(--border-strong); margin: 0 -2px; }
+.sc-trig .name { font-size: var(--t-heading); font-weight: 500; letter-spacing: -.005em; }
+.sc-trig .ic { color: var(--subtle); transition: transform var(--m-move) var(--ease); }
+.sc-trig[aria-expanded="true"] .ic { transform: rotate(180deg); color: var(--text); }
+.all-dot { width: 10px; height: 10px; margin: 0 5px; background: var(--accent); transform: rotate(45deg); border-radius: 2px; }
+.sc-meta { display: flex; align-items: center; gap: 10px; color: var(--subtle); font-size: var(--t-small); }
+
+.sc-pop { position: fixed; z-index: 60; width: 380px; max-height: min(70vh, 600px); display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px; box-shadow: var(--shadow-raised), 0 18px 40px #0009; animation: drawer var(--m-hover) var(--ease); overflow: hidden; }
+.sc-pop .pal-in { height: 46px; }
+.sc-pop .pal-in input { font-size: var(--t-body); }
+.sc-list { overflow: auto; padding: 4px 8px 8px; }
+.sc-pop .pgrp { padding: 14px 8px 6px; }
+.sc-pop .pgrp:first-child { padding-top: 8px; }
+.sc-pop .prow { grid-template-columns: 22px minmax(0, 1fr) auto auto; height: 38px; text-align: left; }
+.sc-pop .prow .go { display: none; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: var(--r-key); color: var(--muted); font-size: var(--t-caption); }
+.sc-pop .prow .go:hover { background: var(--raised); color: var(--text); }
+.sc-pop .prow.cur .go { display: inline-flex; }
+.sc-pop .prow.here { color: var(--accent-strong); }
+.sc-pop .prow .chk { color: var(--accent); width: 14px; }
+.sc-pop .pal-foot { gap: 4px; padding: 6px 8px; }
+.sc-pop .pal-foot button { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border-radius: var(--r-control); color: var(--muted); font-size: var(--t-small); }
+.sc-pop .pal-foot button:hover { background: var(--raised); color: var(--text); }
+.sc-pop .pal-foot .plus { color: var(--accent); }
+.sc-pop .none { padding: 24px 16px; text-align: center; color: var(--subtle); font-size: var(--t-small); }
+.shield { position: fixed; inset: 0; z-index: 55; }
+
+.tabrow { display: flex; align-items: flex-end; gap: 24px; margin-top: 12px; border-bottom: 1px solid var(--border); }
+.tools { display: flex; align-items: center; gap: 8px; margin-left: auto; padding-bottom: 6px; }
+.v { grid-template-columns: minmax(0, 1fr) 140px 128px 150px 120px 96px; }
+.v.s { grid-template-columns: minmax(0, 1fr) 128px 150px 120px 96px; }
+.lrow.v { cursor: default; }
+.projcell { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.projcell span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.when { color: var(--subtle); font-size: var(--t-small); }
+.emptyline { padding: 56px 0; text-align: center; color: var(--muted); }
+.emptyline b { display: block; color: var(--text); font-weight: 500; font-size: var(--t-title); margin-bottom: 4px; }
+.adhline { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 22px; padding: 0 12px; color: var(--muted); font-size: var(--t-small); }
+.adhline b { color: var(--text); font-weight: 500; }
+.stub { margin: 24px 0; }
+.sp-gap { height: 64px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const COMPANIES = [
+  { id: 'nw', name: 'Northwind', hue: 212 },
+  { id: 'hl', name: 'Helio Labs', hue: 30 },
+  { id: 'ob', name: 'Orbit', hue: 268 }
+]
+const PROJECTS = [
+  { id: 'vega', co: 'nw', title: 'Vega', status: 'Active', hue: 205 },
+  { id: 'atlas', co: 'nw', title: 'Atlas', status: 'Active', hue: 160 },
+  { id: 'harbor', co: 'nw', title: 'Harbor', status: 'Active', hue: 188 },
+  { id: 'lumen', co: 'hl', title: 'Lumen', status: 'Active', hue: 42 },
+  { id: 'quill', co: 'hl', title: 'Quill', status: 'Active', hue: 330 },
+  { id: 'relay', co: 'ob', title: 'Relay', status: 'Active', hue: 262 },
+  { id: 'beacon', co: 'ob', title: 'Beacon', status: 'Paused', hue: 8 }
+]
+const TASKS = [
+  ['vega','VG-41','Retry failed webhook deliveries with backoff','review',[5,6],'3 steps claimed','12 min ago'],
+  ['vega','VG-40','Split the ingest service from the API process','review',[8,9],'1 step claimed','2 h ago'],
+  ['vega','VG-39','Add idempotency keys to the payments endpoint','run',[3,7],'','just now'],
+  ['vega','VG-38','Move feature flags into the settings page','prog',[2,5],'','yesterday'],
+  ['vega','VG-37','Document the release checklist','todo',[0,4],'','2 days ago'],
+  ['vega','VG-34','Upgrade the HTTP client and drop the shim','filed',[6,6],'','last week'],
+  ['vega','VG-31','Rate-limit anonymous search requests','filed',[5,5],'','last week'],
+  ['atlas','AT-18','Cache the tile index between deploys','review',[4,4],'2 steps claimed','1 h ago'],
+  ['atlas','AT-17','Paginate the audit log export','prog',[1,6],'','3 h ago'],
+  ['atlas','AT-15','Replace the retired map provider','todo',[0,5],'','2 days ago'],
+  ['atlas','AT-12','Fix timezone drift in scheduled jobs','filed',[4,4],'','last week'],
+  ['harbor','HB-7','Health probe for the queue consumer','prog',[2,3],'','yesterday'],
+  ['harbor','HB-5','Rotate the signing keys','filed',[3,3],'','2 weeks ago'],
+  ['lumen','LM-22','Dark mode for the invoice preview','run',[2,6],'','4 min ago'],
+  ['lumen','LM-21','Localise the onboarding emails','review',[5,5],'4 steps claimed','5 h ago'],
+  ['lumen','LM-19','Export reports as CSV','todo',[0,3],'','3 days ago'],
+  ['lumen','LM-14','Fix the double-charge on plan change','filed',[7,7],'','last week'],
+  ['quill','QL-9','Autosave drafts every few seconds','prog',[3,4],'','yesterday'],
+  ['quill','QL-8','Keyboard shortcuts for the editor','todo',[0,6],'','4 days ago'],
+  ['relay','RL-63','Dead-letter queue for failed jobs','review',[6,6],'2 steps claimed','30 min ago'],
+  ['relay','RL-61','Trace IDs across the worker boundary','prog',[4,8],'','6 h ago'],
+  ['relay','RL-58','Backpressure on the fan-out stage','todo',[0,5],'','3 days ago'],
+  ['relay','RL-52','Drop the legacy polling endpoint','filed',[4,4],'','2 weeks ago'],
+  ['beacon','BC-3','Evaluate a hosted status page','todo',[0,2],'','a month ago']
+].map(([project, label, title, status, plan, needs, updated]) => ({ project, label, title, status, plan, needs, updated }))
+
+const LABEL = { review: 'Awaiting review', run: 'Running', prog: 'In progress', todo: 'To do', filed: 'Filed' }
+const PILL = { review: 'review', run: 'run', prog: 'prog', todo: '', filed: 'filed' }
+const RULE = {
+  needs: (t) => t.status === 'review',
+  running: (t) => t.status === 'run',
+  open: (t) => t.status !== 'filed',
+  filed: (t) => t.status === 'filed'
+}
+const PROJECT_TABS = [['tasks', 'Tasks'], ['blueprint', 'Blueprint'], ['pages', 'Pages', 3], ['components', 'Components', 23], ['diagrams', 'Diagrams'], ['deployment', 'Deployment', 1], ['connections', 'Connections', 6], ['settings', 'Settings']]
+
+const S = { page: 'work', scope: null, tab: 'needs', ptab: 'tasks', tfilter: 'needs', open: false, q: '', cur: 0, recent: ['vega', 'lumen', 'relay'], layout: 'ledger' }
+const $ = (s) => document.querySelector(s)
+const co = (id) => COMPANIES.find((c) => c.id === id)
+const pj = (id) => PROJECTS.find((p) => p.id === id)
+const count = (id) => TASKS.filter((t) => t.project === id).length
+const bg = (hue) => `hsl(${hue} 62% 66%)`
+
+const I = {
+  chev: '<svg class="ic" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5l4 4 4-4"/></svg>',
+  search: '<svg class="ic" width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>',
+  plus: '<svg class="ic" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>',
+  copy: '<svg class="ic" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5v-2a1 1 0 00-1-1h-6a1 1 0 00-1 1v6a1 1 0 001 1h2"/></svg>',
+  l: '<svg class="ic" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 4L5.5 8l4 4"/></svg>',
+  r: '<svg class="ic" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 4l4 4-4 4"/></svg>',
+  out: '<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h6.5V10M12.5 3.5L4 12"/></svg>',
+  sliders: '<svg class="ic" width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 5h6M11.5 5h2M2.5 11h2M7.5 11h6"/><circle cx="10" cy="5" r="1.5"/><circle cx="6" cy="11" r="1.5"/></svg>',
+  tag: '<svg class="ic" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.2V3.5a1 1 0 011-1h4.7l5.3 5.3-5.7 5.7z"/><circle cx="5.7" cy="5.7" r=".8"/></svg>',
+  gear: '<svg class="ic" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="2"/><path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14M3.8 3.8l1 1M11.2 11.2l1 1M12.2 3.8l-1 1M4.8 11.2l-1 1"/></svg>',
+  term: '<svg class="ic" width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M5 7l2 1.5L5 10M8.5 10H11"/></svg>',
+  check: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg>'
+}
+const avatar = (p, cls = 'sm') => `<span class="avatar ${cls}" style="background:${bg(p.hue)}">${p.title[0]}</span>`
+const coAvatar = (c, cls = 'sm') => `<span class="avatar ${cls}" style="background:${bg(c.hue)};border-radius:50%">${c.name[0]}</span>`
+
+function header() {
+  const label = S.page === 'work' ? 'Work' : 'Projects'
+  const chips = S.page === 'project' && S.scope ? `<span class="chip" style="color:var(--anchor);background:var(--anchor-soft);border:1px solid var(--anchor-line);border-radius:3px;padding:0 6px;line-height:18px">project:${S.scope}</span>` : '<span>project:vega task:setup</span>'
+  return `<header class="top"><div class="top-l"><a class="logo" aria-label="Rekall"></a>
+    <button class="menu-key" aria-label="Menu, on ${label}"><span class="burger"><i></i><i></i><i></i></span><span class="menu-name">${label}</span><span class="badge">5</span>${I.chev}</button>
+    <div class="hist"><button class="ibtn" aria-label="Back">${I.l}</button><button class="ibtn" aria-label="Forward">${I.r}</button></div></div>
+    <button class="locbar" aria-label="Search by anchor"><b>/rk</b>${S.page === 'project' ? '' : ''}${chips}<kbd>⌘K</kbd></button>
+    <div class="top-r"><div class="cap"><button><span class="ring" style="--p:3"></span><span class="num">3%</span><span class="dim">4h 55m</span></button><a class="rv"><b>5</b> to review</a></div>
+    <button class="ibtn" aria-label="Tags">${I.tag}</button><a class="ibtn" aria-label="Settings">${I.gear}</a></div></header>`
+}
+
+function current() { return S.scope ? pj(S.scope) : null }
+
+function trigger() {
+  const p = current()
+  const inner = p
+    ? `${avatar(p, 'sm')}<span class="crumb">${co(p.co).name}</span><span class="slash">/</span><span class="name">${p.title}</span>`
+    : `<span class="all-dot"></span><span class="name">All work</span>`
+  return `<button class="sc-trig" data-act="toggle" aria-haspopup="listbox" aria-expanded="${S.open}" aria-label="${S.page === 'work' ? 'Choose project' : 'Switch project'}">${inner}${I.chev}</button>`
+}
+
+function meta() {
+  const p = current()
+  if (!p) return `<span class="sc-meta"><span class="num">${TASKS.length}</span> tasks across ${PROJECTS.length} projects</span>`
+  return `<span class="sc-meta"><button class="anchor" data-v="1" aria-label="Copy /rk project:${p.id}">/rk project:${p.id} ${I.copy}</button><span class="pill ${p.status === 'Active' ? 'prog' : ''}">${p.status}</span></span>`
+}
+
+function match(p) {
+  const n = S.q.trim().toLowerCase()
+  return !n || p.title.toLowerCase().includes(n) || ('project:' + p.id).includes(n) || co(p.co).name.toLowerCase().includes(n)
+}
+
+function sections() {
+  const out = []
+  const searching = !!S.q.trim()
+  if (S.page === 'work' && !searching) out.push({ all: true })
+  if (!searching) {
+    const items = S.recent.map(pj).slice(0, 3)
+    if (items.length) out.push({ label: 'Recent', items })
+  }
+  COMPANIES.forEach((c) => {
+    const items = PROJECTS.filter((p) => p.co === c.id && match(p))
+    if (items.length) out.push({ label: c.name, mark: coAvatar(c), items })
+  })
+  return out
+}
+
+const flat = () => sections().flatMap((s) => (s.all ? [{ all: true }] : s.items.map((p) => ({ p }))))
+
+function popover() {
+  if (!S.open) return ''
+  let i = -1
+  const rows = sections().map((s) => {
+    if (s.all) {
+      i++
+      return `<button class="prow ${i === S.cur ? 'cur' : ''} ${S.scope === null ? 'here' : ''}" data-act="pick" data-id="" data-i="${i}"><span class="all-dot" style="margin:0 5px"></span><span>All work</span><span class="r num">${TASKS.length}</span><span class="chk">${S.scope === null ? I.check : ''}</span></button>`
+    }
+    return `<div class="pgrp">${s.mark || ''}<span>${s.label}</span></div>` + s.items.map((p) => {
+      i++
+      const here = S.scope === p.id
+      return `<button class="prow ${i === S.cur ? 'cur' : ''} ${here ? 'here' : ''}" data-act="pick" data-id="${p.id}" data-i="${i}">${avatar(p)}<span class="trunc">${p.title}${p.status === 'Paused' ? ' <span class="dim">· paused</span>' : ''}</span>
+        <span>${S.page === 'work' ? `<span class="go" data-act="page" data-id="${p.id}">Open page ${I.out}</span>` : ''}<span class="r num" style="margin-left:6px">${count(p.id)}</span></span><span class="chk">${here ? I.check : ''}</span></button>`
+    }).join('')
+  }).join('')
+  return `<div class="shield" data-act="close"></div><div class="sc-pop" role="dialog" aria-label="Projects">
+    <label class="pal-in">${I.search}<input id="q" autocomplete="off" spellcheck="false" placeholder="Find a project" value="${S.q}"><kbd>esc</kbd></label>
+    <div class="sc-list" role="listbox">${flat().length ? rows : `<div class="none">No project matches “${S.q}”.</div>`}</div>
+    <div class="pal-foot"><button><span class="plus">${I.plus}</span>New project</button><button><span class="plus">${I.plus}</span>New company</button></div></div>`
+}
+
+function plan(t) {
+  const done = t.plan[0] === t.plan[1]
+  return `<div class="plan"><div class="tube"><i class="${done ? 'g' : 'a'}" style="width:${Math.round(t.plan[0] / t.plan[1] * 100)}%"></i></div><span>${t.plan[0]}/${t.plan[1]}</span></div>`
+}
+
+function ledger(rows, scoped) {
+  if (!rows.length) return `<div class="emptyline"><b>Nothing waits for you.</b>Every claimed step is accepted. Resume a session to get more.</div>`
+  const head = `<div class="cols v ${scoped ? 's' : ''}"><span>Task</span>${scoped ? '' : '<span>Project</span>'}<span>Status</span><span>Plan</span><span>Needs you</span><span>Updated</span></div>`
+  const body = rows.map((t) => {
+    const p = pj(t.project)
+    return `<div class="lrow v ${scoped ? 's' : ''}"><div class="t"><span class="trunc">${t.title}</span><span class="anchor">task:${t.label}</span></div>
+      ${scoped ? '' : `<span class="projcell">${avatar(p)}<span>${p.title}</span></span>`}
+      <span><span class="pill ${PILL[t.status]}">${LABEL[t.status]}</span></span>${plan(t)}
+      <span class="need">${t.needs}</span><span class="when">${t.updated}</span></div>`
+  }).join('')
+  return `<div style="margin-top:4px">${head}${body}</div>`
+}
+
+function scopeBar(actions, tabs, tools) {
+  return `<div class="sb"><div class="sb-row"><div>${trigger()}</div>${meta()}<span class="sp"></span>${actions}</div>
+    <div class="tabrow"><div class="subnav" style="margin:0;border:0" role="tablist">${tabs}</div>${tools ? `<div class="tools">${tools}</div>` : ''}</div></div>`
+}
+
+function workPage() {
+  const list = TASKS.filter((t) => !S.scope || t.project === S.scope)
+  const n = (k) => list.filter(RULE[k]).length
+  const names = { needs: 'Needs me', running: 'Running', open: 'Open', filed: 'Filed' }
+  const tabs = Object.keys(names).map((k) => `<button class="${S.tab === k ? 'on' : ''}" role="tab" data-act="tab" data-id="${k}">${names[k]}<span class="n ${k === 'needs' && n(k) ? 'hot' : ''}">${n(k)}</span></button>`).join('')
+  const tools = `<label class="field" style="width:240px">${I.search}<input placeholder="Filter by title or anchor" aria-label="Filter the work"></label>
+    <div class="seg"><button class="${S.layout === 'ledger' ? 'on' : ''}" data-act="layout" data-id="ledger">Ledger</button><button class="${S.layout === 'board' ? 'on' : ''}" data-act="layout" data-id="board">Board</button></div>
+    <button class="btn quiet">${I.sliders}View</button>`
+  return `<div class="page">${scopeBar(`<button class="btn primary">${I.plus}New task</button>`, tabs, tools)}${ledger(list.filter(RULE[S.tab]), !!S.scope)}<div class="sp-gap"></div></div>`
+}
+
+function projectPage() {
+  const p = pj(S.scope)
+  const tabs = PROJECT_TABS.map(([k, l, c]) => `<button class="${S.ptab === k ? 'on' : ''}" role="tab" data-act="ptab" data-id="${k}">${l}${c ? `<span class="n">${c}</span>` : ''}</button>`).join('')
+  const actions = `<button class="btn quiet">${I.term}Open in terminal</button><button class="btn primary">${I.plus}New task</button>`
+  let body
+  if (S.ptab === 'tasks') {
+    const list = TASKS.filter((t) => t.project === p.id)
+    const f = [['needs', 'Needs me'], ['open', 'Open'], ['filed', 'Filed']]
+    body = `<div style="display:flex;align-items:center;margin-top:18px"><div class="seg">${f.map(([k, l]) => `<button class="${S.tfilter === k ? 'on' : ''}" data-act="tfilter" data-id="${k}">${l} <span class="dim num" style="margin-left:4px">${list.filter(RULE[k]).length}</span></button>`).join('')}</div></div>
+      ${ledger(list.filter(RULE[S.tfilter]), true)}
+      <div class="adhline"><span class="dim">Plan adherence</span><span><b class="num">128 of 128</b> accepted first time</span><span><b class="num">0</b> sent back</span><span><b class="num">5</b> deviations</span></div>`
+  } else {
+    body = `<div class="empty stub">${PROJECT_TABS.find(([k]) => k === S.ptab)[1]} keeps its current content. Only the header above it changes.</div>`
+  }
+  return `<div class="page">${scopeBar(actions, tabs, '')}${body}<div class="sp-gap"></div></div>`
+}
+
+function render(keep) {
+  $('#app').innerHTML = `<div class="mockbar"><b>Mockup</b><button data-go="work" aria-pressed="${S.page === 'work'}">Work</button><button data-go="project" aria-pressed="${S.page === 'project'}">Project page</button>
+    <span class="hint">Click the title or press P to open the switcher. Type to filter, arrows and Enter to pick.</span></div>${header()}
+    <main class="main"><div class="view"><div class="scroll">${S.page === 'work' ? workPage() : projectPage()}</div></div></main>${popover()}`
+  if (S.open) {
+    const t = $('.sc-trig').getBoundingClientRect(), pop = $('.sc-pop')
+    pop.style.left = Math.max(8, t.left) + 'px'; pop.style.top = t.bottom + 6 + 'px'
+    const input = $('#q'); input.focus(); if (keep) input.setSelectionRange(input.value.length, input.value.length)
+    document.querySelector('.prow.cur')?.scrollIntoView({ block: 'nearest' })
+  }
+}
+
+function pick(id) {
+  const next = id || null
+  if (next) S.recent = [next, ...S.recent.filter((r) => r !== next)].slice(0, 5)
+  S.scope = S.page === 'project' ? (next ?? S.scope) : next
+  S.open = false; S.q = ''; render()
+}
+
+function openSwitcher() {
+  S.open = true; S.q = ''
+  S.cur = Math.max(0, flat().findIndex((o) => (o.all ? S.scope === null : o.p.id === S.scope)))
+  render()
+}
+
+document.addEventListener('click', (e) => {
+  const go = e.target.closest('[data-go]')
+  if (go) { S.page = go.dataset.go; if (S.page === 'project' && !S.scope) S.scope = 'vega'; S.open = false; render(); return }
+  const t = e.target.closest('[data-act]')
+  if (!t) return
+  const { act, id } = t.dataset
+  if (act === 'toggle') { S.open ? ((S.open = false), render()) : openSwitcher() }
+  else if (act === 'close') { S.open = false; render() }
+  else if (act === 'page') { e.stopPropagation(); S.page = 'project'; S.scope = id; S.ptab = 'tasks'; S.recent = [id, ...S.recent.filter((r) => r !== id)].slice(0, 5); S.open = false; S.q = ''; render() }
+  else if (act === 'pick') pick(id)
+  else if (act === 'tab') { S.tab = id; render() }
+  else if (act === 'ptab') { S.ptab = id; render() }
+  else if (act === 'tfilter') { S.tfilter = id; render() }
+  else if (act === 'layout') { S.layout = id; render() }
+})
+document.addEventListener('input', (e) => { if (e.target.id === 'q') { S.q = e.target.value; S.cur = 0; render(true) } })
+document.addEventListener('keydown', (e) => {
+  const typing = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)
+  if (!S.open) { if (e.key.toLowerCase() === 'p' && !typing && !e.metaKey && !e.ctrlKey) { e.preventDefault(); openSwitcher() } return }
+  const n = flat().length
+  if (e.key === 'Escape') { S.open = false; render() }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); S.cur = (S.cur + 1) % Math.max(1, n); render(true) }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); S.cur = (S.cur - 1 + n) % Math.max(1, n); render(true) }
+  else if (e.key === 'Enter') { const o = flat()[S.cur]; if (o) { e.preventDefault(); pick(o.all ? '' : o.p.id) } }
+})
+render()
+</script>
+</body>
+</html>

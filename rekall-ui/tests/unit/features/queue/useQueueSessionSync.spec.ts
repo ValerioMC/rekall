@@ -21,7 +21,7 @@ function item(state: RunQueueItem['state']): RunQueueItem {
     id: asRunQueueItemId('item-1'),
     taskId: asTaskId('task-1'),
     taskTitle: 'Report builder',
-    taskLabel: 'report-builder',
+    taskCode: 'report-builder',
     projectLabel: 'vega',
     anchor: 'project:vega task:report-builder',
     position: 0,

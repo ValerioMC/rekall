@@ -27,7 +27,7 @@ impl GuardInstaller for FakeInstaller {
 async fn each_call_is_answered_by_the_installer() {
     let service = GuardProtectionService::new(Arc::new(FakeInstaller));
 
-    assert_eq!(service.status().await.state, GuardProtectionState::NotInstalled);
+    assert_eq!(service.status().await.unwrap().state, GuardProtectionState::NotInstalled);
     assert_eq!(service.install().await.unwrap().state, GuardProtectionState::Installed);
     assert!(service.uninstall().await.unwrap_err().is_illegal_argument());
 }

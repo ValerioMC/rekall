@@ -37,7 +37,7 @@ impl McpTool for NoteTool {
         ToolSchema::object()
             .required_string(
                 "anchors",
-                "The task to attach the note to, e.g. `project:vega task:report-builder`. Labels, never titles, and \
+                "The task to attach the note to, e.g. `task:RK-12`. Labels, never titles, and \
                  it has to name exactly one task.",
             )
             .required_string("title", "What the note is, short, like a file name.")
@@ -58,7 +58,7 @@ impl McpTool for NoteTool {
         let on_clash = if args.flag("replace") { OnTitleClash::Replace } else { OnTitleClash::Refuse };
         let written = self
             .notes
-            .write(target.project_label.as_deref(), &target.task_label, Some(&title), Some(&body), on_clash)
+            .write(target.project_label.as_deref(), &target.task_code, Some(&title), Some(&body), on_clash)
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
         if written.replaced {
@@ -78,17 +78,8 @@ impl McpTool for NoteTool {
 }
 
 fn replaced_report(written: &rekall_core::note::Written) -> String {
-    let mut out = format!(
+    format!(
         "Note \"{}\" on `{}` rewritten as `{}`. Its earlier body is gone: no history keeps a note's text.",
         written.title, written.task_anchor, written.note_anchor
-    );
-    if written.other_tasks > 0 {
-        out.push_str(&format!(
-            " It is also attached to {} other task{}, which load{} the new body too.",
-            written.other_tasks,
-            if written.other_tasks == 1 { "" } else { "s" },
-            if written.other_tasks == 1 { "s" } else { "" }
-        ));
-    }
-    out
+    )
 }

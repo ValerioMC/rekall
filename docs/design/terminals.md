@@ -1,5 +1,20 @@
 # Terminals and credential sessions
 
+## Provider selection
+
+The console stores the provider and each provider’s launch settings on the machine. A terminal
+opening carries the provider through the HTTP request, the console command and the
+`TerminalOpening` port value. The PTY stores it alongside the model and effort for session renewal.
+Opening a target held by a terminal of another provider asks the user to close that session first.
+
+Codex receives the same anchors and mode arguments as a Claude terminal, through the installed
+`$rekall` skill. The installer packages the shared workflow and mode files and registers the same
+streamable HTTP endpoint. The desktop launcher uses the same option validation and argument
+builder as the PTY.
+
+Codex model choices and ChatGPT account limits come from the local CLI’s App Server. The account
+reading is independent of the selected provider and of Claude’s run-queue ceiling.
+
 ## Opening a session from a button
 
 **Open in terminal**, on a task, hands the session to your own terminal app in that
@@ -37,7 +52,7 @@ The in-app session is a real terminal, `C` in the console. `PtyTerminalManager` 
 folder, with `/rk` as the first line (`/rk … plan` for a terminal opened in `TerminalMode.PLAN`,
 which **Plan here** in the arrow of **Run here** asks for, and `/rk … plan flow` for `TerminalMode.PLAN_FLOW`,
 which its **Plan a flow** asks for, and `/rk … replan` for `TerminalMode.REPLAN`, which its **Replan**
-asks for after a confirmation that can carry what the plan missed, quoted after `replan`, and `/rk … revise` for `TerminalMode.REVISE`, which the description's **Run revision** asks for to have the session evaluate the pending entries of the task's thread (`Replan with feedback` types the plain `replan` line); `/rk … generate` and `/rk … explain` for the Diagrams
+asks for after a confirmation that can carry what the plan missed, quoted after `replan`, and `/rk … revise` for `TerminalMode.REVISE`, which the description's **Run revision** asks for to have the session work one pass over the waiting revisions of the task's thread, the ones aimed at the plan included (the button starts the session first and the pass after, so a terminal that cannot open leaves the revisions waiting; the plain `replan` line is typed from the steps pane); `/rk … rewrite fix` and `/rk … rewrite restructure` for `TerminalMode::Rewrite` (`REWRITE_FIX`, `REWRITE_RESTRUCTURE`), which have the session replace the task's description with `rekall_description`; `/rk … generate` and `/rk … explain` for the Diagrams
 screen's **Generate** and **Explain code**, the only modes a terminal on a project alone takes), and pumps its raw bytes to whoever is watching. The terminal is the
 unmodified interactive `claude`: it shows its own `/context` and cost read-outs, renders its own
 permission prompts and answers them, and is the same program a hand-run session is. The chat view
@@ -56,7 +71,7 @@ through `ApiPorts`, so `rekall-http` never names the PTY. `TerminalHost` also an
 (`subscribe_ended`, a `TerminalEnded`), answers whether a task has a live session (`has_live_for`) and which
 one works its steps (`work_session_for`), and renews one (`renew`), so `RunQueueWorker` and
 `SessionRelay` hold it and not the manager. A `TerminalOpening` and a `TerminalView` carry a
-`SessionKind` (`TERMINAL` or `CHAT`, `TERMINAL` when a request names none); `PtyTerminals` always reports `TERMINAL`. A `TerminalView` also names the `TerminalMode` the session was opened in (`WORK`, `GENERATE`, `INVENTORY`, `AUTOCONFIGURE`, `MERGE`...), which is how the console titles a session opened on a project alone. The run queue is driven the same way:
+`SessionKind` (`TERMINAL` or `CHAT`, `TERMINAL` when a request names none); `PtyTerminals` always reports `TERMINAL`. A `TerminalView` also names the `TerminalMode` the session was opened in (`WORK`, `GENERATE`, `INVENTORY`, `AUTOCONFIGURE`, `SCAN_COMPONENTS`, `MERGE`, `REWRITE_FIX`...), which is how the console titles a session opened on a project alone. The run queue is driven the same way:
 With `parallel_sessions` above one, `RunQueueWorker` keeps a list of `Active` sessions, one `generation` each, and every command (`Review`, `SessionEnded`, `Settle`, `Renew`, `Pause`) names the session it is about; the worktree of each is made by `TaskWorktreeService` before its terminal opens, and `Stop` closes them all. `RunQueueControlService` edits the rows through `RunQueueService` and wakes the worker through the
 `QueueRunner` port, which `RunQueueRunner` implements. `run_in_queue` adds a task and arms an idle
 queue in one transaction (`RunQueueService::add_and_arm`), then wakes the worker; `finish` returns
@@ -149,6 +164,8 @@ keychain account; never the credential), so a connection bound twice is reached 
 | `rekall-gitlab` | `rekall-gitlab --connection <label> <METHOD> <path> [curl options]`: a GitLab API call with the `PRIVATE-TOKEN` header, `:project` standing for the binding's project path, URL-encoded |
 | `rekall-github` | `rekall-github --connection <label> <METHOD> <path> [curl options]`: a GitHub REST call with a Bearer `Authorization` header and `X-GitHub-Api-Version`, under `https://api.github.com` for github.com or `<server>/api/v3` for an Enterprise Server (`github_api_root`), `:project` standing for the binding's `owner/repo` as two path segments |
 | `rekall-jira` | `rekall-jira --connection <label> <METHOD> <path> [curl options]`: a Jira call under `/rest/api/2` with the credential's `Authorization` header (Basic on Cloud, Bearer on Data Center) and JSON both ways, `:project` standing for the binding's project key, through the connection's proxy (`curl --proxy`) when it names one |
+| `rekall-confluence` | `rekall-confluence --connection <label> <METHOD> <path> [curl options]`: a Confluence call under `/rest/api` with the credential's `Authorization` header (Basic on Cloud, Bearer on Data Center) and JSON both ways, `:project` standing for the binding's space key, through the connection's proxy when it names one |
+| `rekall-grafana` | `rekall-grafana --connection <label> <METHOD> <path> [curl options]`: a Grafana call under `/api` with the credential's `Authorization` header (a service account token as Bearer, a user and password as Basic) and JSON both ways, through the connection's proxy when it names one and with `--insecure` when it accepts a self-signed certificate, `:project` standing for the binding's folder UID |
 
 None holds a credential. `SessionEnvironment` adds the folder first on `PATH`, `KUBECONFIG` (only
 Rekall's clusters, so the session uses the credential you provided), a `GIT_CONFIG_KEY_n`/`VALUE_n`
@@ -156,7 +173,7 @@ pair per GitLab or GitHub host (an empty `credential.<url>.helper` that drops he
 then Rekall's, after any entries the shell already set; bindings of one instance share its token, so
 the first answers for the host) and `REKALL_CREDENTIAL_TOKEN`, 244 random bits
 for this terminal. The helpers send the token as a header read from stdin, so it never appears in a
-process listing, to `GET /api/terminal/{id}/credentials/{label}?for=kubectl|git|gitlab|github|jira`. That route
+process listing, to `GET /api/terminal/{id}/credentials/{label}?for=kubectl|git|gitlab|github|jira|grafana`. That route
 sits outside the router's UUID check, answers only a loopback peer even with
 `rekall.security.remote-access` on, and answers in plain text the helpers print as they are: 403
 for a token that is not the terminal's (compared in constant time) or a peer that is not this
@@ -176,8 +193,9 @@ connection, granted) in the same transaction as the line, so the pane never show
 lacks. `TerminalConnectionChips` draws, on the terminal pane's header and on each row of the sessions
 panel, a chip per connection the session's helpers asked for: green with a count once they were handed
 the credential (pulsing once per hand-out), amber when a request was refused, each linking to the
-company's Connections screen. The connections never asked for fold into one `N unused` chip that opens
-to list them (idle, or amber when no credential is stored); a connection leaves it at its first request.
+company's Connections screen. Those chips fold into one `N used` chip, closed by default, that opens
+and closes on click. The connections never asked for fold the same way into one `N unused` chip
+(idle, or amber when no credential is stored); a connection leaves it at its first request.
 Both lists follow `sortedByKind` (`features/connection/lib/connection-order.ts`): clusters, then GitLab,
-then Jira, by label within a kind, the order of the project's Connections tab. The counts are `credentialAccess.store`'s, read from one subscription
+GitHub, Jira, then Grafana, by label within a kind, the order of the project's Connections tab. The counts are `credentialAccess.store`'s, read from one subscription
 and kept only for the console's lifetime; the access log is the record.

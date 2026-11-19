@@ -3,7 +3,8 @@ import { nextTick, ref } from 'vue'
 import { reviewQueue } from '@/features/catalog/model/review'
 import type { ReviewItem } from '@/features/catalog/model/review'
 import { noticeFor, useClaimNotifications } from '@/composables/useClaimNotifications'
-import type { Task, TaskStep, TaskStepState } from '@/features/catalog/model/catalog'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskStep, TaskStepState } from '@/features/steps/model/task-step'
 import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
 
 const postNotice = vi.fn(async () => true)
@@ -12,7 +13,7 @@ vi.mock('@/common/native/notify', () => ({ postNotice: (...args: unknown[]) => p
 function task(id: string, title: string, review: Partial<Pick<Task, 'reviewState' | 'reviewActive' | 'claimedAt'>> = {}): Task {
   return {
     id: id as TaskId,
-    label: id,
+    code: id, label: id,
     title,
     status: 'IN_PROGRESS',
     description: null,
@@ -37,7 +38,7 @@ function task(id: string, title: string, review: Partial<Pick<Task, 'reviewState
     graphLaidAt: null,
     releaseSkipped: false,
     kind: 'TASK',
-    epicId: null, quick: false, autoAccepted: false, dependsOn: [],
+    epicId: null, quick: false, autoAccepted: false, dependsOn: [], trackerIssueKey: null, trackerIssueUrl: null, trackerSyncError: null, trackerContentSynced: true, pullRequestNumber: null, pullRequestUrl: null, pullRequestFailure: null, pullRequestMergedAt: null,
     anchor: `project:vega task:${id}`,
     updatedAt: '2026-09-20T10:00:00Z'
   }

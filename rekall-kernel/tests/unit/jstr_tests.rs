@@ -52,3 +52,12 @@ fn orders_ignoring_case_like_java() {
     assert_eq!(compare_ignore_case("src", "Src2"), Less);
     assert_eq!(compare_ignore_case(".env", "app"), Less);
 }
+
+#[test]
+fn a_free_name_is_kept_and_a_taken_one_gets_the_first_free_suffix() {
+    let taken = ["gitlab", "gitlab-2"];
+    let is_taken = |name: &str| taken.contains(&name);
+
+    assert_eq!(first_free_suffix("billing", is_taken), "billing");
+    assert_eq!(first_free_suffix("gitlab", is_taken), "gitlab-3");
+}

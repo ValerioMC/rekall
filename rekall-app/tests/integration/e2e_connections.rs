@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use rekall_app::server::StartOptions;
-use rekall_core::connection::{InMemorySecretStore, JiraCredential, JiraFailure, JiraIssue, JiraIssues, JiraSite, SecretStore};
+use rekall_core::connection::{InMemorySecretStore, AtlassianCredential, AtlassianFailure, JiraIssue, JiraIssues, JiraProject, AtlassianSite, ConfluencePage, ConfluenceSpace, ConfluenceSpaces, ScriptedTaskTracker, SecretStore};
 use serde_json::json;
-use support::{app, app_with, app_with_secrets, id, run_git};
+use support::{app, app_with, app_with_secrets, await_until, id, run_git, App};
 
 const KUBECONFIG: &str = "
 clusters:
@@ -301,10 +301,18 @@ struct FakeJira;
 
 #[async_trait]
 impl JiraIssues for FakeJira {
-    async fn search(&self, site: &JiraSite, credential: &JiraCredential, _jql: &str, _limit: u16) -> Result<Vec<JiraIssue>, JiraFailure> {
+    async fn search(&self, site: &AtlassianSite, credential: &AtlassianCredential, _jql: &str, _limit: u16) -> Result<Vec<JiraIssue>, AtlassianFailure> {
         assert_eq!((site.url.as_str(), site.proxy_url.as_deref(), credential.email()), ("https://example.atlassian.net", Some("http://proxy.example.com:8080"), Some("ada@example.com")));
         let issue = |key: &str, summary: &str| JiraIssue { key: key.into(), summary: summary.into(), status: Some("To Do".into()), issue_type: Some("Story".into()), description: Some("Steps.".into()) };
         Ok(vec![issue("ENG-1", "Fix login"), issue("ENG-2", "Add export")])
+    }
+
+    async fn projects(&self, _site: &AtlassianSite, _credential: &AtlassianCredential, _query: &str, _limit: u16) -> Result<Vec<JiraProject>, AtlassianFailure> {
+        Ok(vec![JiraProject { key: "ENG".into(), name: "Engineering".into() }])
+    }
+
+    async fn project(&self, _site: &AtlassianSite, _credential: &AtlassianCredential, key: &str) -> Result<Option<JiraProject>, AtlassianFailure> {
+        Ok((key == "ENG").then(|| JiraProject { key: "ENG".into(), name: "Engineering".into() }))
     }
 }
 
@@ -330,11 +338,57 @@ async fn a_jira_connection_imports_the_issues_a_project_picks_as_its_tasks() {
 
     let imported = app.post(&format!("{issues}/import"), json!({ "keys": ["eng-1"] })).await;
     assert_eq!(imported.status, 200, "{}", imported.text);
-    assert_eq!((imported.list()[0]["label"].as_str(), imported.list()[0]["title"].as_str()), (Some("eng-1"), Some("Fix login")));
+    assert_eq!((imported.list()[0]["code"].as_str(), imported.list()[0]["title"].as_str()), (Some("VE-1"), Some("Fix login")));
     assert!(imported.list()[0]["description"].as_str().unwrap().contains("[ENG-1](https://example.atlassian.net/browse/ENG-1)"));
     assert!(!app.get(&issues).await.list()[0]["taskId"].is_null(), "an imported issue names its task");
 
     assert_eq!(app.post(&format!("{issues}/import"), json!({ "keys": ["OPS-1"] })).await.status, 400);
+}
+
+/// A Confluence site with one space, whose home page and two others fill the project.
+struct FakeConfluence;
+
+#[async_trait]
+impl ConfluenceSpaces for FakeConfluence {
+    async fn space(&self, _site: &AtlassianSite, credential: &AtlassianCredential, key: &str) -> Result<Option<ConfluenceSpace>, AtlassianFailure> {
+        assert_eq!(credential.email(), Some("ada@example.com"));
+        Ok((key == "DOCS").then(|| ConfluenceSpace { key: "DOCS".into(), name: "Documentation".into(), description: Some("How Vega is built".into()), home_page_id: Some("1".into()) }))
+    }
+
+    async fn spaces(&self, _site: &AtlassianSite, _credential: &AtlassianCredential, _query: &str, _limit: u16) -> Result<Vec<ConfluenceSpace>, AtlassianFailure> {
+        Ok(vec![ConfluenceSpace { key: "DOCS".into(), name: "Documentation".into(), description: None, home_page_id: None }])
+    }
+
+    async fn pages(&self, _site: &AtlassianSite, _credential: &AtlassianCredential, _space_key: &str, _limit: u16) -> Result<Vec<ConfluencePage>, AtlassianFailure> {
+        let page = |id: &str, title: &str, markdown: &str| ConfluencePage { id: id.into(), title: title.into(), labels: vec![], markdown: markdown.into(), url: format!("https://example.atlassian.net/wiki/{id}") };
+        Ok(vec![page("1", "Home", "Vega ships orders."), page("2", "Deployment guide", "Run make deploy."), page("3", "System architecture", "Three services.")])
+    }
+}
+
+#[tokio::test]
+async fn a_confluence_space_is_suggested_checked_and_fills_the_project() {
+    let secrets = Arc::new(InMemorySecretStore::new());
+    let options = StartOptions { no_restart: true, secrets: Some(secrets.clone()), confluence_spaces: Some(Arc::new(FakeConfluence)), ..StartOptions::default() };
+    let app = app_with(&[], options).await;
+    let acme = app.a_company("Acme").await;
+    let vega = app.a_project(&acme, "vega", "ACTIVE").await;
+    let wiki = id(&app.post("/api/connections", json!({ "companyIds": [acme], "kind": "CONFLUENCE", "title": "Wiki", "baseUrl": "https://example.atlassian.net/wiki" })).await);
+    assert_eq!(app.put(&format!("/api/connections/{wiki}/credential"), json!({ "email": "ada@example.com", "token": "atl-secret" })).await.status, 200);
+
+    let suggested = app.get(&format!("/api/connections/{wiki}/target-suggestions?query=doc")).await;
+    assert_eq!((suggested.list()[0]["value"].as_str(), suggested.list()[0]["name"].as_str()), (Some("DOCS"), Some("Documentation")));
+    let refused = app.post(&format!("/api/projects/{vega}/connections"), json!({ "connectionId": wiki, "target": "NOPE" })).await;
+    assert_eq!(refused.status, 400, "{}", refused.text);
+    assert!(refused.text.contains("Confluence has no space 'NOPE'"));
+    let binding = id(&app.post(&format!("/api/projects/{vega}/connections"), json!({ "connectionId": wiki, "target": "DOCS" })).await);
+
+    let imported = app.post(&format!("/api/projects/{vega}/connections/{binding}/confluence/import"), json!({})).await;
+    assert_eq!(imported.status, 200, "{}", imported.text);
+    assert_eq!((imported.str("spaceKey"), imported.get("pagesRead").as_u64(), imported.get("blueprintWritten").as_bool()), ("DOCS".into(), Some(3), Some(true)));
+    let project = app.get(&format!("/api/projects/{vega}")).await;
+    assert_eq!((project.str("description"), project.str("blueprintMarkdown").starts_with("Vega ships orders.")), ("How Vega is built".into(), true));
+    let sections = app.get(&format!("/api/projects/{vega}/sections")).await;
+    assert_eq!(sections.list().iter().map(|section| section["title"].as_str().unwrap().to_string()).collect::<Vec<_>>(), ["Architecture", "Deployment"]);
 }
 
 #[tokio::test]
@@ -382,4 +436,50 @@ async fn a_root_path_belongs_to_a_gitlab_or_github_connection_only() {
 
     assert_eq!(app.post("/api/connections", json!({ "kind": "KUBERNETES", "title": "Prod", "rootPath": "acme" })).await.status, 400);
     assert_eq!(app.post("/api/connections", json!({ "kind": "GITHUB", "title": "GitHub", "baseUrl": "https://github.com", "rootPath": "vmcforge" })).await.status, 201);
+}
+
+#[tokio::test]
+async fn a_task_created_in_a_project_with_a_task_manager_gets_its_issue_and_its_edits_wait_for_a_sync() {
+    let secrets = Arc::new(InMemorySecretStore::new());
+    let tracker = Arc::new(ScriptedTaskTracker::new());
+    let options = StartOptions { no_restart: true, secrets: Some(secrets.clone()), task_tracker: Some(tracker.clone()), ..StartOptions::default() };
+    let app = app_with(&[], options).await;
+    let acme = app.a_company("Acme").await;
+    let vega = app.a_project(&acme, "vega", "ACTIVE").await;
+    let gitlab = id(&app.post("/api/connections", json!({ "companyIds": [acme], "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com" })).await);
+    assert_eq!(app.put(&format!("/api/connections/{gitlab}/credential"), json!({ "token": "glpat-secret" })).await.status, 200);
+    let binding = id(&app.post(&format!("/api/projects/{vega}/connections"), json!({ "connectionId": gitlab, "target": "acme/vega" })).await);
+    let earlier = app.a_task(&vega, "before").await;
+    await_the_runner_has_seen(&app, &acme, &gitlab).await;
+
+    let chosen = app.put(&format!("/api/projects/{vega}/connections/{binding}"), json!({ "target": "acme/vega", "taskManager": true })).await;
+    assert_eq!((chosen.status, chosen.get("taskManager").as_bool()), (200, Some(true)), "{}", chosen.text);
+    let task = app.a_task(&vega, "pay").await;
+
+    await_until(5, || async { !app.get_task(&task).await["trackerIssueKey"].is_null() }).await;
+    let created = app.get_task(&task).await;
+    assert_eq!(created["trackerIssueKey"], "acme/vega-2");
+    assert_eq!(tracker.created().len(), 2, "a task that existed before the choice is not written until it is synced");
+    assert!(app.get_task(&earlier).await["trackerIssueKey"].is_null());
+    assert_eq!(created["trackerContentSynced"], true);
+
+    let edited = app.put(&format!("/api/tasks/{task}"), json!({ "label": "pay", "title": "Pay the invoice", "description": "Before Friday.", "status": "TODO", "projectId": vega })).await;
+    assert_eq!(edited.status, 200, "{}", edited.text);
+    assert_eq!(edited.get("trackerContentSynced").as_bool(), Some(false));
+    assert!(tracker.updated().is_empty(), "an edit is not written to the issue");
+
+    let synced = app.post_empty(&format!("/api/tasks/{task}/tracker-sync")).await;
+    assert_eq!((synced.status, synced.get("trackerContentSynced").as_bool()), (200, Some(true)), "{}", synced.text);
+    assert_eq!(tracker.updated()[0].0, "acme/vega-2");
+    assert_eq!(tracker.updated()[0].1.title, "Pay the invoice");
+    assert_eq!(tracker.updated()[0].1.description, "Before Friday.");
+    assert_eq!(tracker.created().len(), 2, "a sync rewrites the issue instead of creating another");
+}
+
+async fn await_the_runner_has_seen(app: &App, company: &str, connection: &str) {
+    let probe = app.a_project(company, "probe", "ACTIVE").await;
+    let binding = id(&app.post(&format!("/api/projects/{probe}/connections"), json!({ "connectionId": connection, "target": "acme/probe" })).await);
+    app.put(&format!("/api/projects/{probe}/connections/{binding}"), json!({ "target": "acme/probe", "taskManager": true })).await;
+    let drain = app.a_task(&probe, "drain").await;
+    await_until(5, || async { !app.get_task(&drain).await["trackerIssueKey"].is_null() }).await;
 }

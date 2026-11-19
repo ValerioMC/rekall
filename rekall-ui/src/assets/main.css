@@ -122,6 +122,9 @@
   --color-brand-gitlab: #fc6d26;
   --color-brand-kubernetes: #326ce5;
   --color-brand-jira: #2684ff;
+  --color-brand-confluence: #1868db;
+  --color-brand-grafana: #f46800;
+  --color-brand-claude: #d97757;
 
   --font-sans: 'Fira Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'Fira Code Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -131,7 +134,7 @@
    * cannot tell from its neighbour. Micro is the floor, for kbd hints and pip counts, never prose.
    * No line heights: text inherits its leading, as the bracketed sizes these replace did.
    */
-  --text-micro: 10.5px;
+  --text-micro: 11px;
   --text-caption: 11.5px;
   --text-small: 12.5px;
   --text-body: 13.5px;
@@ -140,27 +143,20 @@
   --text-display: 26px;
   --text-hero: 34px;
 
-  /* Three corners: a keycap or chip, a control or row, a card or dialog. Pills are `full`. */
+  /* Three corners: a button, chip or row, a control, a card or dialog. A status pill, a dot, a switch or a gauge is `full`: a state never has a pressable key's shape. */
   --radius-key: 3px;
   --radius-card: 8px;
   --radius-control: 5px;
 
-  --shadow-lift:
-    inset 0 1px 0 rgb(255 255 255 / 0.12), 0 1px 2px rgb(0 0 0 / 0.55),
-    0 10px 22px -8px rgb(0 0 0 / 0.65);
-  --shadow-modal:
-    inset 0 1px 0 rgb(255 255 255 / 0.06), 0 2px 6px rgb(0 0 0 / 0.6),
-    0 40px 80px -24px rgb(0 0 0 / 0.9);
+  /* Surfaces are flat: a step of tone and a hairline separate them. Only what floats over the
+     page (a popover, a dialog) casts a shadow, and a key or a card keeps a one-pixel lip. */
+  --shadow-lift: 0 1px 2px rgb(0 0 0 / 0.55), 0 10px 22px -8px rgb(0 0 0 / 0.65);
+  --shadow-modal: 0 2px 6px rgb(0 0 0 / 0.6), 0 40px 80px -24px rgb(0 0 0 / 0.9);
   --shadow-glow: 0 0 28px -6px var(--color-accent-soft);
-  /* One light source, top-left, everywhere: a lit upper lip, a dark lower lip, a contact shadow
-     and a soft cast one. Raised things carry --shadow-raised, sunk ones --shadow-well. */
-  --shadow-raised:
-    inset 0 1px 0 rgb(255 255 255 / 0.05), 0 1px 2px rgb(0 0 0 / 0.35),
-    0 6px 12px -8px rgb(0 0 0 / 0.45);
-  /* A key's relief: a faint lit lip and a contact shadow, nothing cast. Enough to read as
-     pressable beside the flat status capsule without standing out of the bar. */
-  --shadow-key: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 1px 1px rgb(0 0 0 / 0.35);
+  --shadow-raised: 0 1px 0 rgb(255 255 255 / 0.05), 0 6px 18px -6px rgb(0 0 0 / 0.6);
+  --shadow-key: 0 1px 0 rgb(255 255 255 / 0.05), 0 1px 2px rgb(0 0 0 / 0.5);
   --shadow-key-pressed: inset 0 1px 2px rgb(0 0 0 / 0.35);
+  /* A trough a tube or a plan gauge sits in. A field is no longer sunk. */
   --shadow-well:
     inset 0 2px 4px rgb(0 0 0 / 0.5), inset 0 -1px 0 rgb(255 255 255 / 0.04),
     0 1px 0 rgb(255 255 255 / 0.035);
@@ -170,14 +166,11 @@
    * sidebar read as one grid rather than three.
    */
   --spacing-row: 36px;
-  --spacing-control: 36px;
+  --spacing-control: 32px;
   --spacing-header: 48px;
 
-  /* The two fixed panes. The third takes what is left, because the note is the product. The
-     navigator carries a two-line row with a trace and a status pip, so it is given the width
-     to breathe rather than made to crush them onto one line. */
+  /* The rail of a two-pane screen: Security's projects. */
   --spacing-nav: 304px;
-  --spacing-notelist: 312px;
   /* The diagram screen's inspector: wide enough for a code excerpt at 80 columns of 11px mono. */
   --spacing-inspector: 392px;
 
@@ -198,7 +191,6 @@
 @media (max-width: 1279px) {
   :root {
     --spacing-nav: 272px;
-    --spacing-notelist: 272px;
   }
 }
 
@@ -293,21 +285,16 @@
   }
 
   /*
-   * Two very wide, very dim pools of light, one warm at the top left and one cool at the
-   * bottom right. Flat near-black reads as an unlit surface; this reads as a room. Fixed
-   * rather than scrolled, so panes move over it instead of dragging it along.
+   * A flat canvas: every surface sits on it by a step of tone and a hairline, so nothing behind
+   * a pane tints the pane. Leading is 1.4, which fits controls and rows; prose (the markdown
+   * panes) sets its own.
    */
   body {
     background-color: var(--color-canvas);
-    background-image:
-      radial-gradient(70rem 42rem at 6% -12%, #eaa43c16, transparent 60%),
-      radial-gradient(58rem 38rem at 104% 110%, #55c9ea14, transparent 62%),
-      radial-gradient(120rem 80rem at 50% -6%, #5a6a9020, transparent 70%);
-    background-attachment: fixed;
     color: var(--color-text-muted);
     font-family: var(--font-sans);
     font-size: var(--text-body);
-    line-height: 1.55;
+    line-height: 1.4;
     -webkit-font-smoothing: antialiased;
   }
 
@@ -355,6 +342,29 @@
  */
 
 /* The single focus treatment, so every control agrees on what focus looks like. */
+@utility page-column {
+  width: 100%;
+  padding-inline: calc(var(--spacing) * 8);
+}
+
+/* Panels of a form side by side: as many columns as the window holds at a readable width. */
+@utility form-grid {
+  display: grid;
+  align-items: start;
+  gap: calc(var(--spacing) * 4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr));
+}
+
+/*
+ * A page or a pane that swaps its content (a tab, a view) scrolls always, so its scrollbar's lane is
+ * there before the content needs it and a short view and a long one share one left edge. `scroll`
+ * rather than `auto` plus `scrollbar-gutter`, which the desktop's web view does not always honour.
+ */
+@utility page-scroll {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
 @utility focus-ring {
   outline: none;
 
@@ -367,10 +377,9 @@
 /*
  * A text field, a select, a textarea: one treatment, so a form reads as one instrument.
  *
- * Recessed rather than raised: a hairline and an inner shade that sits the value slightly below
- * the surface, the way a slot does. Focus does not stack a ring on a border (two amber outlines
- * two pixels apart read as a glitch, not as emphasis); the hairline itself warms and a soft halo
- * opens around it. `--field-tint` retints both, so the label field focuses in the anchor colour
+ * Flat: a hairline edge around a canvas-dark fill, which sits the value below a card without a
+ * shadow. Focus swaps the hairline for the tint and adds a one-pixel ring of it, so the edge is
+ * two pixels and never a glow. `--field-tint` retints both, so the label field focuses in the anchor colour
  * it is typing (read with a fallback rather than declared here, because custom utilities have no
  * guaranteed order and a default set in this block could win over `field-anchor`), and
  * `aria-invalid` turns them red instead of a border class fighting this one
@@ -379,12 +388,11 @@
  */
 @utility field {
   border: 1px solid var(--color-border-field);
-  background: linear-gradient(180deg, #0a0d13, var(--color-canvas));
-  box-shadow: var(--shadow-well);
+  background: var(--color-canvas);
   outline: none;
   transition:
     border-color var(--motion-quick) ease,
-    box-shadow var(--motion-move) ease,
+    box-shadow var(--motion-quick) ease,
     background-color var(--motion-quick) ease;
 
   &::placeholder {
@@ -396,12 +404,10 @@
   }
 
   &:focus,
-  &:focus-visible {
-    border-color: color-mix(in srgb, var(--field-tint, var(--color-accent)) 62%, transparent);
-    box-shadow:
-      inset 0 2px 4px rgb(0 0 0 / 0.5),
-      0 0 0 3px color-mix(in srgb, var(--field-tint, var(--color-accent)) 16%, transparent),
-      0 0 14px -2px color-mix(in srgb, var(--field-tint, var(--color-accent)) 38%, transparent);
+  &:focus-visible,
+  &:focus-within {
+    border-color: var(--field-tint, var(--color-accent));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--field-tint, var(--color-accent)) 45%, transparent);
   }
 
   &[aria-invalid='true'] {
@@ -482,19 +488,15 @@
  */
 
 /*
- * Keycaps: the icon's two materials as a nearly flat face with a hairline edge. --shadow-key
- * gives the only relief, a faint lip and a contact shadow, so keys sit in the same plane as
- * the header's capsules and fields. Pressing sinks the face.
+ * Keycaps: a flat face with a one-pixel edge. --shadow-key gives the only relief, a faint lip
+ * and a contact shadow, so keys sit in the same plane as the header's capsules and fields.
+ * Pressing moves the face down a pixel.
  */
 @utility key-gold {
   color: var(--color-accent-ink);
   border: 0;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-accent-strong) 55%, var(--color-accent)) 0%,
-    var(--color-accent) 100%
-  );
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 1px 1px rgb(0 0 0 / 0.35);
+  background: var(--color-accent);
+  box-shadow: inset 0 0 0 1px var(--color-accent-shade), 0 1px 2px rgb(0 0 0 / 0.5);
   transition:
     filter var(--motion-quick) ease,
     box-shadow var(--motion-quick) ease,
@@ -507,14 +509,14 @@
   &:active:not(:disabled) {
     transform: translateY(1px);
     filter: brightness(0.96);
-    box-shadow: var(--shadow-key-pressed);
+    box-shadow: inset 0 0 0 1px var(--color-accent-shade);
   }
 }
 
 @utility key-slate {
   color: var(--color-text);
   border: 0;
-  background: linear-gradient(180deg, #2a3243 0%, #252c3b 100%);
+  background: var(--color-surface-raised);
   box-shadow: inset 0 0 0 1px var(--color-border-strong), var(--shadow-key);
   transition:
     background var(--motion-quick) ease,
@@ -522,7 +524,7 @@
     transform var(--motion-press) ease;
 
   &:hover:not(:disabled) {
-    background: linear-gradient(180deg, #313a4e 0%, #2a3243 100%);
+    background: var(--color-surface-hover);
   }
 
   &:active:not(:disabled) {
@@ -567,28 +569,15 @@
   }
 }
 
-/* Held queue: {@link key-slate} with an amber label. */
-@utility key-warn {
-  @apply key-slate;
-  color: var(--color-warn);
-
-  &:hover:not(:disabled) {
-    color: var(--color-warn);
-  }
-}
-
 /*
- * A key held down and lit: a work in progress. The face sinks into a darker well with an inner
- * shade and the label takes the accent colour. The light lives in the label, never in a glow.
+ * A key held down and lit: a work in progress. The face drops to the surface tone with a
+ * hairline and the label takes the accent colour. The light lives in the label, never in a glow.
  */
 @utility key-lit {
   color: var(--color-accent);
   border: 0;
-  background: linear-gradient(180deg, #1a202b 0%, #202735 100%);
-  box-shadow:
-    inset 0 1px 2px rgb(0 0 0 / 0.55),
-    inset 0 -1px 0 rgb(255 255 255 / 0.06),
-    0 1px 0 rgb(255 255 255 / 0.05);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border-strong);
 }
 
 @utility trough {
@@ -624,32 +613,6 @@
   --tube: var(--color-safe);
 }
 
-/* The next step, not started: an empty channel with a gold hairline lit along its floor. */
-@utility tube-next {
-  background: linear-gradient(
-    180deg,
-    transparent,
-    color-mix(in srgb, var(--color-accent) 30%, transparent)
-  );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 30%, transparent);
-}
-
-/* A glass orb, the icon's cyan sphere: a hot specular spot, a body, a rim of light. */
-@utility orb-cyan {
-  border-radius: 9999px;
-  background: radial-gradient(
-    circle at 32% 28%,
-    #eafcff 0%,
-    var(--color-anchor-strong) 18%,
-    var(--color-anchor) 52%,
-    #1d7fa6 100%
-  );
-  box-shadow:
-    inset 0 -2px 3px rgb(8 60 90 / 0.5),
-    0 0 10px 1px color-mix(in srgb, var(--color-anchor) 55%, transparent),
-    0 1px 2px rgb(0 0 0 / 0.6);
-}
-
 /* A panel lit in gold: the running step, the live timer. Warm glass over slate, a bright upper
    lip and a cast shadow, so it reads as a plate standing off the pane rather than a tinted box. */
 @utility panel-gold {
@@ -667,13 +630,13 @@
 
 @utility panel-gold-quiet {
   border-color: color-mix(in srgb, var(--color-accent) 24%, transparent);
-  background: linear-gradient(180deg, #232733, #1c212c);
+  background: var(--color-surface);
   box-shadow: var(--shadow-raised);
 }
 
 @utility panel-slate {
   border-color: var(--color-border-strong);
-  background: linear-gradient(180deg, #252c3b, #1d2330);
+  background: var(--color-surface-raised);
   box-shadow: var(--shadow-raised);
 }
 
@@ -741,45 +704,10 @@
  */
 @utility selected-row {
   /* Defaults to the accent; the task navigator retints per project the same way a field is
-     retinted via --field-tint, deriving the line's ends with color-mix instead of needing a
-     matching strong/deep pair per identity hue. */
+     retinted via --field-tint, mixing the tint into the hairline with color-mix. */
   --select-tint: var(--color-accent);
-  --select-tint-soft: var(--color-accent-soft);
-  position: relative;
-  background:
-    radial-gradient(150px 48px at 10px 50%, var(--select-tint-soft), transparent 72%),
-    var(--color-surface-raised);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--select-tint) 24%, transparent),
-    var(--shadow-key);
-
-  &::before {
-    content: '';
-    position: absolute;
-    left: 3px;
-    top: 7px;
-    bottom: 7px;
-    width: 3px;
-    border-radius: 1px;
-    background: var(--select-tint);
-  }
-}
-
-/*
- * The selected card. The same idea as {@link selected-row} carried to the bordered cards in the
- * middle pane: a raised surface lit from its top-left corner, an accent border, and a soft inner
- * hairline that holds the whole card. It already owns a border and a radius, so this only
- * recolours and lifts it rather than drawing a second frame.
- */
-@utility selected-card {
-  border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
-  background:
-    radial-gradient(170px 66px at 16px -6px, var(--color-accent-soft), transparent 70%),
-    linear-gradient(180deg, #252c3b, var(--color-surface-raised));
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.06),
-    0 1px 2px rgb(0 0 0 / 0.35),
-    0 0 0 1px color-mix(in srgb, var(--color-accent) 14%, transparent);
+  background: var(--color-surface-raised);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--select-tint) 32%, var(--color-border-strong));
 }
 
 /*
@@ -821,122 +749,6 @@
       transparent 100%
     );
   }
-}
-
-@utility dossier-section {
-  position: relative;
-  z-index: 1;
-  display: block;
-  width: 100%;
-  padding: 10px 12px 11px 38px;
-  text-align: left;
-  transition: background-color var(--motion-quick) ease;
-
-  &:hover {
-    background: color-mix(in srgb, var(--color-surface-hover) 72%, transparent);
-  }
-
-  /* Drawn inside the section: the strip clips its corners, and a ring outside it would be cut. */
-  outline: none;
-
-  &:focus-visible {
-    outline: 2px solid var(--color-accent);
-    outline-offset: -2px;
-  }
-}
-
-/* The seam above a section. It starts after the rail, so the rail reads as unbroken. */
-@utility dossier-seam {
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 38px;
-    right: 12px;
-    height: 1px;
-    background: var(--color-border);
-  }
-}
-
-@utility dossier-section-selected {
-  background:
-    radial-gradient(240px 72px at 20px 20px, var(--color-accent-soft), transparent 72%),
-    color-mix(in srgb, var(--color-surface-hover) 64%, transparent);
-
-  &:hover {
-    background:
-      radial-gradient(240px 72px at 20px 20px, var(--color-accent-soft), transparent 72%),
-      color-mix(in srgb, var(--color-surface-hover) 80%, transparent);
-  }
-}
-
-/* A piece's node on the rail. Opaque, so the rail passes behind it rather than through it. */
-@utility dossier-node {
-  position: absolute;
-  left: 13px;
-  top: 11px;
-  display: grid;
-  place-items: center;
-  width: 15px;
-  height: 15px;
-  border-radius: 9999px;
-  background: radial-gradient(circle at 35% 28%, #313a4c, var(--color-surface) 80%);
-  border: 1px solid var(--color-border-strong);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.12),
-    0 1px 2px rgb(0 0 0 / 0.6);
-  color: var(--color-text-muted);
-  transition:
-    color var(--motion-quick) ease,
-    border-color var(--motion-quick) ease,
-    box-shadow var(--motion-quick) ease;
-}
-
-@utility dossier-node-empty {
-  border-style: dashed;
-  color: var(--color-text-subtle);
-  background: var(--color-surface);
-}
-
-@utility dossier-node-lit {
-  color: var(--color-accent);
-  border-color: color-mix(in srgb, var(--color-accent) 62%, transparent);
-  background: radial-gradient(circle at 35% 28%, #4a3a1c, #2a2012 80%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 226 160 / 0.35),
-    0 0 0 3px color-mix(in srgb, var(--color-accent) 12%, transparent),
-    0 0 12px -2px color-mix(in srgb, var(--color-accent) 60%, transparent),
-    0 1px 2px rgb(0 0 0 / 0.6);
-}
-
-/* A note's node: smaller than a piece's, because a note hangs off the context rather than
-   being one of its fixed parts. */
-@utility dossier-leaf {
-  position: absolute;
-  left: 16.5px;
-  top: 15px;
-  width: 8px;
-  height: 8px;
-  border-radius: 9999px;
-  background: var(--color-text-subtle);
-  box-shadow: 0 0 0 3px var(--color-surface-raised);
-  transition:
-    background-color var(--motion-quick) ease,
-    box-shadow var(--motion-quick) ease;
-}
-
-@utility dossier-leaf-reference {
-  background: var(--color-surface-raised);
-  border: 1.5px solid var(--color-text-subtle);
-  box-shadow: 0 0 0 3px var(--color-surface-raised), inset 0 1px 1px rgb(0 0 0 / 0.5);
-}
-
-@utility dossier-leaf-lit {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  box-shadow:
-    0 0 0 3px var(--color-surface-raised),
-    0 0 10px 0 color-mix(in srgb, var(--color-accent) 60%, transparent);
 }
 
 /*
@@ -1006,31 +818,17 @@
   color: var(--color-text-subtle);
 }
 
-/*
- * The shelf a task returns to when it is done.
- *
- * Revealed filed rows hang off a verdigris rail and sit at reduced weight, lifting to full
- * only under the pointer or keyboard focus: present enough to read and reopen, quiet enough
- * that the live work above it stays the thing the eye lands on.
- */
-@utility filed-shelf {
-  margin-left: 7px;
-  border-left: 2px solid var(--color-filed-line);
-  padding-left: 3px;
-}
+/* The ledger's columns, shared by its header and its rows so they line up. Notes and tokens give way first. */
+@utility ledger-columns {
+  display: grid;
+  grid-template-columns: 28px 22px 76px minmax(260px, 1fr) 152px 190px 118px 56px 78px 56px 30px;
+  align-items: center;
+  column-gap: 14px;
+  padding-inline: 12px;
 
-/* The epics a project gathers its features under: a rail in the epic tone, apart from the work itself. */
-@utility epic-shelf {
-  margin-left: 7px;
-  border-left: 2px solid var(--color-epic-line);
-  padding-left: 3px;
-}
-
-/* Parked work: a dashed rail in the border tone, so it reads as not started rather than as done. */
-@utility backlog-shelf {
-  margin-left: 7px;
-  border-left: 2px dashed var(--color-border-strong);
-  padding-left: 3px;
+  @media (max-width: 1180px) {
+    grid-template-columns: 28px 22px 72px minmax(200px, 1fr) 144px 160px 110px 56px 30px;
+  }
 }
 
 @utility filed-row {
@@ -1059,18 +857,13 @@
   box-shadow: var(--shadow-key);
 }
 
-/* The drawer body arrives rather than appears, the same way a dialog does. */
-@utility drawer-open {
-  animation: drawer 180ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
 /* An anchor, wherever it appears: the one string worth copying, in the one colour it owns. */
 @utility anchor-chip {
   color: var(--color-anchor);
   background: var(--color-anchor-soft);
   border: 1px solid var(--color-anchor-line);
   font-family: var(--font-mono);
-  border-radius: 6px;
+  border-radius: var(--radius-key);
 }
 
 @utility texture-grid {
@@ -1108,28 +901,7 @@
 }
 
 /*
- * The bottom right corner, shared rather than taken.
- *
- * The shell dock (`ShellDock`) is fixed to it and publishes what its bar occupies as
- * `--dock-lane-width` and `--dock-lane-height` (see `useDockLane`); both are absent while
- * nothing is running and no session is live. A bar that ends in that corner wears this and its
- * right edge opens by exactly the dock, so no control of its own is ever underneath it. `max`
- * rather than a sum: the lane already carries the window gutter, and adding the two would leave
- * a hole twice the size of the dock.
- */
-@utility dock-lane-safe {
-  padding-right: max(var(--dock-lane-gutter, 20px), var(--dock-lane-width, 0px));
-  transition: padding-right var(--motion-move) cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* The same deal on the other axis, for what stacks upwards out of that corner. */
-@utility dock-lane-above {
-  bottom: max(var(--dock-lane-gutter, 24px), var(--dock-lane-height, 0px));
-  transition: bottom var(--motion-move) cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/*
- * The dock's bar: one capsule, a segment per kind of live work.
+ * The dock's bar: a segment per kind of live work, a strip on the navigator and a capsule elsewhere.
  *
  * Time and sessions each keep their own hue (amber dial, cyan caret) so the two never read as
  * one thing counted twice, and the segment whose sheet is open is lit in that hue rather than
@@ -1171,47 +943,6 @@
 }
 
 /*
- * A screen tab in the header: plain text on the bar, and an amber rule along the bar's bottom
- * edge under the screen you are on. Amber is "where you are", as on the navigator's selection.
- */
-@utility nav-tab {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 100%;
-  padding: 0 12px;
-  font-size: var(--text-small);
-  color: var(--color-text-subtle);
-  transition: color var(--motion-quick) ease;
-
-  &:hover {
-    color: var(--color-text);
-  }
-
-  &::after {
-    content: '';
-    position: absolute;
-    left: 10px;
-    right: 10px;
-    bottom: -1px;
-    height: 2px;
-    border-radius: 2px 2px 0 0;
-    background: var(--color-accent);
-    transform: scaleX(0);
-    transition: transform var(--motion-move) ease;
-  }
-}
-
-@utility nav-tab-current {
-  color: var(--color-text);
-
-  &::after {
-    transform: scaleX(1);
-  }
-}
-
-/*
  * A group of header controls: one 36px well with a hairline, the same shape as the `/rk` field
  * beside it, so the bar reads as a row of matching pieces whatever sits inside each one.
  */
@@ -1224,7 +955,7 @@
   padding: 0 4px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
-  background: var(--color-canvas);
+  background: var(--color-surface);
 }
 
 /*
@@ -1363,7 +1094,8 @@
  * one composited bitmap without touching it, so its scrollbar has nothing to flash for.
  */
 .overflow-y-auto,
-.overflow-auto {
+.overflow-auto,
+.page-scroll {
   will-change: transform;
 }
 
@@ -1372,15 +1104,10 @@
  * `position: fixed` descendants (md-editor-v3's "page fullscreen"), so that overlay gets trapped
  * inside the pane's box instead of covering the viewport, and the pane's own content is still
  * reachable by scrolling past it. Drop the containing block while a fullscreen editor is open.
- *
- * The same holds for the `[[` suggestions: CodeMirror places them `fixed`, and inside a scroller
- * with a containing block it falls back to absolute and is clipped at the scroller's edge, which a
- * short editor (a step's detail) reaches. They get the viewport while they are open.
  */
 .overflow-y-auto:has(.md-editor-fullscreen),
 .overflow-auto:has(.md-editor-fullscreen),
-.overflow-y-auto:has(.cm-tooltip-autocomplete),
-.overflow-auto:has(.cm-tooltip-autocomplete) {
+.page-scroll:has(.md-editor-fullscreen) {
   will-change: auto;
 }
 
@@ -1427,6 +1154,23 @@
 .step-list-leave-active {
   position: absolute;
   width: 100%;
+}
+
+/*
+ * A task row arriving in the navigator (a new task, or one that changed status and joined this
+ * shelf), and the rows beneath it making room. A row that leaves is simply gone: the rows below
+ * glide up into its place through `move`.
+ */
+.nav-row-enter-active,
+.nav-row-move {
+  transition:
+    opacity var(--motion-move) ease,
+    transform var(--motion-move) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nav-row-enter-from {
+  opacity: 0;
+  transform: translateX(-8px);
 }
 
 .step-list-leave-to {
@@ -1545,7 +1289,7 @@
 }
 
 @utility settle {
-  animation: settle 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: settle 320ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* The running dock's live mark: a hand sweeping a dial, not a dot repeating one motif app-wide.
@@ -1651,89 +1395,10 @@
  * The checklist node stops being a target and starts being a light: a warm ring breathing out
  * of it once a second, in the accent that already means "here, and what happens next". It runs
  * only while the step is RUNNING, the same discipline the running dock keeps, so a pane at rest
- * never has a heartbeat in it. Paired with `energy-stream` running the length of the path that
- * led here.
+ * never has a heartbeat in it.
  */
 @utility step-node-running {
   animation: step-pulse 1.7s ease-in-out infinite;
-}
-
-/*
- * The whole travelled path of the checklist, as one lit conduit.
- *
- * Not a glow on the single segment that touches the running node: the work has come the length
- * of the finished steps, so the light does too. A static gradient forms the conduit, brighter
- * toward the bottom where the running node sits; two heads of light fall down it, half a beat
- * apart, in the direction the work is moving, and are clipped as they reach the node that
- * breathes. `top` and `height` are set inline from measured node positions. Runs on the same
- * 1.7s beat as `step-pulse`, so the arrival and the breath stay in step.
- */
-@utility energy-stream {
-  position: absolute;
-  left: 11px;
-  z-index: 5;
-  width: 2px;
-  transform: translateX(-50%);
-  border-radius: 9999px;
-  overflow: hidden;
-  width: 3px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-accent) 30%, transparent) 0%,
-    color-mix(in srgb, var(--color-accent) 60%, transparent) 55%,
-    var(--color-accent-strong) 100%
-  );
-  box-shadow:
-    inset 1px 0 0 rgb(255 255 255 / 0.35),
-    0 0 10px -1px color-mix(in srgb, var(--color-accent) 55%, transparent);
-
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    inset-inline: -1px;
-    height: 34px;
-    border-radius: 9999px;
-    background: linear-gradient(
-      180deg,
-      transparent 0%,
-      color-mix(in srgb, var(--color-accent) 45%, transparent) 42%,
-      var(--color-accent-strong) 80%,
-      color-mix(in srgb, var(--color-accent) 82%, white) 100%
-    );
-    filter: blur(0.4px);
-    animation: energy-descent 1.7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-  }
-
-  /* A second head, half a beat behind and dimmer, so the conduit reads as a stream and not a
-     single blip crossing an empty wire. */
-  &::before {
-    opacity: 0.38;
-    animation-delay: -0.85s;
-  }
-}
-
-/* The connector on a finished row above the running one: solid, stepped back to half light so
-   the live conduit leads. `--rail-tint` turns it green once the whole checklist is done, with
-   the seals and the ledger. */
-@utility spent-rail {
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--rail-tint, var(--color-accent)) 70%, white),
-    color-mix(in srgb, var(--rail-tint, var(--color-accent)) 55%, black)
-  );
-  box-shadow: 0 1px 1px rgb(0 0 0 / 0.5);
-  opacity: 0.7;
-}
-
-/* The connector below a step not yet reached: dotted, a path drawn but not walked. The spent
-   rail above is solid, so the checklist's line reads as travelled up to where the work is. */
-@utility pending-rail {
-  background: repeating-linear-gradient(
-    180deg,
-    var(--color-border-strong) 0 2px,
-    transparent 2px 5px
-  );
 }
 
 /*
@@ -1792,23 +1457,6 @@
   100% {
     box-shadow: 0 0 0 0 transparent;
     transform: scale(1);
-  }
-}
-
-@keyframes energy-descent {
-  0% {
-    top: -34px;
-    opacity: 0;
-  }
-  12% {
-    opacity: 1;
-  }
-  82% {
-    opacity: 1;
-  }
-  100% {
-    top: 100%;
-    opacity: 0;
   }
 }
 
@@ -1904,7 +1552,16 @@
     *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
-      transition-duration: 0.var(--motion-press) !important;
+      transition-duration: 0.01ms !important;
     }
+  }
+
+  /* Motion set to Reduced in Settings: the loops stop and every state change lands at once. */
+  :root[data-motion='reduced'] *,
+  :root[data-motion='reduced'] *::before,
+  :root[data-motion='reduced'] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

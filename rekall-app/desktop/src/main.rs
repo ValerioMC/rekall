@@ -71,6 +71,7 @@ fn main() {
             bridges::folder_picker::pick_folder,
             bridges::claude_code_launcher::open_in_claude_code,
             bridges::notifier::notify,
+            bridges::external_link::open_external_link,
             bridges::window_controls::close_window,
             bridges::window_controls::minimize_window,
             bridges::window_controls::toggle_maximize_window,

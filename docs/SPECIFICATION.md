@@ -37,7 +37,7 @@ Something you work on over time, inside one company.
   project's public identifier.
 - **title** — the free-text name people actually call it. Can change at any time without
   affecting the label/identifier.
-- **status** — one of: Active, Paused, Done, Archived. An archived project leaves the console's navigator and scope picker and is listed only in the catalog's Archived filter.
+- **status** — one of: Active, Paused, Done, Archived. An archived project leaves the console's navigator and project switcher and is listed only in the catalog's Archived filter.
 - **description** — a short prose summary of what the project is.
 - **blueprint** — a separate, long-form markdown document: how the project is built, how it's
   organized, and the conventions to follow while working in it — the project's own "how this
@@ -62,8 +62,11 @@ A unit of work inside a project.
 - May be linked to any number of **Notes** (see below).
 - May have **at most one Wrapup** (see below).
 - May have any number of **Time entries** (see below).
-- Deleting a task does not delete the notes attached to it (they may still be attached to other
-  tasks) — it only unlinks them, and a note left attached to nothing afterward is removed.
+- Deleting a task deletes its notes, wrapup and time entries with it. If the project's task manager
+  holds an issue for it, the issue is deleted there too once the task is gone; a failure to reach the
+  task manager is logged and leaves the task deleted. The task page has a Delete key in its header,
+  and `e` opens the edit dialog, which has one too; both confirm first and name the notes and the
+  issue that go.
 
 ### Note
 A piece of freeform markdown documentation.

@@ -1,0 +1,129 @@
+{
+  "hook": {
+    "enabled": true,
+    "limits": {
+      "maxFindings": 5,
+      "maxChars": 8000
+    }
+  },
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/redesign/b-ledger.html"
+        ],
+        "createdAt": "2026-11-13T12:39:52.355Z",
+        "reason": "false positive: segmented control buttons fill the bordered container by design; table header text is vertically centred in a fixed 36px row (assistant triage, not user confirmed)"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/redesign/c-board.html"
+        ],
+        "createdAt": "2026-11-13T12:39:52.388Z",
+        "reason": "false positive: segmented control buttons fill the bordered container by design; table header text is vertically centred in a fixed 36px row (assistant triage, not user confirmed)"
+      },
+      {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/redesign/app/index.html"
+        ],
+        "createdAt": "2026-11-13T13:09:41.309Z",
+        "reason": "sanctioned: the working-session pulse is the console's own 'worked right now' signal, which the user asked to keep (assistant triage, not user confirmed)"
+      },
+      {
+        "rule": "dark-glow",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/redesign/app/index.html"
+        ],
+        "createdAt": "2026-11-13T13:09:41.341Z",
+        "reason": "sanctioned: the gold/green progress tube glow is the console's existing tube-gold look, part of the energy the user asked to keep (assistant triage, not user confirmed)"
+      },
+      {
+        "rule": "repeating-stripes-gradient",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/redesign/app/index.html"
+        ],
+        "createdAt": "2026-11-13T13:09:41.374Z",
+        "reason": "functional: hatched weekend bars on the time report mirror the existing report (assistant triage, not user confirmed)"
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "rekall-ui/src/components/console/AnchorBar.vue"
+        ],
+        "createdAt": "2026-11-13T18:32:47.224Z",
+        "reason": "The kbd keycap has a thicker bottom edge by design; it is a key, not an accent border on a card."
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "rekall-ui/src/features/settings/components/KeyboardSection.vue"
+        ],
+        "createdAt": "2026-11-13T18:32:47.245Z",
+        "reason": "The kbd keycap has a thicker bottom edge by design; it is a key, not an accent border on a card."
+      },
+      {
+        "rule": "design-system-font",
+        "value": "fira code",
+        "createdAt": "2026-11-14T07:35:44.472Z",
+        "reason": "DESIGN.md declares Fira Code Variable as the anchor face; the mock loads it as Fira Code"
+      },
+      {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/task-changes/index.html"
+        ],
+        "createdAt": "2026-11-14T08:02:53.117Z",
+        "reason": "DESIGN.md sanctions the session orb pulse as state made visible; it only marks a running session in this mockup. Decided by the model from DESIGN.md, not user confirmed."
+      },
+      {
+        "rule": "tiny-text",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/task-plan/index.html"
+        ],
+        "createdAt": "2026-11-15T18:23:06.652Z",
+        "reason": "DESIGN.md sanctions Caption 11.5px and Micro 11px for meta, counts and kbd; decided by the model from DESIGN.md, not user confirmed"
+      },
+      {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/task-plan/index.html"
+        ],
+        "createdAt": "2026-11-15T18:24:09.195Z",
+        "reason": "DESIGN.md sanctions the session orb pulse as state made visible; it marks only a step a session is working on right now. Decided by the model from DESIGN.md, not user confirmed."
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/task-plan/index.html"
+        ],
+        "createdAt": "2026-11-15T18:24:09.218Z",
+        "reason": "False positive: pills, segmented controls and keys are fixed-height flex boxes whose text is centred vertically, with horizontal padding of 8px or more. Decided by the model, not user confirmed."
+      },
+      {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/unified-tasks/index.html"
+        ],
+        "createdAt": "2026-11-16T08:50:54.858Z",
+        "reason": "DESIGN.md sanctions the pulsing orb for a running session (Status Pill: running); the dot marks RV-53, whose session is live in the real data"
+      }
+    ]
+  }
+}

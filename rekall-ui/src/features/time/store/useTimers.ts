@@ -6,7 +6,7 @@ import {
   stopTimeEntry as apiStopTimeEntry
 } from '@/features/time/api/time-entries.api'
 import type { TimeEntryEdit } from '@/features/time/api/time-entries.api'
-import type { TimeEntry } from '@/features/catalog/model/catalog'
+import type { TimeEntry } from '@/features/time/model/time-entry'
 import type { TaskId, TimeEntryId } from '@/model/branded'
 import type { ConsoleState } from '../../../stores/console/console-state'
 import type { useConsoleRefreshes } from '../../../stores/console/useConsoleRefreshes'
@@ -14,7 +14,7 @@ import { upsertById } from '../../../stores/console/rows'
 
 /** The time spent on each task: the timers a person runs by hand and the ones a console write resumes. */
 export function useTimers(state: ConsoleState, refreshes: ReturnType<typeof useConsoleRefreshes>) {
-  const { timeEntries, selectedTaskId } = state
+  const { timeEntries } = state
 
   const runningEntries = computed(() => timeEntries.value.filter((entry) => entry.stoppedAt === null))
 
@@ -43,13 +43,6 @@ export function useTimers(state: ConsoleState, refreshes: ReturnType<typeof useC
     }
   }
 
-  /** A note can sit on several tasks: the one in view is being worked on, or else its only task. */
-  async function resumeTimerOnNote(taskIds: readonly TaskId[]): Promise<void> {
-    const worked =
-      taskIds.find((id) => id === selectedTaskId.value) ?? (taskIds.length === 1 ? taskIds[0] : undefined)
-    if (worked) await resumeTimerOnWork(worked)
-  }
-
   /** Accepting a claim stops the task's timer on the server, so a running one is read again. */
   async function rereadTimerStoppedByAccept(taskId: TaskId): Promise<void> {
     if (runningEntries.value.some((entry) => entry.taskId === taskId)) await refreshes.refreshTimeEntries()
@@ -72,7 +65,6 @@ export function useTimers(state: ConsoleState, refreshes: ReturnType<typeof useC
     runningEntries,
     startTimer,
     resumeTimerOnWork,
-    resumeTimerOnNote,
     rereadTimerStoppedByAccept,
     pauseTimer,
     editTimer,

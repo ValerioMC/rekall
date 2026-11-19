@@ -53,11 +53,11 @@ async fn commits_the_given_paths_with_the_multi_line_message_and_returns_the_new
     fs::write(repo.join("b.txt"), "b").unwrap();
     let changes = GitCommitter.pending_changes(repo).await.unwrap();
 
-    let hash = GitCommitter.commit_paths(repo, &changes, "feat: the subject\n\nproject:vega task:x\n2 files: 2 added\n").await.unwrap();
+    let hash = GitCommitter.commit_paths(repo, &changes, "feat: the subject\n\ntask:X\n2 files: 2 added\n").await.unwrap();
 
     assert_eq!(hash, git(repo, &["rev-parse", "HEAD"]));
     assert_eq!(git(repo, &["log", "-1", "--format=%s"]), "feat: the subject");
-    assert!(git(repo, &["log", "-1", "--format=%b"]).contains("project:vega task:x"));
+    assert!(git(repo, &["log", "-1", "--format=%b"]).contains("task:X"));
     assert!(git(repo, &["status", "--porcelain"]).is_empty());
 }
 
@@ -206,7 +206,7 @@ async fn the_inspector_tells_unset_missing_plain_and_repository_apart() {
     assert!(!GitRepositoryInspector.is_repository(Some(&missing)).await);
 
     let plain = GitRepositoryInspector.inspect(Some(&dir.path().to_string_lossy())).await;
-    assert!(plain.exists && !plain.repository && !plain.can_commit());
+    assert!(plain.exists && !plain.repository);
 
     let repo = tempfile::tempdir().unwrap();
     git(repo.path(), &["init", "-q", "-b", "main"]);
@@ -222,7 +222,6 @@ async fn the_inspector_tells_unset_missing_plain_and_repository_apart() {
     assert_eq!(status.branch.as_deref(), Some("main"));
     assert_eq!(status.user_name.as_deref(), Some("Test Person"));
     assert_eq!(status.user_email.as_deref(), Some("test@example.com"));
-    assert!(status.can_commit());
 }
 
 #[tokio::test]

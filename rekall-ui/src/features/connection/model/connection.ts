@@ -1,14 +1,16 @@
 import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId, TaskId, TerminalId } from '@/model/branded'
 
-export type ConnectionKind = 'GITLAB' | 'GITHUB' | 'KUBERNETES' | 'JIRA'
+export type ConnectionKind = 'GITLAB' | 'GITHUB' | 'KUBERNETES' | 'JIRA' | 'CONFLUENCE' | 'GRAFANA'
 
-export const CONNECTION_KINDS: readonly ConnectionKind[] = ['GITLAB', 'GITHUB', 'KUBERNETES', 'JIRA']
+export const CONNECTION_KINDS: readonly ConnectionKind[] = ['GITLAB', 'GITHUB', 'KUBERNETES', 'JIRA', 'CONFLUENCE', 'GRAFANA']
 
 export const CONNECTION_KIND_LABEL: Readonly<Record<ConnectionKind, string>> = {
   GITLAB: 'GitLab',
   GITHUB: 'GitHub',
   KUBERNETES: 'Kubernetes',
-  JIRA: 'Jira'
+  JIRA: 'Jira',
+  CONFLUENCE: 'Confluence',
+  GRAFANA: 'Grafana'
 }
 
 /** What one connection of a kind is called, as a group's add button and empty line name it. */
@@ -16,7 +18,9 @@ export const CONNECTION_KIND_NOUN: Readonly<Record<ConnectionKind, string>> = {
   GITLAB: 'GitLab instance',
   GITHUB: 'GitHub server',
   KUBERNETES: 'cluster',
-  JIRA: 'Jira site'
+  JIRA: 'Jira site',
+  CONFLUENCE: 'Confluence site',
+  GRAFANA: 'Grafana instance'
 }
 
 /**
@@ -29,11 +33,13 @@ export interface Connection {
   readonly kind: ConnectionKind
   readonly label: string
   readonly title: string
-  /** The GitLab instance, GitHub server or Jira site, or the server the imported kubeconfig names. */
+  /** The GitLab instance, GitHub server, Jira site or Grafana instance, or the server the imported kubeconfig names. */
   readonly baseUrl: string | null
   readonly kubeContext: string | null
-  /** Jira only: the proxy every call to the site goes through. */
+  /** Jira and Confluence only: the proxy every call to the site goes through. */
   readonly proxyUrl: string | null
+  /** Grafana only: the instance's certificate is not verified, because it serves a self-signed one. */
+  readonly acceptSelfSigned: boolean
   /** GitLab and GitHub only: the group, namespace or owner the credential covers. */
   readonly rootPath: string | null
   readonly credentialSetAt: string | null
@@ -76,8 +82,10 @@ export interface ProjectConnection {
   readonly title: string
   readonly baseUrl: string | null
   readonly kubeContext: string | null
-  /** The GitLab project path, the GitHub repository, the Kubernetes namespace or the Jira project key this project uses it for. */
+  /** The GitLab project path, the GitHub repository, the Kubernetes namespace, the Jira project key or the Grafana folder UID this project uses it for. */
   readonly target: string | null
+  /** The project writes its tasks to this binding's GitLab, GitHub or Jira project. At most one binding is. */
+  readonly taskManager: boolean
   readonly credentialSetAt: string | null
 }
 
@@ -85,6 +93,8 @@ export interface ProjectConnection {
 export interface ProjectConnectionInput {
   readonly label?: string
   readonly target: string | null
+  /** Left out, the binding stays as it is. */
+  readonly taskManager?: boolean
 }
 
 export type DiscoveryOutcome = 'BOUND' | 'ALREADY_BOUND' | 'NO_ORIGIN' | 'NO_CONNECTION' | 'NO_CREDENTIAL'
@@ -116,14 +126,19 @@ export interface ConnectionInput {
   readonly baseUrl?: string
   /** Blank clears it. */
   readonly proxyUrl?: string
+  /** Grafana only. */
+  readonly acceptSelfSigned?: boolean
   /** GitLab and GitHub only; blank clears it. */
   readonly rootPath?: string
   /** Read on a create only: an existing connection is shared through `setConnectionCompanies`. */
   readonly companyIds?: readonly CompanyId[]
 }
 
-/** Jira Cloud signs in with an email and an API token, Data Center with a personal access token. */
+/** Atlassian Cloud signs in with an email and an API token, Data Center with a personal access token, on Jira and Confluence alike. */
 export type JiraDeployment = 'CLOUD' | 'DATA_CENTER'
+
+/** A Grafana instance is signed in to with a service account token, or with a user and its password. */
+export type GrafanaAuthentication = 'SERVICE_ACCOUNT' | 'PASSWORD'
 
 /**
  * What the person typed or pasted as a credential, held only until it is sent. Never kept in a
@@ -132,8 +147,21 @@ export type JiraDeployment = 'CLOUD' | 'DATA_CENTER'
 export type CredentialDraft =
   | { readonly kind: 'GITLAB'; readonly token: string }
   | { readonly kind: 'GITHUB'; readonly token: string }
+  | { readonly kind: 'GRAFANA'; readonly authentication: GrafanaAuthentication; readonly user: string; readonly token: string }
   | { readonly kind: 'KUBERNETES'; readonly kubeconfig: string; readonly context: string | null }
-  | { readonly kind: 'JIRA'; readonly deployment: JiraDeployment; readonly email: string; readonly token: string }
+  | { readonly kind: 'JIRA' | 'CONFLUENCE'; readonly deployment: JiraDeployment; readonly email: string; readonly token: string }
+
+/**
+ * A stored credential read back on request: a `token`, a `kubeconfig` (Kubernetes), on Jira Cloud
+ * the `email` the token belongs to and on Grafana, signed in with a password, the `user` whose
+ * password the `token` is. Held by the component that asked, never by a store.
+ */
+export interface RevealedCredential {
+  readonly token: string | null
+  readonly kubeconfig: string | null
+  readonly email: string | null
+  readonly user: string | null
+}
 
 export type KubeUserKind =
   'token' | 'client-certificate' | 'exec' | 'auth-provider' | 'basic-auth' | 'nothing'
@@ -172,11 +200,27 @@ export interface ConnectionAccess {
   readonly reason: string | null
   readonly terminalId: string
   readonly taskId: TaskId | null
-  readonly taskLabel: string | null
+  readonly taskCode: string | null
   readonly taskTitle: string | null
 }
 
 /** An issue of a project's Jira project, and the task it was imported as, if it was. */
+/** A Jira project or a Confluence space a binding's target can be filled with. */
+export interface TargetSuggestion {
+  readonly value: string
+  readonly name: string
+}
+
+/** What filling a project from a Confluence space did; a section is `created`, `replaced` or `kept` as the project had it. */
+export interface ConfluenceImport {
+  readonly spaceKey: string
+  readonly spaceName: string
+  readonly pagesRead: number
+  readonly descriptionWritten: boolean
+  readonly blueprintWritten: boolean
+  readonly sections: readonly { readonly title: string; readonly pages: number; readonly outcome: 'created' | 'replaced' | 'kept' }[]
+}
+
 export interface JiraIssue {
   readonly key: string
   readonly summary: string

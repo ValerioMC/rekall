@@ -21,7 +21,7 @@ function item(id: string, waitingFor: RunQueueWait[] = [], state: RunQueueItem['
     id: asRunQueueItemId(id),
     taskId: asTaskId(`t-${id}`),
     taskTitle: `Task ${id}`,
-    taskLabel: `t-${id}`,
+    taskCode: `t-${id}`,
     projectLabel: 'vega',
     anchor: `project:vega task:t-${id}`,
     position: 0,

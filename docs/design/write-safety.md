@@ -11,13 +11,13 @@ reorder or remove a step, and the console's `edit` is still the only path to `DO
 only lay a flow onto a task with no steps, and the routes it asks `StepLinkService.propose_in` for are
 refused unless both ends are drafts, so no released step's routes change: a ready flow is laid as
 drafts and released inside the same transaction. `TaskAuthoringService.create` does the same for the
-task it has just created. None of them promotes a draft that was already on a task. The only deletes a session can make are
+task it has just created. `TaskDescriptionService.replace` takes a task and a body and replaces the description, nothing else: it goes around the console's revision tracking, so a rewrite opens no revision, and the old text is kept nowhere. None of them promotes a draft that was already on a task. The only deletes a session can make are
 `FlowProposalService.replan` and `TaskStepService.remove`, and both stop at `TaskStepState::unstarted`:
 a draft or an open step. A running, claimed or done step is refused by name, so a session never discards
 a run, work waiting for review or work a person accepted; a replan checks its plan whole before it deletes
 anything and runs in one transaction. `NoteService` (rekall-core) can only create a note and attach it to the one task it was
-written for: it never loads a note by id, so it cannot edit, detach or delete one, and
-`DocumentService`, which can, stays in `rekall-console`. `FeedbackService` (rekall-core) can only move a `PENDING` entry of one task's thread to `APPLIED` with a short reply, naming the `seq`: it has no way to create, edit or delete an entry, and a call that names an unknown or already applied entry writes nothing. `CommitReferenceService` and `AutoCommitService` log and make commits in the project's own
+written for: it never loads a note by id, so it cannot edit or delete one, and
+`DocumentService`, which can, stays in `rekall-console`. `FeedbackService` (rekall-core) can only move a `PENDING` or `RUNNING` entry of one task's thread to `APPLIED` with a short reply, naming the `seq`, and give unanswered `RUNNING` entries back to `PENDING` when a session ends: it has no way to create, edit or delete a revision, and a call that names an unknown or already applied entry writes nothing. `CommitReferenceService` and `AutoCommitService` log and make commits in the project's own
 folder. `InventoryRecordingService` replaces one project's dependency rows and drops the exposures they
 no longer declare; `VulnerabilityExposureService.assess` writes a verdict on an exposure a scan already
 found and refuses an advisory that does not reach the project. Neither reaches the advisory database:
@@ -31,9 +31,9 @@ The commands that gate a claim (`done_check`) are written by `CheckService` in `
 Running those commands is a port. `CheckExecutionService` (`rekall-core/src/check/`, in `Services::check_execution`) reads a step's checks (the project's first, then the step's), runs them one at a time through `CheckRunner` and stops at the first that fails; each run is saved to `done_check_result`, the failing one included, and the answer is a `CheckReport` (`NoChecks`, `Passed`, `Failed`). A check's folder is the project's folder, or a folder inside it: an absolute path or `..` is refused with a 400. `ShellCheckRunner` (`rekall-infra/src/check/`) runs `/bin/sh -c` in the environment of the user's login shell, in its own process group so a timeout ends the command and its children. It keeps the last 60 lines of the combined output (at most 4000 characters) and never logs them, since they may hold secrets; the log carries the label, the exit code and the duration.
 
 Connection credentials never reach `rekall-mcp`. A GitLab or GitHub token, a Kubernetes kubeconfig or a Jira
-credential (`JiraCredential`: a Jira Cloud email and API token, kept as the `email:token` pair Basic
+credential (`AtlassianCredential`, shared by Jira and Confluence: an Atlassian Cloud email and API token, kept as the `email:token` pair Basic
 authentication sends, or a Data Center personal access token sent as Bearer, kept as `pat:token`; which
-one it is decides the site's `JiraDeployment`) lives in
+one it is decides the site's `AtlassianDeployment`) lives in
 Rekall's own credential file (`FileSecretStore` in `rekall-infra`: `secrets.json` under `rekall.home`, one
 account per connection's `secret_ref`, mode 0600, not encrypted, outside the database and its backups),
 behind the `SecretStore` trait in `rekall-core/src/connection/`. The file never prompts, so a terminal's
@@ -65,16 +65,21 @@ connection shared with its own company (400 otherwise, saying to share it first)
 used in the project is a 409, and without one the connection's label takes the first free `-2`, `-3`),
 `RepositoryDiscoveryService` (further down), `ConnectionAccessQueryService` (the access log, newest first) and
 `KubeconfigPreviewService` (a kubeconfig's contexts with why each can or cannot be imported, storing
-nothing). Credentials are write-only: `PUT /api/connections/{id}/credential` takes `token` (GitLab, GitHub),
-`kubeconfig` and `context` (Kubernetes) or `token` with an `email` on Jira Cloud and without one on Jira
-Data Center, and answers the connection with `credentialSetAt`, and no
-endpoint returns a credential. The store is written before the row, so a failed write leaves the row
+nothing). Credentials go in through `PUT /api/connections/{id}/credential`, which takes `token` (GitLab, GitHub),
+`kubeconfig` and `context` (Kubernetes), `token` with an `email` on Atlassian Cloud and without one on Data Center (Jira and Confluence), or on Grafana `token` alone for a service account and `token` (the password) with a `user` for a password sign-in, and answers the connection with `credentialSetAt`. The only route that returns one is
+`GET /api/connections/{id}/credential`, served by `ConnectionCredentialRevealService` (the write service
+stays write-only): it answers `token`, `kubeconfig` and, on Atlassian Cloud, `email`, or a 404 when none is stored, and
+the console calls it only when the person presses the eye or the copy button on a connection's credential,
+keeping the answer in the component until it is hidden, replaced or the view closes. Once shown, the value
+can be edited in place and stored through the same `PUT`; a Kubernetes edit keeps the stored context. Like the rest of the
+console API it answers any local caller, so a session that curls it by hand reads the credential; the deny
+rules below do not cover it. The store is written before the row, so a failed write leaves the row
 saying no credential is set; clearing empties the store before the row, so the row never claims less
 than the store holds. A Kubernetes connection takes its server and context from the imported
-kubeconfig and refuses a typed URL; GitLab, GitHub (`https://github.com` or an Enterprise Server) and Jira need theirs; a connection's kind is fixed once created.
-Only a Jira connection takes a `proxyUrl`: an `http://` or `https://` address with no user or password in
+kubeconfig and refuses a typed URL; GitLab, GitHub (`https://github.com` or an Enterprise Server), Jira, Confluence and Grafana need theirs; a connection's kind is fixed once created.
+Only a Jira, Confluence or Grafana connection takes a `proxyUrl`: an `http://` or `https://` address with no user or password in
 it (it is stored in the row and shown, not kept in the keychain), refused without being echoed; a blank
-one clears it. A GitLab or GitHub connection may name a `rootPath`, the group, namespace or owner its token covers, stored
+one clears it. Only a Grafana connection takes `acceptSelfSigned`, a flag; the other kinds refuse it when it is true. A GitLab or GitHub connection may name a `rootPath`, the group, namespace or owner its token covers, stored
 without a slash at either end; the other kinds refuse it. A label is unique across the workspace. The routes are
 `GET`/`POST /api/connections` (`POST` takes `companyIds`, the companies it is shared with, and no company
 is needed to create one), `GET /api/companies/{id}/connections` (the connections shared with a company: the
@@ -135,7 +140,61 @@ Jira is reached through the `JiraIssues` trait in `rekall-core/src/connection/`,
 `HttpJiraIssues` in `rekall-infra` (`POST /rest/api/3/search/jql` on Jira Cloud, `POST
 /rest/api/2/search` on Data Center, the first page only), or a fake
 through `StartOptions::jira_issues`. It is asked before any transaction opens. Both it and the check
-take a `JiraSite`, the site URL and the connection's proxy, and go through the proxy when there is one.
+take an `AtlassianSite`, the site URL and the connection's proxy, and go through the proxy when there is one. The Grafana check takes a `GrafanaInstance`: the URL, the proxy and whether the instance's self-signed certificate is accepted (certificate verification is then off, which also lets an expired one or one for another host through).
+
+`ConnectionTargetService` (`rekall-console/src/connection/`) checks the target of a Jira or Confluence binding
+against the site before it is kept, and suggests what to type. `POST /api/projects/{id}/connections` and `PUT
+.../{bindingId}` go through it: a Jira project key (`JiraIssues::project`) or a Confluence space key
+(`ConfluenceSpaces::space`) the site does not have is refused (400) and nothing is bound; a blank target is
+kept without asking, and a typed one on a connection with no credential is refused because it cannot be
+checked. `GET /api/connections/{id}/target-suggestions?query=` lists at most 25 projects or spaces whose key
+or name holds the query (`JiraIssues::projects`, `ConfluenceSpaces::spaces`), and nothing for another kind.
+
+`ConfluenceSpaceService` fills a project from the space its binding names: `POST
+/api/projects/{id}/connections/{bindingId}/confluence/import` reads the space and up to 200 of its current
+pages (`ConfluenceSpaces`, implemented by `HttpConfluenceSpaces` in `rekall-infra/src/confluence/`, which turns
+Confluence's storage format into markdown in `storage_format.rs` and reads `/rest/api` under `/wiki` on a
+`*.atlassian.net` site) before any transaction opens, then writes in one. The rules are in
+`confluence_grouping_rules.rs`:
+
+- The space's home page becomes the project's blueprint, with a link back to it; the space's description, or
+  the home page's first paragraph, becomes the project's description.
+- Every other page goes to the section of the concept it is about: by its labels first, by the words of its
+  title second (`Architecture`, `Decisions`, `API`, `Deployment`, `Operations`, `Conventions`, `Requirements`,
+  `Glossary`), or `General`. A section lists its pages under their titles with a link each and is cut to the
+  section limit with a note.
+- What the project already has stays: a description or blueprint that holds text and a section whose title
+  exists are kept, and `replace: true` rewrites them. The answer says what was written, replaced or kept.
+
+A project writes its own tasks to one binding, its task manager. `PUT /api/projects/{id}/connections/{bindingId}`
+takes `taskManager` beside the label and the target (left out, the flag stays; the target is still
+written as sent): choosing a binding releases the one the project had, and it is refused (400) unless the
+connection is a GitLab, GitHub or Jira one and the target names where issues go (`tracker_rules.rs`: a Jira
+project key, a GitLab project path of at least two segments, a GitHub `owner/repo`). A task writes to it
+through `TaskTrackerService` (`rekall-core/src/connection/`): the console's `TaskService`, a session creating a
+task (`TaskAuthoringService`) publish a `TaskCreatedEvent` once their transaction commits, and
+`TaskTrackerRunner` (`rekall-infra/src/tracker/`) has `TaskTrackerService::create_missing` create the issue,
+one task at a time in the order they were created, with the task's title alone: an edit publishes nothing,
+because every write is an entry in the issue's history. The description reaches the issue when the person
+presses the sync key beside the issue's link, `POST /api/tasks/{id}/tracker-sync`
+(`TaskTrackerSyncService` in `rekall-console`, `TaskTrackerService::sync_content` in `rekall-core`), which
+writes the title and the description, creating the issue when the task has none, and answers with the
+task. `task_tracker_link.synced_fingerprint` holds a fingerprint (FNV-1a, which no Rust release changes)
+of what was last written, and the task's `trackerContentSynced` says whether it still matches the task's
+title and description; a link that predates the column has none and counts as unsynced. A write, automatic
+or asked for, reads the task, its project's task-manager binding and the stored credential,
+asks the `TaskTracker` port (`HttpTaskTracker` in `rekall-infra`: GitLab `POST`/`PUT
+/api/v4/projects/{path}/issues`, GitHub `POST`/`PATCH /repos/{owner}/{repo}/issues` under the API root
+`github_api_root` gives, Jira `POST /issue` and `PUT /issue/{key}` under `/rest/api/3` with an Atlassian
+document description on Cloud and `/rest/api/2` with text on Data Center, or a fake through
+`StartOptions::task_tracker`) outside any transaction, and then keeps the issue's key and URL on the task, or
+the failure in `tracker_sync_error`, and a sync that fails also answers 409 with it. The task is written only when it is a plain task (not an epic, not a
+quick one); a task that has a key is rewritten and one without is created, so a sync after a failure tries
+again. A task imported from the project's own Jira task manager arrives with its key and is not announced,
+and the credential never leaves `TaskTrackerService`: a failure message names the system and the HTTP
+status, never the credential.
+
+With a project's `pull_request_flow` on, Rekall writes to the task manager's host a second way. `TaskPullRequestService` (`rekall-core/src/worktree/`) is the only writer of `task_pull_request` and the only caller of `PullRequestHost`, and it asks `TaskTrackerService::endpoint_of_project` for the one credential it needs, so a pull request call reads the same stored credential as an issue write and a failure message never carries it. `ConnectionPullRequestHost` (`rekall-infra/src/tracker/`) sends by the connection's kind: GitHub `GET`/`POST /repos/{owner}/{repo}/pulls`, `PUT .../pulls/{n}/merge` with `merge_method: merge` and `PATCH .../issues/{n}` with `state: closed`; GitLab `GET`/`POST /api/v4/projects/{path}/merge_requests`, `PUT .../merge_requests/{iid}/merge` with `squash: false` and `PUT .../issues/{iid}` with `state_event: close`. A 405 or 409 on a merge (GitLab also 406) is read back from the host and is `Conflicting` when the request says so and `Refused` with the host's message otherwise; a network error, a rejected credential or a 5xx is an `Err` and the pull request is left as it was. `GitWorktreeHost::push_branch` is the one `git push` Rekall runs: `--set-upstream origin`, refused for any branch that does not start with `rekall/`, and a rejection is a value, never a force. The merge session never force-pushes either, and merging is the service's call, not the session's.
 
 `POST /api/connections/{id}/check` asks the connection's server whether its stored credential still
 works, before a session finds out mid-deploy. `ConnectionCheckService` (`rekall-core/src/connection/`)
@@ -143,14 +202,20 @@ reads the credential through the store and hands it to a `ConnectionProbe`: `Htt
 `rekall-infra/src/probes/`, because asking is HTTP to the outside, or a fake through
 `StartOptions::connection_probe`.
 GitLab is asked `GET /api/v4/user` with the token, GitHub `GET /user` on its API root (`github_api_root`:
-`api.github.com`, or `/api/v3` on an Enterprise Server) with a Bearer token and a `User-Agent`, Jira `GET /rest/api/3/myself` (Cloud) or `GET /rest/api/2/myself` (Data Center) with the credential's header; a cluster is asked `/version` and a
+`api.github.com`, or `/api/v3` on an Enterprise Server) with a Bearer token and a `User-Agent`, Jira `GET /rest/api/3/myself` (Cloud) or `GET /rest/api/2/myself` (Data Center) with the credential's header, Grafana `GET /api/user` with a Bearer token, or Basic authentication for a user and password; a cluster is asked `/version` and a
 `SelfSubjectReview`, through the kubeconfig's `proxy-url` when it has one, trusted through its CA
 and with a client certificate as the TLS identity, falling back to an authenticated `GET /api` on a cluster too old for the review. The
 answer (`ok`, a sentence naming the identity, the rejection status or why the server could not be
 asked, with the underlying cause such as a timeout) is shown and never stored, and a connection with no credential is answered without asking
 anyone.
 
-A terminal with a credential session also starts `claude` with `--settings` pointing at the
+Both terminal providers use `CredentialBroker` to install helpers for the project's bindings, log
+each request and revoke the session token when the terminal closes. With Codex, the helpers read
+the session token from a mode 0600 header file in the private session folder. The CLI runs with
+`--no-daemon` so its shell commands inherit the terminal's helper paths and Git configuration.
+Codex's sandbox and approval settings apply to those commands.
+
+A Claude Code terminal with a credential session also starts `claude` with `--settings` pointing at the
 session's `claude-settings.json`, whose `permissions.deny` (`rekall-infra/src/connection/guard_rails.rs`)
 closes the session folder to the file tools (`Read`/`Edit` with an absolute `//` rule on the folder's
 real path) and denies dumping the environment (`env`, `printenv`, `export -p`, `set`), `git

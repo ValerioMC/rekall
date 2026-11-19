@@ -4,14 +4,15 @@ use rekall_store::ConnectionKind;
 use super::*;
 use crate::task::TaskReferenceView;
 
-fn component(name: &str, folder: &str, description: &str) -> ProjectComponentView {
+fn component(name: &str, folder: &str, summary: &str) -> ProjectComponentView {
     let now = Instant::now();
     ProjectComponentView {
         id: Id::random(),
         project_id: Id::random(),
         name: name.into(),
         folder: folder.into(),
-        description: description.into(),
+        summary: summary.into(),
+        description: format!("## Purpose\n{name} does its work."),
         position: 0,
         created_at: now,
         updated_at: now,
@@ -37,8 +38,8 @@ fn expand_with_connections(connections: &[ConnectionView], text: &str) -> String
     ComponentReferences::new(Some(&[])).with_connections(connections).expand(text)
 }
 
-fn task(label: &str, title: &str) -> TaskReferenceView {
-    TaskReferenceView { label: label.into(), title: title.into() }
+fn task(code: &str, title: &str) -> TaskReferenceView {
+    TaskReferenceView { code: code.into(), label: code.to_lowercase(), title: title.into() }
 }
 
 fn expand_with_tasks(tasks: &[TaskReferenceView], text: &str) -> String {
@@ -50,10 +51,13 @@ fn auth() -> Vec<ProjectComponentView> {
 }
 
 #[test]
-fn a_reference_becomes_the_name_the_folder_and_the_description() {
+fn a_reference_becomes_the_name_the_folder_the_summary_and_the_description() {
     let out = expand(&auth(), "Use [[Auth Service]] here.");
 
-    assert_eq!(out, "Use **Auth Service** (component, folder `services/auth`): Issues and checks tokens. here.");
+    assert_eq!(
+        out,
+        "Use **Auth Service** (component, folder `services/auth`):\n\nIssues and checks tokens.\n\n## Purpose\nAuth Service does its work. here."
+    );
 }
 
 #[test]
@@ -67,11 +71,8 @@ fn the_match_ignores_case_and_surrounding_spaces() {
 fn a_repeated_reference_carries_only_name_and_folder() {
     let out = expand(&auth(), "[[Auth Service]] then [[Auth Service]]");
 
-    assert_eq!(
-        out,
-        "**Auth Service** (component, folder `services/auth`): Issues and checks tokens. then \
-         **Auth Service** (component, folder `services/auth`)"
-    );
+    assert!(out.ends_with("then **Auth Service** (component, folder `services/auth`)"), "{out}");
+    assert_eq!(out.matches("Auth Service does its work.").count(), 1);
 }
 
 #[test]
@@ -82,24 +83,44 @@ fn the_description_is_given_once_across_the_texts_of_one_record() {
     let first = references.expand("[[Auth Service]]");
     let second = references.expand("[[Auth Service]]");
 
-    assert!(first.contains("Issues and checks tokens."));
-    assert!(!second.contains("Issues and checks tokens."));
+    assert!(first.contains("Auth Service does its work."));
+    assert!(!second.contains("Auth Service does its work."));
 }
 
 #[test]
-fn a_component_without_a_description_or_folder_is_just_named() {
-    let out = expand(&[component("Edge", "", "")], "[[Edge]]");
+fn a_component_with_nothing_written_is_just_named() {
+    let mut edge = component("Edge", "", "");
+    edge.description.clear();
 
-    assert_eq!(out, "**Edge** (component)");
+    assert_eq!(expand(&[edge], "[[Edge]]"), "**Edge** (component)");
 }
 
 #[test]
-fn a_long_description_is_cut() {
-    let long = "x".repeat(COMPONENT_REFERENCE_MAX + 50);
+fn a_description_that_is_the_summary_is_not_said_twice() {
+    let mut edge = component("Edge", "edge", "Routes requests.");
+    edge.description = "Routes requests.".into();
 
-    let out = expand(&[component("Big", "big", &long)], "[[Big]]");
+    assert_eq!(expand(&[edge], "[[Edge]]"), "**Edge** (component, folder `edge`):\n\nRoutes requests.");
+}
 
-    assert_eq!(out, format!("**Big** (component, folder `big`): {}", "x".repeat(COMPONENT_REFERENCE_MAX)));
+#[test]
+fn a_component_with_only_a_summary_carries_it() {
+    let mut edge = component("Edge", "edge", "Routes requests.");
+    edge.description.clear();
+
+    assert_eq!(expand(&[edge], "[[Edge]]"), "**Edge** (component, folder `edge`): Routes requests.");
+}
+
+#[test]
+fn a_long_description_is_cut_and_points_at_the_tool_that_reads_the_rest() {
+    let mut big = component("Big", "big", "Big.");
+    big.description = "x".repeat(COMPONENT_REFERENCE_MAX + 50);
+
+    let out = expand(&[big], "[[Big]]");
+
+    assert!(out.contains(&"x".repeat(COMPONENT_REFERENCE_MAX)), "{out}");
+    assert!(!out.contains(&"x".repeat(COMPONENT_REFERENCE_MAX + 1)), "{out}");
+    assert!(out.ends_with("(Cut here: read the rest with `rekall_read_components`.)"), "{out}");
 }
 
 #[test]
@@ -219,21 +240,21 @@ fn a_connection_reference_is_never_read_as_a_component() {
 
 #[test]
 fn a_task_reference_names_the_task_by_title_and_anchor() {
-    let out = expand_with_tasks(&[task("export", "Export the report")], "Build on [[task:export]].");
+    let out = expand_with_tasks(&[task("EX-7", "Export the report")], "Build on [[task:EX-7]].");
 
-    assert_eq!(out, "Build on **Export the report** (task `task:export`).");
+    assert_eq!(out, "Build on **Export the report** (task `task:EX-7`).");
 }
 
 #[test]
 fn a_task_reference_ignores_case_and_surrounding_spaces() {
-    let out = expand_with_tasks(&[task("export", "Export the report")], "[[ task: EXPORT ]]");
+    let out = expand_with_tasks(&[task("EX-7", "Export the report")], "[[ task: ex-7 ]]");
 
-    assert_eq!(out, "**Export the report** (task `task:export`)");
+    assert_eq!(out, "**Export the report** (task `task:EX-7`)");
 }
 
 #[test]
 fn an_unknown_task_is_flagged_not_dropped() {
-    let out = expand_with_tasks(&[task("export", "Export the report")], "[[task:import]]");
+    let out = expand_with_tasks(&[task("EX-7", "Export the report")], "[[task:import]]");
 
     assert_eq!(out, "[[task:import]] (task not found in this project)");
 }
@@ -250,4 +271,11 @@ fn a_task_named_inside_code_is_not_collected() {
     let labels = referenced_task_labels("`[[task:inline]]`\n```\n[[task:fenced]]\n```\n");
 
     assert!(labels.is_empty(), "{labels:?}");
+}
+
+#[test]
+fn a_reference_that_still_carries_the_label_finds_its_task() {
+    let out = expand_with_tasks(&[task("EX-7", "Export the report")], "[[task:ex-7]]");
+
+    assert_eq!(out, "**Export the report** (task `task:EX-7`)");
 }

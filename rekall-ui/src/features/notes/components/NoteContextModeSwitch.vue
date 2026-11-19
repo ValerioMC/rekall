@@ -2,7 +2,7 @@
 /** How sessions on the note's tasks receive it: the whole text, or a line and an anchor they load when they need it. */
 import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import type { RekallDocument, DocumentContextMode } from '@/features/catalog/model/catalog'
+import type { RekallDocument, DocumentContextMode } from '@/features/notes/model/document'
 
 const props = defineProps<{ note: RekallDocument }>()
 

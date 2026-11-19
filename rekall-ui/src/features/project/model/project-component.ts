@@ -2,13 +2,15 @@ import type { ProjectComponentId, ProjectId } from '@/model/branded'
 
 /**
  * A folder of a project that is a part of it: a module, a service, an app. Every context that
- * loads the project carries its components, so a session knows where each part lives.
+ * loads the project carries its `summary`; the `description`, a structured markdown document with
+ * tables and diagrams, is read on demand.
  */
 export interface ProjectComponent {
   readonly id: ProjectComponentId
   readonly projectId: ProjectId
   readonly name: string
   readonly folder: string
+  readonly summary: string
   readonly description: string
   readonly position: number
   readonly createdAt: string
@@ -19,5 +21,10 @@ export interface ProjectComponent {
 export interface ProjectComponentInput {
   readonly name?: string
   readonly folder?: string
+  readonly summary?: string
   readonly description?: string
+}
+
+export interface ProjectComponentStreamEvent {
+  readonly projectId: ProjectId
 }

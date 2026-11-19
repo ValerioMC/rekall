@@ -16,11 +16,11 @@ async fn a_task_step_and_tag_skills_all_reach_the_context_with_their_scope() {
     app.put(&format!("/api/tasks/{task_id}"), json!({ "label": "report-builder", "title": "report-builder", "status": "TODO", "projectId": project_id, "tagId": tag })).await;
     let step_id = app.a_step(&task_id, "Design the picker", Some("Un selettore.")).await;
 
-    assert_eq!(app.put(&format!("/api/tasks/{task_id}/skills"), json!({ "skills": ["rust-standards"] })).await.status, 200);
-    assert_eq!(app.put(&format!("/api/tags/{tag}/skills"), json!({ "skills": ["code-review", "rust-standards"] })).await.status, 200);
-    assert_eq!(app.put(&format!("/api/steps/{step_id}/skills"), json!({ "skills": ["ui-ux-pro-max"] })).await.status, 200);
+    assert_eq!(app.put(&format!("/api/tasks/{task_id}/skills"), json!({ "skills": [{ "name": "rust-standards" }] })).await.status, 200);
+    assert_eq!(app.put(&format!("/api/tags/{tag}/skills"), json!({ "skills": [{ "name": "code-review" }, { "name": "rust-standards" }] })).await.status, 200);
+    assert_eq!(app.put(&format!("/api/steps/{step_id}/skills"), json!({ "skills": [{ "name": "ui-ux-pro-max" }] })).await.status, 200);
 
-    let context = app.call_tool("rekall_context", json!({ "anchors": "task:report-builder" })).await;
+    let context = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
 
     assert_contains!(
         context,
@@ -32,17 +32,72 @@ async fn a_task_step_and_tag_skills_all_reach_the_context_with_their_scope() {
 }
 
 #[tokio::test]
+async fn a_skill_reaches_the_context_with_its_arguments_to_pass_as_args() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = app.a_task(&project_id, "report-builder").await;
+    app.put(&format!("/api/tasks/{task_id}/skills"), json!({ "skills": [{ "name": "impeccable", "arguments": "  redesign website ui " }, { "name": "rk" }] })).await;
+
+    let context = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
+
+    assert_contains!(context, "<skills count=\"2\">", "- `impeccable` args: \"redesign website ui\" (task)", "- `rk` (task)");
+}
+
+#[tokio::test]
+async fn a_step_with_the_same_skill_and_other_arguments_is_its_own_invocation() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = app.a_task(&project_id, "report-builder").await;
+    let step_id = app.a_step(&task_id, "Polish the picker", None).await;
+    app.put(&format!("/api/tasks/{task_id}/skills"), json!({ "skills": [{ "name": "impeccable", "arguments": "redesign" }] })).await;
+    app.put(&format!("/api/steps/{step_id}/skills"), json!({ "skills": [{ "name": "impeccable", "arguments": "polish" }] })).await;
+
+    let context = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
+
+    assert_contains!(context, "<skills count=\"2\">", "- `impeccable` args: \"redesign\" (task)", "- `impeccable` args: \"polish\" (step: Polish the picker)");
+}
+
+#[tokio::test]
+async fn a_step_with_the_same_skill_and_the_same_arguments_is_listed_once() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = app.a_task(&project_id, "report-builder").await;
+    let step_id = app.a_step(&task_id, "Polish the picker", None).await;
+    app.put(&format!("/api/tasks/{task_id}/skills"), json!({ "skills": [{ "name": "impeccable", "arguments": "redesign" }, { "name": "rk" }] })).await;
+    app.put(&format!("/api/steps/{step_id}/skills"), json!({ "skills": [{ "name": "impeccable", "arguments": "redesign" }, { "name": "rk", "arguments": "step:1" }] })).await;
+
+    let context = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
+
+    assert_contains!(context, "<skills count=\"3\">", "- `impeccable` args: \"redesign\" (task)", "- `rk` (task)", "- `rk` args: \"step:1\" (step: Polish the picker)");
+}
+
+#[tokio::test]
+async fn arguments_over_the_cap_are_a_400() {
+    let app = app().await;
+    let acme = app.a_company("Acme").await;
+    let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
+    let task_id = app.a_task(&project_id, "report-builder").await;
+
+    let response = app.put(&format!("/api/tasks/{task_id}/skills"), json!({ "skills": [{ "name": "impeccable", "arguments": "a".repeat(301) }] })).await;
+
+    assert_eq!(response.status, 400);
+}
+
+#[tokio::test]
 async fn a_finished_steps_skill_is_no_longer_handed_over() {
     let app = app().await;
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
     let task_id = app.a_task(&project_id, "report-builder").await;
     let step_id = app.a_step(&task_id, "Design the picker", None).await;
-    app.put(&format!("/api/steps/{step_id}/skills"), json!({ "skills": ["ui-ux-pro-max"] })).await;
+    app.put(&format!("/api/steps/{step_id}/skills"), json!({ "skills": [{ "name": "ui-ux-pro-max" }] })).await;
 
     app.patch(&format!("/api/steps/{step_id}"), json!({ "done": true })).await;
 
-    let context = app.call_tool("rekall_context", json!({ "anchors": "task:report-builder" })).await;
+    let context = app.call_tool("rekall_context", json!({ "anchors": "task:VE-1" })).await;
     assert_lacks!(context, "<skills", "ui-ux-pro-max");
 }
 
@@ -52,9 +107,9 @@ async fn a_write_replaces_the_list_and_the_listing_reports_every_owner() {
     let acme = app.a_company("Acme").await;
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
     let task_id = app.a_task(&project_id, "report-builder").await;
-    app.put(&format!("/api/tasks/{task_id}/skills"), json!({ "skills": ["one", "two"] })).await;
+    app.put(&format!("/api/tasks/{task_id}/skills"), json!({ "skills": [{ "name": "one" }, { "name": "two" }] })).await;
 
-    app.put(&format!("/api/tasks/{task_id}/skills"), json!({ "skills": ["two", "three"] })).await;
+    app.put(&format!("/api/tasks/{task_id}/skills"), json!({ "skills": [{ "name": "two" }, { "name": "three" }] })).await;
 
     let listing = app.get("/api/skill-assignments").await;
     let names: Vec<String> = listing.get("taskSkills").as_array().unwrap().iter().map(|row| row["skillName"].as_str().unwrap().to_string()).collect();
@@ -68,7 +123,7 @@ async fn a_malformed_name_is_a_400_and_an_unknown_owner_a_404() {
     let project_id = app.a_project(&acme, "vega", "ACTIVE").await;
     let task_id = app.a_task(&project_id, "report-builder").await;
 
-    assert_eq!(app.put(&format!("/api/tasks/{task_id}/skills"), json!({ "skills": ["two words"] })).await.status, 400);
+    assert_eq!(app.put(&format!("/api/tasks/{task_id}/skills"), json!({ "skills": [{ "name": "two words" }] })).await.status, 400);
     assert_eq!(app.put("/api/tasks/00000000-0000-4000-8000-000000000000/skills", json!({ "skills": [] })).await.status, 404);
 }
 
@@ -80,8 +135,8 @@ async fn deleting_a_step_or_a_tag_deletes_its_skills() {
     let tag = id(&app.post("/api/tags", json!({ "name": "Backend", "icon": "gear", "color": "teal" })).await);
     let task_id = app.a_task(&project_id, "report-builder").await;
     let step_id = app.a_step(&task_id, "Design the picker", None).await;
-    app.put(&format!("/api/steps/{step_id}/skills"), json!({ "skills": ["a"] })).await;
-    app.put(&format!("/api/tags/{tag}/skills"), json!({ "skills": ["b"] })).await;
+    app.put(&format!("/api/steps/{step_id}/skills"), json!({ "skills": [{ "name": "a" }] })).await;
+    app.put(&format!("/api/tags/{tag}/skills"), json!({ "skills": [{ "name": "b" }] })).await;
 
     app.delete(&format!("/api/steps/{step_id}")).await;
     app.delete(&format!("/api/tags/{tag}")).await;

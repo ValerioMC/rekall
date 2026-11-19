@@ -14,6 +14,10 @@ import { relativeTime } from '@/common/format/relative-time'
  * task's other deviations, and every move is a history entry, so the browser's arrows go back and
  * forth between them as they do between panes.
  */
+/** On the task page the title is above the tabs and a deviation has no pane to close back to. */
+const props = defineProps<{ embedded?: boolean }>()
+const emit = defineEmits<{ 'open-step': [] }>()
+
 const store = useConsoleStore()
 const { selectedTask, selectedTaskSteps, selectedDeviationStep } = storeToRefs(store)
 
@@ -37,25 +41,28 @@ function go(by: 1 | -1): void {
 }
 
 function openStep(): void {
-  if (selectedTask.value && stepOfDeviation.value) store.openStep(selectedTask.value.id, stepOfDeviation.value.id)
+  if (!selectedTask.value || !stepOfDeviation.value) return
+  store.openStep(selectedTask.value.id, stepOfDeviation.value.id)
+  if (props.embedded) emit('open-step')
 }
 
 defineExpose({ step: go })
 </script>
 
 <template>
-  <section class="flex min-h-0 flex-1 flex-col bg-canvas" aria-label="Deviation" data-testid="deviation-pane">
+  <section class="flex min-h-0 min-w-0 flex-1 flex-col bg-canvas" aria-label="Deviation" data-testid="deviation-pane">
     <p v-if="!selectedTask" class="px-9 py-12 text-body text-text-muted">Pick a task to see where its work left the plan.</p>
 
     <template v-else>
       <header class="flex shrink-0 items-start gap-3.5 border-b border-border px-5 py-3.5">
-        <div class="min-w-0 flex-1">
+        <div v-if="!embedded" class="min-w-0 flex-1">
           <p class="eyebrow flex items-center gap-1.5">
             <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
             Deviation
           </p>
           <TaskTitleRow :task="selectedTask" copy-testid="copy-deviation-anchor" />
         </div>
+        <span v-else class="flex-1" />
 
         <div v-if="deviations.length > 1" class="flex shrink-0 items-center gap-1" role="group" aria-label="Deviations of this task">
           <AppButton
@@ -89,7 +96,7 @@ defineExpose({ step: go })
           </AppButton>
         </div>
 
-        <AppButton variant="quiet" size="sm" data-testid="deviation-close" title="Back to the notes (Esc)" @click="store.closeDeviation()">
+        <AppButton v-if="!embedded" variant="quiet" size="sm" data-testid="deviation-close" title="Back to the notes (Esc)" @click="store.closeDeviation()">
           Close
         </AppButton>
       </header>
@@ -118,7 +125,7 @@ defineExpose({ step: go })
         </button>
       </nav>
 
-      <div v-if="current" class="min-h-0 flex-1 overflow-y-auto">
+      <div v-if="current" class="min-h-0 flex-1 page-scroll">
         <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-5 pb-1 pt-4">
           <h3 class="min-w-0 text-heading font-semibold tracking-[-0.015em] text-text" data-testid="deviation-heading">
             Step {{ current.stepNumber }}<template v-if="current.stepTitle">: {{ current.stepTitle }}</template>
@@ -140,11 +147,11 @@ defineExpose({ step: go })
           Recorded {{ relativeTime(current.createdAt) }}<template v-if="wasRewritten"> &middot; rewritten {{ relativeTime(current.updatedAt) }}</template>
         </p>
         <div class="p-4">
-          <AppMarkdownEditor :model-value="current.bodyMarkdown" readonly />
+          <AppMarkdownEditor :model-value="current.bodyMarkdown" readonly :read-settings="false" />
         </div>
       </div>
 
-      <div v-else-if="isLoaded" class="min-h-0 flex-1 overflow-y-auto">
+      <div v-else-if="isLoaded" class="min-h-0 flex-1 page-scroll">
         <div class="max-w-[560px] px-9 py-12">
           <h2 class="mb-1.5 text-display font-semibold leading-tight tracking-[-0.025em] text-text">
             <template v-if="deviations.length">No deviation on step {{ selectedDeviationStep }}</template>

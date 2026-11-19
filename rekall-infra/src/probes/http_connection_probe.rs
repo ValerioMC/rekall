@@ -5,10 +5,11 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use reqwest::header::{HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, RequestBuilder, Response, StatusCode};
-use rekall_core::connection::{github_api_root, JiraCredential, JiraDeployment, JiraSite, KubeAccess, KubeCredential, Secret};
+use rekall_core::connection::{github_api_root, GrafanaCredential, GrafanaInstance, AtlassianCredential, AtlassianDeployment, AtlassianSite, KubeAccess, KubeCredential, Secret};
 use serde::Deserialize;
 use serde_json::json;
 
+use crate::confluence::rest_root;
 use crate::jira::{authorization, jira_client};
 use rekall_core::connection::{ConnectionProbe, ProbeOutcome};
 
@@ -28,6 +29,11 @@ struct GithubUser {
 }
 
 #[derive(Deserialize)]
+struct GrafanaUser {
+    login: Option<String>,
+}
+
+#[derive(Deserialize)]
 struct JiraUser {
     #[serde(rename = "displayName")]
     display_name: Option<String>,
@@ -35,6 +41,16 @@ struct JiraUser {
     email_address: Option<String>,
     /// Data Center only: the username.
     name: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ConfluenceUser {
+    #[serde(rename = "displayName")]
+    display_name: Option<String>,
+    #[serde(rename = "publicName")]
+    public_name: Option<String>,
+    /// Data Center only.
+    username: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -61,7 +77,7 @@ struct UserInfo {
 
 /// The probe over HTTPS with `reqwest`. A cluster is trusted through the CA its kubeconfig names,
 /// reached through its `proxy-url` when it has one, and a client certificate is the TLS identity. A
-/// Jira site is reached through the connection's proxy when it names one.
+/// Jira or Confluence site or a Grafana instance is reached through the connection's proxy when it names one.
 pub struct HttpConnectionProbe {
     timeout: Duration,
 }
@@ -115,7 +131,7 @@ impl ConnectionProbe for HttpConnectionProbe {
         }
     }
 
-    async fn jira(&self, site: &JiraSite, credential: &JiraCredential) -> ProbeOutcome {
+    async fn jira(&self, site: &AtlassianSite, credential: &AtlassianCredential) -> ProbeOutcome {
         let client = match jira_client(site, self.timeout) {
             Ok(client) => client,
             Err(reason) => return ProbeOutcome::Unreachable { reason },
@@ -130,6 +146,42 @@ impl ConnectionProbe for HttpConnectionProbe {
                 let user = response.json::<JiraUser>().await.ok();
                 ProbeOutcome::Accepted { identity: user.and_then(|user| user.display_name.or(user.email_address).or(user.name)), version: None }
             }
+            Err(outcome) => outcome,
+        }
+    }
+
+    async fn confluence(&self, site: &AtlassianSite, credential: &AtlassianCredential) -> ProbeOutcome {
+        let client = match jira_client(site, self.timeout) {
+            Ok(client) => client,
+            Err(reason) => return ProbeOutcome::Unreachable { reason },
+        };
+        let header = match authorization(credential) {
+            Ok(header) => header,
+            Err(_) => return ProbeOutcome::Unreachable { reason: "the stored credential holds characters a header cannot carry".into() },
+        };
+        let answer = client.get(format!("{}/user/current", rest_root(site, credential.deployment()))).header(AUTHORIZATION, header).send().await;
+        match accepted(answer).await {
+            Ok(response) => {
+                let user = response.json::<ConfluenceUser>().await.ok();
+                ProbeOutcome::Accepted { identity: user.and_then(|user| user.display_name.or(user.public_name).or(user.username)), version: None }
+            }
+            Err(outcome) => outcome,
+        }
+    }
+
+    async fn grafana(&self, instance: &GrafanaInstance, credential: &GrafanaCredential) -> ProbeOutcome {
+        let client = match grafana_client(instance, self.timeout) {
+            Ok(client) => client,
+            Err(reason) => return ProbeOutcome::Unreachable { reason },
+        };
+        let mut header = match HeaderValue::from_str(credential.authorization().expose()) {
+            Ok(header) => header,
+            Err(_) => return ProbeOutcome::Unreachable { reason: "the stored credential holds characters a header cannot carry".into() },
+        };
+        header.set_sensitive(true);
+        let answer = client.get(format!("{}/api/user", instance.url.trim_end_matches('/'))).header(AUTHORIZATION, header).send().await;
+        match accepted(answer).await {
+            Ok(response) => ProbeOutcome::Accepted { identity: response.json::<GrafanaUser>().await.ok().and_then(|user| user.login), version: None },
             Err(outcome) => outcome,
         }
     }
@@ -150,10 +202,10 @@ impl ConnectionProbe for HttpConnectionProbe {
     }
 }
 
-fn jira_myself(deployment: JiraDeployment) -> &'static str {
+fn jira_myself(deployment: AtlassianDeployment) -> &'static str {
     match deployment {
-        JiraDeployment::Cloud => JIRA_CLOUD_MYSELF,
-        JiraDeployment::DataCenter => JIRA_DATA_CENTER_MYSELF,
+        AtlassianDeployment::Cloud => JIRA_CLOUD_MYSELF,
+        AtlassianDeployment::DataCenter => JIRA_DATA_CENTER_MYSELF,
     }
 }
 
@@ -174,6 +226,28 @@ async fn identity(client: &Client, access: &KubeAccess) -> Result<Option<String>
             let review = response.json::<SelfSubjectReview>().await.ok();
             Ok(review.and_then(|review| review.status).and_then(|status| status.user_info).and_then(|user| user.username))
         }
+    }
+}
+
+/// A client for a site reached through the connection's proxy when it names one.
+pub(crate) fn client_through(proxy_url: Option<&str>, timeout: Duration) -> Result<Client, String> {
+    builder_through(proxy_url, timeout)?.build().map_err(|failure| failure_chain(&failure))
+}
+
+/// Not verifying the certificate also accepts an expired one or one for another host: it is the choice
+/// of someone who knows the instance serves a self-signed certificate.
+fn grafana_client(instance: &GrafanaInstance, timeout: Duration) -> Result<Client, String> {
+    builder_through(instance.proxy_url.as_deref(), timeout)?
+        .danger_accept_invalid_certs(instance.accept_self_signed)
+        .build()
+        .map_err(|failure| failure_chain(&failure))
+}
+
+fn builder_through(proxy_url: Option<&str>, timeout: Duration) -> Result<reqwest::ClientBuilder, String> {
+    let builder = Client::builder().timeout(timeout);
+    match proxy_url {
+        Some(proxy) => Ok(builder.proxy(reqwest::Proxy::all(proxy).map_err(|_| "the connection's proxy is not a usable proxy address".to_string())?)),
+        None => Ok(builder),
     }
 }
 

@@ -4,8 +4,9 @@ import AppBadge from '@/components/ui/AppBadge.vue'
 import ProjectIcon from '@/components/ui/ProjectIcon.vue'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
 import { groupProjectsByCompany, matchesProjectQuery } from '@/features/catalog/lib/project-picker'
-import { PROJECT_STATUS_LABEL } from '@/features/catalog/model/catalog'
-import type { Project, ProjectStatus } from '@/features/catalog/model/catalog'
+import { PROJECT_STATUS_LABEL } from '@/features/catalog/model/project-status'
+import type { Project } from '@/features/catalog/model/catalog'
+import type { ProjectStatus } from '@/features/catalog/model/project-status'
 
 /**
  * Chooses the project a task belongs to. Closed, it is a card describing the current project; open,
@@ -143,7 +144,7 @@ function indexOf(project: Project): number {
           v-model="query"
           type="text"
           data-testid="project-picker-search"
-          class="h-10 min-w-0 flex-1 bg-transparent text-body text-text outline-none placeholder:text-text-subtle"
+          class="h-(--spacing-control) min-w-0 flex-1 bg-transparent text-body text-text outline-none placeholder:text-text-subtle"
           placeholder="Find by project, company or label"
           spellcheck="false"
           autocomplete="off"

@@ -1,6 +1,6 @@
 ## Planning
 
-`/rk project:vega task:report-builder plan` means: turn the task into a checklist, ready to work.
+`/rk task:RK-12 plan` means: turn the task into a checklist, ready to work.
 
 1. Drop the `plan` term, and `flow` after it, and call `rekall_context` with the anchors that are left.
 2. Read what it gives you: the description says what the work is for and what it has to satisfy,
@@ -27,14 +27,18 @@
    and how I can tell it is done, enough for a session that never saw this one to do it alone.
    Propose only what is still missing, and nothing the description rules out.
    Cut the sessions as part of the plan, as **Splitting into sessions** says: never wait to be asked.
+   Close the plan as **Testing** says.
 6. Stop. Say in a few lines how many steps (and, for a flow, routes) you proposed, how many
    sessions they make and where each starts, which diagrams you drew and where they are, and
    anything you left out on purpose. Build nothing: the steps are
    open, and I review them in the console if I want to.
 
 A title the task already has is refused, so a second `plan` adds only what the first one missed. A
-flow is proposed only onto a task with no steps; on one that has some, plan a checklist and say the
-routes are mine to draw.
+flow is proposed onto a task with no steps, or whose steps are all claimed or done: those stay as
+history and the flow begins at your first new step. A route's `to` counts the whole checklist as the
+console lists it, so after four finished steps the first new step is step 5; a route to a step that
+stays is refused. Design the routes yourself. If the tool refuses, quote the refusal and name the way
+out: a step still `running` is claimed first, a title already taken is renamed.
 
 ### Splitting into sessions
 
@@ -59,6 +63,20 @@ start whenever you plan or replan, without being told to, and mark each start wi
 The wrapup written before a session's last claim is what the next session starts from, so a split
 costs nothing the wrapup does not carry. Say in the closing lines of the plan how many sessions it
 has and where they start.
+
+### Testing
+
+A step is tested by what it built, and the whole suite runs once, at the end.
+
+- Say in each step's detail which tests it adds or changes and how to run only those (one Rust test
+  or crate, one spec file). A step never asks for the project's whole test, typecheck and lint run.
+- The last step of the plan is a dedicated verification step: it runs the project's whole suite
+  (build, tests, typecheck, lint, as its sections or `CLAUDE.md` say) and fixes what fails. It stays
+  in the session of the steps before it.
+- On a flow, that step carries the routes: `passed` -> end of the flow, and a route per kind of
+  failure back to the step that fixes it, with a `max_visits` on the step it returns to. A step
+  that fixes a failure runs only the tests of what it fixed, then goes back to verification.
+- A task whose work is not code (documentation, a note, a prompt) has no verification step.
 
 ### Drawing the plan
 

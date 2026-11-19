@@ -1,6 +1,6 @@
 import { apiClient, request } from '../../../api/client'
 import { WrapupListSchema, WrapupSchema } from '../../catalog/api/schemas/catalog.schema'
-import type { Wrapup } from '@/features/catalog/model/catalog'
+import type { Wrapup } from '@/features/wrapup/model/wrapup'
 import type { TaskId } from '@/model/branded'
 
 export async function fetchWrapups(): Promise<Wrapup[]> {

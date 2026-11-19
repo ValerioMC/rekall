@@ -22,7 +22,11 @@ async-trait.workspace = true
 futures.workspace = true
 thiserror.workspace = true
 
+[features]
+testing = []
+
 [dev-dependencies]
+rekall-core = { workspace = true, features = ["testing"] }
 tempfile.workspace = true
 
 # Integration suites live in tests/integration and unit tests in tests/unit, so Cargo discovers
@@ -59,3 +63,11 @@ path = "tests/integration/telemetry.rs"
 [[test]]
 name = "feedback"
 path = "tests/integration/feedback.rs"
+
+[[test]]
+name = "descriptions"
+path = "tests/integration/descriptions.rs"
+
+[[test]]
+name = "project_refs"
+path = "tests/integration/project_refs.rs"

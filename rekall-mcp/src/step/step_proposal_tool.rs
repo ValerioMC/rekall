@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use rekall_core::step::{Staging, TaskStepService};
+use rekall_core::step::{NewStep, Staging, TaskStepService};
 use serde_json::Value;
 
 use crate::tool::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
@@ -36,7 +36,7 @@ impl McpTool for StepProposalTool {
         ToolSchema::object()
             .required_string(
                 "anchors",
-                "The task to propose the step for, e.g. `project:vega task:report-builder`. Labels, never titles, and \
+                "The task to propose the step for, e.g. `task:RK-12`. Labels, never titles, and \
                  it has to name exactly one task.",
             )
             .required_string("title", "What the step delivers, as a short imperative line.")
@@ -63,7 +63,12 @@ impl McpTool for StepProposalTool {
         let staging = if args.flag("draft") { Staging::Draft } else { Staging::Ready };
         let proposed = self
             .steps
-            .propose(target.project_label.as_deref(), &target.task_label, Some(&title), detail.as_deref(), args.flag("new_session"), staging)
+            .propose(
+                target.project_label.as_deref(),
+                &target.task_code,
+                NewStep { starts_session: args.flag("new_session"), ..NewStep::titled(&title, detail.as_deref()) },
+                staging,
+            )
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
         if staging == Staging::Ready {

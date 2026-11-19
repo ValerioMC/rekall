@@ -3,6 +3,7 @@ use axum::response::Response;
 use axum::routing::get;
 use axum::{Json, Router};
 use rekall_kernel::{jstr, RekallError};
+use rekall_console::diagram::ExcerptScope;
 use rekall_core::diagram::{DiagramDraft, DiagramService, DiagramSummaryView, DiagramView};
 use serde_json::json;
 
@@ -44,7 +45,8 @@ async fn delete(State(state): State<ApiState>, Path(id): Path<String>) -> ApiRes
 
 async fn source(State(state): State<ApiState>, Path(id): Path<String>, Query(query): Query<SourceExcerptQuery>) -> ApiResult<Json<SourceExcerptResponse>> {
     let file = required(query.file.filter(|file| !jstr::is_blank(file)))?;
-    Ok(Json(state.sources.excerpt(uuid("id", &id)?, &file, query.start, query.end).await?.into()))
+    let scope = if query.whole == Some(true) { ExcerptScope::WholeFile } else { ExcerptScope::Around };
+    Ok(Json(state.sources.excerpt(uuid("id", &id)?, &file, query.start, query.end, scope).await?.into()))
 }
 
 fn draft_of(id: Option<rekall_kernel::Id>, request: DiagramRequest) -> ApiResult<DiagramDraft> {

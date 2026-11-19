@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Task Plan tab</title>
+<style>
+  @font-face { font-family: 'Fira Sans'; font-weight: 400; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 500; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 600; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Code'; font-weight: 300 700; src: url('../../../rekall-ui/node_modules/@fontsource-variable/fira-code/files/fira-code-latin-wght-normal.woff2') format('woff2'); }
+
+  :root {
+    --canvas: #0d1017; --surface: #151922; --raised: #1d2330; --hover: #262d3c;
+    --border: #2a3243; --border-strong: #3b4558; --border-field: #5e6a82;
+    --text: #f2f5f9; --muted: #a3acba; --subtle: #8c96a6;
+    --accent: #eaa43c; --accent-strong: #ffd88e; --accent-deep: #a8651a; --accent-soft: #eaa43c24; --accent-ink: #2b1804;
+    --anchor: #55c9ea;
+    --session: #7c83f7; --session-strong: #b4b9ff; --session-soft: #7c83f71f;
+    --safe: #3ddc97; --safe-soft: #3ddc971a; --warn: #f3c04a; --warn-soft: #f3c04a1a; --danger: #fb7185;
+    --font-sans: 'Fira Sans', ui-sans-serif, -apple-system, sans-serif;
+    --font-mono: 'Fira Code', ui-monospace, Menlo, monospace;
+    --t-micro: 11px; --t-caption: 11.5px; --t-small: 12.5px; --t-body: 13.5px; --t-title: 15px; --t-heading: 19px; --t-display: 26px;
+    --r-key: 3px; --r-control: 5px; --r-card: 8px;
+    --ease: cubic-bezier(.22, 1, .36, 1);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--canvas); color: var(--text); font: 400 var(--t-body)/1.4 var(--font-sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; text-align: left; }
+  button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  ::selection { background: var(--accent-soft); color: var(--accent-strong); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; border: 2px solid var(--canvas); }
+  .mono { font-family: var(--font-mono); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  svg.i { width: 14px; height: 14px; flex: none; }
+
+  .app { display: flex; flex-direction: column; height: 100vh; }
+
+  /* header */
+  .topbar { height: 48px; flex: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 620px) minmax(0, 1fr); gap: 12px; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .brand { font-weight: 600; font-size: var(--t-title); letter-spacing: -0.01em; }
+  .search { height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); color: var(--subtle); font-size: var(--t-small); }
+  .search kbd { margin-left: auto; font: 400 var(--t-micro) var(--font-mono); border: 1px solid var(--border-strong); border-radius: var(--r-key); padding: 0 5px; }
+  .topr { justify-self: end; display: flex; align-items: center; gap: 8px; position: relative; }
+  .capsule { white-space: nowrap; height: 32px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); color: var(--muted); font-size: var(--t-small); }
+  .capsule .rv { color: var(--accent); font-weight: 600; }
+  .about > summary { white-space: nowrap; list-style: none; height: 32px; padding: 0 10px; display: inline-flex; align-items: center; border: 1px dashed var(--border-strong); border-radius: var(--r-card); color: var(--subtle); font-size: var(--t-small); cursor: pointer; }
+  .about > summary::-webkit-details-marker { display: none; }
+  .about[open] > summary { color: var(--text); border-color: var(--border-field); }
+  .about > div { position: absolute; right: 0; top: 40px; z-index: 5; width: 360px; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--surface); box-shadow: 0 1px 2px rgb(0 0 0 / .55), 0 10px 22px -8px rgb(0 0 0 / .65); color: var(--muted); font-size: var(--t-small); line-height: 1.5; }
+  .about b { color: var(--text); font-weight: 500; }
+  .about p + p { margin-top: 8px; }
+
+  .page { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .head { flex: none; padding: 10px 24px 0; }
+  .crumbs { display: flex; align-items: center; gap: 12px; min-height: 32px; }
+  .crumbs nav { flex: 1; display: flex; gap: 8px; color: var(--muted); font-size: var(--t-small); }
+  .crumbs nav span { color: var(--subtle); }
+  .actions { display: flex; gap: 6px; }
+  .btn { height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: var(--r-control); font-size: var(--t-small); font-weight: 500; white-space: nowrap; }
+  .btn.secondary { background: var(--raised); border: 1px solid var(--border-strong); box-shadow: inset 0 1px 0 rgb(255 255 255 / .07), 0 1px 1px rgb(0 0 0 / .35); }
+  .btn.secondary:hover { background: var(--hover); }
+  .btn.quiet { color: var(--muted); }
+  .btn.quiet:hover { background: var(--raised); color: var(--text); }
+  .btn.primary { background: linear-gradient(180deg, var(--accent-strong), var(--accent) 45%, var(--accent-deep)); color: var(--accent-ink); font-weight: 600; box-shadow: inset 0 1px 0 rgb(255 255 255 / .35), 0 1px 1px rgb(0 0 0 / .4); }
+  .btn.primary:hover { filter: brightness(1.06); }
+  .btn.lg { height: 32px; padding: 0 14px; font-size: var(--t-body); }
+  h1 { margin: 2px 0 10px; font-size: var(--t-heading); font-weight: 600; letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .body { flex: 1; min-height: 0; display: flex; border-top: 1px solid var(--border); }
+  .rail { flex: none; width: 52px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; }
+  .iconbtn { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--r-control); color: var(--muted); flex: none; }
+  .iconbtn:hover { background: var(--raised); color: var(--text); }
+  .iconbtn:disabled { opacity: .4; cursor: default; }
+  .iconbtn:disabled:hover { background: none; color: var(--muted); }
+  .iconbtn svg { width: 16px; height: 16px; }
+  .rail .iconbtn { width: 36px; height: 36px; }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .tabs { flex: none; height: 40px; display: flex; align-items: flex-end; gap: 22px; padding: 0 24px; border-bottom: 1px solid var(--border); }
+  .tab { position: relative; height: 100%; display: flex; align-items: center; gap: 6px; font-size: var(--t-body); color: var(--muted); }
+  .tab .c { font: 400 var(--t-micro) var(--font-mono); color: var(--subtle); }
+  .tab .wait { font: 600 var(--t-micro) var(--font-mono); color: var(--accent-ink); background: var(--accent); border-radius: 9px; padding: 0 6px; line-height: 16px; }
+  .tab[aria-current="page"] { color: var(--text); }
+  .tab[aria-current="page"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); border-radius: 2px; }
+  .tabs .spacer { flex: 1; }
+
+  /* plan tab */
+  .plan { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+  /* the band: the plan's progress and its adherence, one full-width element that never folds */
+  .band { flex: none; margin: 16px 24px 16px; display: grid; grid-template-columns: minmax(300px, 4fr) minmax(0, 9fr); border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); box-shadow: 0 1px 0 rgb(255 255 255 / .05), 0 6px 18px -6px rgb(0 0 0 / .6); }
+  .progress { padding: 12px 20px 14px; display: flex; flex-direction: column; justify-content: center; gap: 10px; border-right: 1px solid var(--border); min-width: 0; }
+  .tube { height: 10px; display: flex; gap: 2px; padding: 0; border-radius: 9999px; overflow: hidden; background: #0a0d13; box-shadow: inset 0 2px 4px rgb(0 0 0 / .5), 0 1px 0 rgb(255 255 255 / .035); }
+  .tube i { display: block; height: 100%; }
+  .tube .done { background: linear-gradient(180deg, var(--accent-strong), var(--accent) 45%, var(--accent-deep)); border-radius: 9999px 0 0 9999px; }
+  .tube .claimed { background: var(--session); opacity: .85; }
+  .tally { font-size: var(--t-small); color: var(--muted); }
+  .tally b { color: var(--accent); font-weight: 600; }
+  .adherence { padding: 12px 20px 14px; min-width: 0; }
+  .adherence-h { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .adherence-h h2 { font-size: var(--t-title); font-weight: 600; letter-spacing: -0.005em; }
+  .adherence-h p { font-size: var(--t-caption); color: var(--subtle); }
+  .figures { margin-top: 8px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .figure { padding: 0 20px; border-left: 1px solid var(--border); display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .figure:first-child { padding-left: 0; border-left: 0; }
+  .figure .l { font-size: var(--t-caption); font-weight: 500; color: var(--subtle); }
+  .figure .v { font: 400 var(--t-display)/1.2 var(--font-mono); letter-spacing: -0.02em; }
+  .figure .v small { margin-left: 4px; font-size: var(--t-body); color: var(--muted); letter-spacing: 0; }
+  .figure .d { font-size: var(--t-caption); color: var(--subtle); }
+  .figure .d a { color: var(--warn); text-decoration: underline; text-decoration-color: #f3c04a66; text-underline-offset: 3px; cursor: pointer; }
+
+  /* workspace: the steps and the one selected step */
+  .work { flex: 1; min-height: 0; display: flex; border-top: 1px solid var(--border); }
+  .list { flex: none; width: 440px; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border); }
+  .work.focused .list { display: none; }
+  .list-h { flex: none; height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 14px 0 16px; }
+  .list-h h2 { font-size: var(--t-title); font-weight: 600; }
+  .list-h .n { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .list-h .sp { flex: 1; }
+  .views { display: flex; gap: 2px; padding: 2px; border-radius: var(--r-control); background: var(--canvas); border: 1px solid var(--border); }
+  .views button { height: 22px; padding: 0 9px; border-radius: var(--r-key); font-size: var(--t-small); font-weight: 500; color: var(--muted); }
+  .views button[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06); }
+  .list-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 10px 12px; }
+  .steps { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .step { width: 100%; display: grid; grid-template-columns: 22px 18px minmax(0, 1fr); align-items: start; gap: 0 10px; padding: 9px 10px; border-radius: var(--r-control); }
+  .step:hover { background: var(--hover); }
+  .step[aria-current="true"] { background: var(--accent-soft); box-shadow: inset 0 0 0 1px #eaa43c59; }
+  .step .no { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); padding-top: 3px; text-align: right; }
+  .step .ti { font-size: var(--t-body); color: var(--text); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .step[data-state="DONE"] .ti { color: var(--subtle); text-decoration: line-through; text-decoration-color: #8c96a680; }
+  .step .meta { margin-top: 3px; display: flex; align-items: center; gap: 10px; font-size: var(--t-caption); color: var(--subtle); }
+  .step .meta .st { flex: 1; min-width: 0; }
+  .step .meta .st.wait { color: var(--session-strong); font-weight: 500; }
+  .step .meta .st.run { color: var(--session-strong); }
+  .pips { display: flex; gap: 2px; flex: none; }
+  .pips i { width: 14px; height: 6px; border-radius: var(--r-key); background: var(--safe); }
+  .pips i.sent { background: var(--warn); }
+  .pips i.live { background: var(--session); }
+  .seal { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid var(--border-field); color: transparent; }
+  .seal svg { width: 12px; height: 12px; }
+  .seal.DONE { background: var(--safe); border-color: var(--safe); color: #06281b; }
+  .seal.CLAIMED { border-color: var(--session); color: var(--session-strong); background: var(--session-soft); border-style: dashed; }
+  .seal.RUNNING { border-color: #7c83f755; position: relative; }
+  .seal.RUNNING::after { content: ""; position: absolute; inset: -1.5px; border-radius: 50%; border: 1.5px solid transparent; border-top-color: var(--session); animation: spin 1.1s linear infinite; }
+  .seal.RUNNING i { width: 7px; height: 7px; border-radius: 50%; background: var(--session); animation: pulse 1.6s ease-in-out infinite; }
+  .seal.big { width: 26px; height: 26px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .legend { margin: 12px 6px 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: var(--t-caption); color: var(--subtle); }
+  .legend .pips i { width: 12px; }
+  .add { flex: none; display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--border); }
+  .field { flex: 1; min-width: 0; height: 32px; padding: 0 10px; border: 1px solid var(--border-field); border-radius: var(--r-control); background: var(--canvas); color: var(--text); font: inherit; font-size: var(--t-body); }
+  .field::placeholder { color: var(--subtle); }
+  .field:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); outline: none; }
+
+  /* the dossier */
+  .dossier { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--surface); }
+  .d-head { flex: none; padding: 14px 20px 12px 28px; border-bottom: 1px solid var(--border); }
+  .d-top { display: flex; align-items: center; gap: 12px; }
+  .d-top .pos { font-size: var(--t-small); color: var(--subtle); }
+  .d-top .sp { flex: 1; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px; border-radius: 9999px; font-size: var(--t-caption); font-weight: 500; border: 1px solid var(--border-strong); background: var(--raised); color: var(--muted); }
+  .pill.claimed { color: var(--session-strong); border-color: #7c83f755; background: var(--session-soft); }
+  .pill.running { color: var(--session-strong); border-color: #7c83f755; background: var(--session-soft); }
+  .pill.running i { width: 6px; height: 6px; border-radius: 50%; background: var(--session); animation: pulse 1.6s ease-in-out infinite; }
+  .pill.done { color: var(--safe); border-color: #3ddc9744; background: var(--safe-soft); }
+  .d-title { flex: 1; min-width: 0; max-width: 62ch; font-size: var(--t-heading); font-weight: 500; letter-spacing: -0.015em; line-height: 1.3; text-wrap: balance; }
+  .facts { margin: 8px 0 0 38px; align-items: center; display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: var(--t-small); color: var(--muted); }
+  .facts span { display: inline-flex; align-items: center; gap: 6px; }
+  .facts > span + span:not(.pill)::before { content: none; }
+  .facts .ok { color: var(--safe); }
+  .facts .bad { color: var(--danger); }
+  .facts a { color: var(--warn); text-decoration: underline; text-decoration-color: #f3c04a66; text-underline-offset: 3px; cursor: pointer; }
+  .facts .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
+
+  .d-body { flex: 1; min-height: 0; overflow-y: auto; padding: 24px 28px 28px; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 0 36px; align-content: start; }
+  .work.focused .d-body { grid-template-columns: minmax(0, 1fr) 340px; gap: 0 56px; max-width: 1180px; }
+  .read { min-width: 0; max-width: 74ch; }
+  .side { min-width: 0; border-left: 1px solid var(--border); padding-left: 32px; display: flex; flex-direction: column; gap: 26px; }
+  .sec + .sec { margin-top: 26px; }
+  .sh { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; min-height: 24px; }
+  .sh h3 { font-size: var(--t-small); font-weight: 600; color: var(--muted); }
+  .sh .rule { flex: 1; height: 1px; background: var(--border); }
+  .sh .aside { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .prose { font-size: var(--t-body); line-height: 1.6; color: var(--text); }
+  .prose p + p, .prose p + ul, .prose ul + p { margin-top: 10px; }
+  .prose ul { padding-left: 18px; display: grid; gap: 4px; color: var(--text); }
+  .prose li::marker { color: var(--subtle); }
+  .prose code, .row code { font: 400 var(--t-small) var(--font-mono); padding: 1px 5px; border-radius: var(--r-key); background: var(--raised); color: var(--muted); }
+  .source { width: 100%; min-height: 230px; padding: 10px 12px; border: 1px solid var(--border-field); border-radius: var(--r-control); background: var(--canvas); color: var(--text); font: 400 var(--t-small)/1.6 var(--font-mono); resize: vertical; }
+  .source:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); outline: none; }
+  .seg { display: flex; gap: 2px; padding: 2px; border-radius: var(--r-control); background: var(--canvas); border: 1px solid var(--border); }
+  .seg button { height: 20px; padding: 0 9px; border-radius: var(--r-key); font-size: var(--t-caption); font-weight: 500; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--raised); color: var(--text); }
+
+  .passes { list-style: none; padding: 0; position: relative; display: grid; gap: 14px; }
+  .passes::before { content: ""; position: absolute; left: 4px; top: 8px; bottom: 8px; width: 1px; background: var(--border-strong); }
+  .pass { position: relative; padding-left: 24px; }
+  .pass::before { content: ""; position: absolute; left: 0; top: 5px; width: 9px; height: 9px; border-radius: 50%; background: var(--surface); border: 2px solid var(--warn); }
+  .pass.now::before { border-color: var(--session); background: var(--session); }
+  .pass.now.ok::before { border-color: var(--safe); background: var(--safe); }
+  .pass .t { font-size: var(--t-small); color: var(--muted); }
+  .pass .t b { color: var(--text); font-weight: 500; }
+  .pass blockquote { margin-top: 5px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--r-control); background: var(--canvas); font-size: var(--t-body); line-height: 1.5; color: var(--muted); }
+  .pass details { margin-top: 6px; }
+  .pass summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-caption); color: var(--subtle); border-radius: var(--r-key); }
+  .pass summary::-webkit-details-marker { display: none; }
+  .pass summary:hover { color: var(--text); }
+  .pass details[open] summary svg { transform: rotate(90deg); }
+  .pass details p { margin-top: 6px; padding: 8px 12px; border-radius: var(--r-control); background: var(--canvas); box-shadow: inset 0 1px 2px rgb(0 0 0 / .3); font-size: var(--t-small); line-height: 1.55; color: var(--subtle); }
+
+  .row { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: baseline; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: var(--t-small); }
+  .row:last-child { border-bottom: 0; }
+  .row .n { color: var(--text); }
+  .row .c { display: block; margin-top: 1px; font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .row .r { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .row svg { width: 13px; height: 13px; transform: translateY(2px); }
+  .row svg.ok { color: var(--safe); }
+  .row svg.bad { color: var(--danger); }
+  .commits .row { grid-template-columns: 56px minmax(0, 1fr) auto; }
+  .commits .h { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .empty { font-size: var(--t-small); color: var(--subtle); line-height: 1.5; }
+  .kv { display: grid; gap: 12px; }
+  .kv .k { display: block; margin-bottom: 5px; font-size: var(--t-caption); font-weight: 500; color: var(--subtle); }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip { height: 24px; display: inline-flex; align-items: center; gap: 5px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: var(--r-key); background: var(--raised); font: 400 var(--t-caption) var(--font-mono); color: var(--muted); }
+  .chip.add { border-style: dashed; background: transparent; color: var(--subtle); font-family: var(--font-sans); }
+  .chip.add:hover { color: var(--text); border-color: var(--border-field); }
+
+  /* the decision dock: where reading ends and deciding starts */
+  .dock { flex: none; display: flex; align-items: center; gap: 16px; padding: 12px 28px; border-top: 1px solid var(--border); background: var(--surface); box-shadow: 0 -8px 18px -10px rgb(0 0 0 / .6); }
+  .dock .note { flex: 1; min-width: 0; font-size: var(--t-small); color: var(--muted); }
+  .dock .field { max-width: 620px; }
+  .dock .keys { display: flex; gap: 8px; margin-left: auto; flex: none; }
+  .btn.key { height: 32px; padding: 0 14px; font-size: var(--t-body); }
+  .btn.key kbd { font: 400 var(--t-micro) var(--font-mono); padding: 0 5px; border-radius: var(--r-key); border: 1px solid #2b180455; }
+  .btn.secondary.key kbd { border-color: var(--border-strong); color: var(--subtle); }
+  .btn.danger:hover { color: var(--danger); }
+
+  .q-list { display: flex; flex-direction: column; }
+  .q { width: 100%; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 8px; margin: 0 -8px; border-bottom: 1px solid var(--border); border-radius: var(--r-control); }
+  .q:last-child { border-bottom-color: transparent; }
+  .q:hover { background: var(--hover); }
+  .q .ti { display: block; font-size: var(--t-body); color: var(--text); }
+  .q .q-m { display: block; margin-top: 2px; font-size: var(--t-small); color: var(--subtle); }
+  .q .q-m .ok { color: var(--safe); }
+  .q .q-r { display: flex; align-items: center; gap: 12px; color: var(--subtle); }
+  .q .q-r svg { width: 10px; height: 10px; }
+  .doneline > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; min-height: 36px; font-size: var(--t-small); color: var(--muted); border-radius: var(--r-key); }
+  .doneline > summary::-webkit-details-marker { display: none; }
+  .doneline > summary:hover { color: var(--text); }
+  .doneline > summary svg { width: 10px; height: 10px; color: var(--subtle); transition: transform 140ms var(--ease); }
+  .doneline[open] > summary svg { transform: rotate(90deg); }
+  .side p.empty + .btn { margin-top: 10px; }
+  .seal.plain { border-color: var(--border-field); color: var(--muted); }
+  .seal.plain svg { width: 13px; height: 13px; }
+  .btn.ghostlink { height: 24px; padding: 0 8px; margin-left: -8px; color: var(--muted); }
+  @media (max-width: 1240px) {
+    .d-body { grid-template-columns: minmax(0, 1fr); }
+    .side { border-left: 0; padding-left: 0; margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--border); }
+    .list { width: 380px; }
+    .band { grid-template-columns: 1fr; }
+    .progress { border-right: 0; border-bottom: 1px solid var(--border); }
+  }
+  @media (prefers-reduced-motion: reduce) { .seal.RUNNING::after, .seal.RUNNING i, .pill.running i { animation: none; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-check" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.2 6.4 4.8 9l5-5.6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m3 3 6 6M9 3 3 9"/></symbol>
+    <symbol id="i-up" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10l4-4 4 4"/></symbol>
+    <symbol id="i-down" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.5v-4h4M13.5 9.5v4h-4M2.5 2.5l4 4M13.5 13.5l-4-4"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="i-commit" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2.6"/><path d="M1.5 8h3.9M10.6 8h3.9"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="m5 6.5 2 1.5-2 1.5M8.5 10h2.5"/></symbol>
+    <symbol id="i-play" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.2v9.6a.6.6 0 0 0 .9.5l7.4-4.8a.6.6 0 0 0 0-1L5.9 2.7a.6.6 0 0 0-.9.5Z"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8.6 2H13a1 1 0 0 1 1 1v4.4a1 1 0 0 1-.3.7l-5.6 5.6a1 1 0 0 1-1.4 0L2.3 9.3a1 1 0 0 1 0-1.4l5.6-5.6a1 1 0 0 1 .7-.3Z"/><circle cx="11" cy="5" r=".8" fill="currentColor"/></symbol>
+    <symbol id="i-branch" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="4.5" cy="3.5" r="1.6"/><circle cx="4.5" cy="12.5" r="1.6"/><circle cx="11.5" cy="6" r="1.6"/><path d="M4.5 5.1v5.8M11.5 7.6c0 2.4-3 2-6.1 3.4"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M6 2.5v11"/></symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <header class="topbar">
+    <span class="brand">Rekall</span>
+    <div class="search"><span>Search or type an anchor</span><kbd>⌘K</kbd></div>
+    <div class="topr">
+      <details class="about">
+        <summary>About this mockup</summary>
+        <div>
+          <p><b>Plan adherence is one full-width band</b> above the work. It never sits in the narrow step list, never folds and never scrolls away; the per-step passes moved onto the step rows as bars.</p>
+          <p><b>The selected step is a dossier:</b> the brief and its passes to read on the left, the evidence (checks, commits, setup) beside it, and a dock at the foot where the decision is made.</p>
+          <p><b>Nothing selected looks the same as something selected:</b> the list keeps its width and the right pane keeps its header, its two columns and its dock. It shows the review queue until you pick a step.</p>
+          <p>Click a step. J and K move, Esc comes back, the corner key hides the list.</p>
+        </div>
+      </details>
+      <div class="capsule"><span>1 session</span><span class="rv">1 to review</span><span>42% usage</span></div>
+    </div>
+  </header>
+
+  <div class="page">
+    <header class="head">
+      <div class="crumbs">
+        <nav aria-label="Where this task is"><a>Work</a><span>/</span><a>VFORGE · Rekall vR</a></nav>
+        <div class="actions">
+          <button class="btn secondary"><svg class="i"><use href="#i-commit"/></svg>Log commit</button>
+          <button class="btn secondary"><svg class="i"><use href="#i-terminal"/></svg>Open terminal</button>
+        </div>
+      </div>
+      <h1>Import Jira issues into a task's checklist</h1>
+    </header>
+
+    <div class="body">
+      <aside class="rail" aria-label="Task properties">
+        <button class="iconbtn" title="Properties"><svg><use href="#i-panel"/></svg></button>
+        <button class="iconbtn" title="Status, tag, skills"><svg><use href="#i-tag"/></svg></button>
+        <button class="iconbtn" title="Branch rekall/rv-171"><svg><use href="#i-branch"/></svg></button>
+      </aside>
+
+      <main class="main">
+        <nav class="tabs" aria-label="Task">
+          <a class="tab" aria-current="page">Plan <span class="wait" title="1 step waits for your review">1</span></a>
+          <a class="tab">Wrapup</a>
+          <a class="tab">Notes <span class="c">2</span></a>
+          <a class="tab">Description</a>
+          <a class="tab">Time</a>
+          <a class="tab">Deviations <span class="c">1</span></a>
+        </nav>
+
+        <div class="plan" data-testid="plan-tab">
+          <section class="band" aria-label="Plan progress and adherence">
+            <div class="progress">
+              <div class="tube" role="img" aria-label="3 of 7 steps done, 1 claimed"><i class="done" style="width:42.8%"></i><i class="claimed" style="width:14.3%"></i></div>
+              <p class="tally"><b>1 waits for you.</b> 3 of 7 done, 1 working, 2 open.</p>
+            </div>
+            <div class="adherence" aria-label="Plan adherence" data-testid="plan-adherence">
+              <div class="adherence-h">
+                <h2>Plan adherence</h2>
+                <p>A high share of steps sent back usually means steps are too large or their detail too vague.</p>
+              </div>
+              <div class="figures">
+                <div class="figure"><span class="l">Accepted first time</span><span class="v">2<small>of 3</small></span><span class="d">67% of the accepted steps</span></div>
+                <div class="figure"><span class="l">Sent back</span><span class="v">2</span><span class="d">7 passes in all</span></div>
+                <div class="figure"><span class="l">Deviations</span><span class="v">1</span><span class="d">on <a>step 3</a></span></div>
+              </div>
+            </div>
+          </section>
+
+          <div class="work" id="work">
+            <section class="list" aria-label="Steps">
+              <div class="list-h">
+                <h2>Steps</h2><span class="n">7</span>
+                <span class="sp"></span>
+                <button class="btn quiet" style="height:24px;padding:0 8px">Hide done</button>
+                <button class="btn secondary" style="height:24px">Review next</button>
+                <div class="views" role="group" aria-label="Show the steps as"><button aria-pressed="true">List</button><button aria-pressed="false">Flow</button></div>
+              </div>
+              <div class="list-scroll">
+                <ol class="steps" id="steps"></ol>
+                <p class="legend">
+                  <span class="pips" aria-hidden="true"><i class="sent"></i><i></i><i class="live"></i></span>
+                  One bar per pass: yellow sent back, green accepted, indigo in hand.
+                </p>
+              </div>
+              <form class="add" onsubmit="return false">
+                <input class="field" placeholder="Add a step" aria-label="Add a step">
+                <button class="btn secondary lg" style="height:32px">Add</button>
+              </form>
+            </section>
+
+            <section class="dossier" id="dossier" aria-label="Decision" data-testid="decision-panel"></section>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script>
+  const CHECK = '<svg class="i ok"><use href="#i-check"/></svg>';
+  const STEPS = [
+    { n: 1, title: 'Read the Jira connection settings through the connection port', state: 'DONE', passes: ['cur'], when: 'Done 3h ago',
+      brief: ['The importer must reach Jira only through the connection port in <code>rekall-core</code>; nothing in the console names a Jira client.', ['List the issue fields the port returns', 'Fail with a typed error when the connection is not set up']],
+      checks: [['cargo test -p rekall-infra jira', '1.8s', 1], ['cargo clippy -p rekall-infra', '4.2s', 1]], commits: [['e41c07a', 'read the Jira connection through the port', '3h']] },
+    { n: 2, title: 'Add the JiraIssue model and map it to a step draft', state: 'DONE', passes: ['cur'], when: 'Done 2h ago',
+      brief: ['A Jira issue becomes one draft step: the summary is the title, the description is the detail. Drafts are never promoted by the import.', ['Map summary and description', 'Keep the issue key on the draft so a second import finds it']],
+      checks: [['cargo test -p rekall-core jira_issue', '0.9s', 1]], commits: [['b92d6e1', 'map a Jira issue to a step draft', '2h']] },
+    { n: 3, title: 'Add JiraImportService over the entity services', state: 'DONE', passes: ['sent', 'cur'], when: 'Done 1h ago', deviation: true,
+      brief: ['One small cross-entity service that depends on <code>TaskStepService</code> and holds no query of its own.', ['Skip an issue whose key is already a draft', 'Publish one event per import, after commit']],
+      checks: [['cargo test -p rekall-console jira_import', '2.4s', 1], ['cargo clippy -p rekall-console', '5.1s', 1]], commits: [['5d0a8c3', 'import Jira issues as drafts', '1h'], ['0f77b19', 'skip issues already drafted', '1h']],
+      sentBack: ['1h ago', 'The service opened its own transaction. Use <code>in_write!</code> and join the caller\'s transaction with the <code>_in</code> twin.'] },
+    { n: 4, title: 'Expose POST /tasks/{id}/import-jira in the controller', state: 'CLAIMED', passes: ['sent', 'cur'], when: 'Claimed 14m ago', selected: true,
+      brief: ['The handler parses the path and body, validates the shape with <code>Validator</code>, calls <code>JiraImportService</code> once and maps the view. No queries, no rules, no transaction in the controller.', ['Body is a project key and an optional JQL filter', 'Answer 200 with the drafts created and the issues skipped', 'A Jira failure is a 4xx the caller can act on']],
+      checks: [['cargo test -p rekall-http import_jira', '3.1s', 1], ['cargo clippy -p rekall-http', '5.6s', 1], ['cargo fmt --check', '0.4s', 1], ['pnpm --dir rekall-ui typecheck', '9.8s', 1]],
+      commits: [['a3f9c21', 'expose the Jira import on the task controller', '31m'], ['71be08d', 'answer a Jira failure with 422 and its message', '16m']],
+      sentBack: ['2h ago', 'A Jira failure came back as a 500. Map it to a 422 with the error message from Jira, and keep the controller thin.'] },
+    { n: 5, title: 'Show the import dialog in the console', state: 'RUNNING', passes: ['cur'], when: 'Working now',
+      brief: ['A dialog on the task page: the project key, an optional filter, and the result as a list of drafts and skipped issues.', ['Data goes through the API module and a Pinia slice', 'The dialog is one component with typed props and emits']],
+      checks: [], commits: [['c8d41f0', 'add the import API module', '6m']] },
+    { n: 6, title: 'Cover the import with an integration suite', state: 'OPEN', passes: [], when: 'Open',
+      brief: ['Declare the suite as a <code>[[test]]</code> in the crate\'s <code>Cargo.toml</code>; an undeclared suite never runs.', ['Import twice and expect the second to skip every issue', 'Fake the connection port with a fixed response']], checks: [], commits: [] },
+    { n: 7, title: 'Describe the import in the guide and in DESIGN.md', state: 'OPEN', passes: [], when: 'Open',
+      brief: ['Change the docs in the same commit as the behaviour. Describe Rekall as it is.', ['Add the import to <code>docs/guide</code>', 'Add the new service to the table in <code>docs/DESIGN.md</code>']], checks: [], commits: [] }
+  ];
+  const SKILLS = ['/rk-review', '/commit'];
+  const MUST_PASS = ['cargo test', 'cargo clippy', 'pnpm typecheck'];
+
+  const PILL = { DONE: ['done', 'Done'], CLAIMED: ['claimed', 'Claimed'], RUNNING: ['running', '<i></i>A session is on it'], OPEN: ['', 'Open'] };
+  const stepsEl = document.getElementById('steps');
+  const dossierEl = document.getElementById('dossier');
+  const workEl = document.getElementById('work');
+  let current = null;
+
+  function seal(step, big) {
+    const inner = step.state === 'DONE' || step.state === 'CLAIMED' ? '<svg><use href="#i-check"/></svg>' : step.state === 'RUNNING' ? '<i></i>' : '';
+    return `<span class="seal ${step.state}${big ? ' big' : ''}" aria-hidden="true">${inner}</span>`;
+  }
+  function pips(step) {
+    const live = step.state === 'CLAIMED' || step.state === 'RUNNING';
+    return `<span class="pips" role="img" aria-label="${step.passes.length} ${step.passes.length === 1 ? 'pass' : 'passes'}">${step.passes.map((p, i) => `<i class="${p === 'sent' ? 'sent' : live && i === step.passes.length - 1 ? 'live' : ''}"></i>`).join('')}</span>`;
+  }
+
+  function renderList() {
+    stepsEl.innerHTML = STEPS.map((s) => `
+      <li><button class="step" data-state="${s.state}" data-n="${s.n}" aria-current="${s === current}">
+        ${seal(s)}<span class="no tnum">${s.n}</span>
+        <span style="min-width:0"><span class="ti">${s.title}</span>
+          <span class="meta"><span class="st ${s.state === 'CLAIMED' ? 'wait' : s.state === 'RUNNING' ? 'run' : ''}">${s.when}</span>${pips(s)}</span>
+        </span>
+      </button></li>`).join('');
+    stepsEl.querySelectorAll('.step').forEach((b) => b.addEventListener('click', () => select(STEPS[b.dataset.n - 1])));
+  }
+
+  function evidence(s) {
+    const failed = s.checks.filter((c) => !c[2]).length;
+    const checks = s.checks.length
+      ? s.checks.map((c) => `<div class="row">${c[2] ? '<svg class="ok"><use href="#i-check"/></svg>' : '<svg class="bad"><use href="#i-x"/></svg>'}<span class="n trunc mono" style="font-size:var(--t-small)">${c[0]}</span><span class="r">${c[1]}</span></div>`).join('')
+      : `<p class="empty">${s.state === 'RUNNING' ? 'The checks run when the session claims the step.' : 'No checks have run. They run when a session claims this step.'}</p>`;
+    const commits = s.commits.length
+      ? s.commits.map((c) => `<div class="row"><span class="h">${c[0]}</span><span class="n trunc">${c[1]}</span><span class="r">${c[2]}</span></div>`).join('')
+      : '<p class="empty">No commit logged yet.</p>';
+    return `
+      <section aria-label="Checks"><div class="sh"><h3>Checks</h3><span class="rule"></span><span class="aside">${s.checks.length ? (failed ? `${failed} failed` : `${s.checks.length} of ${s.checks.length}`) : '0'}</span></div>${checks}</section>
+      <section class="commits" aria-label="Commits"><div class="sh"><h3>Commits</h3><span class="rule"></span><span class="aside">${s.commits.length}</span></div>${commits}
+        ${s.state === 'RUNNING' || s.state === 'CLAIMED' ? '<button class="btn quiet" style="margin-top:6px;margin-left:-10px"><svg class="i"><use href="#i-commit"/></svg>Log a commit</button>' : ''}</section>
+      <section aria-label="Setup"><div class="sh"><h3>Setup</h3><span class="rule"></span></div>
+        <div class="kv">
+          <div><span class="k">Runs with</span><div class="chips">${SKILLS.map((k) => `<span class="chip">${k}</span>`).join('')}<button class="chip add">+ Skill</button></div></div>
+          <div><span class="k">Must pass</span><div class="chips">${MUST_PASS.map((k) => `<span class="chip">${k}</span>`).join('')}<button class="chip add">+ Check</button></div></div>
+        </div></section>`;
+  }
+
+  function passesBlock(s) {
+    if (!s.sentBack) return '';
+    const started = s.state === 'OPEN' ? '' : `<li class="pass now${s.state === 'DONE' ? ' ok' : ''}"><div class="t"><b>Pass ${s.passes.length}</b> · ${s.state === 'DONE' ? 'accepted' : 'claimed ' + s.when.replace('Claimed ', '')}</div></li>`;
+    return `<section class="sec" aria-label="Passes"><div class="sh"><h3>Passes</h3><span class="rule"></span><span class="aside">${s.passes.length}</span></div>
+      <ol class="passes">
+        <li class="pass"><div class="t"><b>Pass 1</b> · sent back ${s.sentBack[0]}</div>
+          <blockquote>${s.sentBack[1]}</blockquote>
+          <details><summary><svg class="i" style="width:10px;height:10px;transition:transform 140ms"><use href="#i-chev"/></svg>What pass 1 worked from</summary><p>Sealed. ${s.brief[0].replace(/<[^>]+>/g, '')}</p></details></li>
+        ${started}
+      </ol></section>`;
+  }
+
+  function dock(s) {
+    if (s.state === 'CLAIMED') {
+      return `<input class="field" placeholder="Feedback for pass ${s.passes.length + 1}: what the next pass has to change" aria-label="Feedback for the next pass">
+        <div class="keys"><button class="btn secondary key">Send back</button><button class="btn primary key" data-testid="step-accept">Accept <kbd>A</kbd></button></div>`;
+    }
+    if (s.state === 'RUNNING') {
+      return `<p class="note">A session is working on this step. Log its commit as it lands, or mark it done yourself.</p>
+        <div class="keys"><button class="btn secondary key">Mark done myself</button></div>`;
+    }
+    if (s.state === 'DONE') {
+      return `<p class="note">Accepted ${s.when.replace('Done ', '')}. Reopening drops it back to open and clears the review it passed.</p>
+        <div class="keys"><button class="btn secondary key btn danger">Reopen</button></div>`;
+    }
+    return `<p class="note">Claude gets this detail while the step is open.</p>
+      <div class="keys"><button class="btn secondary key"><svg class="i"><use href="#i-terminal"/></svg>Open terminal</button><button class="btn secondary key">Mark done myself</button></div>`;
+  }
+
+  function brief1(s) { return s.brief[0].replace(/<[^>]+>/g, ''); }
+  function queueRow(s, note) {
+    return `<button class="q" data-n="${s.n}">${seal(s)}<span style="min-width:0"><span class="ti">${s.n}. ${s.title}</span><span class="q-m">${note}</span></span><span class="q-r">${pips(s)}<svg><use href="#i-chev"/></svg></span></button>`;
+  }
+  function renderOverview() {
+    const waiting = STEPS.filter((x) => x.state === 'CLAIMED');
+    const working = STEPS.filter((x) => x.state === 'RUNNING');
+    const open = STEPS.filter((x) => x.state === 'OPEN');
+    const done = STEPS.filter((x) => x.state === 'DONE');
+    const claimNote = (x) => `<span class="ok">${x.checks.length} checks passed</span> · ${x.commits.length} commits · pass ${x.passes.length} · ${x.when.toLowerCase()}`;
+    dossierEl.dataset.stepState = 'NONE';
+    dossierEl.innerHTML = `
+      <header class="d-head">
+        <div class="d-top">
+          <span class="seal big plain" aria-hidden="true"><svg><use href="#i-panel"/></svg></span>
+          <h2 class="d-title" data-testid="decision-title">${waiting.length} step waits for you</h2>
+          <button class="iconbtn" disabled title="Previous step (K)" aria-label="Previous step"><svg><use href="#i-up"/></svg></button>
+          <button class="iconbtn" id="next" title="Next step (J)" aria-label="Next step"><svg><use href="#i-down"/></svg></button>
+          <button class="iconbtn" disabled title="Select a step to focus on it" aria-label="Focus on this step"><svg><use href="#i-expand"/></svg></button>
+        </div>
+        <p class="facts" data-testid="decision-meta"><span class="pill">No step selected</span><span>${STEPS.length} steps</span><span>${done.length} done</span><span>${working.length} working</span><span>${open.length} open</span></p>
+      </header>
+      <div class="d-body">
+        <div class="read">
+          <section class="sec" aria-label="Waiting for you"><div class="sh"><h3>Waiting for you</h3><span class="rule"></span><span class="aside">${waiting.length}</span></div>
+            <div class="q-list">${waiting.map((x) => queueRow(x, claimNote(x))).join('')}</div></section>
+          <section class="sec" aria-label="Working now"><div class="sh"><h3>Working now</h3><span class="rule"></span><span class="aside">${working.length}</span></div>
+            <div class="q-list">${working.map((x) => queueRow(x, `${x.commits.length} commit so far · a session is on it`)).join('')}</div></section>
+          <section class="sec" aria-label="Up next"><div class="sh"><h3>Up next</h3><span class="rule"></span><span class="aside">${open.length}</span></div>
+            <div class="q-list">${open.map((x) => queueRow(x, brief1(x).slice(0, 78) + '…')).join('')}</div></section>
+          <section class="sec" aria-label="Accepted"><details class="doneline"><summary><svg><use href="#i-chev"/></svg>${done.length} accepted · 2 first time, 1 sent back</summary>
+            <div class="q-list">${done.map((x) => queueRow(x, x.when)).join('')}</div></details></section>
+        </div>
+        <div class="side">
+          <section aria-label="Drafts"><div class="sh"><h3>Drafts</h3><span class="rule"></span><span class="aside">2</span></div>
+            <p class="empty">Two steps are still drafts. A draft is not part of the plan until you promote it.</p><button class="btn secondary">Show drafts</button></section>
+          <section aria-label="Deviations"><div class="sh"><h3>Deviations</h3><span class="rule"></span><span class="aside">1</span></div>
+            <p class="empty">One deviation, on step 3: the service opened its own transaction.</p><button class="btn secondary">Open deviations</button></section>
+          <section aria-label="Flow"><div class="sh"><h3>Flow</h3><span class="rule"></span></div>
+            <p class="empty">Lay these steps out as a flow, with routes between them and a visit budget for each.</p><button class="btn secondary">Attach a flow</button></section>
+        </div>
+      </div>
+      <footer class="dock" aria-label="Decision" data-testid="decision-actions">
+        <p class="note">Select a step to read it. J and K move between steps, Esc comes back here.</p>
+        <div class="keys"><button class="btn primary key" id="review-next">Review next</button></div>
+      </footer>`;
+    dossierEl.querySelectorAll('.q').forEach((b) => b.addEventListener('click', () => select(STEPS[b.dataset.n - 1])));
+    dossierEl.querySelector('#review-next').addEventListener('click', () => select(waiting[0]));
+    dossierEl.querySelector('#next').addEventListener('click', () => select(STEPS[0]));
+  }
+
+  function renderDossier() {
+    if (!current) { renderOverview(); return; }
+    const s = current;
+    const [pillClass, pillText] = PILL[s.state];
+    const failed = s.checks.filter((c) => !c[2]).length;
+    const facts = [
+      s.checks.length ? `<span class="${failed ? 'bad' : 'ok'}">${failed ? '' : '<svg class="i" style="width:12px;height:12px"><use href="#i-check"/></svg>'}${failed ? failed + ' of ' + s.checks.length + ' checks failed' : s.checks.length + ' checks passed'}</span>` : '',
+      s.commits.length ? `<span>${s.commits.length} ${s.commits.length === 1 ? 'commit' : 'commits'}</span>` : '',
+      s.passes.length > 1 || s.state === 'CLAIMED' ? `<span>Pass ${s.passes.length}</span>` : '',
+      s.deviation ? '<span><i class="dot"></i><a>Deviation</a></span>' : ''
+    ].filter(Boolean).join('');
+    const writing = s.state === 'OPEN';
+    const brief = writing
+      ? `<input class="field" style="width:100%;margin-bottom:8px" value="${s.title}" aria-label="Title of the step"><textarea class="source" aria-label="Detail">${s.brief[0].replace(/<code>|<\/code>/g, '`')}\n\n${s.brief[1].map((x) => '- ' + x).join('\n')}</textarea>`
+      : `<div class="prose"><p>${s.brief[0]}</p><ul>${s.brief[1].map((x) => `<li>${x}</li>`).join('')}</ul></div>`;
+    dossierEl.dataset.stepState = s.state;
+    dossierEl.innerHTML = `
+      <header class="d-head">
+        <div class="d-top">
+          ${seal(s, true)}
+          <h2 class="d-title" data-testid="decision-title">${s.title}</h2>
+          <button class="btn quiet" id="overview" title="Back to the overview (Esc)">Overview <kbd class="mono" style="font-size:var(--t-micro);color:var(--subtle)">Esc</kbd></button>
+          <button class="iconbtn" id="prev" title="Previous step (K)" aria-label="Previous step" ${s.n === 1 ? 'disabled' : ''}><svg><use href="#i-up"/></svg></button>
+          <button class="iconbtn" id="next" title="Next step (J)" aria-label="Next step" ${s.n === STEPS.length ? 'disabled' : ''}><svg><use href="#i-down"/></svg></button>
+          <button class="iconbtn" id="focus" title="Hide the steps to read this one" aria-label="Focus on this step" aria-pressed="${workEl.classList.contains('focused')}"><svg><use href="#i-expand"/></svg></button>
+        </div>
+        <p class="facts" data-testid="decision-meta">
+          <span class="pill ${pillClass}" data-testid="decision-state">${pillText}</span>
+          <span>Step ${s.n} of ${STEPS.length}</span>${facts}
+        </p>
+      </header>
+      <div class="d-body">
+        <div class="read">
+          <section class="sec" aria-label="Brief"><div class="sh"><h3>Brief</h3><span class="rule"></span>
+            <div class="seg" role="group" aria-label="Mode"><button aria-pressed="${writing}">Write</button><button aria-pressed="${!writing}">Read</button></div></div>${brief}</section>
+          ${passesBlock(s)}
+        </div>
+        <div class="side">${evidence(s)}</div>
+      </div>
+      <footer class="dock" aria-label="Decision" data-testid="decision-actions">${dock(s)}</footer>`;
+    dossierEl.querySelector('#overview').addEventListener('click', deselect);
+    dossierEl.querySelector('#prev').addEventListener('click', () => select(STEPS[s.n - 2]));
+    dossierEl.querySelector('#next').addEventListener('click', () => select(STEPS[s.n]));
+    dossierEl.querySelector('#focus').addEventListener('click', toggleFocus);
+  }
+
+  function select(step) { if (!step) return; current = step; renderList(); renderDossier(); }
+  function deselect() { current = null; workEl.classList.remove('focused'); renderList(); renderDossier(); }
+  function toggleFocus() { workEl.classList.toggle('focused'); renderDossier(); }
+
+  window.addEventListener('keydown', (event) => {
+    if (event.metaKey || event.ctrlKey || event.altKey || /^(INPUT|TEXTAREA)$/.test(event.target.tagName)) { if (event.key === 'Escape') event.target.blur(); return; }
+    if (event.key === 'j') select(current ? STEPS[current.n] : STEPS[0]);
+    if (event.key === 'k' && current) select(STEPS[current.n - 2]);
+    if (event.key === 'Escape' && current) deselect();
+  });
+
+  renderList();
+  renderDossier();
+  const wanted = /step(\d)/.exec(location.hash);
+  if (wanted) select(STEPS[wanted[1] - 1]);
+  if (location.hash.includes('focus')) toggleFocus();
+</script>
+</body>
+</html>

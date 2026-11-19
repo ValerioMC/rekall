@@ -14,7 +14,7 @@ import type { useConsoleRefreshes } from '../../../stores/console/useConsoleRefr
 import { blankToNull, replaceById, trackSave } from '../../../stores/console/rows'
 
 type ProjectPagePatch = Partial<
-  Pick<ProjectInput, 'description' | 'blueprintMarkdown' | 'repoFolder' | 'autoCommit'>
+  Pick<ProjectInput, 'blueprintMarkdown' | 'repoFolder' | 'autoCommit' | 'mainBranch' | 'pullRequestFlow'>
 >
 
 /** The record dialog writes a project whole; its own page saves one field at a time over what is stored. */
@@ -69,25 +69,24 @@ export function useProjectWrites(
     await trackSave(saveState, async () => {
       const saved = await apiUpdateProject(id, {
         label: current.label,
+        taskKey: null,
         title: current.title,
         status: current.status,
         icon: current.icon,
         companyId: current.companyId,
-        description: 'description' in patch ? patch.description! : current.description,
+        description: current.description,
         blueprintMarkdown:
           'blueprintMarkdown' in patch ? patch.blueprintMarkdown! : current.blueprintMarkdown,
         repoFolder: 'repoFolder' in patch ? patch.repoFolder! : current.repoFolder,
-        autoCommit: 'autoCommit' in patch ? patch.autoCommit! : current.autoCommit
+        autoCommit: 'autoCommit' in patch ? patch.autoCommit! : current.autoCommit,
+        mainBranch: 'mainBranch' in patch ? patch.mainBranch! : current.mainBranch,
+        pullRequestFlow: 'pullRequestFlow' in patch ? patch.pullRequestFlow! : current.pullRequestFlow
       })
       projects.value = replaceById(projects.value, saved)
       tasks.value = tasks.value.map((task) =>
         task.projectId === id ? { ...task, projectRepoFolder: saved.repoFolder } : task
       )
     })
-  }
-
-  function saveProjectDescription(id: ProjectId, description: string): Promise<void> {
-    return patchProject(id, { description: blankToNull(description) })
   }
 
   function saveProjectBlueprint(id: ProjectId, blueprintMarkdown: string): Promise<void> {
@@ -103,14 +102,23 @@ export function useProjectWrites(
     return patchProject(id, { autoCommit })
   }
 
+  function saveProjectMainBranch(id: ProjectId, mainBranch: string): Promise<void> {
+    return patchProject(id, { mainBranch: blankToNull(mainBranch.trim()) })
+  }
+
+  function saveProjectPullRequestFlow(id: ProjectId, pullRequestFlow: boolean): Promise<void> {
+    return patchProject(id, { pullRequestFlow })
+  }
+
   return {
     createProject,
     updateProject,
     deleteProject,
     setProjectIconImage,
-    saveProjectDescription,
     saveProjectBlueprint,
     saveProjectRepoFolder,
-    saveProjectAutoCommit
+    saveProjectAutoCommit,
+    saveProjectMainBranch,
+    saveProjectPullRequestFlow
   }
 }

@@ -28,7 +28,7 @@ export interface PlanAdherence extends AdherenceFigures {
 
 export interface TaskSentBack {
   readonly taskId: TaskId
-  readonly label: string
+  readonly code: string
   readonly title: string
   readonly sentBack: number
   readonly passesTotal: number

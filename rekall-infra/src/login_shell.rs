@@ -48,7 +48,7 @@ impl LoginShellEnvironment {
 
     /// Start the first resolution as the application comes up.
     pub fn warm(self: &Arc<Self>) {
-        let _ = self.refresh();
+        drop(self.refresh());
     }
 
     /// The cached login-shell environment. Only a read made before the first attempt has finished

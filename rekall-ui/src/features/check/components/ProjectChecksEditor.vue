@@ -35,7 +35,7 @@ useCheckStream({ onChecks: (event) => void store.applyProjectEvent(event.project
       sees its output.
     </p>
     <p v-if="needsFolder" class="mb-2 text-small text-warn" role="status" data-testid="checks-need-folder">
-      Set the project's folder above: checks run inside it, and a claim is refused without one.
+      Set the project's folder in Repository: checks run inside it, and a claim is refused without one.
     </p>
     <CheckList
       :project-id="project.id"

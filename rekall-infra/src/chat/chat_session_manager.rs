@@ -24,7 +24,7 @@ use super::chat_session::ChatSession;
 use crate::cli::ClaudeCli;
 use crate::config::ClaudeConfig;
 use crate::connection::CredentialBroker;
-use crate::session::{require_folder, spawn_idle_sweep, ClaudeOptions, EndedBus, SessionLauncher, WorkMarker};
+use crate::session::{require_folder, spawn_idle_sweep, SessionOptions, EndedBus, SessionLauncher, WorkMarker};
 
 const CLOSE_GRACE: Duration = Duration::from_secs(2);
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(1);
@@ -145,7 +145,7 @@ impl ChatSessionManager {
         launch: TerminalLaunch,
         step_id: Option<Id>,
         mode: TerminalMode,
-        options: ClaudeOptions,
+        options: SessionOptions,
         command: Command,
         first_line: &str,
     ) -> Result<Arc<ChatSession>> {
@@ -231,6 +231,9 @@ impl TerminalHost for ChatSessionManager {
     /// with no checklist. A second open on a target that already has a session reuses it: a work open
     /// is retargeted, and every mode has its line sent into that session.
     async fn open(&self, opening: TerminalOpening) -> Result<TerminalView> {
+        if opening.provider == rekall_core::claude::SessionProvider::Codex {
+            return Err(RekallError::illegal("Codex sessions use the terminal view."));
+        }
         let TerminalOpening { target, step_id, skip_permissions, model, effort, mode, .. } = opening;
         let launch = self.launch_service.resolve(target).await?;
         let follows_steps = mode.follows_steps();
@@ -244,7 +247,7 @@ impl TerminalHost for ChatSessionManager {
 
         let directory = require_folder(&launch)?;
         let binary = self.launcher.require_cli().await?;
-        let mut options = ClaudeOptions::chosen(skip_permissions, model.as_deref(), effort.as_deref());
+        let mut options = SessionOptions::chosen(skip_permissions, model.as_deref(), effort.as_deref());
         let id = Id::random();
         let environment = self.launcher.environment(id, &launch, &mut options).await?;
         let command = chat_command(&binary, &options, environment, directory);
@@ -303,6 +306,7 @@ impl TerminalHost for ChatSessionManager {
         self.open(TerminalOpening {
             target: session.launch.target(),
             step_id: None,
+            provider: Default::default(),
             skip_permissions: view.skip_permissions,
             model: view.model,
             effort: view.effort,

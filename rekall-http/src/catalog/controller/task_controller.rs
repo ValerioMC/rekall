@@ -19,7 +19,6 @@ pub fn routes() -> Router<ApiState> {
 
 fn validate(request: &TaskRequest) -> ApiResult<()> {
     Validator::new()
-        .not_blank("label", request.label.as_deref())
         .not_blank("title", request.title.as_deref())
         .finish()
 }

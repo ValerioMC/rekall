@@ -63,7 +63,7 @@ async function attach(graph: DeploymentGraph): Promise<void> {
 </script>
 
 <template>
-  <section class="mb-7 max-w-[640px]" aria-labelledby="graph-attach-heading" data-testid="graph-attach">
+  <section class="mb-7" aria-labelledby="graph-attach-heading" data-testid="graph-attach">
     <h3 id="graph-attach-heading" class="eyebrow">Release with a deployment graph</h3>
     <p class="mt-1 text-small leading-relaxed text-text-muted" data-testid="graph-attach-where">
       {{ props.hasSteps ? 'Its steps go after this checklist, which leads into them.' : 'An implementation step goes first, working from the description, and the graph releases it.' }}

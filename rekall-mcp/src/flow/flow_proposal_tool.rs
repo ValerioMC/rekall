@@ -8,7 +8,7 @@ use crate::protocol::{McpTool, ToolError, ToolSchema};
 use crate::texts;
 use crate::tool::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
 
-/// Lets a session lay a flow whole on a task with no steps: its steps and the routes between them,
+/// Lets a session lay a flow whole on a task with no steps, or only finished ones: its steps and the routes between them,
 /// ready to work, or as drafts a person promotes when the session is asked to propose.
 pub struct FlowProposalTool {
     proposals: FlowProposalService,
@@ -37,7 +37,7 @@ struct RouteArgument {
     to: TargetArgument,
 }
 
-/// A step number in the flow, or `end`; some clients send the number as a string.
+/// A step number in the checklist, or `end`; some clients send the number as a string.
 #[derive(Deserialize)]
 #[serde(untagged)]
 enum TargetArgument {
@@ -63,14 +63,14 @@ impl McpTool for FlowProposalTool {
         ToolSchema::object()
             .required_string(
                 "anchors",
-                "The task to propose the flow for, e.g. `project:vega task:release`. Labels, never titles, and it has \
+                "The task to propose the flow for, e.g. `task:RK-12`. Labels, never titles, and it has \
                  to name exactly one task.",
             )
             .required_object_array(
                 "steps",
                 "The flow's steps in order, the first where it begins: `[{\"title\":\"Run the tests\",\"detail\":\"markdown\",\
                  \"max_visits\":3,\"routes\":[{\"outcome\":\"passed\",\"to\":\"end\"},{\"outcome\":\"app-error\",\"to\":3}]}]`. \
-                 `to` is a step's one-based number in this list, or `end`; `max_visits` (1 to 99) and `new_session` (true opens a fresh session) are optional.",
+                 `to` is a step's one-based number in the task's whole checklist (in this list when nothing stays before it), or `end`; `max_visits` (1 to 99) and `new_session` (true opens a fresh session) are optional.",
             )
             .optional_boolean(
                 "draft",
@@ -86,7 +86,7 @@ impl McpTool for FlowProposalTool {
         let staging = if args.flag("draft") { Staging::Draft } else { Staging::Ready };
         let proposed = self
             .proposals
-            .propose(target.project_label.as_deref(), &target.task_label, &plan, staging)
+            .propose(target.project_label.as_deref(), &target.task_code, &plan, staging)
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
         let report = if staging == Staging::Ready { texts::FLOW_LAID_REPORT } else { texts::PROPOSED_FLOW_REPORT };
@@ -134,7 +134,7 @@ fn target_index(step_title: &str, target: &TargetArgument) -> Result<Option<usiz
     match number {
         Some(number) if number >= 1 => Ok(Some(number - 1)),
         _ => Err(ToolError::Illegal(format!(
-            "A route of '{step_title}' leads nowhere: `to` is a step's one-based number in this flow, or `end`."
+            "A route of '{step_title}' leads nowhere: `to` is a step's one-based number in the checklist, or `end`."
         ))),
     }
 }

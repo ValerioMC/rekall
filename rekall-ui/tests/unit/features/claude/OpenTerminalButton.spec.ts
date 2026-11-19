@@ -6,7 +6,13 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
-import type { Task, TaskStep } from '@/features/catalog/model/catalog'
+import { setPreferredEffort, setPreferredModel, setPreferredSessionKind, setSkipsPermissions } from '@/common/config/claude-launch'
+import { preferredProvider, setCodexEffort, setCodexModel, setPreferredProvider } from '@/common/config/session-launch'
+import { useCodexStore } from '@/features/codex/store/codex.store'
+import { installStorage } from '../../support/memoryStorage'
+import { installBothSessionProviders } from '../../support/sessionProviders'
+import type { Task } from '@/features/catalog/model/catalog'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { Terminal } from '@/features/claude/model/terminal'
 import { EMPTY_RUN_QUEUE, asRunQueueItemId, type RunQueue, type RunQueueItem } from '@/features/queue/model/runQueue'
 import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
@@ -50,9 +56,10 @@ function terminal(): Terminal {
     anchors: 'project:vega task:report-builder',
     workingDir: '/code/vega',
     projectLabel: 'vega',
-    taskLabel: 'report-builder',
+    taskCode: 'report-builder',
     taskTitle: 'Report builder',
     mode: 'WORK',
+    provider: 'CLAUDE',
     skipPermissions: true,
     model: null,
     effort: null,
@@ -70,7 +77,7 @@ function queueItem(taskId: TaskId, position: number, state: RunQueueItem['state'
     id: asRunQueueItemId(`item-${position}`),
     taskId,
     taskTitle: 'Task',
-    taskLabel: 'task',
+    taskCode: 'task',
     projectLabel: 'vega',
     anchor: 'project:vega task:task',
     position,
@@ -104,6 +111,7 @@ function mountButton(folder: string | null = '/code/vega', stepId: TaskStepId | 
 
 describe('the Run here button', () => {
   beforeEach(() => {
+    installStorage()
     setActivePinia(createPinia())
     openTerminal.mockReset()
     releaseOnRun.mockReset().mockResolvedValue(null)
@@ -277,6 +285,8 @@ describe('the Run here button', () => {
   })
 
   it('opens a menu from the arrow with Run in queue and Plan here, each a name with no description', async () => {
+    installBothSessionProviders()
+    useCodexStore().setup = { status: 'CLI_MISSING' }
     const wrapper = mountButton()
 
     await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
@@ -285,6 +295,44 @@ describe('the Run here button', () => {
     expect(menuLabels()).toEqual(['Run in queue', 'Plan here', 'Plan a flow'])
     expect(menu?.querySelectorAll('[role="menuitem"] svg')).toHaveLength(3)
     expect(wrapper.get('[data-testid="run-menu-arrow"]').attributes('aria-haspopup')).toBe('menu')
+    wrapper.unmount()
+  })
+
+  it('marks each Run with entry with its provider mark', async () => {
+    installBothSessionProviders()
+    const wrapper = mountButton()
+
+    await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
+
+    const markOf = (provider: string): string | null =>
+      document.body.querySelector(`[data-testid="run-with-${provider}"] svg`)?.getAttribute('data-provider') ?? null
+    expect(markOf('CLAUDE')).toBe('CLAUDE')
+    expect(markOf('CODEX')).toBe('CODEX')
+    wrapper.unmount()
+  })
+
+  it.each([
+    { defaultProvider: 'CODEX', provider: 'CLAUDE', model: 'sonnet', effort: 'low', kind: 'CHAT', skipPermissions: true },
+    { defaultProvider: 'CLAUDE', provider: 'CODEX', model: 'gpt-test', effort: 'xhigh', kind: 'TERMINAL', skipPermissions: false }
+  ] as const)('runs once with $provider from the arrow menu', async ({ defaultProvider, ...choices }) => {
+    installBothSessionProviders()
+    setPreferredProvider(defaultProvider)
+    setPreferredModel('sonnet')
+    setPreferredEffort('low')
+    setPreferredSessionKind('chat')
+    setSkipsPermissions(true)
+    setCodexModel('gpt-test')
+    setCodexEffort('xhigh')
+    openTerminal.mockResolvedValue({ ...terminal(), provider: choices.provider, kind: choices.kind })
+    const wrapper = mountButton()
+
+    await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
+    expect(menuLabels().slice(0, 2)).toEqual(['Run with Claude Code', 'Run with Codex'])
+    document.body.querySelector<HTMLButtonElement>(`[data-testid="run-with-${choices.provider}"]`)!.click()
+    await flushPromises()
+
+    expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining(choices))
+    expect(preferredProvider()).toBe(defaultProvider)
     wrapper.unmount()
   })
 
@@ -396,14 +444,14 @@ describe('planning from the Run here arrow', () => {
     document.body.innerHTML = ''
   })
 
-  it('opens a planning session when none is live on the task', async () => {
+  it('opens a planning session when none is live on the task, and stays on the view it is on', async () => {
     openTerminal.mockResolvedValue({ ...terminal(), id: 'term-2' as TerminalId })
     const openPane = vi.spyOn(useConsoleStore(), 'openTerminal')
 
     await choose(mountPlanning(), 'plan-here')
 
     expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'PLAN' }))
-    expect(openPane).toHaveBeenCalled()
+    expect(openPane).not.toHaveBeenCalled()
   })
 
   it('types the plan line into the session live on the task', async () => {

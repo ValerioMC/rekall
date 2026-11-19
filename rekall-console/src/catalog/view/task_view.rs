@@ -6,6 +6,7 @@ use crate::catalog::TaskGraph;
 #[derive(Clone, Debug)]
 pub struct TaskView {
     pub id: Id,
+    pub code: String,
     pub label: String,
     pub title: String,
     pub status: TaskStatus,
@@ -35,6 +36,14 @@ pub struct TaskView {
     pub quick: bool,
     pub auto_accepted: bool,
     pub depends_on: Vec<Id>,
+    pub tracker_issue_key: Option<String>,
+    pub tracker_issue_url: Option<String>,
+    pub tracker_sync_error: Option<String>,
+    pub tracker_content_synced: bool,
+    pub pull_request_number: Option<i64>,
+    pub pull_request_url: Option<String>,
+    pub pull_request_failure: Option<String>,
+    pub pull_request_merged_at: Option<Instant>,
     pub anchor: String,
     pub updated_at: Instant,
 }
@@ -45,6 +54,7 @@ impl TaskView {
         let project = graph.project;
         Self {
             id: task.id,
+            code: task.code.clone(),
             label: task.label.clone(),
             title: task.title.clone(),
             status: task.status,
@@ -74,7 +84,15 @@ impl TaskView {
             quick: task.quick,
             auto_accepted: task.auto_accepted,
             depends_on: graph.depends_on.clone(),
-            anchor: task.anchor(&project.label),
+            tracker_issue_key: graph.tracker_link.and_then(|link| link.issue_key.clone()),
+            tracker_issue_url: graph.tracker_link.and_then(|link| link.issue_url.clone()),
+            tracker_sync_error: graph.tracker_link.and_then(|link| link.sync_error.clone()),
+            tracker_content_synced: graph.tracker_link.is_some_and(|link| link.holds_content_of(task)),
+            pull_request_number: graph.pull_request.and_then(|pull_request| pull_request.number),
+            pull_request_url: graph.pull_request.and_then(|pull_request| pull_request.url.clone()),
+            pull_request_failure: graph.pull_request.and_then(|pull_request| pull_request.failure.clone()),
+            pull_request_merged_at: graph.pull_request.and_then(|pull_request| pull_request.merged_at),
+            anchor: task.anchor(),
             updated_at: task.updated_at,
         }
     }
