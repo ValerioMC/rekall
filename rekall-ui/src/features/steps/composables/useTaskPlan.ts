@@ -4,7 +4,8 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useCheckStream } from '@/features/check/composables/useCheckStream'
 import { useChecksStore } from '@/features/check/store/checks.store'
 import { provideStepEditor, type StepEditor } from '@/features/steps/composables/useStepEditor'
-import { groupBySession, type StepSession } from '@/features/steps/lib/step-sessions'
+import { openerHandover, planStepMove, type SessionChange } from '@/features/steps/lib/step-order'
+import { groupBySession, visibleSessions as sessionsShown, type StepSession } from '@/features/steps/lib/step-sessions'
 import { stepIsComplete, type TaskStep } from '@/features/steps/model/task-step'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { SkillAssignment } from '@/features/skills/model/skill-assignment'
@@ -21,6 +22,8 @@ export interface TaskPlan {
   readonly draftSteps: ComputedRef<readonly TaskStep[]>
   readonly visibleSteps: ComputedRef<readonly TaskStep[]>
   readonly sessions: ComputedRef<readonly StepSession[]>
+  /** The sessions as the list shows them, with the done steps left out while they are hidden. */
+  readonly visibleSessions: ComputedRef<readonly StepSession[]>
   readonly allDone: ComputedRef<boolean>
   readonly currentId: ComputedRef<TaskStepId | null>
   readonly running: ComputedRef<boolean>
@@ -42,6 +45,8 @@ export interface TaskPlan {
   sendBack: (step: TaskStep) => Promise<void>
   reopen: (step: TaskStep) => Promise<void>
   move: (step: TaskStep, by: number) => Promise<void>
+  reorder: (step: TaskStep, target: TaskStep, after: boolean) => Promise<void>
+  nudge: (step: TaskStep, by: number) => Promise<void>
   promote: (step: TaskStep) => Promise<void>
   returnToDraft: (step: TaskStep) => Promise<void>
   removeDeleting: () => Promise<void>
@@ -78,6 +83,7 @@ export function useTaskPlan(): TaskPlan {
   const visibleSteps = computed(() =>
     hideDone.value ? checklistSteps.value.filter((step) => !step.done) : checklistSteps.value
   )
+  const visibleSessions = computed(() => sessionsShown(sessions.value, hideDone.value))
 
   const view = ref<'list' | 'flow'>('list')
   const isFlow = computed(() => checklistSteps.value.some((step) => step.links.length > 0))
@@ -139,6 +145,13 @@ export function useTaskPlan(): TaskPlan {
     })
   }
 
+  function offerToUndoTick(step: TaskStep): void {
+    toast.notify(`Marked ${step.title} done`, {
+      label: 'Undo',
+      run: () => void run(() => store.reopenStep(step.id))
+    })
+  }
+
   /** Ticks an open step or accepts a claimed one; the open detail moves on to the next claim to review, else the next step. */
   async function markForward(step: TaskStep): Promise<void> {
     if (step.state === 'DONE') return
@@ -146,7 +159,7 @@ export function useTaskPlan(): TaskPlan {
     const wasClaimed = step.state === 'CLAIMED'
     editor.flush()
     const outcome = await run(() => (wasClaimed ? store.acceptStep(step.id) : store.toggleStep(step.id)))
-    if (wasClaimed && outcome !== null) offerToReopenAccepted(step)
+    if (outcome !== null) (wasClaimed ? offerToReopenAccepted : offerToUndoTick)(step)
     if (!wasOpenHere) return
     const next = stepAwaitingDecision(step.id) ?? nextUnfinishedStep(step.id)
     if (next) editor.open(next)
@@ -190,6 +203,28 @@ export function useTaskPlan(): TaskPlan {
     await run(() => store.moveStep(step.id, step.position + by))
   }
 
+  async function applySessionChanges(changes: readonly SessionChange[]): Promise<void> {
+    for (const change of changes) await store.beginStepSession(change.step.id, change.startsSession)
+  }
+
+  /** Puts an open step before or after another, regrouping the sessions around it as the move needs. */
+  async function reorder(step: TaskStep, target: TaskStep, after: boolean): Promise<void> {
+    const plan = planStepMove(checklistSteps.value, step, target, after)
+    if (!plan) return
+    editor.flush()
+    await run(async () => {
+      await store.moveStep(step.id, plan.position)
+      await applySessionChanges(plan.sessionChanges)
+    })
+  }
+
+  /** The keyboard's move: one place up or down, never past a step that has been started. */
+  async function nudge(step: TaskStep, by: number): Promise<void> {
+    const neighbour = checklistSteps.value[checklistSteps.value.indexOf(step) + by]
+    if (step.state !== 'OPEN' || neighbour?.state !== 'OPEN') return
+    await reorder(step, neighbour, by > 0)
+  }
+
   const promoting = ref<TaskStepId | null>(null)
 
   async function promote(step: TaskStep): Promise<void> {
@@ -202,9 +237,25 @@ export function useTaskPlan(): TaskPlan {
     }
   }
 
+  /** Takes the step off the plan, and offers to put it back where it was, sessions included. */
   async function returnToDraft(step: TaskStep): Promise<void> {
+    const { position } = step
+    const handover = openerHandover(checklistSteps.value, step)
     editor.flush()
-    await run(() => store.returnStepToDraft(step.id))
+    const outcome = await run(async () => {
+      await store.returnStepToDraft(step.id)
+      await applySessionChanges(handover)
+    })
+    if (outcome === null) return
+    toast.notify(`${step.title} is a draft now`, {
+      label: 'Undo',
+      run: () =>
+        void run(async () => {
+          await store.promoteStep(step.id)
+          await store.moveStep(step.id, position)
+          await applySessionChanges(handover.map(({ step: successor }) => ({ step: successor, startsSession: false })))
+        })
+    })
   }
 
   const deleting = ref<TaskStep | null>(null)
@@ -219,7 +270,11 @@ export function useTaskPlan(): TaskPlan {
     deleting.value = null
     if (!step) return
     if (editor.expandedId.value === step.id) editor.close()
-    await run(() => store.removeStep(step.id))
+    const handover = openerHandover(checklistSteps.value, step)
+    await run(async () => {
+      await store.removeStep(step.id)
+      await applySessionChanges(handover)
+    })
   }
 
   const newTitle = ref('')
@@ -258,6 +313,7 @@ export function useTaskPlan(): TaskPlan {
     draftSteps,
     visibleSteps,
     sessions,
+    visibleSessions,
     allDone,
     currentId,
     running,
@@ -279,6 +335,8 @@ export function useTaskPlan(): TaskPlan {
     sendBack,
     reopen,
     move,
+    reorder,
+    nudge,
     promote,
     returnToDraft,
     removeDeleting,

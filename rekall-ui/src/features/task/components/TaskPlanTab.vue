@@ -6,7 +6,7 @@ import StepFlowView from '@/features/flow/components/StepFlowView.vue'
 import GraphAttachPanel from '@/features/graph/components/GraphAttachPanel.vue'
 import PlanBar from '@/features/steps/components/PlanBar.vue'
 import PlanOverview from '@/features/steps/components/PlanOverview.vue'
-import PlanStepRow from '@/features/steps/components/PlanStepRow.vue'
+import PlanSessionList from '@/features/steps/components/PlanSessionList.vue'
 import StepAddForm from '@/features/steps/components/StepAddForm.vue'
 import StepDecisionPanel from '@/features/steps/components/StepDecisionPanel.vue'
 import StepDraftShelf from '@/features/steps/components/StepDraftShelf.vue'
@@ -41,7 +41,7 @@ const {
   checklistSteps,
   draftSteps,
   visibleSteps,
-  sessions,
+  visibleSessions,
   allDone,
   currentId,
   firstClaimed,
@@ -170,8 +170,10 @@ function openDeviation(stepNumber: number): void {
   void router.push({ name: 'task', params: { id: props.task.id, tab: 'deviations' } })
 }
 
-function canChooseSession(step: TaskStep): boolean {
-  return sessions.value[0]?.steps[0]?.id !== step.id
+async function nudge(step: TaskStep, by: number): Promise<void> {
+  await plan.nudge(step, by)
+  await nextTick()
+  listEl.value?.querySelector<HTMLElement>(`[data-step-id="${step.id}"] [data-testid="plan-step-title"]`)?.focus()
 }
 </script>
 
@@ -215,25 +217,20 @@ function canChooseSession(step: TaskStep): boolean {
                 Every step is done. Show them again to correct one.
               </p>
               <template v-else>
-                <ol class="flex flex-col gap-0.5" data-testid="plan-steps">
-                  <PlanStepRow
-                    v-for="step in visibleSteps"
-                    :key="step.id"
-                    :step="step"
-                    :number="numberOf(step)"
-                    :selected="selectedStep?.id === step.id"
-                    :is-next="step.id === currentId"
-                    :all-done="allDone"
-                    :is-last="step.position === checklistSteps.length - 1"
-                    :can-choose-session="canChooseSession(step)"
-                    @select="select(step)"
-                    @mark-forward="plan.markForward(step)"
-                    @to-draft="plan.returnToDraft(step)"
-                    @move="(by) => plan.move(step, by)"
-                    @remove="deleting = step"
-                    @session="(startsSession) => plan.chooseSession(step, startsSession)"
-                  />
-                </ol>
+                <PlanSessionList
+                  :sessions="visibleSessions"
+                  :selected-id="selectedStep?.id ?? null"
+                  :current-id="currentId"
+                  :all-done="allDone"
+                  :number-of="numberOf"
+                  @select="select"
+                  @mark-forward="plan.markForward"
+                  @to-draft="plan.returnToDraft"
+                  @remove="(step) => (deleting = step)"
+                  @nudge="nudge"
+                  @reorder="plan.reorder"
+                  @session="(step, startsSession) => plan.chooseSession(step, startsSession)"
+                />
                 <p class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 px-2 text-caption text-text-subtle" data-testid="plan-pass-legend">
                   <span class="flex gap-0.5" aria-hidden="true">
                     <span class="h-1.5 w-3 rounded-key bg-warn" />

@@ -4,11 +4,12 @@ import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 export type PopoverMenuEntry =
   | Readonly<{ kind: 'heading'; label: string }>
   | Readonly<{ kind: 'separator' }>
-  | Readonly<{ kind: 'item'; id: string; label: string; current?: boolean }>
+  | Readonly<{ kind: 'item'; id: string; label: string; current?: boolean; hint?: string; tone?: 'danger' }>
 
 /**
  * A small menu under its own trigger. Arrow keys walk the items, Escape closes and returns the
- * focus to the trigger, a press outside closes, and picking an item closes it too.
+ * focus to the trigger, a press outside closes, and picking an item closes it too. An item may
+ * carry a hint that says what it does, and a danger tone for what cannot be taken back.
  */
 defineProps<{ entries: readonly PopoverMenuEntry[]; label: string; align?: 'left' | 'right' }>()
 
@@ -87,13 +88,17 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onPointerDown, t
             v-else
             type="button"
             role="menuitem"
-            class="focus-ring flex w-full cursor-pointer items-center gap-2.5 rounded-control px-2.5 py-2 text-left text-small transition-colors duration-(--motion-quick)"
-            :class="entry.current ? 'bg-surface-raised text-text' : 'text-text-muted hover:bg-surface-raised hover:text-text'"
+            class="focus-ring flex w-full cursor-pointer flex-col items-start gap-0.5 rounded-control px-2.5 py-2 text-left text-small transition-colors duration-(--motion-quick)"
+            :class="[
+              entry.current ? 'bg-surface-raised text-text' : 'hover:bg-surface-raised hover:text-text',
+              !entry.current && (entry.tone === 'danger' ? 'text-danger' : 'text-text-muted')
+            ]"
             :aria-current="entry.current ? 'true' : undefined"
             data-testid="popover-menu-item"
             @click="pick(entry.id)"
           >
             {{ entry.label }}
+            <span v-if="entry.hint" class="text-caption font-normal text-text-subtle" data-testid="popover-menu-hint">{{ entry.hint }}</span>
           </button>
         </template>
       </div>

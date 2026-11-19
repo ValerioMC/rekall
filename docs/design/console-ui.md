@@ -188,12 +188,26 @@ line, and a flow's visits against each budget. It takes no height while it is cl
 Escape or a press outside.
 
 Under it, with the list view, the left zone is the step list, a column of 420px that keeps its
-width whether or not a step is selected. A row is the step's seal, its number and its title (two
-lines before it is cut), and under the title where the step stands (claimed or done and when,
-working now, open) with one bar for each pass at it: yellow for a pass sent back, green for the one
-accepted, indigo for the one a session has in hand. The hover keys (Accept or Done, New session, To
-draft, move, delete) lie over the end of the row instead of taking a column. Under the rows come
-the drafts with Promote and the line, docked at the foot, that adds a draft (a new step is a draft).
+width whether or not a step is selected. The steps are grouped by the Claude session they run in
+(`PlanSessionList`, `PlanSessionGroup`). A session has a header saying where it stands (accepted,
+working now, waiting for you, not started), and a thread through the seals of its steps (`StepThread`)
+that breaks where a fresh session starts. The seam between two steps that can still change session shows
+**New session from here** under the pointer or the keyboard (`StepSessionGap`), and the header of a
+session that has not started offers **Join session above**. A session whose steps are all accepted
+folds to its header while work remains elsewhere, and opens when one of its steps is selected.
+
+A row is the step's seal, its number and its title (two lines before it is cut), and under the title
+where the step stands (claimed or done and when, working now, open) with one bar for each pass at it:
+yellow for a pass sent back, green for the one accepted, indigo for the one a session has in hand.
+Nothing lies over the title. The seal is the decision (Accept a claim, Mark done on an open step) and
+names it under the pointer; ticking or accepting offers an Undo or Reopen toast. An open step also has a
+handle that replaces its number under the pointer, to drag it to another place (or Alt with the arrow
+keys), and a **⋯** menu with Return to draft and Delete step…, each with a line saying what it does
+(`PlanStepMenu`). A step that has been started has neither. A moved step joins the session it lands in,
+and a step that opens a session hands the opening to the step behind it when it leaves, so moving,
+returning to draft or deleting never merges two sessions (`planStepMove`, `openerHandover`); returning
+to draft offers an Undo that restores the place and the sessions. Under the rows come the drafts with
+Promote and the line, docked at the foot, that adds a draft (a new step is a draft).
 
 With the flow view the graph owns the whole workspace beside the picked step's routes and visits (a
 column of 340px). It opens fitted to the canvas; a flow of more than six ranks wraps into columns of

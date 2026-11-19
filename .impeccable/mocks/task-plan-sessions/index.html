@@ -1,0 +1,784 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Task Plan sessions</title>
+<style>
+  @font-face { font-family: 'Fira Sans'; font-weight: 400; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 500; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 600; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Code'; font-weight: 300 700; src: url('../../../rekall-ui/node_modules/@fontsource-variable/fira-code/files/fira-code-latin-wght-normal.woff2') format('woff2'); }
+
+  :root {
+    --canvas: #0d1017; --surface: #151922; --raised: #1d2330; --hover: #262d3c;
+    --border: #2a3243; --border-strong: #3b4558; --border-field: #5e6a82;
+    --text: #f2f5f9; --muted: #a3acba; --subtle: #8c96a6;
+    --accent: #eaa43c; --accent-strong: #ffd88e; --accent-deep: #a8651a; --accent-soft: #eaa43c24; --accent-ink: #2b1804;
+    --anchor: #55c9ea;
+    --session: #7c83f7; --session-strong: #b4b9ff; --session-soft: #7c83f71f;
+    --safe: #3ddc97; --safe-soft: #3ddc971a; --warn: #f3c04a; --danger: #fb7185;
+    --font-sans: 'Fira Sans', ui-sans-serif, -apple-system, sans-serif;
+    --font-mono: 'Fira Code', ui-monospace, Menlo, monospace;
+    --t-micro: 11px; --t-caption: 11.5px; --t-small: 12.5px; --t-body: 13.5px; --t-title: 15px; --t-heading: 19px;
+    --r-key: 3px; --r-control: 5px; --r-card: 8px;
+    --ease: cubic-bezier(.22, 1, .36, 1);
+    --seal: 22px;
+    --pad: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--canvas); color: var(--text); font: 400 var(--t-body)/1.4 var(--font-sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; text-align: left; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button:disabled { cursor: default; }
+  ::selection { background: var(--accent-soft); color: var(--accent-strong); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; border: 2px solid var(--canvas); }
+  .mono { font-family: var(--font-mono); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  svg.i { width: 14px; height: 14px; flex: none; }
+
+  .app { display: flex; flex-direction: column; height: 100vh; }
+
+  .topbar { height: 48px; flex: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 620px) minmax(0, 1fr); gap: 12px; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .brand { font-weight: 600; font-size: var(--t-title); letter-spacing: -0.01em; }
+  .search { height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); color: var(--subtle); font-size: var(--t-small); }
+  .search kbd { margin-left: auto; font: 400 var(--t-micro) var(--font-mono); border: 1px solid var(--border-strong); border-radius: var(--r-key); padding: 0 7px; }
+  .capsule { justify-self: end; white-space: nowrap; height: 32px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); color: var(--muted); font-size: var(--t-small); }
+  .capsule .rv { color: var(--accent); font-weight: 600; }
+
+  .head { flex: none; padding: 10px 24px 0; }
+  .crumbs { display: flex; align-items: center; gap: 8px; min-height: 28px; color: var(--muted); font-size: var(--t-small); }
+  .crumbs span { color: var(--subtle); }
+  .anchor { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--r-key); background: var(--surface); color: var(--anchor); font: 400 var(--t-caption) var(--font-mono); }
+  h1 { margin: 2px 0 10px; font-size: var(--t-heading); font-weight: 600; letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .body { flex: 1; min-height: 0; display: flex; border-top: 1px solid var(--border); }
+  .rail { flex: none; width: 52px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; }
+  .rail i { width: 36px; height: 36px; border-radius: var(--r-control); background: var(--raised); opacity: .55; }
+  .rail i:first-child { opacity: 1; box-shadow: inset 0 0 0 1px var(--border-strong); }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .tabs { flex: none; height: 40px; display: flex; align-items: flex-end; gap: 22px; padding: 0 24px; border-bottom: 1px solid var(--border); }
+  .tab { position: relative; height: 100%; display: flex; align-items: center; gap: 6px; font-size: var(--t-body); color: var(--muted); }
+  .tab .c { font: 400 var(--t-micro) var(--font-mono); color: var(--subtle); }
+  .tab .wait { font: 600 var(--t-micro) var(--font-mono); color: var(--accent-ink); background: var(--accent); border-radius: 9px; padding: 0 8px; line-height: 16px; }
+  .tab[aria-current="page"] { color: var(--text); }
+  .tab[aria-current="page"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); border-radius: 2px; }
+
+  .plan { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+  .planbar { flex: none; display: flex; align-items: center; gap: 20px; padding: 12px 24px; }
+  .tube { width: 320px; height: 10px; display: flex; gap: 2px; border-radius: 9999px; overflow: hidden; background: #0a0d13; box-shadow: inset 0 2px 4px rgb(0 0 0 / .5), 0 1px 0 rgb(255 255 255 / .035); }
+  .tube i { display: block; height: 100%; transition: flex-grow 420ms var(--ease); }
+  .tube .done { background: linear-gradient(180deg, var(--accent-strong), var(--accent) 45%, var(--accent-deep)); border-radius: 9999px 0 0 9999px; }
+  .tube .claimed { background: var(--session); opacity: .85; }
+  .tally { font-size: var(--t-small); color: var(--muted); }
+  .tally b { color: var(--text); font-weight: 500; }
+  .tally .sp { margin: 0 8px; color: var(--border-strong); }
+
+  .work { flex: 1; min-height: 0; display: flex; border-top: 1px solid var(--border); }
+
+  .list { flex: none; width: 470px; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border); }
+  .list-h { flex: none; height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 14px 0 16px; }
+  .list-h h2 { font-size: var(--t-title); font-weight: 600; }
+  .list-h .n { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .list-h .sp { flex: 1; }
+  .views { display: flex; gap: 2px; padding: 2px; border-radius: var(--r-control); background: var(--canvas); border: 1px solid var(--border); }
+  .views button { height: 22px; padding: 0 9px; border-radius: var(--r-key); font-size: var(--t-small); font-weight: 500; color: var(--muted); }
+  .views button[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06); }
+  .list-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 10px 16px; }
+
+  .session { position: relative; margin-top: 18px; }
+  .session:first-child { margin-top: 2px; }
+  .s-head { position: relative; width: 100%; display: grid; grid-template-columns: var(--seal) minmax(0, 1fr) auto; align-items: center; gap: 0 10px; min-height: 36px; padding: 0 var(--pad); border-radius: var(--r-control); }
+  button.s-head:hover { background: var(--hover); }
+  .s-orb { position: relative; width: var(--seal); height: var(--seal); display: grid; place-items: center; border-radius: 50%; background: var(--canvas); border: 1.5px solid var(--border-field); color: var(--subtle); z-index: 1; }
+  .s-orb svg { width: 11px; height: 11px; }
+  .s-orb i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .session[data-state="working"] .s-orb { border-color: var(--session); color: var(--session); }
+  .session[data-state="working"] .s-orb i { animation: pulse 1.6s ease-in-out infinite; }
+  .session[data-state="working"] .s-orb::after { content: ""; position: absolute; inset: -1.5px; border-radius: 50%; border: 1.5px solid transparent; border-top-color: var(--session); animation: spin 1.1s linear infinite; }
+  .session[data-state="waiting"] .s-orb { border-color: var(--session); border-style: dashed; color: var(--session-strong); background: var(--session-soft); }
+  .session[data-state="accepted"] .s-orb { border-color: var(--border-strong); color: var(--safe); }
+  .s-title { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+  .s-title b { font-size: var(--t-body); font-weight: 600; white-space: nowrap; }
+  .s-title span { font-size: var(--t-caption); color: var(--subtle); white-space: nowrap; }
+  .session[data-state="working"] .s-title span, .session[data-state="waiting"] .s-title span { color: var(--session-strong); }
+  .s-title .chev { width: 9px; height: 9px; align-self: center; color: var(--subtle); transition: transform 140ms var(--ease); }
+  .session[data-open="true"] .s-title .chev { transform: rotate(90deg); }
+  .s-act { display: flex; gap: 2px; align-items: center; }
+  .key { height: 24px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: var(--r-key); font-size: var(--t-small); font-weight: 500; color: var(--muted); white-space: nowrap; transition: background 140ms, color 140ms; }
+  .key:hover:not(:disabled) { background: var(--raised); color: var(--text); }
+  .key.edge { background: var(--raised); border: 1px solid var(--border-strong); color: var(--text); box-shadow: inset 0 1px 0 rgb(255 255 255 / .07), 0 1px 1px rgb(0 0 0 / .35); }
+  .key.edge:hover:not(:disabled) { background: var(--hover); }
+  .key:disabled { color: var(--subtle); opacity: .7; }
+  .key svg { width: 12px; height: 12px; }
+  .s-act .reveal { opacity: 0; transition: opacity 140ms; }
+  .session:hover .s-act .reveal, .s-head:focus-within .s-act .reveal, .s-act .reveal:focus-visible { opacity: 1; }
+
+  .thread { position: absolute; left: calc(var(--pad) + 10px); top: 28px; width: 2px; bottom: 22px; border-radius: 2px; background: var(--session); opacity: .55; }
+  .session[data-state="accepted"] .thread { background: var(--border-strong); opacity: 1; }
+  .session[data-state="idle"] .thread { background: repeating-linear-gradient(180deg, var(--border-field) 0 4px, transparent 4px 8px); opacity: .7; }
+  .session[data-state="working"] .thread { opacity: .9; }
+
+  .steps { list-style: none; padding: 0; display: flex; flex-direction: column; margin-top: 2px; }
+  .gap { position: relative; height: 6px; margin-left: calc(var(--pad) + var(--seal) + 10px); margin-right: var(--pad); }
+  .gap button { position: absolute; left: 0; right: 0; top: -9px; height: 24px; display: flex; align-items: center; gap: 10px; opacity: 0; z-index: 2; color: var(--session-strong); font-size: var(--t-caption); font-weight: 500; transition: opacity 140ms; }
+  .gap button::before { content: ""; flex: none; width: 12px; border-top: 1px dashed var(--session); }
+  .gap button::after { content: ""; flex: 1; border-top: 1px dashed #7c83f766; }
+  .gap button span { display: inline-flex; align-items: center; gap: 5px; background: var(--canvas); padding: 0 2px; }
+  .gap button svg { width: 11px; height: 11px; }
+  .gap:hover button, .gap button:focus-visible { opacity: 1; }
+  .gap button:focus-visible { outline-offset: -2px; }
+
+  .step { position: relative; width: 100%; display: grid; grid-template-columns: var(--seal) 18px minmax(0, 1fr); align-items: start; gap: 0 10px; padding: 8px var(--pad); border-radius: var(--r-control); cursor: pointer; }
+  .step:hover { background: var(--hover); }
+  .step[aria-current="true"] { background: var(--accent-soft); box-shadow: inset 0 0 0 1px #eaa43c59; }
+  .step .no { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); padding-top: 3px; text-align: right; }
+  .step .ti { font-size: var(--t-body); color: var(--text); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .step[data-state="DONE"] .ti { color: var(--subtle); text-decoration: line-through; text-decoration-color: #8c96a680; }
+  .step .meta { margin-top: 2px; display: flex; align-items: center; gap: 10px; font-size: var(--t-caption); color: var(--subtle); }
+  .step .meta .st { flex: 1; min-width: 0; }
+  .step .meta .st.wait { color: var(--session-strong); font-weight: 500; }
+  .step .meta .st.run { color: var(--session-strong); }
+  .pips { display: flex; gap: 2px; flex: none; }
+  .pips i { width: 14px; height: 6px; border-radius: var(--r-key); background: var(--safe); }
+  .pips i.live { background: var(--session); }
+  .seal { position: relative; z-index: 1; width: var(--seal); height: var(--seal); display: grid; place-items: center; border-radius: 50%; background: var(--canvas); border: 1.5px solid var(--border-field); color: transparent; }
+  .seal svg { width: 12px; height: 12px; }
+  .seal.DONE { background: var(--safe); border-color: var(--safe); color: #06281b; }
+  .seal.CLAIMED { border-color: var(--session); color: var(--session-strong); background: #1a1f3d; border-style: dashed; }
+  .seal.RUNNING { border-color: #7c83f755; }
+  .seal.RUNNING::after { content: ""; position: absolute; inset: -1.5px; border-radius: 50%; border: 1.5px solid transparent; border-top-color: var(--session); animation: spin 1.1s linear infinite; }
+  .seal.RUNNING i { width: 7px; height: 7px; border-radius: 50%; background: var(--session); animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 50% { opacity: .35; } }
+
+  .list-foot { flex: none; display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--border); }
+  .field { flex: 1; min-width: 0; height: 32px; padding: 0 10px; border: 1px solid var(--border-field); border-radius: var(--r-control); background: var(--canvas); color: var(--text); font: inherit; font-size: var(--t-body); }
+  .field::placeholder { color: var(--subtle); }
+  .field:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); outline: none; }
+  .btn { height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; border-radius: var(--r-control); font-size: var(--t-body); font-weight: 500; white-space: nowrap; }
+  .btn.secondary { background: var(--raised); border: 1px solid var(--border-strong); box-shadow: inset 0 1px 0 rgb(255 255 255 / .07), 0 1px 1px rgb(0 0 0 / .35); }
+  .btn.secondary:hover { background: var(--hover); }
+  .btn.primary { background: linear-gradient(180deg, var(--accent-strong), var(--accent) 45%, var(--accent-deep)); color: var(--accent-ink); font-weight: 600; box-shadow: inset 0 1px 0 rgb(255 255 255 / .35), 0 1px 1px rgb(0 0 0 / .4); }
+  .btn.primary:hover { filter: brightness(1.06); }
+  .btn.quiet { color: var(--muted); padding: 0 10px; }
+  .btn.quiet:hover { background: var(--raised); color: var(--text); }
+
+  .dossier { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--surface); }
+  .inner { width: 100%; max-width: 76rem; margin-inline: auto; }
+  .d-head { flex: none; border-bottom: 1px solid var(--border); }
+  .d-head .inner { padding: 14px 20px 12px 28px; }
+  .d-top { display: flex; align-items: flex-start; gap: 12px; }
+  .d-top .seal { margin-top: 2px; }
+  .d-title { flex: 1; min-width: 0; font-size: var(--t-heading); font-weight: 500; letter-spacing: -0.015em; line-height: 1.3; text-wrap: balance; }
+  .ctl { margin-left: auto; display: flex; align-items: center; gap: 4px; flex: none; }
+  .iconbtn { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--r-control); color: var(--subtle); }
+  .iconbtn:hover { background: var(--raised); color: var(--text); }
+  .iconbtn svg { width: 16px; height: 16px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 9999px; font-size: var(--t-caption); font-weight: 500; border: 1px solid var(--border-strong); background: var(--raised); color: var(--muted); }
+  .pill.claimed, .pill.running { color: var(--session-strong); border-color: #7c83f755; background: var(--session-soft); }
+  .pill.running i { width: 6px; height: 6px; border-radius: 50%; background: var(--session); animation: pulse 1.6s ease-in-out infinite; }
+  .pill.done { color: var(--safe); border-color: #3ddc9744; background: var(--safe-soft); }
+  .facts { margin: 8px 0 0 34px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; font-size: var(--t-small); color: var(--muted); }
+  .fact { display: inline-flex; align-items: center; gap: 6px; }
+  .fact svg.i { color: var(--subtle); }
+
+  .strip { flex: none; border-bottom: 1px solid var(--border); background: var(--canvas); }
+  .strip .inner { padding: 12px 28px 14px; display: flex; align-items: center; gap: 20px; }
+  .strip h3 { font-size: var(--t-small); font-weight: 600; color: var(--muted); white-space: nowrap; }
+  .strip p { font-size: var(--t-small); color: var(--muted); }
+  .strip p b { color: var(--text); font-weight: 500; }
+  .chain { display: flex; align-items: center; flex: none; }
+  .chain .node { position: relative; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid var(--border-field); background: var(--canvas); font: 400 var(--t-caption) var(--font-mono); color: var(--muted); }
+  .chain .node.here { border-color: var(--accent); color: var(--accent-strong); box-shadow: 0 0 0 1px var(--accent); }
+  .chain .link { width: 14px; height: 2px; background: var(--session); opacity: .7; }
+  .chain .node.DONE { border-color: var(--safe); color: var(--safe); }
+  .chain .node.CLAIMED, .chain .node.RUNNING { border-color: var(--session); color: var(--session-strong); }
+
+  .d-body { flex: 1; min-height: 0; overflow-y: auto; }
+  .d-body .inner { padding: 20px 28px 28px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 22rem); gap: 0 48px; }
+  .d-body h3 { font-size: var(--t-small); font-weight: 600; color: var(--muted); margin: 0 0 6px; display: flex; gap: 8px; align-items: baseline; }
+  .d-body h3 .n { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .d-body section + section { margin-top: 22px; }
+  .prose { max-width: 68ch; color: var(--text); }
+  .prose p + p { margin-top: 8px; }
+  .prose.claim { color: var(--muted); }
+  .row { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: baseline; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: var(--t-small); }
+  .row:last-child { border-bottom: 0; }
+  .row .r { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .row svg { width: 13px; height: 13px; transform: translateY(2px); color: var(--safe); }
+  .row .mono { font-size: var(--t-small); }
+  .empty { color: var(--subtle); font-size: var(--t-small); max-width: 52ch; }
+
+  .dock { flex: none; border-top: 1px solid var(--border); background: var(--surface); }
+  .dock .inner { padding: 10px 28px; display: flex; align-items: center; gap: 8px; }
+  .dock .sp { flex: 1; }
+  .dock .hint { font-size: var(--t-caption); color: var(--subtle); }
+  .dock kbd { font: 400 var(--t-micro) var(--font-mono); border: 1px solid var(--border-strong); border-radius: var(--r-key); padding: 0 7px; color: var(--muted); }
+
+  .step.can-edit { padding-right: 44px; }
+  .step:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .lead { position: relative; display: block; height: var(--seal); }
+  .lead .no { position: absolute; inset: 0; padding-top: 3px; text-align: right; transition: opacity 140ms; }
+  .grip { position: absolute; right: -3px; top: 1px; width: 20px; height: 20px; display: grid; place-items: center; border-radius: var(--r-key); color: var(--subtle); cursor: grab; opacity: 0; transition: opacity 140ms, color 140ms; }
+  .grip:hover { color: var(--text); background: var(--raised); }
+  .grip svg { width: 10px; height: 14px; }
+  .step.can-edit:hover .grip, .step.can-edit:focus-within .grip { opacity: 1; }
+  .step.can-edit:hover .lead .no, .step.can-edit:focus-within .lead .no { opacity: 0; }
+  .step.dragging { opacity: .4; }
+  .step.drop-before::before, .step.drop-after::after { content: ""; position: absolute; left: var(--pad); right: var(--pad); height: 2px; border-radius: 2px; background: var(--session-strong); z-index: 3; }
+  .step.drop-before::before { top: -2px; }
+  .step.drop-after::after { bottom: -2px; }
+
+  .seal-btn { position: relative; z-index: 1; display: block; width: var(--seal); height: var(--seal); padding: 0; border-radius: 50%; }
+  button.seal-btn:focus-visible { outline-offset: 3px; }
+  button.seal-btn:hover .seal.OPEN, button.seal-btn:hover .seal.CLAIMED { border-style: solid; border-color: var(--safe); color: var(--safe); background: #10261f; }
+  button.seal-btn::after { content: attr(data-tip); position: absolute; top: calc(100% + 6px); left: -4px; z-index: 10; padding: 4px 10px; border: 1px solid var(--border-strong); border-radius: var(--r-key); background: var(--raised); box-shadow: 0 1px 2px rgb(0 0 0 / .55), 0 10px 22px -8px rgb(0 0 0 / .65); font-size: var(--t-small); font-weight: 500; color: var(--text); white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 120ms; }
+  button.seal-btn:hover::after, button.seal-btn:focus-visible::after { opacity: 1; transition-delay: 280ms; }
+
+  .more { position: absolute; right: 8px; top: 6px; width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--r-control); color: var(--subtle); opacity: 0; transition: opacity 140ms, background 140ms, color 140ms; }
+  .step:hover .more, .step:focus-within .more, .step[aria-current="true"] .more, .more[aria-expanded="true"] { opacity: 1; }
+  .more:hover, .more[aria-expanded="true"] { background: var(--raised); color: var(--text); }
+  .more svg { width: 16px; height: 16px; }
+
+  .menu { position: fixed; z-index: 30; width: 288px; padding: 4px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--surface); box-shadow: 0 1px 2px rgb(0 0 0 / .55), 0 10px 22px -8px rgb(0 0 0 / .65); animation: seam-in 160ms var(--ease) both; }
+  .menu .item { display: block; width: 100%; padding: 8px 12px; border-radius: var(--r-control); }
+  .menu .item:hover { background: var(--hover); }
+  .menu .item b { display: block; font-size: var(--t-body); font-weight: 500; color: var(--text); }
+  .menu .item span { display: block; margin-top: 1px; font-size: var(--t-caption); color: var(--subtle); }
+  .menu .item.danger b { color: var(--danger); }
+  .menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
+  .menu .confirm { padding: 10px 12px 8px; }
+  .menu .confirm p { font-size: var(--t-small); color: var(--muted); }
+  .menu .confirm p b { color: var(--text); font-weight: 500; }
+  .menu .confirm .acts { margin-top: 12px; display: flex; justify-content: flex-end; gap: 6px; }
+  .btn.sm { height: 28px; padding: 0 12px; font-size: var(--t-small); }
+  .btn.danger { background: var(--danger); color: #2a0a10; font-weight: 600; box-shadow: inset 0 1px 0 rgb(255 255 255 / .3), 0 1px 1px rgb(0 0 0 / .4); }
+  .btn.danger:hover { filter: brightness(1.06); }
+
+  .toast { position: fixed; left: 24px; bottom: 76px; z-index: 40; display: flex; align-items: center; gap: 14px; padding: 8px 8px 8px 16px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--raised); box-shadow: 0 1px 2px rgb(0 0 0 / .55), 0 10px 22px -8px rgb(0 0 0 / .65); font-size: var(--t-small); color: var(--text); animation: seam-in 260ms var(--ease) both; }
+  .toast[hidden] { display: none; }
+
+  .drafts { margin: 22px 0 0; padding: 0 var(--pad); }
+  .drafts h3 { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; font-size: var(--t-small); font-weight: 600; color: var(--muted); }
+  .drafts h3 .n { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .draft { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 4px 0; border-top: 1px solid var(--border); }
+  .draft span { flex: 1; min-width: 0; color: var(--muted); }
+  .draft small { display: block; font-size: var(--t-caption); color: var(--subtle); }
+
+  .seam-new { animation: seam-in 360ms var(--ease) both; }
+  @keyframes seam-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .seam-new, .tube i { animation: none; transition: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">Rekall</div>
+    <div class="search">
+      <svg class="i" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.4"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      /rk search
+      <kbd>⌘K</kbd>
+    </div>
+    <div class="capsule"><span>1 session</span><span>Queue 0</span><span class="rv">2 to review</span></div>
+  </header>
+
+  <div class="body">
+    <nav class="rail" aria-label="Screens"><i></i><i></i><i></i><i></i></nav>
+    <div class="main">
+      <div class="head">
+        <div class="crumbs">Vega <span>/</span> Tasks <span>/</span> <span class="anchor">task:RK-41</span></div>
+        <h1>Move the run queue onto a worker pool</h1>
+      </div>
+      <div class="tabs" role="tablist">
+        <span class="tab">Description</span>
+        <span class="tab" aria-current="page">Plan <span class="c tnum" id="tabCount">8</span> <span class="wait tnum" id="tabWait">2</span></span>
+        <span class="tab">Notes <span class="c">3</span></span>
+        <span class="tab">Changes</span>
+        <span class="tab">Time</span>
+        <span class="tab">Deviations <span class="c">1</span></span>
+      </div>
+
+      <div class="plan">
+        <div class="planbar">
+          <div class="tube" id="tube" role="img" aria-label="Plan progress"></div>
+          <p class="tally tnum" id="tally"></p>
+        </div>
+
+        <div class="work">
+          <section class="list" aria-label="Steps by session">
+            <div class="list-h">
+              <h2>Steps</h2><span class="n tnum" id="listCount"></span>
+              <span class="sp"></span>
+              <div class="views" role="group" aria-label="View">
+                <button type="button" aria-pressed="true">List</button>
+                <button type="button" aria-pressed="false">Flow</button>
+              </div>
+            </div>
+            <div class="list-scroll" id="listScroll"></div>
+            <form class="list-foot" onsubmit="return false">
+              <input class="field" type="text" placeholder="Add a step" aria-label="Add a step">
+              <button class="btn secondary" type="button">Add</button>
+              <button class="btn secondary" type="button" id="reviewNext">Review next</button>
+            </form>
+          </section>
+
+          <section class="dossier" id="dossier" aria-label="Step"></section>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="menu" id="menu" role="menu" hidden></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+const ICON = {
+  check: '<svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.3l2.4 2.4 4.6-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  plus: '<svg viewBox="0 0 12 12" fill="none"><path d="M6 2.5v7M2.5 6h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  join: '<svg viewBox="0 0 12 12" fill="none"><path d="M6 1.5v9M3.5 3.5L6 6l2.5-2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  term: '<svg viewBox="0 0 12 12" fill="none"><rect x="1.5" y="2" width="9" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M3.8 5l1.6 1.2L3.8 7.4M6.6 7.6h1.7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  play: '<svg viewBox="0 0 12 12" fill="none"><path d="M3.5 2.2v7.6L9.5 6z" fill="currentColor"/></svg>',
+  chev: '<svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  up: '<svg viewBox="0 0 16 16" fill="none"><path d="M4 10l4-4 4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  down: '<svg viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  file: '<svg class="i" viewBox="0 0 16 16" fill="none"><path d="M4 2h5l3 3v9H4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
+  clock: '<svg class="i" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v3.2l2 1.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+  pass: '<svg class="i" viewBox="0 0 16 16" fill="none"><path d="M3 8h8M8.5 5L12 8l-3.5 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  grip: '<svg viewBox="0 0 10 14" fill="currentColor"><circle cx="2.5" cy="2.5" r="1.2"/><circle cx="7.5" cy="2.5" r="1.2"/><circle cx="2.5" cy="7" r="1.2"/><circle cx="7.5" cy="7" r="1.2"/><circle cx="2.5" cy="11.5" r="1.2"/><circle cx="7.5" cy="11.5" r="1.2"/></svg>',
+  dots: '<svg viewBox="0 0 16 16" fill="currentColor"><circle cx="3.5" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="12.5" cy="8" r="1.3"/></svg>'
+}
+
+const steps = [
+  { id: 1, title: 'Add the Worker trait and a Clock seam to rekall-core', state: 'DONE', starts: true, passes: ['ok'], when: 'Done 3 d ago', brief: 'Define the Worker port in rekall-core so the pool can be replaced in tests, and inject the Clock instead of reading the system time.' },
+  { id: 2, title: 'Move queue storage into a repository module', state: 'DONE', starts: false, passes: ['ok'], when: 'Done 3 d ago', brief: 'Queue reads and writes become free functions over a ConnectionTrait, so they run inside the caller’s transaction.' },
+  { id: 3, title: 'Port the claim loop to a bounded worker pool', state: 'CLAIMED', starts: true, passes: ['ok'], when: 'Claimed 12 min ago',
+    brief: 'Replace the single polling loop with a pool of N workers that each claim one queued run at a time.',
+    claim: 'The claim loop now lives in pool.rs. Each worker takes a run with one UPDATE … RETURNING, so two workers never hold the same row. Pool size defaults to 2 and is read once at start.',
+    evidence: [['pool.rs', '+118 −64'], ['queue_repo.rs', '+22 −9'], ['cargo test -p rekall-core queue', '14 passed']] },
+  { id: 4, title: 'Cover retry and backoff with tests', state: 'CLAIMED', starts: false, passes: ['ok', 'live'], when: 'Claimed 4 min ago',
+    brief: 'Tests for a worker that fails, retries with backoff and gives up after the limit, using the fixed Clock.',
+    claim: 'Added five tests under tests/unit/queue/. Backoff uses the injected Clock, so none of them sleep.',
+    evidence: [['retry_backoff.spec.rs', '+96'], ['cargo test -p rekall-core retry', '5 passed']] },
+  { id: 5, title: 'Expose the pool size in Settings', state: 'RUNNING', starts: false, passes: ['live'], when: 'Working now', brief: 'A pool size field under Settings, validated between 1 and 8, applied on the next start.' },
+  { id: 6, title: 'Show queue depth in the header capsule', state: 'OPEN', starts: true, passes: [], when: 'Open', brief: 'The capsule gets a Queue segment with the number of runs waiting; amber is not used for it.' },
+  { id: 7, title: 'Cover the capsule segment with a unit test', state: 'OPEN', starts: false, passes: [], when: 'Open', brief: 'A test that the segment shows the waiting count and hides at zero.' },
+  { id: 8, title: 'Describe the worker pool in docs/DESIGN.md', state: 'OPEN', starts: false, passes: [], when: 'Open', brief: 'One section: how a run is claimed, what the pool size means, where retries live.' }
+]
+
+let selectedId = 3
+const collapsed = new Set([1])
+let freshSeam = null
+
+const byId = id => steps.find(s => s.id === id)
+
+function groupSessions() {
+  const out = []
+  steps.forEach((s, i) => {
+    if (i === 0 || s.starts) out.push([])
+    out[out.length - 1].push(s)
+  })
+  return out
+}
+
+function sessionState(group) {
+  if (group.every(s => s.state === 'DONE')) return 'accepted'
+  if (group.some(s => s.state === 'RUNNING')) return 'working'
+  if (group.some(s => s.state === 'CLAIMED')) return 'waiting'
+  return 'idle'
+}
+
+function sessionNote(state, group) {
+  const done = group.filter(s => s.state === 'DONE').length
+  const claimed = group.filter(s => s.state === 'CLAIMED').length
+  const n = group.length
+  const stepsLabel = n + (n === 1 ? ' step' : ' steps')
+  if (state === 'accepted') return 'Accepted · ' + stepsLabel
+  if (state === 'working') return 'Working now · ' + claimed + ' of ' + n + ' claimed'
+  if (state === 'waiting') return 'Waiting for you · ' + claimed + ' claimed'
+  return 'Not started · ' + stepsLabel
+}
+
+function seal(state) {
+  const inner = state === 'RUNNING' ? '<i></i>' : ICON.check
+  return '<span class="seal ' + state + '" aria-hidden="true">' + inner + '</span>'
+}
+
+function pips(step) {
+  return '<span class="pips" aria-hidden="true">' + step.passes.map(p => '<i class="' + (p === 'live' ? 'live' : '') + '"></i>').join('') + '</span>'
+}
+
+const drafts = []
+let menu = null
+let toastTimer = null
+let undoSnapshot = null
+let dragId = null
+
+function numberOf(step) { return steps.indexOf(step) + 1 }
+
+function sealControl(step, number) {
+  const tip = step.state === 'CLAIMED' ? 'Accept step ' + number : step.state === 'OPEN' ? 'Mark step ' + number + ' done' : ''
+  if (!tip) return '<span class="seal-btn">' + seal(step.state) + '</span>'
+  return '<button type="button" class="seal-btn" data-act="seal" data-id="' + step.id + '" data-tip="' + tip + '" aria-label="' + tip + '">' + seal(step.state) + '</button>'
+}
+
+function stepRow(step) {
+  const number = numberOf(step)
+  const editable = step.state === 'OPEN'
+  const cls = step.state === 'CLAIMED' ? 'wait' : step.state === 'RUNNING' ? 'run' : ''
+  const grip = editable ? '<button type="button" class="grip" tabindex="-1" aria-label="Drag to reorder step ' + number + '">' + ICON.grip + '</button>' : ''
+  const more = editable ? '<button type="button" class="more" data-act="more" data-id="' + step.id + '" aria-haspopup="menu" aria-label="More actions for step ' + number + '">' + ICON.dots + '</button>' : ''
+  return '<li class="step' + (editable ? ' can-edit' : '') + '" tabindex="0" data-act="select" data-id="' + step.id + '" data-state="' + step.state + '"' + (step.id === selectedId ? ' aria-current="true"' : '') + '>' +
+    sealControl(step, number) + '<span class="lead"><span class="no tnum">' + number + '</span>' + grip + '</span>' +
+    '<span><span class="ti">' + step.title + '</span><span class="meta"><span class="st trunc ' + cls + '">' + step.when + '</span>' + pips(step) + '</span></span>' + more + '</li>'
+}
+
+function draftsShelf() {
+  if (!drafts.length) return ''
+  return '<section class="drafts" aria-label="Drafts"><h3>Drafts <span class="n tnum">' + drafts.length + '</span></h3>' +
+    drafts.map(d => '<div class="draft"><span>' + d.title + '<small>Not on the plan yet</small></span><button type="button" class="key edge" data-act="promote" data-id="' + d.id + '">Promote to plan</button></div>').join('') + '</section>'
+}
+
+function gapBetween(step) {
+  return '<li class="gap"><button type="button" data-act="split" data-id="' + step.id + '" aria-label="Start a new session at ' + step.title.replace(/"/g, '') + '"><span>' + ICON.plus + 'New session from here</span></button></li>'
+}
+
+function sessionBlock(group, index, groups) {
+  const state = sessionState(group)
+  const number = index + 1
+  const isOpen = !collapsed.has(group[0].id)
+  const head = group[0]
+  const canJoin = index > 0 && head.state === 'OPEN'
+  const fresh = freshSeam === head.id ? ' seam-new' : ''
+  const title = '<span class="s-title"><b>Session ' + number + '</b><span>' + sessionNote(state, group) + '</span>' + (state === 'accepted' ? ICON.chev : '') + '</span>'
+  const orbInner = state === 'accepted' ? ICON.check : '<i></i>'
+  let act = ''
+  if (state === 'idle') act += '<button type="button" class="key edge" data-act="run" disabled title="Runs from the console once the sessions above are accepted">' + ICON.play + 'Run</button>'
+  if (state === 'working') act += '<button type="button" class="key">' + ICON.term + 'Open terminal</button>'
+  if (canJoin) act = '<button type="button" class="key reveal" data-act="join" data-id="' + head.id + '">' + ICON.join + 'Join session above</button>' + act
+  const headTag = state === 'accepted' ? 'button' : 'div'
+  const headAttrs = state === 'accepted' ? ' type="button" data-act="toggle" data-id="' + head.id + '" aria-expanded="' + isOpen + '"' : ''
+  let rows = ''
+  if (isOpen) {
+    group.forEach((s, i) => {
+      if (i > 0 && s.state === 'OPEN') rows += gapBetween(s)
+      else if (i > 0) rows += '<li class="gap" aria-hidden="true"></li>'
+      rows += stepRow(s)
+    })
+  }
+  return '<div class="session' + fresh + '" data-state="' + state + '" data-open="' + isOpen + '">' +
+    (isOpen ? '<span class="thread" aria-hidden="true"></span>' : '') +
+    '<' + headTag + ' class="s-head"' + headAttrs + '><span class="s-orb" aria-hidden="true">' + orbInner + '</span>' + title + '<span class="s-act">' + (state === 'accepted' ? '' : act) + '</span></' + headTag + '>' +
+    (isOpen ? '<ol class="steps">' + rows + '</ol>' : '') + '</div>'
+}
+
+function renderList() {
+  const groups = groupSessions()
+  document.getElementById('listScroll').innerHTML = groups.map(sessionBlock).join('') + draftsShelf()
+  document.getElementById('listCount').textContent = steps.length + ' steps · ' + groups.length + (groups.length === 1 ? ' session' : ' sessions')
+  freshSeam = null
+}
+
+function renderBar() {
+  const done = steps.filter(s => s.state === 'DONE').length
+  const claimed = steps.filter(s => s.state === 'CLAIMED').length
+  const rest = steps.length - done - claimed
+  document.getElementById('tube').innerHTML = '<i class="done" style="flex:' + done + '"></i><i class="claimed" style="flex:' + claimed + '"></i><i style="flex:' + rest + '"></i>'
+  document.getElementById('tally').innerHTML = '<b>' + done + ' of ' + steps.length + '</b> accepted<span class="sp">·</span>' + claimed + ' waiting for you'
+  document.getElementById('tabWait').textContent = claimed
+  document.getElementById('tabWait').style.display = claimed ? '' : 'none'
+  document.getElementById('reviewNext').disabled = claimed === 0
+}
+
+function sessionOf(step) {
+  const groups = groupSessions()
+  const index = groups.findIndex(g => g.includes(step))
+  return { index, number: index + 1, group: groups[index], total: groups.length }
+}
+
+function pillFor(state) {
+  if (state === 'DONE') return '<span class="pill done">Done</span>'
+  if (state === 'CLAIMED') return '<span class="pill claimed">Claimed</span>'
+  if (state === 'RUNNING') return '<span class="pill running"><i></i>Working now</span>'
+  return '<span class="pill">Open</span>'
+}
+
+function stripFor(step) {
+  const s = sessionOf(step)
+  const nodes = s.group.map((x, i) => (i ? '<span class="link"></span>' : '') + '<span class="node ' + x.state + (x === step ? ' here' : '') + '">' + numberOf(x) + '</span>').join('')
+  const here = s.group.indexOf(step)
+  const after = s.group.slice(here + 1).map(numberOf)
+  const before = s.group.slice(0, here).map(numberOf)
+  let text = 'Runs alone in its session, from a fresh context.'
+  if (s.group.length > 1 && here === 0) text = 'Opens the session from a fresh context. <b>' + after.join(', ') + '</b> continue it and see what this step changed.'
+  else if (s.group.length > 1) text = 'Continues <b>session ' + s.number + '</b>: Claude already has what steps <b>' + before.join(', ') + '</b> changed.'
+  return '<div class="strip"><div class="inner"><h3>Session ' + s.number + '</h3><div class="chain">' + nodes + '</div><p>' + text + '</p></div></div>'
+}
+
+function bodyFor(step) {
+  let left = '<section><h3>What the step asks</h3><div class="prose"><p>' + step.brief + '</p></div></section>'
+  let right = ''
+  if (step.claim) {
+    left += '<section><h3>What Claude says it did</h3><div class="prose claim"><p>' + step.claim + '</p></div></section>'
+    right = '<section><h3>Evidence <span class="n">' + step.evidence.length + '</span></h3>' + step.evidence.map(e => '<div class="row">' + ICON.check.replace('<svg', '<svg class="ok"') + '<span class="mono trunc">' + e[0] + '</span><span class="r">' + e[1] + '</span></div>').join('') + '</section>'
+  } else if (step.state === 'RUNNING') {
+    left += '<section><h3>What Claude says it did</h3><p class="empty">Nothing claimed yet. The step is being worked in session ' + sessionOf(step).number + ' and the claim appears here when Claude hands it in.</p></section>'
+  }
+  return '<div class="d-body"><div class="inner"><div>' + left + '</div><div>' + right + '</div></div></div>'
+}
+
+function dockFor(step) {
+  if (step.state === 'CLAIMED') return '<div class="dock"><div class="inner"><span class="hint"><kbd>J</kbd> <kbd>K</kbd> step through</span><span class="sp"></span><button type="button" class="btn quiet">Send back</button><button type="button" class="btn primary" data-act="accept" data-id="' + step.id + '">Accept</button></div></div>'
+  if (step.state === 'OPEN') return '<div class="dock"><div class="inner"><span class="hint"><kbd>J</kbd> <kbd>K</kbd> step through</span><span class="hint"><kbd>Alt</kbd> <kbd>↑</kbd> <kbd>↓</kbd> reorder</span><span class="sp"></span><button type="button" class="btn secondary" data-act="tick" data-id="' + step.id + '">Mark done</button></div></div>'
+  return '<div class="dock"><div class="inner"><span class="hint"><kbd>J</kbd> <kbd>K</kbd> step through</span></div></div>'
+}
+
+function renderPane() {
+  const step = byId(selectedId)
+  const s = sessionOf(step)
+  const pos = s.group.indexOf(step) + 1
+  document.getElementById('dossier').innerHTML =
+    '<div class="d-head"><div class="inner"><div class="d-top">' + seal(step.state) + '<h2 class="d-title">' + step.title + '</h2>' + pillFor(step.state) +
+    '<div class="ctl"><button class="iconbtn" data-act="prev" aria-label="Previous step (K)">' + ICON.up + '</button><button class="iconbtn" data-act="next" aria-label="Next step (J)">' + ICON.down + '</button></div></div>' +
+    '<div class="facts"><span class="fact tnum">Step ' + numberOf(step) + ' of ' + steps.length + '</span><span class="fact tnum">Session ' + s.number + ', ' + pos + ' of ' + s.group.length + '</span><span class="fact">' + ICON.clock + step.when + '</span><span class="fact">' + ICON.pass + step.passes.length + (step.passes.length === 1 ? ' pass' : ' passes') + '</span></div></div></div>' +
+    stripFor(step) + bodyFor(step) + dockFor(step)
+}
+
+function render() { renderBar(); renderList(); renderPane() }
+
+function select(id) { selectedId = id; renderList(); renderPane() }
+
+function move(by) {
+  const i = steps.findIndex(s => s.id === selectedId) + by
+  if (steps[i]) select(steps[i].id)
+}
+
+function snapshot() {
+  undoSnapshot = JSON.stringify({ steps, drafts, selectedId })
+}
+
+function undo() {
+  if (!undoSnapshot) return
+  const saved = JSON.parse(undoSnapshot)
+  steps.splice(0, steps.length, ...saved.steps)
+  drafts.splice(0, drafts.length, ...saved.drafts)
+  selectedId = saved.selectedId
+  hideToast()
+  render()
+}
+
+function showToast(message, canUndo) {
+  const el = document.getElementById('toast')
+  el.innerHTML = '<span>' + message + '</span>' + (canUndo ? '<button type="button" class="key edge" data-act="undo">Undo</button>' : '')
+  el.hidden = false
+  el.style.animation = 'none'
+  void el.offsetWidth
+  el.style.animation = ''
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(hideToast, 6000)
+}
+
+function hideToast() { document.getElementById('toast').hidden = true }
+
+function detach(step) {
+  const index = steps.indexOf(step)
+  const next = steps[index + 1]
+  if (step.starts && next && !next.starts) next.starts = true
+  steps.splice(index, 1)
+}
+
+function reselectAfterRemoval(removed) {
+  if (selectedId !== removed.id) return
+  const fallback = steps.find(s => s.state === 'CLAIMED') || steps[steps.length - 1]
+  selectedId = fallback.id
+}
+
+function markDone(id) {
+  const step = byId(id)
+  const label = step.state === 'CLAIMED' ? 'accepted' : 'marked done'
+  const number = numberOf(step)
+  snapshot()
+  step.state = 'DONE'
+  step.when = 'Done just now'
+  render()
+  showToast('Step ' + number + ' ' + label, true)
+}
+
+function returnToDraft(id) {
+  const step = byId(id)
+  const number = numberOf(step)
+  snapshot()
+  detach(step)
+  step.starts = false
+  drafts.push(step)
+  reselectAfterRemoval(step)
+  closeMenu()
+  render()
+  showToast('Step ' + number + ' is a draft now, off the plan', true)
+}
+
+function deleteStep(id) {
+  const step = byId(id)
+  const number = numberOf(step)
+  detach(step)
+  reselectAfterRemoval(step)
+  closeMenu()
+  render()
+  showToast('Step ' + number + ' deleted', false)
+}
+
+function promote(id) {
+  const index = drafts.findIndex(d => d.id === id)
+  const [step] = drafts.splice(index, 1)
+  snapshot()
+  step.starts = false
+  steps.push(step)
+  selectedId = step.id
+  render()
+  showToast('Draft added as step ' + numberOf(step) + ' of the plan', false)
+}
+
+function moveStep(step, target, after) {
+  if (step === target) return
+  detach(step)
+  const at = steps.indexOf(target)
+  if (after) {
+    steps.splice(at + 1, 0, step)
+    step.starts = false
+  } else {
+    steps.splice(at, 0, step)
+    step.starts = target.starts
+    target.starts = false
+  }
+  selectedId = step.id
+  render()
+}
+
+function nudge(by) {
+  const step = byId(selectedId)
+  if (step.state !== 'OPEN') return
+  const neighbour = steps[steps.indexOf(step) + by]
+  if (!neighbour || neighbour.state !== 'OPEN') return
+  moveStep(step, neighbour, by > 0)
+  document.querySelector('.step[data-id="' + step.id + '"]').focus()
+}
+
+function openMenu(id, anchor) {
+  menu = { id, confirm: false, anchor }
+  renderMenu()
+}
+
+function closeMenu() {
+  if (!menu) return
+  menu.anchor.setAttribute('aria-expanded', 'false')
+  menu = null
+  document.getElementById('menu').hidden = true
+}
+
+function renderMenu() {
+  const el = document.getElementById('menu')
+  const step = byId(menu.id)
+  const number = numberOf(step)
+  menu.anchor.setAttribute('aria-expanded', 'true')
+  el.innerHTML = menu.confirm
+    ? '<div class="confirm"><p><b>Delete step ' + number + '?</b> “' + step.title + '” leaves the plan and cannot be brought back.</p><div class="acts"><button type="button" class="btn quiet sm" data-act="menu-cancel">Cancel</button><button type="button" class="btn danger sm" data-act="delete" data-id="' + step.id + '">Delete step</button></div></div>'
+    : '<button type="button" class="item" role="menuitem" data-act="draft" data-id="' + step.id + '"><b>Return to draft</b><span>Takes it off the plan until you promote it again.</span></button><hr><button type="button" class="item danger" role="menuitem" data-act="delete-ask"><b>Delete step…</b><span>Removes it for good. Asks first.</span></button>'
+  el.hidden = false
+  const rect = menu.anchor.getBoundingClientRect()
+  const height = el.offsetHeight
+  const top = rect.bottom + 6 + height > window.innerHeight ? rect.top - height - 6 : rect.bottom + 6
+  el.style.top = Math.max(8, top) + 'px'
+  el.style.left = Math.max(8, rect.right - el.offsetWidth) + 'px'
+}
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]')
+  if (menu && !e.target.closest('#menu') && !(el && el.dataset.act === 'more')) closeMenu()
+  if (!el) return
+  const act = el.dataset.act
+  const id = Number(el.dataset.id)
+  if (act === 'select') return select(id)
+  if (act === 'toggle') { collapsed.has(id) ? collapsed.delete(id) : collapsed.add(id); return renderList() }
+  if (act === 'split') { byId(id).starts = true; freshSeam = id; renderList(); return renderPane() }
+  if (act === 'join') { byId(id).starts = false; renderList(); return renderPane() }
+  if (act === 'seal' || act === 'accept' || act === 'tick') return markDone(id)
+  if (act === 'more') { if (menu && menu.id === id) return closeMenu(); return openMenu(id, el) }
+  if (act === 'draft') return returnToDraft(id)
+  if (act === 'delete-ask') { menu.confirm = true; return renderMenu() }
+  if (act === 'menu-cancel') { menu.confirm = false; return renderMenu() }
+  if (act === 'delete') return deleteStep(id)
+  if (act === 'promote') return promote(id)
+  if (act === 'undo') return undo()
+  if (act === 'prev') return move(-1)
+  if (act === 'next') return move(1)
+})
+
+document.getElementById('reviewNext').addEventListener('click', () => {
+  const next = steps.find(s => s.state === 'CLAIMED')
+  if (next) select(next.id)
+})
+
+document.addEventListener('mousedown', e => {
+  const grip = e.target.closest('.grip')
+  if (grip) grip.closest('.step').draggable = true
+})
+
+document.addEventListener('dragstart', e => {
+  const row = e.target.closest && e.target.closest('.step')
+  if (!row || !row.draggable) return
+  dragId = Number(row.dataset.id)
+  row.classList.add('dragging')
+  e.dataTransfer.effectAllowed = 'move'
+  e.dataTransfer.setData('text/plain', String(dragId))
+})
+
+function clearDrop() {
+  document.querySelectorAll('.drop-before, .drop-after').forEach(el => el.classList.remove('drop-before', 'drop-after'))
+}
+
+document.addEventListener('dragover', e => {
+  const row = e.target.closest && e.target.closest('.step.can-edit')
+  if (dragId === null || !row || Number(row.dataset.id) === dragId) return
+  e.preventDefault()
+  const box = row.getBoundingClientRect()
+  clearDrop()
+  row.classList.add(e.clientY > box.top + box.height / 2 ? 'drop-after' : 'drop-before')
+})
+
+document.addEventListener('drop', e => {
+  const row = e.target.closest && e.target.closest('.step.can-edit')
+  if (dragId === null || !row) return
+  e.preventDefault()
+  const after = row.classList.contains('drop-after')
+  const moving = byId(dragId)
+  dragId = null
+  moveStep(moving, byId(Number(row.dataset.id)), after)
+})
+
+document.addEventListener('dragend', () => {
+  dragId = null
+  clearDrop()
+  document.querySelectorAll('.step[draggable="true"]').forEach(el => { el.draggable = false; el.classList.remove('dragging') })
+})
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { if (menu) { const anchor = menu.anchor; closeMenu(); anchor.focus() } return }
+  if (/INPUT|TEXTAREA/.test(e.target.tagName)) return
+  if (e.altKey && e.key === 'ArrowUp') { e.preventDefault(); return nudge(-1) }
+  if (e.altKey && e.key === 'ArrowDown') { e.preventDefault(); return nudge(1) }
+  if (e.metaKey || e.ctrlKey || e.altKey) return
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('step')) { e.preventDefault(); return select(Number(e.target.dataset.id)) }
+  if (e.key === 'j') move(1)
+  if (e.key === 'k') move(-1)
+})
+
+render()
+</script>
+</body>
+</html>

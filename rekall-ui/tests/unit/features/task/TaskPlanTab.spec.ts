@@ -472,4 +472,97 @@ describe('TaskPlanTab', () => {
     expect(tab.find('[data-testid="decision-panel"]').exists()).toBe(false)
     expect(tab.find('[data-testid="plan-bar"]').exists()).toBe(false)
   })
+  describe('sessions', () => {
+    function opening(step: TaskStep): TaskStep {
+      return { ...step, startsSession: true }
+    }
+
+    it('groups the steps under the session they run in', () => {
+      seed([makeStep('s1', 0, 'DONE'), opening(makeStep('s2', 1, 'CLAIMED')), makeStep('s3', 2, 'OPEN')])
+      const tab = render()
+
+      expect(tab.findAll('[data-testid="plan-session"]').map((session) => session.attributes('data-standing'))).toEqual(['accepted', 'waiting'])
+      expect(tab.findAll('[data-testid="session-note"]')[1]!.text()).toBe('Waiting for you · 1 claimed')
+    })
+
+    it('cuts a session from the seam between two open steps', async () => {
+      const store = seed([makeStep('s1', 0, 'OPEN'), makeStep('s2', 1, 'OPEN'), makeStep('s3', 2, 'OPEN')])
+      const tab = render()
+
+      await tab.findAll('[data-testid="step-new-session"]')[0]!.trigger('click')
+
+      expect(store.beginStepSession).toHaveBeenCalledWith('s2', true)
+    })
+
+    it('folds a session that has not started into the one above from its header', async () => {
+      const store = seed([makeStep('s1', 0, 'DONE'), opening(makeStep('s2', 1, 'OPEN'))])
+      const tab = render()
+
+      await tab.get('[data-testid="session-join"]').trigger('click')
+
+      expect(store.beginStepSession).toHaveBeenCalledWith('s2', false)
+    })
+
+    it('moves an open step with Alt and the arrow keys, handing the session opening over with it', async () => {
+      const store = seed([makeStep('s1', 0, 'OPEN'), opening(makeStep('s2', 1, 'OPEN')), makeStep('s3', 2, 'OPEN')])
+      const tab = render()
+
+      await tab.findAll('[data-testid="plan-step"]')[2]!.trigger('keydown', { key: 'ArrowUp', altKey: true })
+      await flushPromises()
+
+      expect(store.moveStep).toHaveBeenCalledWith('s3', 1)
+      expect(store.beginStepSession).toHaveBeenCalledWith('s3', true)
+      expect(store.beginStepSession).toHaveBeenCalledWith('s2', false)
+    })
+
+    it('does not move a step past one that has been started', async () => {
+      const store = seed([makeStep('s1', 0, 'CLAIMED'), makeStep('s2', 1, 'OPEN')])
+      const tab = render()
+
+      await tab.findAll('[data-testid="plan-step"]')[1]!.trigger('keydown', { key: 'ArrowUp', altKey: true })
+      await flushPromises()
+
+      expect(store.moveStep).not.toHaveBeenCalled()
+    })
+
+    it('returns a step to draft from its menu and puts it back, in its place, on Undo', async () => {
+      const store = seed([makeStep('s1', 0, 'DONE'), opening(makeStep('s2', 1, 'OPEN')), makeStep('s3', 2, 'OPEN')])
+      store.returnStepToDraft = vi.fn().mockResolvedValue(undefined)
+      const tab = render()
+
+      await tab.findAll('[data-testid="step-more"]')[0]!.trigger('click')
+      await tab.findAll('[data-testid="popover-menu-item"]')[0]!.trigger('click')
+      await flushPromises()
+
+      expect(store.returnStepToDraft).toHaveBeenCalledWith('s2')
+      expect(store.beginStepSession).toHaveBeenCalledWith('s3', true)
+      const toast = useToastStore().toasts[0]!
+      expect(toast.message).toBe('Step s2 is a draft now')
+
+      toast.action!.run()
+      await flushPromises()
+
+      expect(store.promoteStep).toHaveBeenCalledWith('s2')
+      expect(store.moveStep).toHaveBeenCalledWith('s2', 1)
+      expect(store.beginStepSession).toHaveBeenCalledWith('s3', false)
+    })
+
+    it('offers to undo ticking an open step from its seal', async () => {
+      const store = seed([makeStep('s1', 0, 'OPEN')])
+      const tab = render()
+
+      await tab.get('[data-testid="plan-step-seal"]').trigger('click')
+      await flushPromises()
+
+      expect(store.toggleStep).toHaveBeenCalledWith('s1')
+      const toast = useToastStore().toasts[0]!
+      expect(toast.message).toBe('Marked Step s1 done')
+      expect(toast.action?.label).toBe('Undo')
+
+      toast.action!.run()
+      await flushPromises()
+
+      expect(store.reopenStep).toHaveBeenCalledWith('s1')
+    })
+  })
 })
