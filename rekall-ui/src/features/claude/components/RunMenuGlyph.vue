@@ -1,14 +1,20 @@
 <script setup lang="ts">
+import SessionProviderMark from '@/features/claude/components/SessionProviderMark.vue'
 import type { RunMenuAction } from '@/features/claude/model/runMenu'
+import { SESSION_PROVIDERS, type SessionProvider } from '@/features/claude/model/session-provider'
 
 defineProps<{ action: RunMenuAction }>()
+
+function isProvider(action: RunMenuAction): action is SessionProvider {
+  return (SESSION_PROVIDERS as readonly string[]).includes(action)
+}
 </script>
 
 <template>
-  <svg class="size-4 shrink-0 text-text-subtle" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+  <SessionProviderMark v-if="isProvider(action)" :provider="action" :size="16" />
+  <svg v-else class="size-4 shrink-0 text-text-subtle" viewBox="0 0 16 16" fill="none" aria-hidden="true">
     <g stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-      <path v-if="action === 'CLAUDE' || action === 'CODEX'" d="m6 3.5 6 4.5-6 4.5Z" />
-      <template v-else-if="action === 'RUN_IN_QUEUE'">
+      <template v-if="action === 'RUN_IN_QUEUE'">
         <path d="M2.5 4h7M2.5 8h5M2.5 12h5" />
         <path d="m10.5 8.2 3 1.8-3 1.8Z" />
       </template>

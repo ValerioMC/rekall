@@ -4,6 +4,7 @@ import AppSplitButton, { type SplitButtonOption } from '@/components/ui/AppSplit
 import PopoverMenu, { type PopoverMenuEntry } from '@/components/ui/PopoverMenu.vue'
 import { useQuickTask } from '@/features/catalog/composables/useQuickTask'
 import { QUICK_TASK_HELP, folderTail } from '@/features/catalog/lib/quick-task'
+import SessionProviderMark from '@/features/claude/components/SessionProviderMark.vue'
 import { useSessionProviderChoice } from '@/features/claude/composables/useSessionProviderChoice'
 import { RUN_WITH_PROVIDER_LABEL, SESSION_PROVIDERS, type SessionProvider } from '@/features/claude/model/session-provider'
 import type { Project } from '@/features/catalog/model/catalog'
@@ -134,6 +135,9 @@ function chooseProject(id: string): void {
         @choose="chooseFromMenu"
       >
         Start quick task
+        <template #option-mark="{ id }">
+          <SessionProviderMark v-if="id !== 'plan'" :provider="id" />
+        </template>
       </AppSplitButton>
     </div>
     <p

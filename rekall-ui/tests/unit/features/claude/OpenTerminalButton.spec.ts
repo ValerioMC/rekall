@@ -298,6 +298,19 @@ describe('the Run here button', () => {
     wrapper.unmount()
   })
 
+  it('marks each Run with entry with its provider mark', async () => {
+    installBothSessionProviders()
+    const wrapper = mountButton()
+
+    await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
+
+    const markOf = (provider: string): string | null =>
+      document.body.querySelector(`[data-testid="run-with-${provider}"] svg`)?.getAttribute('data-provider') ?? null
+    expect(markOf('CLAUDE')).toBe('CLAUDE')
+    expect(markOf('CODEX')).toBe('CODEX')
+    wrapper.unmount()
+  })
+
   it.each([
     { defaultProvider: 'CODEX', provider: 'CLAUDE', model: 'sonnet', effort: 'low', kind: 'CHAT', skipPermissions: true },
     { defaultProvider: 'CLAUDE', provider: 'CODEX', model: 'gpt-test', effort: 'xhigh', kind: 'TERMINAL', skipPermissions: false }

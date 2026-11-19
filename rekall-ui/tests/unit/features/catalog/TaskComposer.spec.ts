@@ -85,6 +85,8 @@ describe('TaskComposer', () => {
 
     await type(wrapper, 'Fix the typo')
     await wrapper.get('[data-testid="split-button-arrow"]').trigger('click')
+    expect(document.body.querySelector('[data-testid="split-button-option-CODEX"] svg')?.getAttribute('data-provider')).toBe('CODEX')
+    expect(document.body.querySelector('[data-testid="split-button-option-CLAUDE"] svg')?.getAttribute('data-provider')).toBe('CLAUDE')
     document.body.querySelector<HTMLButtonElement>('[data-testid="split-button-option-CODEX"]')!.click()
     await flushPromises()
 
