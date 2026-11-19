@@ -12,6 +12,7 @@ import ChangeScopeHeader from '@/features/commits/components/ChangeScopeHeader.v
 import ChangeScopeTrack from '@/features/commits/components/ChangeScopeTrack.vue'
 import ChangedFileSection from '@/features/commits/components/ChangedFileSection.vue'
 import { useChangeReview } from '@/features/commits/composables/useChangeReview'
+import { useGrowingWindow } from '@/features/commits/composables/useGrowingWindow'
 import { useTaskChanges } from '@/features/commits/composables/useTaskChanges'
 import {
   changeSources,
@@ -48,6 +49,8 @@ const LAYOUTS: readonly SegmentOption<DiffLayout>[] = [
   { value: 'unified', label: 'Unified' }
 ]
 const SCROLL_MARGIN = 12
+const FILE_BATCH = 8
+const LOAD_AHEAD = 800
 
 const route = useRoute()
 const router = useRouter()
@@ -84,6 +87,15 @@ const scopedById = computed(
   () => new Map<string, ReviewFile>(scopedFiles.value.map((file) => [file.id, file]))
 )
 const totals = computed(() => totalsOf(scopedFiles.value))
+const {
+  shown: shownFileCount,
+  remaining: unshownFileCount,
+  showMore: showMoreFiles,
+  showThrough: showFilesThrough,
+  reset: resetShownFiles
+} = useGrowingWindow(() => scopedFiles.value.length, FILE_BATCH)
+const shownFiles = computed(() => scopedFiles.value.slice(0, shownFileCount.value))
+const nextBatchSize = computed(() => Math.min(unshownFileCount.value, FILE_BATCH))
 const inContextIds = computed(
   () => new Set(selectedTaskCommitReferences.value.filter((reference) => reference.inContext).map((reference) => reference.id))
 )
@@ -97,6 +109,7 @@ watch(
   () => props.task.id,
   () => {
     review.reset()
+    resetShownFiles()
     scope.value = ALL_CHANGES
     current.value = null
   }
@@ -114,6 +127,7 @@ function scrollToTop(): void {
 function selectScope(next: ChangeScope): void {
   if (sameScope(scope.value, next)) return
   scope.value = next
+  resetShownFiles()
   current.value = null
   void nextTick(() => {
     current.value = scopedFiles.value[0]?.id ?? null
@@ -138,15 +152,17 @@ function openSource(sourceId: string): void {
 }
 
 function showFile(fileId: string): void {
-  const reveal = (): void => {
+  if (!scopedById.value.has(fileId)) {
+    scope.value = ALL_CHANGES
+    resetShownFiles()
+  }
+  showFilesThrough(scopedFiles.value.findIndex((file) => file.id === fileId))
+  void nextTick(() => {
     const target = column.value?.querySelector<HTMLElement>(`[data-file-id="${CSS.escape(fileId)}"]`)
     if (!target || !column.value) return
     current.value = fileId
     column.value.scrollTo({ top: target.offsetTop - SCROLL_MARGIN })
-  }
-  if (scopedById.value.has(fileId)) return reveal()
-  scope.value = ALL_CHANGES
-  void nextTick(reveal)
+  })
 }
 
 function stepFile(direction: 1 | -1): void {
@@ -164,6 +180,19 @@ function followScroll(): void {
     if (section.offsetTop - SCROLL_MARGIN * 6 <= element.scrollTop) reached = section.dataset.fileId ?? null
   }
   if (reached !== null) current.value = reached
+}
+
+function showMoreFilesNearEnd(): void {
+  const element = column.value
+  if (!element || unshownFileCount.value === 0) return
+  if (element.scrollHeight - element.scrollTop - element.clientHeight > LOAD_AHEAD) return
+  showMoreFiles()
+  void nextTick(showMoreFilesNearEnd)
+}
+
+function onColumnScroll(): void {
+  followScroll()
+  showMoreFilesNearEnd()
 }
 
 const KEY_ACTIONS: Readonly<Record<string, () => void>> = {
@@ -238,7 +267,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
           ref="column"
           class="relative min-h-0 overflow-auto bg-canvas"
           data-testid="changes-column"
-          @scroll.passive="followScroll"
+          @scroll.passive="onColumnScroll"
         >
           <ChangeScopeHeader
             :scope="scope"
@@ -256,9 +285,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
           >
             This change has no file to show.
           </p>
-          <template v-for="(file, index) in scopedFiles" :key="file.id">
+          <template v-for="(file, index) in shownFiles" :key="file.id">
             <ChangeRepositoryBand
-              v-if="severalRepositories && file.repository.id !== scopedFiles[index - 1]?.repository.id"
+              v-if="severalRepositories && file.repository.id !== shownFiles[index - 1]?.repository.id"
               :repository="file.repository"
               :totals="totalsOf(scopedFiles.filter((other) => other.repository.id === file.repository.id))"
             />
@@ -280,6 +309,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
               @open-source="openSource"
             />
           </template>
+          <div
+            v-if="unshownFileCount > 0"
+            class="mx-6 mb-10 mt-5 flex items-center justify-center gap-3"
+            data-testid="changes-show-more"
+          >
+            <AppButton size="sm" @click="showMoreFiles">Show {{ nextBatchSize }} more {{ nextBatchSize === 1 ? 'file' : 'files' }}</AppButton>
+            <span class="text-caption text-text-subtle">{{ unshownFileCount }} not shown yet</span>
+          </div>
         </div>
       </div>
     </template>
