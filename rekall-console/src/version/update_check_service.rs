@@ -12,7 +12,7 @@ const FAILURE_KEPT: Duration = Duration::from_secs(5 * 60);
 const PLATFORM_ASSET_SUFFIX: &str = if cfg!(target_os = "macos") {
     ".dmg"
 } else if cfg!(target_os = "windows") {
-    "-windows-x64.exe"
+    "-setup.exe"
 } else {
     "-linux-x64"
 };

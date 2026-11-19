@@ -56,7 +56,17 @@ A disk image for Apple Silicon is published with every `v*` tag pushed on a comm
 xattr -dr com.apple.quarantine /Applications/Rekall.app
 ```
 
-The app is a Tauri v2 window over the same server `rekall-server` runs, on the same port, config and MCP endpoint. It checks for a newer release when it starts and installs it in place. `make dmg`, `make app` and `make install` build it locally; on Windows, `scripts\windows-installer.ps1` builds a setup `.exe` (see [docs/guide/desktop.md](docs/guide/desktop.md#windows-installer)). The release process, update flow, splash, quit guard and icons are in [docs/guide/desktop.md](docs/guide/desktop.md).
+The app is a Tauri v2 window over the same server `rekall-server` runs, on the same port, config and MCP endpoint. It checks for a newer release when it starts and installs it in place. `make dmg`, `make app` and `make install` build it locally. The release process, update flow, splash, quit guard and icons are in [docs/guide/desktop.md](docs/guide/desktop.md).
+
+### Windows installer
+
+Needs Rust (MSVC), the Visual C++ Build Tools, Node 22 and pnpm. From the repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\windows-installer.ps1
+```
+
+The per-user setup is written to `target\release\bundle\nsis\Rekall_<version>_x64-setup.exe`. Options and details: [docs/guide/desktop.md](docs/guide/desktop.md#windows-installer).
 
 ## Connect Claude Code
 
