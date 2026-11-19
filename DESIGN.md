@@ -212,6 +212,8 @@ The plan tube is a glossy gold fill in a sunk trough, green when complete, with 
 ### Dock
 One capsule at the bottom left (`1 in progress | 1 session`) that opens a panel above itself; one panel at a time. A terminal session picked from its sessions sheet opens in a floating terminal panel above the capsule instead of the full terminal pane; Escape and outside presses go to the terminal, not to the panel.
 
+The two panels answer each other. A timer row nests the sessions on its task, or says `No open session`; a session row says whether its task is tracking time. Every session carries one state pill: Open, Working, Work completed (a step or review was claimed during the session, so the work is waiting for a person while the session stays open) or Awaiting approval. The sessions segment of the capsule appends `Awaiting approval` when any session waits.
+
 ## Do's and Don'ts
 
 ### Do:
