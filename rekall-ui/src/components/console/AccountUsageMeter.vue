@@ -4,6 +4,7 @@ import { computed, ref } from 'vue'
 import { formatResetIn } from '@/common/format/countdown'
 import { relativeTime } from '@/common/format/relative-time'
 import type { AccountUsageReading } from '@/composables/useAccountUsageReading'
+import SessionProviderMark from '@/features/claude/components/SessionProviderMark.vue'
 import type { SessionProvider } from '@/features/claude/model/session-provider'
 import { usePreferencesStore } from '@/features/settings/store/preferences.store'
 import type { UsageLimit, UsageSeverity } from '@/model/account-usage'
@@ -191,7 +192,7 @@ function dismiss(): void {
         </svg>
       </span>
 
-      <span v-if="showProvider" class="text-caption">{{ account.name }}</span>
+      <SessionProviderMark v-if="showProvider" :provider="provider" />
 
       <template v-if="state === 'ok' && session">
         <span class="font-mono tabular-nums" :class="TEXT[severity]">

@@ -63,6 +63,22 @@ describe('account usage in the header', () => {
     expect(fetchClaudeUsage).toHaveBeenCalledWith(false)
   })
 
+  it('marks each meter with its provider instead of its name once both are shown', async () => {
+    vi.mocked(fetchCodexUsage).mockResolvedValue({
+      status: 'OK',
+      primary: { usedPercent: 27, resetsAt: null, windowDurationMins: 300 },
+      secondary: null
+    })
+    const header = mountHeader()
+    await flushPromises()
+
+    for (const provider of ['claude', 'codex'] as const) {
+      const trigger = header.get(`[data-testid="${provider}-usage"] button`)
+      expect(trigger.find(`svg[data-provider="${provider.toUpperCase()}"]`).exists()).toBe(true)
+      expect(trigger.text()).not.toMatch(/Claude|Codex/)
+    }
+  })
+
   it('omits the Codex meter when the CLI is missing', async () => {
     vi.mocked(fetchCodexUsage).mockResolvedValue({ status: 'CLI_MISSING' })
     const header = mountHeader()
