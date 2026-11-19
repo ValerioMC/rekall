@@ -3,23 +3,31 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppDialog from '@/components/ui/AppDialog.vue'
 import PaletteList from '@/features/search/components/PaletteList.vue'
+import PaletteScopes from '@/features/search/components/PaletteScopes.vue'
 import { useTextSearch } from '@/features/search/composables/useTextSearch'
-import { flattenSections, optionId, paletteSections } from '@/features/search/lib/palette-entries'
-import type { PaletteEntry } from '@/features/search/model/palette'
+import { flattenSections, optionId, paletteResults, queryTerms } from '@/features/search/lib/palette-entries'
+import { PALETTE_SCOPES } from '@/features/search/model/palette'
+import type { PaletteEntry, PaletteGroup, PaletteScope } from '@/features/search/model/palette'
 import { usePaletteStore } from '@/features/search/store/palette.store'
+import { usePinnedProjectsStore } from '@/features/catalog/store/pinnedProjects.store'
+import { useRecentProjectsStore } from '@/features/catalog/store/recentProjects.store'
 import { useConsoleStore } from '@/stores/console.store'
 import type { TaskId } from '@/model/branded'
 
 /**
  * Moves between screens, projects, tasks and notes from one field, and finds a phrase in the text
- * behind them. Opening a task goes to its page.
+ * behind them. Nothing typed opens on the reader's own projects and what waits on them; Tab
+ * narrows the results to one group. Opening a task goes to its page.
  */
 const palette = usePaletteStore()
 const store = useConsoleStore()
+const pinned = usePinnedProjectsStore()
+const recent = useRecentProjectsStore()
 const router = useRouter()
 
 const query = ref('')
 const input = ref<HTMLInputElement | null>(null)
+const scope = ref<PaletteScope>('all')
 const activeIndex = ref(0)
 const { hits, searching, failed } = useTextSearch(query)
 
@@ -29,15 +37,23 @@ const needsReview = computed(() => {
   return counts
 })
 
-const sections = computed(() =>
-  paletteSections(query.value, {
-    projects: store.projects,
-    tasks: store.tasks,
-    documents: store.documents,
-    needsReview: needsReview.value,
-    textHits: hits.value
-  })
+const results = computed(() =>
+  paletteResults(
+    query.value,
+    {
+      projects: store.projects,
+      tasks: store.tasks,
+      documents: store.documents,
+      needsReview: needsReview.value,
+      textHits: hits.value,
+      pinnedProjectIds: pinned.ids,
+      recentProjectIds: recent.ids
+    },
+    scope.value
+  )
 )
+const sections = computed(() => results.value.sections)
+const terms = computed(() => queryTerms(query.value))
 const entries = computed(() => flattenSections(sections.value))
 const active = computed<PaletteEntry | null>(() => entries.value[activeIndex.value] ?? null)
 
@@ -66,7 +82,16 @@ function select(entry: PaletteEntry): void {
   activeIndex.value = entries.value.indexOf(entry)
 }
 
-watch(query, () => (activeIndex.value = 0))
+function cycleScope(delta: number): void {
+  const at = PALETTE_SCOPES.indexOf(scope.value)
+  scope.value = PALETTE_SCOPES[(at + delta + PALETTE_SCOPES.length) % PALETTE_SCOPES.length]!
+}
+
+function narrowTo(group: PaletteGroup): void {
+  scope.value = group
+}
+
+watch([query, scope], () => (activeIndex.value = 0))
 
 watch(active, async (entry) => {
   if (!entry) return
@@ -80,7 +105,7 @@ onMounted(() => input.value?.focus())
 <template>
   <AppDialog
     label="Search"
-    panel-class="max-w-[620px] self-start mt-[12vh]"
+    panel-class="max-w-[660px] self-start mt-[12vh]"
     panel-testid="command-palette"
     @dismiss="palette.hide()"
   >
@@ -103,14 +128,19 @@ onMounted(() => input.value?.focus())
         @keydown.down.prevent="move(1)"
         @keydown.up.prevent="move(-1)"
         @keydown.enter.prevent="openActive"
+        @keydown.tab.prevent="cycleScope($event.shiftKey ? -1 : 1)"
       />
     </div>
+    <PaletteScopes :scope="scope" :counts="results.counts" @select="scope = $event" />
     <PaletteList
       v-if="entries.length > 0"
       :sections="sections"
+      :scope="scope"
+      :terms="terms"
       :active-key="active?.key ?? null"
       @pick="open"
       @hover="select"
+      @widen="narrowTo"
     />
     <p v-else class="px-4 py-5 text-small text-text-muted" role="status" data-testid="palette-empty">
       {{ emptyMessage }}
@@ -118,6 +148,7 @@ onMounted(() => input.value?.focus())
     <p class="flex gap-4 border-t border-border px-4 py-2 text-caption text-text-subtle" aria-hidden="true">
       <span><kbd class="font-mono">&#8593;</kbd> <kbd class="font-mono">&#8595;</kbd> walk</span>
       <span><kbd class="font-mono">&#9166;</kbd> open</span>
+      <span><kbd class="font-mono">&#8677;</kbd> next group</span>
       <span><kbd class="font-mono">esc</kbd> close</span>
     </p>
   </AppDialog>

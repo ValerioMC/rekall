@@ -7,18 +7,24 @@ import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import ScopeProjectOption from '@/features/catalog/components/ScopeProjectOption.vue'
 import { switcherSections } from '@/features/catalog/lib/switcher-sections'
 import { companyDraft, projectDraft, type RecordDraft } from '@/features/catalog/model/record-draft'
+import { usePinnedProjectsStore, PINNED_LIMIT } from '@/features/catalog/store/pinnedProjects.store'
 import { useRecentProjectsStore } from '@/features/catalog/store/recentProjects.store'
 import { useConsoleStore } from '@/stores/console.store'
+import { useToastStore } from '@/stores/toast.store'
 import type { Company, Project } from '@/features/catalog/model/catalog'
 import type { ScopeTarget } from '@/features/catalog/model/scope-target'
 import type { CompanyId, ProjectId } from '@/model/branded'
 
 /**
- * The project in view, as the page's title, and the list that changes it: recent projects, then
- * every company with its projects. On Work it narrows the list (all work, a company or a project);
- * on a project page it only moves between projects. The page decides what a choice does.
+ * The project in view and the list that changes it: pinned projects, recent ones, then every
+ * company with its projects, folded except the open project's. As a page title on Work it narrows
+ * the list (all work, a company or a project); as the title of a project page or as the header key
+ * it only moves between projects. The page decides what a choice does.
  */
-const props = defineProps<{ mode: 'work' | 'project'; companyId: CompanyId | null; projectId: ProjectId | null }>()
+const props = withDefaults(
+  defineProps<{ mode: 'work' | 'project'; companyId: CompanyId | null; projectId: ProjectId | null; variant?: 'title' | 'header' }>(),
+  { variant: 'title' }
+)
 
 const emit = defineEmits<{ select: [target: ScopeTarget]; 'open-page': [projectId: ProjectId] }>()
 
@@ -29,11 +35,14 @@ interface Entry {
 
 const store = useConsoleStore()
 const recent = useRecentProjectsStore()
+const pinned = usePinnedProjectsStore()
+const toast = useToastStore()
 const { companies, projects, tasks } = storeToRefs(store)
 
 const isOpen = ref(false)
 const query = ref('')
 const cursor = ref(0)
+const unfolded = ref<ReadonlySet<CompanyId>>(new Set())
 const editing = ref<RecordDraft | null>(null)
 const trigger = ref<HTMLButtonElement | null>(null)
 const search = ref<HTMLInputElement | null>(null)
@@ -46,21 +55,33 @@ const markedCompany = computed(() => {
   const companyId = markedProject.value?.companyId ?? props.companyId
   return companies.value.find((company) => company.id === companyId) ?? null
 })
-const sections = computed(() => switcherSections(projects.value, recent.ids, query.value, props.projectId))
+const isHeader = computed(() => props.variant === 'header')
+const sections = computed(() => switcherSections(projects.value, recent.ids, query.value, props.projectId, pinned.ids))
 const showsAll = computed(() => isWork.value && !searching.value)
-const hasMatch = computed(() => showsAll.value || sections.value.recent.length > 0 || sections.value.companies.length > 0)
+const hasMatch = computed(
+  () =>
+    showsAll.value ||
+    sections.value.pinned.length > 0 ||
+    sections.value.recent.length > 0 ||
+    sections.value.companies.length > 0
+)
 const everyone = computed(() => props.companyId === null && props.projectId === null)
 
 function projectTarget(project: Project): ScopeTarget {
   return { kind: 'project', companyId: project.companyId, projectId: project.id }
 }
 
+function showsCompany(companyId: CompanyId): boolean {
+  return searching.value || unfolded.value.has(companyId)
+}
+
 const entries = computed<Entry[]>(() => [
   ...(showsAll.value ? [{ key: 'all', target: { kind: 'all' } as ScopeTarget }] : []),
+  ...sections.value.pinned.map((project) => ({ key: `pinned:${project.id}`, target: projectTarget(project) })),
   ...sections.value.recent.map((project) => ({ key: `recent:${project.id}`, target: projectTarget(project) })),
-  ...sections.value.companies.flatMap((group) =>
-    group.projects.map((project) => ({ key: `list:${project.id}`, target: projectTarget(project) }))
-  )
+  ...sections.value.companies
+    .filter((group) => showsCompany(group.companyId))
+    .flatMap((group) => group.projects.map((project) => ({ key: `list:${project.id}`, target: projectTarget(project) })))
 ])
 
 function companyOf(companyId: CompanyId): Company | null {
@@ -76,8 +97,28 @@ function isCurrentEntry(entry: Entry): boolean {
   return entry.target.kind === 'project' && entry.target.projectId === props.projectId
 }
 
+function companiesToUnfold(): ReadonlySet<CompanyId> {
+  const own = markedCompany.value?.id
+  if (own) return new Set([own])
+  const hasShortcuts = pinned.ids.length > 0 || recent.ids.length > 0
+  return new Set(hasShortcuts ? [] : companies.value.map((company) => company.id))
+}
+
+function toggleCompany(companyId: CompanyId): void {
+  const next = new Set(unfolded.value)
+  if (!next.delete(companyId)) next.add(companyId)
+  unfolded.value = next
+}
+
+function togglePin(project: Project): void {
+  if (pinned.toggle(project.id) === 'full') {
+    toast.notifyError(new Error(`Pin at most ${PINNED_LIMIT} projects. Unpin one first.`))
+  }
+}
+
 async function open(): Promise<void> {
   query.value = ''
+  unfolded.value = companiesToUnfold()
   isOpen.value = true
   cursor.value = Math.max(0, entries.value.findIndex(isCurrentEntry))
   await nextTick()
@@ -157,6 +198,32 @@ function newProject(): void {
 <template>
   <div class="relative" data-testid="scope-switcher">
     <button
+      v-if="isHeader"
+      ref="trigger"
+      type="button"
+      data-testid="scope-trigger"
+      class="focus-ring flex h-8 max-w-60 cursor-pointer items-center gap-2 rounded-control border border-border bg-surface px-2 text-left text-body font-medium text-text transition-colors duration-(--motion-quick) hover:bg-surface-raised"
+      :class="isOpen && 'bg-surface-raised'"
+      aria-haspopup="listbox"
+      :aria-expanded="isOpen"
+      aria-label="Switch project"
+      @click="toggle"
+    >
+      <ProjectMark v-if="markedProject" :project-id="markedProject.id" :icon="markedProject.icon" :image-version="markedProject.iconImageVersion" :size="20" />
+      <span v-else class="mx-1.5 size-2 shrink-0 rotate-45 rounded-key bg-accent" aria-hidden="true" />
+      <span class="truncate max-[1279px]:hidden" data-testid="scope-trigger-title">{{ markedProject?.title ?? 'Projects' }}</span>
+      <svg
+        class="size-3.5 shrink-0 text-text-subtle transition-transform duration-(--motion-move)"
+        :class="isOpen && 'rotate-180 text-text'"
+        viewBox="0 0 16 16"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path d="m4 6.5 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </button>
+    <button
+      v-else
       ref="trigger"
       type="button"
       data-testid="scope-trigger"
@@ -245,6 +312,22 @@ function newProject(): void {
           </button>
         </div>
 
+        <template v-if="sections.pinned.length > 0">
+          <p class="px-3 pb-1 pt-4 text-caption font-medium text-text-subtle first:pt-2" data-testid="scope-pinned-heading">Pinned</p>
+          <ScopeProjectOption
+            v-for="project in sections.pinned"
+            :key="`pinned:${project.id}`"
+            :project="project"
+            :active="isActive(`pinned:${project.id}`)"
+            :current="project.id === projectId"
+            :pinned="true"
+            :can-open-page="isWork"
+            @pick="pick(projectTarget(project))"
+            @toggle-pin="togglePin(project)"
+            @open-page="openPage(project.id)"
+          />
+        </template>
+
         <template v-if="sections.recent.length > 0">
           <p class="px-3 pb-1 pt-4 text-caption font-medium text-text-subtle first:pt-2">Recent</p>
           <ScopeProjectOption
@@ -253,18 +336,35 @@ function newProject(): void {
             :project="project"
             :active="isActive(`recent:${project.id}`)"
             :current="project.id === projectId"
+            :pinned="pinned.isPinned(project.id)"
             :can-open-page="isWork"
             @pick="pick(projectTarget(project))"
+            @toggle-pin="togglePin(project)"
             @open-page="openPage(project.id)"
           />
         </template>
 
         <template v-for="group in sections.companies" :key="group.companyId">
-          <div v-if="isWork" class="group/company mt-3 flex items-center gap-1">
+          <div class="group/company mt-3 flex items-center gap-1">
             <button
+              v-if="isWork"
+              type="button"
+              class="focus-ring grid size-6 shrink-0 cursor-pointer place-items-center rounded-key text-text-subtle transition-colors duration-(--motion-quick) hover:bg-surface hover:text-text disabled:cursor-default"
+              :aria-label="`${showsCompany(group.companyId) ? 'Fold' : 'Unfold'} ${group.companyName}`"
+              :aria-expanded="showsCompany(group.companyId)"
+              :disabled="searching"
+              data-testid="scope-company-fold"
+              @click="toggleCompany(group.companyId)"
+            >
+              <svg class="size-3 transition-transform duration-(--motion-quick)" :class="showsCompany(group.companyId) && 'rotate-90'" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="m6.5 4 4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+            <button
+              v-if="isWork"
               type="button"
               role="option"
-              class="focus-ring flex h-8 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-control px-3 text-left text-caption font-medium transition-colors duration-(--motion-quick)"
+              class="focus-ring flex h-8 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-control px-2 text-left text-caption font-medium transition-colors duration-(--motion-quick)"
               :class="companyId === group.companyId && projectId === null ? 'text-accent-strong' : 'text-text-subtle hover:text-text'"
               :aria-selected="companyId === group.companyId && projectId === null"
               data-testid="scope-company"
@@ -280,7 +380,29 @@ function newProject(): void {
               <span class="shrink-0 font-normal tabular-nums">{{ companyOf(group.companyId)?.taskCount ?? 0 }}</span>
             </button>
             <button
-              v-if="companyOf(group.companyId)"
+              v-else
+              type="button"
+              class="focus-ring flex h-8 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-control px-2 text-left text-caption font-medium text-text-subtle transition-colors duration-(--motion-quick) hover:text-text disabled:cursor-default"
+              :aria-label="`${showsCompany(group.companyId) ? 'Fold' : 'Unfold'} ${group.companyName}`"
+              :aria-expanded="showsCompany(group.companyId)"
+              :disabled="searching"
+              data-testid="scope-company-fold"
+              @click="toggleCompany(group.companyId)"
+            >
+              <svg class="size-3 shrink-0 transition-transform duration-(--motion-quick)" :class="showsCompany(group.companyId) && 'rotate-90'" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="m6.5 4 4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <CompanyMark
+                :company-id="group.companyId"
+                :name="group.companyName"
+                :image-version="companyOf(group.companyId)?.logoImageVersion ?? null"
+                :size="16"
+              />
+              <span class="min-w-0 flex-1 truncate">{{ group.companyName }}</span>
+              <span class="shrink-0 font-normal tabular-nums">{{ group.projects.length }}</span>
+            </button>
+            <button
+              v-if="isWork && companyOf(group.companyId)"
               type="button"
               class="focus-ring mr-1 grid size-6 shrink-0 cursor-pointer place-items-center rounded-key text-text-subtle opacity-0 transition-opacity hover:bg-surface hover:text-accent focus-visible:opacity-100 group-hover/company:opacity-100"
               :aria-label="`Edit ${group.companyName}`"
@@ -292,25 +414,20 @@ function newProject(): void {
               </svg>
             </button>
           </div>
-          <p v-else class="mt-3 flex h-8 items-center gap-2 px-3 text-caption font-medium text-text-subtle">
-            <CompanyMark
-              :company-id="group.companyId"
-              :name="group.companyName"
-              :image-version="companyOf(group.companyId)?.logoImageVersion ?? null"
-              :size="16"
+          <template v-if="showsCompany(group.companyId)">
+            <ScopeProjectOption
+              v-for="project in group.projects"
+              :key="`list:${project.id}`"
+              :project="project"
+              :active="isActive(`list:${project.id}`)"
+              :current="project.id === projectId"
+              :pinned="pinned.isPinned(project.id)"
+              :can-open-page="isWork"
+              @pick="pick(projectTarget(project))"
+              @toggle-pin="togglePin(project)"
+              @open-page="openPage(project.id)"
             />
-            {{ group.companyName }}
-          </p>
-          <ScopeProjectOption
-            v-for="project in group.projects"
-            :key="`list:${project.id}`"
-            :project="project"
-            :active="isActive(`list:${project.id}`)"
-            :current="project.id === projectId"
-            :can-open-page="isWork"
-            @pick="pick(projectTarget(project))"
-            @open-page="openPage(project.id)"
-          />
+          </template>
         </template>
 
         <p v-if="!hasMatch" class="px-4 py-6 text-center text-small text-text-subtle" data-testid="switcher-empty">

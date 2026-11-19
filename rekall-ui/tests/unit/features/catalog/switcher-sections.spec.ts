@@ -34,7 +34,7 @@ const all = [vega, atlas, lumen, old]
 
 describe('the switcher sections', () => {
   it('lists the recent projects first, newest first, and every company with its projects', () => {
-    const sections = switcherSections(all, ['p3' as ProjectId, 'p1' as ProjectId], '', null)
+    const sections = switcherSections(all, ['p3' as ProjectId, 'p1' as ProjectId], '', null, [])
 
     expect(sections.recent.map((p) => p.title)).toEqual(['Lumen', 'Vega'])
     expect(sections.companies.map((c) => [c.companyName, c.projects.map((p) => p.title)])).toEqual([
@@ -46,27 +46,46 @@ describe('the switcher sections', () => {
   it('shows at most three recent projects and skips one that no longer exists', () => {
     const ids = ['gone', 'p1', 'p2', 'p3'] as ProjectId[]
 
-    expect(switcherSections(all, ids, '', null).recent.map((p) => p.title)).toEqual(['Vega', 'Atlas', 'Lumen'])
+    expect(switcherSections(all, ids, '', null, []).recent.map((p) => p.title)).toEqual(['Vega', 'Atlas', 'Lumen'])
   })
 
   it('leaves an archived project out unless it is the one open', () => {
     const ids = ['p4' as ProjectId]
 
-    expect(switcherSections(all, ids, '', null).recent).toEqual([])
-    expect(switcherSections(all, ids, '', null).companies.flatMap((c) => c.projects)).not.toContain(old)
-    expect(switcherSections(all, ids, '', old.id).recent).toEqual([old])
-    expect(switcherSections(all, ids, '', old.id).companies.flatMap((c) => c.projects)).toContain(old)
+    expect(switcherSections(all, ids, '', null, []).recent).toEqual([])
+    expect(switcherSections(all, ids, '', null, []).companies.flatMap((c) => c.projects)).not.toContain(old)
+    expect(switcherSections(all, ids, '', old.id, []).recent).toEqual([old])
+    expect(switcherSections(all, ids, '', old.id, []).companies.flatMap((c) => c.projects)).toContain(old)
+  })
+
+  it('lists the pinned projects in the order pinned, and keeps them out of Recent', () => {
+    const sections = switcherSections(all, ['p1' as ProjectId, 'p2' as ProjectId, 'p3' as ProjectId], '', null, [
+      'p3' as ProjectId,
+      'p1' as ProjectId
+    ])
+
+    expect(sections.pinned.map((p) => p.title)).toEqual(['Lumen', 'Vega'])
+    expect(sections.recent.map((p) => p.title)).toEqual(['Atlas'])
+    expect(sections.companies.flatMap((c) => c.projects.map((p) => p.title))).toContain('Vega')
+  })
+
+  it('drops a pinned project that was archived, unless it is the one open', () => {
+    const pinned = ['p4' as ProjectId]
+
+    expect(switcherSections(all, [], '', null, pinned).pinned).toEqual([])
+    expect(switcherSections(all, [], '', old.id, pinned).pinned).toEqual([old])
   })
 
   it('filters by company, title or anchor and drops Recent while searching', () => {
-    const sections = switcherSections(all, ['p1' as ProjectId], 'globex', null)
+    const sections = switcherSections(all, ['p1' as ProjectId], 'globex', null, [])
 
     expect(sections.recent).toEqual([])
+    expect(sections.pinned).toEqual([])
     expect(sections.companies.map((c) => c.projects.map((p) => p.title))).toEqual([['Lumen']])
-    expect(switcherSections(all, [], 'project:atl', null).companies[0]?.projects).toEqual([atlas])
+    expect(switcherSections(all, [], 'project:atl', null, []).companies[0]?.projects).toEqual([atlas])
   })
 
   it('returns no company when nothing matches', () => {
-    expect(switcherSections(all, [], 'zzz', null).companies).toEqual([])
+    expect(switcherSections(all, [], 'zzz', null, []).companies).toEqual([])
   })
 })

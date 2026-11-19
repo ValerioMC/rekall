@@ -4,10 +4,12 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import CommandPalette from '@/features/search/components/CommandPalette.vue'
 import { usePaletteStore } from '@/features/search/store/palette.store'
+import { usePinnedProjectsStore } from '@/features/catalog/store/pinnedProjects.store'
+import { useRecentProjectsStore } from '@/features/catalog/store/recentProjects.store'
 import { useConsoleStore } from '@/stores/console.store'
 import type { SearchHit } from '@/features/search/model/search'
-import type { TaskId, TaskStepId } from '@/model/branded'
-import { project, task } from '../work/work-fixtures'
+import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
+import { project, step, task } from '../work/work-fixtures'
 
 const searchText = vi.fn<(term: string) => Promise<SearchHit[]>>()
 vi.mock('@/features/search/api/search.api', () => ({ searchText: (term: string) => searchText(term) }))
@@ -61,13 +63,85 @@ describe('the command palette', () => {
     document.body.innerHTML = ''
   })
 
-  it('lists the screens, projects and tasks before anything is typed', async () => {
+  it('lists the projects, tasks and screens before anything is typed, when nothing yet leads', async () => {
     seedStore()
     const { wrapper } = await mountPalette()
 
     const groups = wrapper.findAll('[role="group"]').map((group) => group.attributes('aria-label'))
 
-    expect(groups).toEqual(['Go to', 'Projects', 'Tasks'])
+    expect(groups).toEqual(['Projects', 'Tasks', 'Go to'])
+    wrapper.unmount()
+  })
+
+  it("opens on the reader's pinned and recent projects, and on the tasks waiting on a review", async () => {
+    const store = seedStore()
+    store.projects = [project('vega', 'Vega Platform'), project('orion', 'Orion')]
+    usePinnedProjectsStore().toggle('orion' as ProjectId)
+    useRecentProjectsStore().remember('vega' as ProjectId)
+    store.steps = [step('s9', 't2', 'CLAIMED')]
+    const { wrapper } = await mountPalette()
+
+    const sections = wrapper.findAll('[role="group"]').map((group) => group.attributes('aria-label'))
+    const projects = wrapper.findAll('[role="group"]')[0]!.findAll('[data-testid="palette-title"]').map((title) => title.text())
+
+    expect(sections).toEqual(['Your projects', 'Waiting on you'])
+    expect(projects).toEqual(['Orion', 'Vega Platform'])
+    wrapper.unmount()
+  })
+
+  it('counts each group in a row of tabs and narrows the list to the one pressed', async () => {
+    seedStore()
+    const { wrapper } = await mountPalette()
+    await wrapper.get('[data-testid="palette-input"]').setValue('/rk project:vega')
+
+    const tabs = wrapper.findAll('[data-testid="palette-scope"]')
+    expect(tabs.map((tab) => tab.text())).toEqual(['All', 'Projects 1', 'Tasks 2', 'Notes 0', 'Go to 0', 'In the text'])
+
+    await tabs[2]!.trigger('mousedown')
+
+    expect(wrapper.findAll('[role="group"]').map((group) => group.attributes('aria-label'))).toEqual(['Tasks'])
+    expect(tabs[2]!.attributes('aria-selected')).toBe('true')
+    wrapper.unmount()
+  })
+
+  it('walks the tabs with Tab and Shift+Tab, and starts the list over on the new one', async () => {
+    seedStore()
+    const { wrapper } = await mountPalette()
+    const input = wrapper.get('[data-testid="palette-input"]')
+    await input.setValue('/rk project:vega')
+
+    await input.trigger('keydown', { key: 'Tab' })
+    expect(wrapper.findAll('[role="group"]').map((group) => group.attributes('aria-label'))).toEqual(['Projects'])
+
+    await input.trigger('keydown', { key: 'Tab', shiftKey: true })
+    await input.trigger('keydown', { key: 'Tab', shiftKey: true })
+    expect(wrapper.get('[aria-selected="true"][role="tab"]').text()).toContain('In the text')
+    wrapper.unmount()
+  })
+
+  it('offers every row of a group that shows only a few, and opens that group on its key', async () => {
+    const store = seedStore()
+    store.tasks = Array.from({ length: 6 }, (_, index) => task(`m${index}`, { title: `Batch job ${index}` }))
+    const { wrapper } = await mountPalette()
+    await wrapper.get('[data-testid="palette-input"]').setValue('/rk batch')
+
+    expect(wrapper.findAll('[data-testid="palette-entry"]')).toHaveLength(4)
+    await wrapper.get('[data-testid="palette-widen"]').trigger('mousedown')
+
+    expect(wrapper.findAll('[data-testid="palette-entry"]')).toHaveLength(6)
+    expect(wrapper.find('[data-testid="palette-widen"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows where a task is and what is waiting on it', async () => {
+    seedStore()
+    const { wrapper } = await mountPalette()
+
+    await wrapper.get('[data-testid="palette-input"]').setValue('/rk retry')
+    const row = wrapper.get('[data-testid="palette-entry"]')
+
+    expect(row.get('[data-testid="palette-anchor"]').text()).toBe('project:vega task:t2'.split(' ')[1])
+    expect(row.text()).toContain('vega')
     wrapper.unmount()
   })
 
@@ -97,7 +171,8 @@ describe('the command palette', () => {
 
     const selected = wrapper.findAll('[role="option"]').filter((option) => option.attributes('aria-selected') === 'true')
     expect(selected).toHaveLength(1)
-    expect(selected[0]!.text()).toContain('Report builder')
+    expect(selected[0]!.text()).toContain('Report')
+    expect(selected[0]!.text()).toContain('Time tracked')
     wrapper.unmount()
   })
 

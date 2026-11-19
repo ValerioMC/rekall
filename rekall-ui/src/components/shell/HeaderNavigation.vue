@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppNavMenu from '@/components/console/AppNavMenu.vue'
 import AllWorkLink from '@/components/shell/AllWorkLink.vue'
+import HeaderProjectSwitch from '@/components/shell/HeaderProjectSwitch.vue'
 import HistoryArrows from '@/components/shell/HistoryArrows.vue'
 </script>
 
@@ -9,5 +10,6 @@ import HistoryArrows from '@/components/shell/HistoryArrows.vue'
     <AllWorkLink />
     <AppNavMenu />
     <HistoryArrows />
+    <HeaderProjectSwitch />
   </div>
 </template>

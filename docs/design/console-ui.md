@@ -81,12 +81,16 @@ The menu key in the header is three lines, the name of the screen on display, th
 (`AppNavMenu`, `nav-menu-label`); it opens every screen under its section:
 Work (Work, Review), Projects (Projects, Companies, Connections), Time (Report, Calendar), Library
 (Diagrams, Claude files), Security and Settings. The review count rides on the Review entry, and the key's
-accessible label names the screen on display and sums every alert. ⌘K opens the switcher:
-Go to, Projects, Tasks (with their state or review count) and Notes, filtered by title or anchor,
-and, for a phrase of three letters or more, an In the text group with what the server found in
-descriptions, steps, wrapups and notes. It opens on every screen, from ⌘K or a click on the `/rk`
-field (`CommandPalette`, mounted once by `Bootstrap`); a task opens its page, a note its Notes tab, a
-step hit its Plan with the step open. It is how a person changes task, since there is no list to click.
+accessible label names the screen on display and sums every alert. ⌘K opens the search:
+a row of group tabs (All, Projects, Tasks, Notes, Go to, In the text), each with how many it found, over the
+results. Nothing typed on All opens on **Your projects** (pinned, then recent) and **Waiting on you** (tasks
+with claims to review); a query shows a few rows per group with **Show all N**, and a tab shows its group in
+full, so an empty query on Projects browses every project. Rows say where a result is: a task and a note carry
+their project, every row its anchor in cyan, a task its review count or status, and a text hit the words around the
+match with the term marked. For a phrase of three letters or more, In the text lists what the server found in
+descriptions, steps, wrapups and notes. **Tab** and **Shift+Tab** walk the tabs. It opens on every screen, from ⌘K
+or a click on the `/rk` field (`CommandPalette`, mounted once by `Bootstrap`); a task opens its page, a note
+its Notes tab, a step hit its Plan with the step open. It is how a person changes task, since there is no list to click.
 
 ## Work
 
@@ -313,8 +317,13 @@ approved.
 status pill, a composition bar (filed, to review, in progress, to do: `lib/project-composition.ts`)
 and counts. The project page opens with the same scope bar as Work and a header that is the same on every working
 screen, the `/rk` search and the status capsule (`ConsoleHeader`). The title is the project switcher
-(`ScopeSwitcher`): a search field, the projects opened last (`recentProjects.store`, five kept in
-`localStorage`, three shown), then every company with its projects, archived ones left out unless open.
+(`ScopeSwitcher`): a search field, the **pinned** projects (`pinnedProjects.store`, three at most, a star on every
+row), the projects opened last that are not pinned (`recentProjects.store`, five kept in `localStorage`, three
+shown), then every company with its projects, folded except the open project's company (all of them when nothing is in
+view and there is no pin or recent to lead with) and unfolded while searching; archived projects are left out unless open.
+The same switcher is the **header's project key** on every screen (`HeaderProjectSwitch`, beside the history
+arrows): it names the project of a project page, the open task or Work's scope, records it as recent, and a choice keeps
+a project page on its tab and otherwise narrows Work to the project.
 On Work a choice narrows the list (All work, a company or a project) and a project row carries **Open page**;
 on a project page a choice goes to that project on the tab already open. What each page does with a choice
 is the page's; the switcher only hands back a `ScopeTarget`. The project page is a route per tab (`/projects/:id/:tab`): Tasks (the Work ledger
@@ -416,7 +425,7 @@ toolbar keys stop being hand-built from the keycap utilities. A control drawn sm
 takes `hit-target`, which grows the pointer target, not the glyph.
 
 The header is one 48px row (`--spacing-header`), a three-cell grid. The left cell holds the 24px
-mark, the menu key and the history arrows. The menu key is a bare three-line burger that opens every screen
+mark, the menu key, the history arrows and the project key. The menu key is a bare three-line burger that opens every screen
 grouped under its section (`AppNavMenu`); its accessible label names the screen on display and sums
 the alerts, and each alert shows beside its entry. The centre cell, at most 620px, is the
 `/rk` field: at rest it shows the open task's or project's anchors as chips, and `⌘K` or a click opens

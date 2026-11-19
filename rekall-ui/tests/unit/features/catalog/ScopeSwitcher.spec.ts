@@ -3,7 +3,9 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import ScopeSwitcher from '@/features/catalog/components/ScopeSwitcher.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import { usePinnedProjectsStore } from '@/features/catalog/store/pinnedProjects.store'
 import { useRecentProjectsStore } from '@/features/catalog/store/recentProjects.store'
+import { useToastStore } from '@/stores/toast.store'
 import { installStorage } from '../../support/memoryStorage'
 import type { Company, Project } from '@/features/catalog/model/catalog'
 import type { ScopeTarget } from '@/features/catalog/model/scope-target'
@@ -112,7 +114,41 @@ describe('the switcher list', () => {
     await open(page)
     expect(page.find('[data-testid="scope-all"]').exists()).toBe(false)
     expect(page.findAll('[data-testid="scope-company"]')).toHaveLength(0)
-    expect(page.findAll('[data-testid="scope-project"]')).toHaveLength(3)
+    expect(page.findAll('[data-testid="scope-company-fold"]')).toHaveLength(2)
+  })
+
+  it("unfolds only the open project's company, and a fold key opens or closes any other", async () => {
+    const view = render('project', acme, vega)
+    await open(view)
+    const titles = () => view.findAll('[data-testid="scope-project"]').map((row) => row.text().replace(/\d+$/, '').trim())
+    expect(titles()).toEqual(['Atlas', 'Vega'])
+
+    await view.findAll('[data-testid="scope-company-fold"]')[1]!.trigger('click')
+    expect(titles()).toEqual(['Atlas', 'Vega', 'Lumen'])
+
+    await view.findAll('[data-testid="scope-company-fold"]')[0]!.trigger('click')
+    expect(titles()).toEqual(['Lumen'])
+  })
+
+  it('folds every company when nothing is in view but there are pins or recents to lead with, and unfolds them all when there are none', async () => {
+    const bare = render('work', null)
+    await open(bare)
+    expect(bare.findAll('[data-testid="scope-project"]')).toHaveLength(3)
+    bare.unmount()
+
+    useRecentProjectsStore().remember(lumen)
+    const led = render('work', null)
+    await open(led)
+    expect(led.findAll('[data-testid="scope-project"]')).toHaveLength(1)
+  })
+
+  it('unfolds every company while searching, so a match is never hidden', async () => {
+    const view = render('project', acme, vega)
+    await open(view)
+
+    await view.get('[data-testid="switcher-search"]').setValue('lumen')
+
+    expect(view.findAll('[data-testid="scope-project"]')).toHaveLength(1)
   })
 
   it('leaves an archived project out unless it is the one open', async () => {
@@ -161,7 +197,61 @@ describe('the switcher list', () => {
 
     const titles = view.findAll('[data-testid="scope-project"]').map((row) => row.text())
     expect(titles.slice(0, 2).map((text) => text.replace(/\d+$/, '').trim())).toEqual(['Atlas', 'Lumen'])
-    expect(titles).toHaveLength(5)
+    expect(titles).toHaveLength(2)
+
+    await view.findAll('[data-testid="scope-company-fold"]')[0]!.trigger('click')
+    expect(view.findAll('[data-testid="scope-project"]')).toHaveLength(4)
+  })
+})
+
+describe('pinning in the switcher', () => {
+  it('lists the pinned projects first, under their own heading, and not again under Recent', async () => {
+    usePinnedProjectsStore().toggle(lumen)
+    useRecentProjectsStore().remember(lumen)
+    useRecentProjectsStore().remember(atlas)
+    const view = render('work', null)
+    await open(view)
+
+    expect(view.get('[data-testid="scope-pinned-heading"]').text()).toBe('Pinned')
+    const rows = view.findAll('[data-testid="scope-project"]').map((row) => row.text().replace(/\d+$/, '').trim())
+    expect(rows.slice(0, 2)).toEqual(['Lumen', 'Atlas'])
+  })
+
+  it('pins and unpins from the star of a row without choosing the project', async () => {
+    const view = render('project', acme, vega)
+    await open(view)
+
+    await view.findAll('[data-testid="scope-pin"]')[0]!.trigger('click')
+
+    expect(usePinnedProjectsStore().ids).toEqual([atlas])
+    expect(emitted(view)).toEqual([])
+    expect(view.findAll('[data-testid="scope-pin"]')[0]!.attributes('aria-pressed')).toBe('true')
+  })
+
+  it('says so, and pins nothing, when three projects are already pinned', async () => {
+    const pins = usePinnedProjectsStore()
+    ;[vega, atlas, lumen].forEach((id) => pins.toggle(id))
+    const other = project('p4' as ProjectId, 'Orion', acme, 'acme')
+    const view = render('project', acme, other.id, [...catalog, other])
+    await open(view)
+
+    const orionStar = view.findAll('[data-testid="scope-project-row"]').find((row) => row.text().includes('Orion'))!
+    await orionStar.get('[data-testid="scope-pin"]').trigger('click')
+
+    expect(pins.ids).toEqual([vega, atlas, lumen])
+    expect(useToastStore().toasts.at(-1)?.message).toContain('at most 3')
+  })
+})
+
+describe('the header variant', () => {
+  it('wears the project in view and its title, and a Projects label when none is', () => {
+    const open = render('project', acme, vega)
+    expect(open.get('[data-testid="scope-trigger"]').attributes('aria-label')).toBe('Switch project')
+    open.unmount()
+
+    const none = mount(ScopeSwitcher, { props: { mode: 'project', companyId: null, projectId: null, variant: 'header' }, global: { plugins: [pinia] } })
+    expect(none.get('[data-testid="scope-trigger-title"]').text()).toBe('Projects')
+    none.unmount()
   })
 })
 
@@ -183,7 +273,7 @@ describe('choosing in the switcher', () => {
     expect(useRecentProjectsStore().ids).toEqual([atlas])
   })
 
-  it('starts on the open project and picks the next row with the arrow and Enter', async () => {
+  it('starts on the open project and wraps to the first row with the arrow and Enter', async () => {
     const view = render('project', acme, vega)
     await open(view)
     const search = view.get('[data-testid="switcher-search"]')
@@ -191,7 +281,7 @@ describe('choosing in the switcher', () => {
     await search.trigger('keydown', { key: 'ArrowDown' })
     await search.trigger('keydown', { key: 'Enter' })
 
-    expect(emitted(view)).toEqual([{ kind: 'project', companyId: globex, projectId: lumen }])
+    expect(emitted(view)).toEqual([{ kind: 'project', companyId: acme, projectId: atlas }])
   })
 
   it('opens the page of a project from its row, on Work', async () => {
