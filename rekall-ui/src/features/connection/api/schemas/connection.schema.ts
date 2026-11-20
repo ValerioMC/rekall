@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { TargetCheck } from '@/features/connection/model/connection'
 import { asCompanyId, asConnectionId, asProjectConnectionId, asProjectId, asTaskId, asTerminalId } from '@/model/branded'
 
 export const ConnectionKindSchema = z.enum(['GITLAB', 'GITHUB', 'KUBERNETES', 'JIRA', 'CONFLUENCE', 'GRAFANA'])
@@ -84,6 +85,43 @@ export const JiraIssueListSchema = z.array(
 )
 
 export const TargetSuggestionListSchema = z.array(z.object({ value: z.string(), name: z.string() }))
+
+const GitlabNamespaceSchema = z.object({
+  kind: z.enum(['GROUP', 'PROJECT']),
+  path: z.string(),
+  name: z.string(),
+  visibility: z.string().nullable(),
+  defaultBranch: z.string().nullable(),
+  lastActivityAt: z.string().nullable(),
+  subgroupCount: z.number().nullable(),
+  projectCount: z.number().nullable()
+})
+
+export const GitlabNamespaceListSchema = z.array(GitlabNamespaceSchema)
+
+export const TargetCheckSchema = z
+  .object({
+    status: z.enum(['FOUND', 'NOT_FOUND', 'OUTSIDE_ROOT', 'NO_CREDENTIAL', 'UNREACHABLE']),
+    found: GitlabNamespaceSchema.nullable(),
+    nearest: z.string().nullable(),
+    root: z.string().nullable(),
+    reason: z.string().nullable()
+  })
+  .transform((answer): TargetCheck => {
+    switch (answer.status) {
+      case 'FOUND':
+        if (!answer.found) throw new Error('A found path carries what was found.')
+        return { status: 'FOUND', found: answer.found }
+      case 'NOT_FOUND':
+        return { status: 'NOT_FOUND', nearest: answer.nearest }
+      case 'OUTSIDE_ROOT':
+        return { status: 'OUTSIDE_ROOT', root: answer.root ?? '' }
+      case 'NO_CREDENTIAL':
+        return { status: 'NO_CREDENTIAL' }
+      case 'UNREACHABLE':
+        return { status: 'UNREACHABLE', reason: answer.reason ?? 'GitLab did not answer.' }
+    }
+  })
 
 export const ConfluenceImportSchema = z.object({
   spaceKey: z.string(),

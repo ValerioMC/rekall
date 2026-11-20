@@ -123,6 +123,24 @@
         ],
         "createdAt": "2026-11-16T08:50:54.858Z",
         "reason": "DESIGN.md sanctions the pulsing orb for a running session (Status Pill: running); the dot marks RV-53, whose session is live in the real data"
+      },
+      {
+        "rule": "tiny-text",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/gitlab-bind-verify/index.html"
+        ],
+        "createdAt": "2026-11-20T10:05:12.196Z",
+        "reason": "DESIGN.md sanctions Micro 11px for kbd hints and counts; decided by the model from DESIGN.md, not user confirmed"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/gitlab-bind-verify/index.html"
+        ],
+        "createdAt": "2026-11-20T10:06:13.087Z",
+        "reason": "False positive: pills, chips, buttons and fields are fixed-height flex boxes with text centred vertically and 8px or more horizontal padding. Decided by the model, not user confirmed."
       }
     ]
   }

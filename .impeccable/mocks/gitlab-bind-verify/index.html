@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitLab bind verification</title>
+<style>
+  @font-face { font-family: 'Fira Sans'; font-weight: 400; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 500; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 600; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Code'; font-weight: 300 700; src: url('../../../rekall-ui/node_modules/@fontsource-variable/fira-code/files/fira-code-latin-wght-normal.woff2') format('woff2'); }
+
+  :root {
+    --canvas: #0d1017; --surface: #151922; --raised: #1d2330; --hover: #262d3c;
+    --border: #2a3243; --border-strong: #3b4558; --border-field: #5e6a82;
+    --text: #f2f5f9; --muted: #a3acba; --subtle: #8c96a6;
+    --accent: #eaa43c; --accent-strong: #ffd88e; --accent-soft: #eaa43c24; --accent-ink: #2b1804;
+    --anchor: #55c9ea;
+    --safe: #3ddc97; --safe-soft: #3ddc971a; --warn: #f3c04a; --warn-soft: #f3c04a1a; --danger: #fb7185; --danger-soft: #fb71851a;
+    --font-sans: 'Fira Sans', ui-sans-serif, -apple-system, sans-serif;
+    --font-mono: 'Fira Code', ui-monospace, Menlo, monospace;
+    --t-micro: 11px; --t-caption: 11.5px; --t-small: 12.5px; --t-body: 13.5px; --t-title: 15px; --t-heading: 19px;
+    --r-key: 3px; --r-control: 5px; --r-card: 8px;
+    --ease: cubic-bezier(.22, 1, .36, 1);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--canvas); color: var(--text); font: 400 var(--t-body)/1.4 var(--font-sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; text-align: left; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button:disabled { cursor: default; }
+  .mono { font-family: var(--font-mono); }
+  .trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  svg.i { width: 14px; height: 14px; flex: none; }
+  svg.i-lg { width: 16px; height: 16px; flex: none; }
+
+  .app { display: flex; flex-direction: column; height: calc(100vh - 44px); }
+  .topbar { height: 48px; flex: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 620px) minmax(0, 1fr); gap: 12px; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .brand { font-weight: 600; font-size: var(--t-title); letter-spacing: -0.01em; }
+  .search { height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); color: var(--subtle); font-size: var(--t-small); }
+  .search kbd { margin-left: auto; font: 400 var(--t-micro) var(--font-mono); border: 1px solid var(--border-strong); border-radius: var(--r-key); padding: 0 7px; }
+  .capsule { justify-self: end; height: 32px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); color: var(--muted); font-size: var(--t-small); white-space: nowrap; }
+  .capsule .rv { color: var(--accent); font-weight: 600; }
+
+  .page { flex: 1; min-height: 0; overflow: auto; padding: 14px 32px 32px; }
+  .page-in { max-width: 1320px; margin: 0 auto; }
+  h1 { font-size: var(--t-heading); font-weight: 600; letter-spacing: -0.015em; margin: 4px 0 10px; }
+  .tabs { display: flex; gap: 22px; height: 40px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .tab { position: relative; display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .tab .c { font: 400 var(--t-micro) var(--font-mono); color: var(--subtle); }
+  .tab[aria-current="page"] { color: var(--text); }
+  .tab[aria-current="page"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); border-radius: 2px; }
+
+  .split { display: grid; grid-template-columns: 300px minmax(0, 1fr); border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); min-height: 640px; overflow: hidden; }
+  .list { border-right: 1px solid var(--border); padding: 12px 8px; }
+  .grp { padding: 8px 8px 4px; color: var(--subtle); font-size: var(--t-caption); font-weight: 500; }
+  .item { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 8px; border-radius: var(--r-control); color: var(--muted); }
+  .item[aria-current="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }
+  .item .n { margin-left: auto; font: 400 var(--t-micro) var(--font-mono); color: var(--subtle); }
+
+  .detail { padding: 20px 24px 28px; min-width: 0; }
+  .dhead { display: flex; align-items: center; gap: 12px; }
+  .dhead h2 { font-size: var(--t-title); font-weight: 600; letter-spacing: -0.01em; }
+  .anchor { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--r-key); background: var(--surface); color: var(--anchor); font: 400 var(--t-caption) var(--font-mono); }
+  .facts { display: grid; grid-template-columns: 110px minmax(0, 1fr); row-gap: 8px; margin: 16px 0 22px; font-size: var(--t-body); }
+  .facts dt { color: var(--subtle); font-size: var(--t-small); padding-top: 1px; }
+  .facts dd { margin: 0; display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .ok-note { display: inline-flex; align-items: center; gap: 4px; color: var(--safe); font-size: var(--t-caption); }
+
+  .sech { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .sech h3 { font-size: var(--t-small); font-weight: 500; color: var(--muted); }
+  .sech .c { font: 400 var(--t-micro) var(--font-mono); color: var(--subtle); }
+  .sech .sp { flex: 1; }
+  .brow { display: flex; align-items: center; gap: 8px; min-height: 36px; padding-right: 4px; border-radius: var(--r-control); }
+  .brow:hover { background: var(--raised); }
+  .brow .l { width: 176px; flex: none; padding: 0 8px; color: var(--anchor); font: 400 var(--t-caption) var(--font-mono); }
+  .brow .t { flex: 1; min-width: 0; padding: 0 8px; font: 400 var(--t-caption) var(--font-mono); }
+  .brow .p { width: 120px; flex: none; color: var(--subtle); font-size: var(--t-caption); }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: var(--r-control); font-weight: 500; white-space: nowrap; border: 1px solid transparent; transition: background-color 140ms var(--ease), border-color 140ms var(--ease), color 140ms var(--ease); }
+  .btn.sm { height: 28px; padding: 0 10px; font-size: var(--t-small); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: #c98a2c; font-weight: 600; box-shadow: 0 1px 0 rgb(255 255 255 / .05), 0 1px 2px rgb(0 0 0 / .5); }
+  .btn.primary:hover:not(:disabled) { background: var(--accent-strong); }
+  .btn.primary:disabled { background: var(--raised); color: var(--subtle); border-color: var(--border); box-shadow: none; }
+  .btn.secondary { background: var(--raised); border-color: var(--border-strong); color: var(--text); }
+  .btn.secondary:hover { background: var(--hover); }
+  .btn.ghost { color: var(--muted); }
+  .btn.ghost:hover { background: var(--raised); color: var(--text); }
+
+  /* binder */
+  .binder { margin-top: 10px; border: 1px solid var(--border-strong); border-radius: var(--r-control); background: var(--surface); padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 14px; }
+  .fld > label, .fld > .lab { display: block; font-size: var(--t-small); font-weight: 500; color: var(--muted); margin-bottom: 6px; }
+  .fld .req { color: var(--subtle); font-weight: 400; }
+  .select { height: 32px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; border: 1px solid var(--border-field); border-radius: var(--r-control); background: var(--canvas); }
+  .select span.mono { font-size: var(--t-small); }
+  .hint { margin-top: 6px; color: var(--subtle); font-size: var(--t-caption); }
+
+  .combo { position: relative; }
+  .input { display: flex; align-items: center; height: 32px; border: 1px solid var(--border-field); border-radius: var(--r-control); background: var(--canvas); transition: border-color 140ms var(--ease); }
+  .input:hover { border-color: #7a86a0; }
+  .input:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .input[data-status="missing"], .input[data-status="outside"], .input[data-status="notgroup"] { border-color: var(--danger); }
+  .input[data-status="missing"]:focus-within, .input[data-status="outside"]:focus-within { box-shadow: 0 0 0 1px var(--danger); }
+  .input .host { flex: none; padding: 0 0 0 10px; color: var(--subtle); font: 400 var(--t-small) var(--font-mono); user-select: none; }
+  .input input { flex: 1; min-width: 0; height: 100%; padding: 0 10px 0 2px; background: none; border: 0; color: var(--text); font: 400 var(--t-small) var(--font-mono); }
+  .input input:focus-visible { outline: none; }
+  .input input::placeholder { color: var(--subtle); }
+  .input .glyph { flex: none; width: 32px; display: grid; place-items: center; }
+  .spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--muted); animation: turn 800ms linear infinite; }
+  @keyframes turn { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; border-top-color: var(--border-strong); border-right-color: var(--muted); } }
+
+  .pop { margin-top: 6px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--raised); overflow: hidden; }
+  .crumbs { display: flex; align-items: center; gap: 2px; padding: 6px 8px; border-bottom: 1px solid var(--border); font-size: var(--t-caption); color: var(--subtle); }
+  .crumbs button { height: 22px; padding: 0 6px; border-radius: var(--r-key); font: 400 var(--t-caption) var(--font-mono); color: var(--muted); }
+  .crumbs button:hover { background: var(--hover); color: var(--text); }
+  .crumbs .scope { margin-left: auto; font-size: var(--t-micro); color: var(--subtle); }
+  .opts { max-height: 232px; overflow: auto; padding: 4px; }
+  .opt { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px; padding: 0 8px; border-radius: var(--r-control); }
+  .opt[aria-selected="true"] { background: var(--hover); }
+  .opt .nm { font: 400 var(--t-small) var(--font-mono); color: var(--muted); }
+  .opt .nm b { font-weight: 600; color: var(--text); }
+  .opt .sub { margin-left: auto; flex: none; display: flex; align-items: center; gap: 8px; color: var(--subtle); font-size: var(--t-caption); }
+  .opt .go { color: var(--subtle); }
+  .none { padding: 14px 12px; color: var(--muted); font-size: var(--t-small); }
+  .keys { display: flex; gap: 14px; padding: 6px 12px; border-top: 1px solid var(--border); color: var(--subtle); font-size: var(--t-micro); }
+  .keys kbd { font: 400 var(--t-micro) var(--font-mono); border: 1px solid var(--border-strong); border-radius: var(--r-key); padding: 0 5px; margin-right: 4px; color: var(--muted); }
+  .glyph-g { color: var(--muted); }
+  .glyph-p { color: var(--subtle); }
+
+  .verdict { margin-top: 8px; border: 1px solid var(--border); border-radius: var(--r-control); background: var(--canvas); padding: 10px 12px; display: flex; gap: 12px; }
+  .verdict .ic { flex: none; width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--r-control); background: var(--raised); color: var(--muted); }
+  .verdict .bd { min-width: 0; flex: 1; }
+  .verdict .ti { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .verdict .ti strong { font-weight: 600; font-size: var(--t-body); }
+  .verdict .path { font: 400 var(--t-caption) var(--font-mono); color: var(--muted); }
+  .verdict .meta { margin-top: 2px; color: var(--subtle); font-size: var(--t-caption); display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .verdict .line { margin-top: 6px; font-size: var(--t-small); color: var(--muted); }
+  .verdict .stat { flex: none; align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 9999px; font-size: var(--t-caption); font-weight: 500; }
+  .verdict .stat.ok { background: var(--safe-soft); color: var(--safe); }
+  .verdict .stat.bad { background: var(--danger-soft); color: var(--danger); }
+  .verdict .stat.warn { background: var(--warn-soft); color: var(--warn); }
+  .verdict .stat.wait { background: var(--raised); color: var(--muted); }
+  .verdict.bad { border-color: #fb71854d; }
+  .verdict.bad .ic { color: var(--danger); background: var(--danger-soft); }
+  .verdict.warn .ic { color: var(--warn); background: var(--warn-soft); }
+  .verdict.ok .ic { color: var(--safe); background: var(--safe-soft); }
+  .verdict .act { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .lnk { color: var(--accent); text-underline-offset: 2px; }
+  .lnk:hover { text-decoration: underline; }
+  .skel { height: 10px; border-radius: 9999px; background: var(--raised); }
+
+  .bfoot { display: flex; align-items: center; gap: 8px; }
+  .bfoot .why { margin-right: auto; font-size: var(--t-caption); color: var(--subtle); }
+
+  /* sheet */
+  .scrim { position: fixed; inset: 0 0 44px 0; background: rgb(5 7 10 / .6); display: none; justify-content: flex-end; z-index: 20; }
+  .scrim[data-open="true"] { display: flex; }
+  .sheet { width: 520px; max-width: 100%; height: 100%; background: var(--surface); border-left: 1px solid var(--border-strong); display: flex; flex-direction: column; box-shadow: 0 40px 80px -24px rgb(0 0 0 / .9); }
+  .sheet header { display: flex; align-items: center; padding: 14px 24px; border-bottom: 1px solid var(--border); }
+  .sheet header h2 { font-size: var(--t-title); font-weight: 600; flex: 1; letter-spacing: -0.01em; }
+  .sheet .sb { flex: 1; overflow: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+  .sheet footer { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 24px; border-top: 1px solid var(--border); background: var(--canvas); }
+  .plain { display: flex; align-items: center; height: 32px; padding: 0 10px; border: 1px solid var(--border-field); border-radius: var(--r-control); background: var(--canvas); font-size: var(--t-small); }
+
+  /* state switcher, outside the product */
+  .states { position: fixed; left: 0; right: 0; bottom: 0; height: 44px; display: flex; align-items: center; gap: 6px; padding: 0 16px; background: #090b10; border-top: 1px solid var(--border); z-index: 40; overflow-x: auto; white-space: nowrap; }
+  .states .lb { color: var(--subtle); font-size: var(--t-micro); margin-right: 6px; text-transform: uppercase; letter-spacing: .06em; }
+  .states .sep { width: 1px; height: 20px; background: var(--border-strong); margin: 0 8px; }
+  .chip { height: 26px; padding: 0 10px; border-radius: 9999px; border: 1px solid var(--border-strong); color: var(--muted); font-size: var(--t-caption); }
+  .chip:hover { background: var(--raised); color: var(--text); }
+  .chip[aria-pressed="true"] { background: var(--raised); color: var(--text); border-color: var(--border-field); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="topbar">
+    <div class="brand">Rekall</div>
+    <div class="search">
+      <svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>
+      /rk
+      <kbd>⌘K</kbd>
+    </div>
+    <div class="capsule"><span>2h 14m today</span><span>Queue 0</span><span class="rv">3 in review</span></div>
+  </div>
+
+  <div class="page"><div class="page-in">
+    <h1>Settings</h1>
+    <nav class="tabs" aria-label="Settings">
+      <span class="tab">General</span>
+      <span class="tab" aria-current="page">Connections <span class="c">5</span></span>
+      <span class="tab">Terminal</span>
+      <span class="tab">Keyboard</span>
+    </nav>
+
+    <div class="split">
+      <aside class="list">
+        <div class="grp">GitLab</div>
+        <div class="item" aria-current="true"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2.5 13.5 8 8 13.5 2.5 8z"/></svg>Acme GitLab<span class="n">2</span></div>
+        <div class="item"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".6"><path d="M8 2.5 13.5 8 8 13.5 2.5 8z"/></svg>Acme staging GitLab<span class="n">0</span></div>
+        <div class="grp">GitHub</div>
+        <div class="item"><svg class="i" viewBox="0 0 16 16" fill="currentColor" opacity=".6"><circle cx="8" cy="8" r="6"/></svg>Gitub<span class="n">1</span></div>
+        <div class="grp">Kubernetes</div>
+        <div class="item"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".6"><path d="M8 2 13.5 5v6L8 14 2.5 11V5z"/></svg>prod cluster<span class="n">3</span></div>
+      </aside>
+
+      <section class="detail">
+        <div class="dhead"><h2>Acme GitLab</h2><span class="anchor">acme-gitlab</span></div>
+        <dl class="facts">
+          <dt>Instance</dt><dd class="mono" style="font-size:var(--t-small)">https://gitlab.acme.dev</dd>
+          <dt>Root path</dt><dd><span class="mono" style="font-size:var(--t-small)">platform</span><span class="ok-note"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="m3.5 8.5 3 3 6-7"/></svg>Group on GitLab</span></dd>
+          <dt>Token</dt><dd>Stored on this machine</dd>
+          <dt>Shared with</dt><dd>VFORGE</dd>
+        </dl>
+
+        <div class="sech"><h3>Used by projects</h3><span class="c">2</span><span class="sp"></span><button class="btn secondary sm" id="open-binder" hidden>Use in a project</button></div>
+        <div class="brow"><span class="l trunc">acme-gitlab</span><span class="t trunc">platform/backend/ledger-service</span><span class="p trunc">Ledger</span></div>
+        <div class="brow"><span class="l trunc">acme-gitlab-2</span><span class="t trunc">platform/frontend/console</span><span class="p trunc">Console</span></div>
+
+        <form class="binder" id="binder" autocomplete="off" aria-label="Use this connection in a project">
+          <div class="fld">
+            <span class="lab">Project <span class="req">required</span></span>
+            <div class="select"><span>Payments</span><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m4 6 4 4 4-4"/></svg></div>
+          </div>
+
+          <div class="fld">
+            <label for="target">GitLab project path</label>
+            <div class="combo">
+              <div class="input" id="input" data-status="idle">
+                <span class="host">gitlab.acme.dev/</span>
+                <input id="target" role="combobox" aria-expanded="false" aria-controls="opts" aria-autocomplete="list" aria-describedby="verdict-region" spellcheck="false" placeholder="platform/backend/payments-api">
+                <span class="glyph" id="glyph" aria-hidden="true"></span>
+              </div>
+              <div class="pop" id="pop" hidden></div>
+            </div>
+            <div id="verdict-region" aria-live="polite"></div>
+          </div>
+
+          <div class="bfoot">
+            <span class="why" id="why"></span>
+            <button type="button" class="btn ghost sm" id="cancel">Cancel</button>
+            <button type="submit" class="btn primary sm" id="submit" disabled>Use in project</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </div></div>
+</div>
+
+<div class="scrim" id="scrim">
+  <div class="sheet" role="dialog" aria-label="Edit Acme GitLab">
+    <header><h2>Edit Acme GitLab</h2><button class="btn ghost sm" id="sheet-close">Close</button></header>
+    <div class="sb">
+      <div class="fld"><label>Title</label><div class="plain">Acme GitLab</div></div>
+      <div class="fld"><label>Instance URL</label><div class="plain mono">https://gitlab.acme.dev</div></div>
+      <div class="fld">
+        <label for="root">Root path</label>
+        <div class="combo">
+          <div class="input" id="root-input" data-status="idle">
+            <input id="root" spellcheck="false" placeholder="platform" style="padding-left:10px" aria-describedby="root-region">
+            <span class="glyph" id="root-glyph" aria-hidden="true"></span>
+          </div>
+        </div>
+        <div id="root-region" aria-live="polite"></div>
+        <p class="hint" id="root-hint">A token for the group platform covers every project under it. Leave empty to cover the whole instance.</p>
+      </div>
+      <div class="fld"><label>Token</label><div class="plain" id="sheet-token">Stored on this machine</div></div>
+    </div>
+    <footer><button class="btn ghost sm">Cancel</button><button class="btn primary sm" id="sheet-save">Save</button></footer>
+  </div>
+</div>
+
+<div class="states" role="toolbar" aria-label="Mock states">
+  <span class="lb">Bind path</span>
+  <button class="chip" data-bind="empty">Empty</button>
+  <button class="chip" data-bind="browse">Browsing</button>
+  <button class="chip" data-bind="checking">Checking</button>
+  <button class="chip" data-bind="project">Project found</button>
+  <button class="chip" data-bind="group">Group found</button>
+  <button class="chip" data-bind="missing">Not found</button>
+  <button class="chip" data-bind="outside">Outside root</button>
+  <button class="chip" data-bind="unreachable">Unreachable</button>
+  <button class="chip" data-bind="nocred">No token</button>
+  <span class="sep"></span>
+  <span class="lb">Root path sheet</span>
+  <button class="chip" data-root="empty">Empty</button>
+  <button class="chip" data-root="group">Group found</button>
+  <button class="chip" data-root="project">Is a project</button>
+  <button class="chip" data-root="missing">Not found</button>
+  <button class="chip" data-root="notoken">Token not typed</button>
+</div>
+
+<script>
+const HOST = 'gitlab.acme.dev';
+const ROOT = 'platform';
+const NODES = [
+  g('platform', 'Platform'),
+  g('platform/backend', 'Backend'), g('platform/backend/libs', 'Libs'), g('platform/frontend', 'Frontend'), g('platform/infra', 'Infra'),
+  p('platform/backend/payments-api', 'Payments API', 'private', 'main', '2 days ago'),
+  p('platform/backend/ledger-service', 'Ledger service', 'private', 'main', 'today'),
+  p('platform/backend/notifications', 'Notifications', 'internal', 'main', '3 weeks ago'),
+  p('platform/backend/libs/money', 'Money', 'internal', 'main', '5 days ago'),
+  p('platform/backend/libs/auth-client', 'Auth client', 'internal', 'main', '1 month ago'),
+  p('platform/frontend/console', 'Console', 'private', 'develop', 'yesterday'),
+  p('platform/frontend/design-tokens', 'Design tokens', 'internal', 'main', '2 weeks ago'),
+  p('platform/infra/terraform-modules', 'Terraform modules', 'private', 'main', '4 days ago'),
+  p('platform/infra/ci-templates', 'CI templates', 'internal', 'main', '1 week ago')
+];
+function g(path, name) { return { kind: 'group', path, name }; }
+function p(path, name, visibility, branch, activity) { return { kind: 'project', path, name, visibility, branch, activity }; }
+const byPath = new Map(NODES.map((n) => [n.path, n]));
+const parentOf = (path) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
+const childrenOf = (path) => NODES.filter((n) => parentOf(n.path) === path);
+const descendantProjects = (path) => NODES.filter((n) => n.kind === 'project' && n.path.startsWith(path + '/')).length;
+const subgroups = (path) => childrenOf(path).filter((n) => n.kind === 'group').length;
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+const ICON = {
+  group: '<svg class="i glyph-g" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5z"/></svg>',
+  project: '<svg class="i glyph-p" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 2.5h7A1.5 1.5 0 0 1 12.5 4v9.5H5A1.5 1.5 0 0 1 3.5 12V3A.5.5 0 0 1 4 2.5Z"/><path d="M3.5 12A1.5 1.5 0 0 1 5 10.5h7.5"/></svg>',
+  check: '<svg class="i-lg" viewBox="0 0 16 16" fill="none" stroke="var(--safe)" stroke-width="2"><path d="m3.5 8.5 3 3 6-7"/></svg>',
+  cross: '<svg class="i-lg" viewBox="0 0 16 16" fill="none" stroke="var(--danger)" stroke-width="2"><path d="m4 4 8 8M12 4l-8 8"/></svg>',
+  warn: '<svg class="i-lg" viewBox="0 0 16 16" fill="none" stroke="var(--warn)" stroke-width="1.6"><path d="M8 2.5 14 13H2z"/><path d="M8 7v3M8 11.6v.1"/></svg>',
+  chev: '<svg class="i go" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m6 3.5 4.5 4.5L6 12.5"/></svg>',
+  key: '<svg class="i-lg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="5.5" cy="10.5" r="2.5"/><path d="m7.5 8.5 5-5M10.5 5.5l1.5 1.5"/></svg>',
+  plug: '<svg class="i-lg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 2.5v3M10 2.5v3M4.5 5.5h7v2a3.5 3.5 0 0 1-7 0zM8 11v2.5"/></svg>'
+};
+
+function normalise(raw) {
+  let v = raw.trim();
+  v = v.replace(/^https?:\/\//, '');
+  if (v.startsWith(HOST + '/')) v = v.slice(HOST.length + 1);
+  return v.replace(/\.git$/, '').replace(/^\/+|\/+$/g, '');
+}
+
+function resolve(raw) {
+  const path = normalise(raw);
+  if (!path) return { status: 'whole' };
+  const inside = path === ROOT || path.startsWith(ROOT + '/');
+  if (!inside) return { status: 'outside', path };
+  const node = byPath.get(path);
+  if (node) return { status: 'ok', node, path };
+  return { status: 'missing', path, near: nearest(path) };
+}
+
+function nearest(path) {
+  let parent = parentOf(path);
+  while (parent && !byPath.has(parent)) parent = parentOf(parent);
+  const leaf = path.slice(parent.length + 1).split('/')[0];
+  const known = childrenOf(parent || ROOT);
+  let best = null;
+  for (const c of known) {
+    const d = distance(leaf, c.path.slice(c.path.lastIndexOf('/') + 1));
+    if (d <= 3 && (!best || d < best.d)) best = { d, node: c };
+  }
+  return best ? best.node : null;
+}
+
+function distance(a, b) {
+  const m = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 0; j <= b.length; j++) m[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+    m[i][j] = Math.min(m[i - 1][j] + 1, m[i][j - 1] + 1, m[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return m[a.length][b.length];
+}
+
+function candidates(raw) {
+  const v = raw.trimStart();
+  if (!v) return { parent: ROOT, rows: childrenOf(ROOT), fragment: '' };
+  const slash = v.lastIndexOf('/');
+  const parent = slash < 0 ? '' : v.slice(0, slash);
+  const fragment = slash < 0 ? v : v.slice(slash + 1);
+  if (parent && !byPath.has(parent)) return { parent, rows: [], fragment, unknownParent: true };
+  if (!parent) {
+    const hit = NODES.filter((n) => n.path !== ROOT && n.path.toLowerCase().includes(fragment.toLowerCase()));
+    return { parent: ROOT, rows: hit, fragment, search: true };
+  }
+  const rows = childrenOf(parent).filter((n) => n.path.slice(parent.length + 1).toLowerCase().startsWith(fragment.toLowerCase()));
+  return { parent, rows, fragment };
+}
+
+/* ---------- binder ---------- */
+const $ = (id) => document.getElementById(id);
+const input = $('target'), field = $('input'), pop = $('pop'), region = $('verdict-region'), glyph = $('glyph'), submit = $('submit'), why = $('why');
+const view = { open: false, active: 0, status: 'idle', result: null, mode: null, timer: 0 };
+
+function highlight(path, fragment, parent) {
+  const tail = parent ? path.slice(parent.length + 1) : path;
+  const f = fragment.toLowerCase();
+  const at = f ? tail.toLowerCase().indexOf(f) : -1;
+  const head = parent ? `<span style="color:var(--subtle)">${parent}/</span>` : '';
+  if (at < 0) return head + tail;
+  return head + tail.slice(0, at) + '<b>' + tail.slice(at, at + f.length) + '</b>' + tail.slice(at + f.length);
+}
+
+function renderPop() {
+  pop.hidden = !view.open;
+  input.setAttribute('aria-expanded', String(view.open));
+  if (!view.open) return;
+  const c = candidates(input.value);
+  view.rows = c.rows;
+  view.active = Math.min(view.active, Math.max(c.rows.length - 1, 0));
+  const parts = c.parent.split('/').filter(Boolean);
+  const crumbs = parts.map((seg, i) => `<button type="button" data-go="${parts.slice(0, i + 1).join('/')}/">${seg}</button>`).join('<span>/</span>');
+  const list = c.rows.length
+    ? c.rows.map((n, i) => {
+        const sub = n.kind === 'group'
+          ? `<span>${plural(descendantProjects(n.path), 'project')}</span>${ICON.chev}`
+          : `<span>${n.visibility}</span><span>${n.activity}</span>`;
+        return `<button type="button" role="option" id="o${i}" class="opt" aria-selected="${i === view.active}" data-i="${i}">${ICON[n.kind]}<span class="nm trunc">${c.search ? highlight(n.path, c.fragment, '') : highlight(n.path, c.fragment, c.parent).replace(/^<span[^>]*>[^<]*<\/span>/, '')}</span><span class="sub">${sub}</span></button>`;
+      }).join('')
+    : `<div class="none">${c.unknownParent ? `No group at <span class="mono">${c.parent}</span> in this scope.` : `Nothing under <span class="mono">${c.parent}/</span> starts with <span class="mono">${c.fragment}</span>.`}</div>`;
+  pop.innerHTML = `<div class="crumbs"><svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5z"/></svg>${crumbs}<span class="scope">Only what the token can read under ${ROOT}</span></div><div class="opts" id="opts" role="listbox">${list}</div><div class="keys"><span><kbd>↑↓</kbd>move</span><span><kbd>Tab</kbd>complete</span><span><kbd>Enter</kbd>choose</span><span><kbd>Esc</kbd>close</span></div>`;
+  if (c.rows.length) input.setAttribute('aria-activedescendant', 'o' + view.active); else input.removeAttribute('aria-activedescendant');
+}
+
+function choose(node) {
+  input.value = node.kind === 'group' ? node.path + '/' : node.path;
+  view.active = 0;
+  if (node.kind === 'group') { renderPop(); scheduleCheck(); return; }
+  closePop(); verifyNow();
+}
+
+function closePop() { view.open = false; renderPop(); }
+
+function setGlyph(status) {
+  field.dataset.status = status;
+  glyph.innerHTML = status === 'checking' ? '<span class="spin"></span>' : status === 'ok' || status === 'whole' ? ICON.check : status === 'missing' || status === 'outside' ? ICON.cross : status === 'unreachable' || status === 'nocred' ? ICON.warn : '';
+}
+
+function scheduleCheck() {
+  clearTimeout(view.timer);
+  view.status = 'checking';
+  setGlyph('checking');
+  renderVerdict();
+  view.timer = setTimeout(verifyNow, 450);
+}
+
+function verifyNow() {
+  clearTimeout(view.timer);
+  if (view.mode === 'unreachable' || view.mode === 'nocred') { view.status = view.mode; view.result = resolve(input.value); }
+  else { view.result = resolve(input.value); view.status = view.result.status; }
+  setGlyph(view.status);
+  renderVerdict();
+}
+
+function verdictCard(cls, icon, status, statusClass, bodyHtml) {
+  return `<div class="verdict ${cls}" role="status"><span class="ic">${icon}</span><div class="bd">${bodyHtml}</div><span class="stat ${statusClass}">${status}</span></div>`;
+}
+
+function renderVerdict() {
+  const s = view.status, r = view.result;
+  let html = '', why_ = '';
+  if (view.open && s !== 'checking') { region.innerHTML = ''; footer(false, 'Choose a path from the list or keep typing.'); return; }
+  if (s === 'idle' || !r && s !== 'checking') { region.innerHTML = ''; footer(false, 'Pick a path the connection can reach, or leave it empty for the whole connection.'); return; }
+  if (s === 'checking') {
+    html = verdictCard('', '<span class="spin"></span>', 'Checking', 'wait', `<div class="ti"><strong>Asking ${HOST}</strong><span class="path">${normalise(input.value)}</span></div><div class="skel" style="width:46%;margin-top:8px"></div>`);
+    why_ = 'Waiting for GitLab.';
+  } else if (s === 'whole') {
+    html = verdictCard('ok', ICON.group, 'Whole connection', 'ok', `<div class="ti"><strong>Platform</strong><span class="path">${ROOT}</span></div><div class="meta"><span>Group · ${plural(subgroups(ROOT), 'subgroup')} · ${plural(descendantProjects(ROOT), 'project')}</span></div><p class="line">No path: the project reaches everything under the connection's root path.</p>`);
+  } else if (s === 'ok' && r.node.kind === 'project') {
+    const n = r.node;
+    html = verdictCard('ok', ICON.project, 'Found', 'ok', `<div class="ti"><strong>${n.name}</strong><span class="path">${n.path}</span></div><div class="meta"><span>Project</span><span>${n.visibility}</span><span>Default branch <span class="mono">${n.branch}</span></span><span>Last activity ${n.activity}</span></div>`);
+  } else if (s === 'ok') {
+    const n = r.node;
+    html = verdictCard('ok', ICON.group, 'Found', 'ok', `<div class="ti"><strong>${n.name}</strong><span class="path">${n.path}</span></div><div class="meta"><span>Group</span><span>${plural(subgroups(n.path), 'subgroup')}</span><span>${plural(descendantProjects(n.path), 'project')}</span></div><p class="line">The project will reach every repository under this group.</p>`);
+  } else if (s === 'missing') {
+    const near = r.near;
+    html = verdictCard('bad', ICON.cross, 'Not found', 'bad', `<div class="ti"><strong>No group or project at this path</strong></div><div class="meta"><span class="mono">${r.path}</span></div><p class="line">Checked on ${HOST} with the stored token. A path the token cannot read looks the same as one that does not exist.</p>${near ? `<div class="act"><button type="button" class="btn secondary sm" data-use="${near.path}">Use ${near.path}</button></div>` : ''}`);
+    why_ = 'This path does not exist on GitLab.';
+  } else if (s === 'outside') {
+    html = verdictCard('bad', ICON.cross, 'Outside root', 'bad', `<div class="ti"><strong>Outside this connection's root path</strong></div><div class="meta"><span class="mono">${r.path}</span></div><p class="line">Acme GitLab covers <span class="mono">${ROOT}</span> only. Pick a path under it, or add a connection for the other group.</p>`);
+    why_ = 'The path is not under the root path.';
+  } else if (s === 'unreachable') {
+    html = verdictCard('warn', ICON.plug, "Can't check", 'warn', `<div class="ti"><strong>${HOST} did not answer</strong></div><p class="line">Timed out after 10 s. The path can only be bound once GitLab confirms it.</p><div class="act"><button type="button" class="btn secondary sm" id="retry">Check again</button></div>`);
+    why_ = 'GitLab could not be reached.';
+  } else if (s === 'nocred') {
+    html = verdictCard('warn', ICON.key, 'No token', 'warn', `<div class="ti"><strong>No token is stored for Acme GitLab</strong></div><p class="line">Paths are checked against GitLab, which needs the token. <a class="lnk" href="#" onclick="return false">Set the token</a>, then come back.</p>`);
+    why_ = 'Set a token to check paths.';
+  }
+  region.innerHTML = html;
+  const ready = s === 'ok' || s === 'whole';
+  footer(ready, ready ? '' : why_);
+  const retry = $('retry'); if (retry) retry.onclick = () => { view.mode = null; scheduleCheck(); };
+  region.querySelectorAll('[data-use]').forEach((b) => b.onclick = () => { input.value = b.dataset.use; view.mode = null; verifyNow(); });
+}
+
+function footer(ready, text) { submit.disabled = !ready; why.textContent = text; }
+
+input.addEventListener('focus', () => { view.open = true; view.status = 'idle'; renderPop(); renderVerdict(); });
+input.addEventListener('input', () => { view.open = true; view.active = 0; view.mode = view.mode === 'unreachable' || view.mode === 'nocred' ? view.mode : null; renderPop(); scheduleCheck(); });
+input.addEventListener('keydown', (e) => {
+  const n = (view.rows || []).length;
+  if (e.key === 'ArrowDown') { e.preventDefault(); view.open = true; view.active = n ? (view.active + 1) % n : 0; renderPop(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); view.active = n ? (view.active - 1 + n) % n : 0; renderPop(); }
+  else if ((e.key === 'Tab' && view.open && n) || (e.key === 'Enter' && view.open && n)) {
+    if (e.key === 'Tab' && n === 0) return;
+    e.preventDefault(); choose(view.rows[view.active]);
+  } else if (e.key === 'Enter') { e.preventDefault(); closePop(); verifyNow(); }
+  else if (e.key === 'Escape') { if (view.open) { e.stopPropagation(); closePop(); verifyNow(); } }
+});
+pop.addEventListener('mousedown', (e) => {
+  e.preventDefault();
+  const go = e.target.closest('[data-go]'); if (go) { input.value = go.dataset.go; view.active = 0; renderPop(); scheduleCheck(); return; }
+  const opt = e.target.closest('[data-i]'); if (opt) choose(view.rows[+opt.dataset.i]);
+});
+input.addEventListener('blur', () => { if (view.open) { closePop(); if (view.status === 'checking' || view.status === 'idle') verifyNow(); else renderVerdict(); } });
+$('binder').addEventListener('submit', (e) => e.preventDefault());
+
+const BIND_STATES = {
+  empty: () => ({ value: '', open: false }),
+  browse: () => ({ value: 'platform/backend/', open: true }),
+  checking: () => ({ value: 'platform/backend/payments-api', open: false, hold: true }),
+  project: () => ({ value: 'platform/backend/payments-api', open: false }),
+  group: () => ({ value: 'platform/backend/libs', open: false }),
+  missing: () => ({ value: 'platform/backend/paymnts-api', open: false }),
+  outside: () => ({ value: 'other-team/billing/invoices', open: false }),
+  unreachable: () => ({ value: 'platform/backend/payments-api', open: false, mode: 'unreachable' }),
+  nocred: () => ({ value: 'platform/backend/payments-api', open: false, mode: 'nocred' })
+};
+
+function setBindState(name) {
+  const s = BIND_STATES[name]();
+  clearTimeout(view.timer);
+  view.mode = s.mode || null; view.active = 0;
+  input.value = s.value; view.open = s.open;
+  document.querySelectorAll('[data-bind]').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.bind === name)));
+  closeSheet();
+  if (s.open) { view.status = 'idle'; setGlyph('idle'); renderPop(); renderVerdict(); }
+  else if (s.hold) { view.open = false; renderPop(); view.status = 'checking'; setGlyph('checking'); renderVerdict(); }
+  else if (!s.value) { view.open = false; renderPop(); view.status = 'whole'; view.result = { status: 'whole' }; setGlyph('idle'); renderVerdict(); }
+  else { renderPop(); verifyNow(); }
+}
+
+/* ---------- root path in the sheet ---------- */
+const rootInput = $('root'), rootField = $('root-input'), rootGlyph = $('root-glyph'), rootRegion = $('root-region'), rootHint = $('root-hint'), sheetSave = $('sheet-save');
+let rootTimer = 0, tokenTyped = true;
+
+function checkRoot() {
+  const path = normalise(rootInput.value);
+  if (!path) return { status: 'empty' };
+  if (!tokenTyped) return { status: 'notoken' };
+  const node = byPath.get(path);
+  if (!node) return { status: 'missing', path };
+  if (node.kind === 'project') return { status: 'project', node };
+  return { status: 'group', node };
+}
+
+function renderRoot(result) {
+  rootHint.hidden = result.status !== 'empty';
+  const map = { group: 'ok', empty: 'ok', project: 'bad', missing: 'bad', notoken: 'warn', checking: 'idle' };
+  rootField.dataset.status = result.status === 'project' ? 'notgroup' : result.status === 'missing' ? 'missing' : 'idle';
+  rootGlyph.innerHTML = result.status === 'checking' ? '<span class="spin"></span>' : result.status === 'group' ? ICON.check : result.status === 'project' || result.status === 'missing' ? ICON.cross : result.status === 'notoken' ? ICON.warn : '';
+  let html = '';
+  if (result.status === 'checking') html = verdictCard('', '<span class="spin"></span>', 'Checking', 'wait', `<div class="ti"><strong>Asking ${HOST}</strong></div>`);
+  if (result.status === 'group') html = verdictCard('ok', ICON.group, 'Found', 'ok', `<div class="ti"><strong>${result.node.name}</strong><span class="path">${result.node.path}</span></div><div class="meta"><span>Group</span><span>${plural(subgroups(result.node.path), 'subgroup')}</span><span>${plural(descendantProjects(result.node.path), 'project')}</span></div><p class="line">The token can read it. Every project under it can be bound.</p>`);
+  if (result.status === 'project') html = verdictCard('bad', ICON.cross, 'Not a group', 'bad', `<div class="ti"><strong>${result.node.name} is a project</strong><span class="path">${result.node.path}</span></div><p class="line">A root path is the group a token covers. Use <span class="mono">${parentOf(result.node.path)}</span>, and pick this project when a project uses the connection.</p>`);
+  if (result.status === 'missing') html = verdictCard('bad', ICON.cross, 'Not found', 'bad', `<div class="ti"><strong>No group at this path</strong></div><div class="meta"><span class="mono">${result.path}</span></div><p class="line">Checked on ${HOST}. A group the token cannot read looks the same as one that does not exist.</p>`);
+  if (result.status === 'notoken') html = verdictCard('warn', ICON.key, 'Not checked', 'warn', `<div class="ti"><strong>Type the token first</strong></div><p class="line">The path is checked against GitLab, which needs the token. Saving is held until it can be.</p>`);
+  rootRegion.innerHTML = html;
+  sheetSave.disabled = result.status === 'project' || result.status === 'missing' || result.status === 'notoken' || result.status === 'checking';
+}
+
+rootInput.addEventListener('input', () => { clearTimeout(rootTimer); renderRoot({ status: 'checking' }); rootTimer = setTimeout(() => renderRoot(checkRoot()), 450); });
+
+const ROOT_STATES = {
+  empty: () => ({ value: '', token: true }),
+  group: () => ({ value: 'platform', token: true }),
+  project: () => ({ value: 'platform/backend/payments-api', token: true }),
+  missing: () => ({ value: 'platfrom', token: true }),
+  notoken: () => ({ value: 'platform', token: false })
+};
+
+function setRootState(name) {
+  const s = ROOT_STATES[name]();
+  tokenTyped = s.token; rootInput.value = s.value;
+  $('sheet-token').textContent = s.token ? 'Stored on this machine' : 'Not typed yet';
+  document.querySelectorAll('[data-root]').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.root === name)));
+  document.querySelectorAll('[data-bind]').forEach((c) => c.setAttribute('aria-pressed', 'false'));
+  $('scrim').dataset.open = 'true';
+  renderRoot(checkRoot());
+}
+function closeSheet() { $('scrim').dataset.open = 'false'; document.querySelectorAll('[data-root]').forEach((c) => c.setAttribute('aria-pressed', 'false')); }
+
+document.querySelectorAll('[data-bind]').forEach((c) => c.addEventListener('click', () => setBindState(c.dataset.bind)));
+document.querySelectorAll('[data-root]').forEach((c) => c.addEventListener('click', () => setRootState(c.dataset.root)));
+$('sheet-close').onclick = closeSheet;
+$('cancel').onclick = () => setBindState('empty');
+setBindState(new URLSearchParams(location.search).get('state') || 'project');
+const rootState = new URLSearchParams(location.search).get('root');
+if (rootState) setRootState(rootState);
+</script>
+</body>
+</html>

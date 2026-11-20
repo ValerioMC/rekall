@@ -211,6 +211,28 @@ export interface TargetSuggestion {
   readonly name: string
 }
 
+export type GitlabNamespaceKind = 'GROUP' | 'PROJECT'
+
+/** A group or a project of a GitLab instance; the totals are set only on a group asked by its path. */
+export interface GitlabNamespace {
+  readonly kind: GitlabNamespaceKind
+  readonly path: string
+  readonly name: string
+  readonly visibility: string | null
+  readonly defaultBranch: string | null
+  readonly lastActivityAt: string | null
+  readonly subgroupCount: number | null
+  readonly projectCount: number | null
+}
+
+/** What GitLab has at a typed path; only a found path or a blank one can be bound. */
+export type TargetCheck =
+  | { readonly status: 'FOUND'; readonly found: GitlabNamespace }
+  | { readonly status: 'NOT_FOUND'; readonly nearest: string | null }
+  | { readonly status: 'OUTSIDE_ROOT'; readonly root: string }
+  | { readonly status: 'NO_CREDENTIAL' }
+  | { readonly status: 'UNREACHABLE'; readonly reason: string }
+
 /** What filling a project from a Confluence space did; a section is `created`, `replaced` or `kept` as the project had it. */
 export interface ConfluenceImport {
   readonly spaceKey: string

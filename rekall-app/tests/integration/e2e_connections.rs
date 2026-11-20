@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use rekall_app::server::StartOptions;
-use rekall_core::connection::{InMemorySecretStore, AtlassianCredential, AtlassianFailure, JiraIssue, JiraIssues, JiraProject, AtlassianSite, ConfluencePage, ConfluenceSpace, ConfluenceSpaces, ScriptedTaskTracker, SecretStore};
+use rekall_core::connection::{InMemorySecretStore, AtlassianCredential, AtlassianFailure, JiraIssue, JiraIssues, JiraProject, AtlassianSite, ConfluencePage, ConfluenceSpace, ConfluenceSpaces, ScriptedGitlabNamespaces, ScriptedTaskTracker, SecretStore};
 use serde_json::json;
 use support::{app, app_with, app_with_secrets, await_until, id, run_git, App};
 
@@ -174,7 +174,8 @@ async fn a_check_on_a_connection_without_a_credential_says_so_without_asking_any
 
 #[tokio::test]
 async fn the_context_names_a_projects_connections_and_never_their_credential_or_config() {
-    let app = app().await;
+    let gitlab_has = ScriptedGitlabNamespaces::new().with_project("acme/vega");
+    let app = app_with(&[], StartOptions { no_restart: true, gitlab_namespaces: Some(Arc::new(gitlab_has)), ..StartOptions::default() }).await;
     let acme = app.a_company("Acme").await;
     let vega = app.a_project(&acme, "vega", "ACTIVE").await;
     app.a_task(&vega, "deploy").await;
@@ -224,8 +225,9 @@ fn a_product_folder() -> tempfile::TempDir {
 
 #[tokio::test]
 async fn discovering_a_projects_repositories_binds_each_on_a_gitlab_with_a_token_and_makes_it_a_component() {
-    let secrets = Arc::new(InMemorySecretStore::new());
-    let app = app_with_secrets(secrets).await;
+    let gitlab_has = ScriptedGitlabNamespaces::new().with_project("acme/group/orders");
+    let options = StartOptions { no_restart: true, secrets: Some(Arc::new(InMemorySecretStore::new())), gitlab_namespaces: Some(Arc::new(gitlab_has)), ..StartOptions::default() };
+    let app = app_with(&[], options).await;
     let acme = app.a_company("Acme").await;
     let folder = a_product_folder();
     let vega = app.a_project_in(&acme, "vega", folder.path()).await;
@@ -442,7 +444,8 @@ async fn a_root_path_belongs_to_a_gitlab_or_github_connection_only() {
 async fn a_task_created_in_a_project_with_a_task_manager_gets_its_issue_and_its_edits_wait_for_a_sync() {
     let secrets = Arc::new(InMemorySecretStore::new());
     let tracker = Arc::new(ScriptedTaskTracker::new());
-    let options = StartOptions { no_restart: true, secrets: Some(secrets.clone()), task_tracker: Some(tracker.clone()), ..StartOptions::default() };
+    let gitlab_has = ScriptedGitlabNamespaces::new().with_project("acme/vega").with_project("acme/probe");
+    let options = StartOptions { no_restart: true, secrets: Some(secrets.clone()), task_tracker: Some(tracker.clone()), gitlab_namespaces: Some(Arc::new(gitlab_has)), ..StartOptions::default() };
     let app = app_with(&[], options).await;
     let acme = app.a_company("Acme").await;
     let vega = app.a_project(&acme, "vega", "ACTIVE").await;
@@ -482,4 +485,36 @@ async fn await_the_runner_has_seen(app: &App, company: &str, connection: &str) {
     app.put(&format!("/api/projects/{probe}/connections/{binding}"), json!({ "target": "acme/probe", "taskManager": true })).await;
     let drain = app.a_task(&probe, "drain").await;
     await_until(5, || async { !app.get_task(&drain).await["trackerIssueKey"].is_null() }).await;
+}
+
+#[tokio::test]
+async fn a_gitlab_path_is_checked_browsed_and_bound_only_when_the_instance_has_it() {
+    let gitlab = ScriptedGitlabNamespaces::new().with_group("acme").with_group("acme/libs").with_project("acme/billing").with_project("acme/libs/money");
+    let options = StartOptions { no_restart: true, secrets: Some(Arc::new(InMemorySecretStore::new())), gitlab_namespaces: Some(Arc::new(gitlab)), ..StartOptions::default() };
+    let app = app_with(&[], options).await;
+    let acme = app.a_company("Acme").await;
+    let vega = app.a_project(&acme, "vega", "ACTIVE").await;
+    let connection = id(&app.post("/api/connections", json!({ "companyIds": [acme], "kind": "GITLAB", "title": "GitLab", "baseUrl": "https://gitlab.example.com", "rootPath": "acme" })).await);
+    let check = |path: &str| {
+        let url = format!("/api/connections/{connection}/target-check?path={path}");
+        let app = &app;
+        async move { app.get(&url).await }
+    };
+    assert_eq!(check("acme/billing").await.str("status"), "NO_CREDENTIAL");
+    assert_eq!(app.put(&format!("/api/connections/{connection}/credential"), json!({ "token": "glpat-secret" })).await.status, 200);
+
+    let found = check("https%3A%2F%2Fgitlab.example.com%2Facme%2Fbilling.git").await;
+    assert_eq!((found.str("status"), found.get("found")["kind"].as_str(), found.get("found")["path"].as_str()), ("FOUND".into(), Some("PROJECT"), Some("acme/billing")));
+    assert_eq!(check("acme/bilng").await.get("nearest").as_str(), Some("acme/billing"));
+    assert_eq!(check("other/app").await.get("root").as_str(), Some("acme"));
+
+    let children = app.get(&format!("/api/connections/{connection}/target-children")).await;
+    assert_eq!(children.list().iter().map(|child| child["path"].as_str().unwrap().to_string()).collect::<Vec<_>>(), ["acme/libs", "acme/billing"]);
+    assert_eq!(app.get(&format!("/api/connections/{connection}/target-children?parent=other")).await.status, 400);
+
+    let bindings = format!("/api/projects/{vega}/connections");
+    let refused = app.post(&bindings, json!({ "connectionId": connection, "target": "acme/bilng" })).await;
+    assert_eq!(refused.status, 400, "{}", refused.text);
+    assert!(refused.text.contains("GitLab has no project or group 'acme/bilng'"));
+    assert_eq!(app.post(&bindings, json!({ "connectionId": connection, "target": "acme/billing" })).await.status, 201);
 }
