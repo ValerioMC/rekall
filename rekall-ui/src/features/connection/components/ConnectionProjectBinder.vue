@@ -17,7 +17,8 @@ import type { ConnectionId, ProjectId } from '@/model/branded'
  * Binds one project of a company to the connection, narrowed to a target when one is typed.
  * A project may be chosen again with another target: it then uses the connection once more. On
  * GitLab the target is typed or picked from what the token can read and has to exist before the
- * project can be bound.
+ * project can be bound. With a locked project the choice is not offered: the binder serves that
+ * project's own page.
  */
 const props = defineProps<{
   connectionId: ConnectionId
@@ -26,15 +27,16 @@ const props = defineProps<{
   credentialSet: boolean
   baseUrl: string | null
   rootPath: string | null
+  lockedProjectId?: ProjectId
   projects: readonly { readonly id: ProjectId; readonly title: string }[]
 }>()
 const emit = defineEmits<{ close: []; bound: [] }>()
 
 const store = useConnectionsStore()
 const { run, isRunning } = useAsyncAction()
-const projectId = ref<string | null>(null)
+const projectId = ref<string | null>(props.lockedProjectId ?? null)
 const target = ref('')
-const picker = ref<HTMLElement | null>(null)
+const form = ref<HTMLElement | null>(null)
 const gitlabBinding = ref<{ readonly ready: boolean; readonly path: string | null }>({ ready: true, path: null })
 
 const targetField = computed(() => TARGET_FIELD[props.kind])
@@ -64,13 +66,13 @@ async function bind(): Promise<void> {
 
 onMounted(async () => {
   await nextTick()
-  picker.value?.querySelector('select')?.focus()
+  form.value?.querySelector<HTMLElement>('select, input')?.focus()
 })
 </script>
 
 <template>
-  <form class="mt-2 flex flex-col gap-3 rounded-control border border-border-strong bg-surface px-3 py-3" data-testid="project-binder" @submit.prevent="bind" @keydown.esc.stop="emit('close')">
-    <div ref="picker">
+  <form ref="form" class="mt-2 flex flex-col gap-3 rounded-control border border-border-strong bg-surface px-3 py-3" data-testid="project-binder" @submit.prevent="bind" @keydown.esc.stop="emit('close')">
+    <div v-if="!lockedProjectId">
       <AppField v-slot="{ fieldId, describedBy }" label="Project" required>
         <AppSelect :id="fieldId" v-model="projectId" :described-by="describedBy" :options="options" placeholder="Choose a project" />
       </AppField>

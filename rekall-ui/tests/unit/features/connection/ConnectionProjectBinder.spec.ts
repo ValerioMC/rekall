@@ -84,6 +84,38 @@ async function chooseProject(wrapper: ReturnType<typeof mountBinder>): Promise<v
   await wrapper.get('select').setValue('p-1')
 }
 
+describe('ConnectionProjectBinder with a locked project', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.resetAllMocks()
+    vi.mocked(api.fetchGitlabChildren).mockResolvedValue([])
+  })
+
+  it('offers no project choice and binds the locked project', async () => {
+    vi.mocked(api.bindConnection).mockResolvedValue({} as never)
+    const wrapper = mount(ConnectionProjectBinder, {
+      props: {
+        connectionId: 'site' as ConnectionId,
+        connectionTitle: 'The site',
+        kind: 'GITLAB',
+        credentialSet: true,
+        baseUrl: 'https://gitlab.acme.dev',
+        rootPath: 'platform',
+        lockedProjectId: 'p-1' as ProjectId,
+        projects: [{ id: 'p-1' as ProjectId, title: 'Vega' }]
+      },
+      attachTo: document.body
+    })
+
+    expect(wrapper.find('select').exists()).toBe(false)
+    await wrapper.get('[data-testid="project-binder"]').trigger('submit')
+    await flushPromises()
+
+    expect(api.bindConnection).toHaveBeenCalledWith('p-1', 'site', { target: null })
+    wrapper.unmount()
+  })
+})
+
 describe('ConnectionProjectBinder GitLab path', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
