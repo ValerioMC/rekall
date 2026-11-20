@@ -5,11 +5,13 @@
 mod connection_pull_request_host;
 mod github_pull_request_host;
 mod gitlab_pull_request_host;
+mod http_gitlab_namespaces;
 mod http_task_tracker;
 mod task_tracker_runner;
 
 pub use connection_pull_request_host::ConnectionPullRequestHost;
 pub use github_pull_request_host::GithubPullRequestHost;
 pub use gitlab_pull_request_host::GitlabPullRequestHost;
+pub use http_gitlab_namespaces::HttpGitlabNamespaces;
 pub use http_task_tracker::HttpTaskTracker;
 pub use task_tracker_runner::TaskTrackerRunner;

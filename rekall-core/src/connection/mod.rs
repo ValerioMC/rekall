@@ -18,6 +18,10 @@ pub use port::credential_desk::CredentialDesk;
 pub use event::credential_access_stream_event::CredentialAccessStreamEvent;
 pub use model::credential_purpose::CredentialPurpose;
 pub use model::github_api_root::github_api_root;
+pub use model::gitlab_namespace::{GitlabNamespace, GitlabNamespaceKind};
+pub use port::gitlab_namespaces::GitlabNamespaces;
+#[cfg(any(test, feature = "testing"))]
+pub use port::scripted_gitlab_namespaces::ScriptedGitlabNamespaces;
 pub use model::hand_out::{HandOut, Refusal};
 #[cfg(any(test, feature = "testing"))]
 pub use port::in_memory_secret_store::InMemorySecretStore;

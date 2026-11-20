@@ -150,6 +150,16 @@ kept without asking, and a typed one on a connection with no credential is refus
 checked. `GET /api/connections/{id}/target-suggestions?query=` lists at most 25 projects or spaces whose key
 or name holds the query (`JiraIssues::projects`, `ConfluenceSpaces::spaces`), and nothing for another kind.
 
+`GitlabTargetService` does the same for a GitLab binding. A typed target on a connection with a credential is
+looked up on the instance (`GitlabNamespaces::lookup`, implemented by `HttpGitlabNamespaces` in
+`rekall-infra/src/tracker/`, a project first and then a group): one the instance lacks is refused (400) with the
+nearest sibling named, one outside the connection's root path is refused (400), and an instance that does not
+answer is a 409. A connection with no credential cannot be asked, so its target is kept unchecked. The console
+asks the same questions without binding: `GET /api/connections/{id}/target-check?path=` answers `FOUND`,
+`NOT_FOUND`, `OUTSIDE_ROOT`, `NO_CREDENTIAL` or `UNREACHABLE` as a value, accepting a pasted address, and
+`GET /api/connections/{id}/target-children?parent=&query=` lists the subgroups and projects directly under a
+group (the root path by default), at most 50, groups first, all of them readable by the stored token.
+
 `ConfluenceSpaceService` fills a project from the space its binding names: `POST
 /api/projects/{id}/connections/{bindingId}/confluence/import` reads the space and up to 200 of its current
 pages (`ConfluenceSpaces`, implemented by `HttpConfluenceSpaces` in `rekall-infra/src/confluence/`, which turns

@@ -7,12 +7,14 @@ import {
   ConnectionListSchema,
   ConnectionRemovedSchema,
   ConnectionSchema,
+  GitlabNamespaceListSchema,
   JiraIssueListSchema,
   KubeContextListSchema,
   ProjectConnectionListSchema,
   ProjectConnectionSchema,
   RepositoryDiscoverySchema,
   RevealedCredentialSchema,
+  TargetCheckSchema,
   TargetSuggestionListSchema
 } from './schemas/connection.schema'
 import type {
@@ -24,12 +26,14 @@ import type {
   ConnectionInput,
   ConnectionRemoved,
   CredentialDraft,
+  GitlabNamespace,
   JiraIssue,
   KubeContextOption,
   ProjectConnection,
   ProjectConnectionInput,
   RepositoryDiscovery,
   RevealedCredential,
+  TargetCheck,
   TargetSuggestion
 } from '@/features/connection/model/connection'
 import { TaskListSchema } from '@/features/catalog/api/schemas/catalog.schema'
@@ -236,6 +240,22 @@ export async function importConfluenceSpace(
         body: { replace },
         retry: 0
       })
+    )
+  )
+}
+
+/** What the GitLab instance has at a typed path or pasted address, asked with the connection's credential. */
+export async function fetchTargetCheck(connectionId: ConnectionId, path: string): Promise<TargetCheck> {
+  return request(async () =>
+    TargetCheckSchema.parse(await apiClient(`/api/connections/${connectionId}/target-check`, { query: { path }, retry: 0 }))
+  )
+}
+
+/** The subgroups and projects directly under a group (the connection's root path when none is given) whose path holds the query. */
+export async function fetchGitlabChildren(connectionId: ConnectionId, parent: string, query: string): Promise<GitlabNamespace[]> {
+  return request(async () =>
+    GitlabNamespaceListSchema.parse(
+      await apiClient(`/api/connections/${connectionId}/target-children`, { query: { parent, query }, retry: 0 })
     )
   )
 }

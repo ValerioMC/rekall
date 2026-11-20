@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use rekall_core::check::CheckRunner;
 use rekall_core::claude::UsageReader;
-use rekall_core::connection::{ConfluenceSpaces, JiraIssues, SecretStore, TaskTracker};
+use rekall_core::connection::{ConfluenceSpaces, GitlabNamespaces, JiraIssues, SecretStore, TaskTracker};
 use rekall_core::vulnerability::AdvisoryFeed;
 use rekall_core::Clock;
 
@@ -28,6 +28,8 @@ pub struct StartOptions {
     pub jira_issues: Option<Arc<dyn JiraIssues>>,
     /// Stands in for the Confluence sites spaces are read from.
     pub confluence_spaces: Option<Arc<dyn ConfluenceSpaces>>,
+    /// Stands in for the GitLab instances whose groups and projects a binding's target is checked against.
+    pub gitlab_namespaces: Option<Arc<dyn GitlabNamespaces>>,
     /// Stands in for the GitLab, GitHub or Jira project a task is written to.
     pub task_tracker: Option<Arc<dyn TaskTracker>>,
     /// Stands in for the GitHub Advisory Database a vulnerability scan reads.

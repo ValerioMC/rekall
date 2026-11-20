@@ -4,6 +4,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppField from '@/components/ui/AppField.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
+import GitlabPathField from '@/features/connection/components/GitlabPathField.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import TargetSuggestionList from '@/features/connection/components/TargetSuggestionList.vue'
 import { useTargetSuggestions } from '@/features/connection/composables/useTargetSuggestions'
@@ -14,13 +15,17 @@ import type { ConnectionId, ProjectId } from '@/model/branded'
 
 /**
  * Binds one project of a company to the connection, narrowed to a target when one is typed.
- * A project may be chosen again with another target: it then uses the connection once more.
+ * A project may be chosen again with another target: it then uses the connection once more. On
+ * GitLab the target is typed or picked from what the token can read and has to exist before the
+ * project can be bound.
  */
 const props = defineProps<{
   connectionId: ConnectionId
   connectionTitle: string
   kind: ConnectionKind
   credentialSet: boolean
+  baseUrl: string | null
+  rootPath: string | null
   projects: readonly { readonly id: ProjectId; readonly title: string }[]
 }>()
 const emit = defineEmits<{ close: []; bound: [] }>()
@@ -30,8 +35,11 @@ const { run, isRunning } = useAsyncAction()
 const projectId = ref<string | null>(null)
 const target = ref('')
 const picker = ref<HTMLElement | null>(null)
+const gitlabBinding = ref<{ readonly ready: boolean; readonly path: string | null }>({ ready: true, path: null })
 
 const targetField = computed(() => TARGET_FIELD[props.kind])
+const isGitlab = computed(() => props.kind === 'GITLAB')
+const canBind = computed(() => !!projectId.value && (!isGitlab.value || gitlabBinding.value.ready))
 const takesSuggestions = computed(() => (props.kind === 'JIRA' || props.kind === 'CONFLUENCE') && props.credentialSet)
 const suggestionListId = computed(() => `target-suggestions-${props.connectionId}`)
 const { suggestions, unavailable, ask } = useTargetSuggestions(() => props.connectionId, () => takesSuggestions.value)
@@ -39,11 +47,16 @@ const options = computed(() => props.projects.map((project) => ({ value: project
 
 watch(target, (typed) => ask(typed))
 
+function chosenTarget(): string | null {
+  if (isGitlab.value) return gitlabBinding.value.path
+  return target.value.trim() || null
+}
+
 async function bind(): Promise<void> {
   const project = props.projects.find((known) => known.id === projectId.value)
   if (!project || isRunning.value) return
   const bound = await run(
-    () => store.bind(project.id, props.connectionId, { target: target.value.trim() || null }),
+    () => store.bind(project.id, props.connectionId, { target: chosenTarget() }),
     `${project.title} now uses ${props.connectionTitle}`
   )
   if (bound) emit('bound')
@@ -62,7 +75,16 @@ onMounted(async () => {
         <AppSelect :id="fieldId" v-model="projectId" :described-by="describedBy" :options="options" placeholder="Choose a project" />
       </AppField>
     </div>
+    <GitlabPathField
+      v-if="isGitlab"
+      :connection-id="connectionId"
+      :connection-title="connectionTitle"
+      :base-url="baseUrl"
+      :root-path="rootPath"
+      @resolve="gitlabBinding = $event"
+    />
     <AppField
+      v-else
       v-slot="{ fieldId, describedBy }"
       :label="targetField.name"
       :hint="unavailable ? `Suggestions unavailable: ${unavailable}` : 'Optional. Leave it empty to give the project the whole connection; type one to narrow it.'"
@@ -81,7 +103,7 @@ onMounted(async () => {
     </AppField>
     <div class="flex items-center justify-end gap-2">
       <AppButton size="sm" variant="ghost" class="max-sm:min-h-11" @click="emit('close')">Cancel</AppButton>
-      <AppButton size="sm" variant="primary" type="submit" class="max-sm:min-h-11" :disabled="!projectId" :loading="isRunning" data-testid="binder-submit"
+      <AppButton size="sm" variant="primary" type="submit" class="max-sm:min-h-11" :disabled="!canBind" :loading="isRunning" data-testid="binder-submit"
         >Use in project</AppButton
       >
     </div>

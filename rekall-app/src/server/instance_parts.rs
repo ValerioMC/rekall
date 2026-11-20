@@ -9,7 +9,7 @@ use axum::http::StatusCode;
 use axum::{middleware, Router};
 use rekall_core::check::CheckRunner;
 use rekall_core::claude::{TerminalHost, UsageReader};
-use rekall_core::connection::{ConfluenceSpaces, ConnectionProbe, JiraIssues, MigratingSecretStore, RememberingSecretStore, SecretStore, TaskTracker, TaskTrackerService};
+use rekall_core::connection::{ConfluenceSpaces, ConnectionProbe, GitlabNamespaces, JiraIssues, MigratingSecretStore, RememberingSecretStore, SecretStore, TaskTracker, TaskTrackerService};
 use rekall_core::queue::RunQueueService;
 use rekall_core::version::ReleaseFeed;
 use rekall_core::vulnerability::AdvisoryFeed;
@@ -30,7 +30,7 @@ use rekall_infra::pty::{PtyTerminalManager, PtyTerminals, SessionRelay};
 use rekall_infra::queue::RunQueueRunner;
 use rekall_infra::secret::{FileSecretStore, KeychainSecretStore, SECRETS_FILE};
 use rekall_infra::session::{SessionHosts, WorkMarker};
-use rekall_infra::tracker::{ConnectionPullRequestHost, HttpTaskTracker};
+use rekall_infra::tracker::{ConnectionPullRequestHost, HttpGitlabNamespaces, HttpTaskTracker};
 use rekall_infra::usage::ClaudeUsageService;
 use rekall_infra::version::GithubReleaseFeed;
 use rekall_infra::vulnerability::GithubAdvisoryFeed;
@@ -82,6 +82,13 @@ pub(super) fn confluence_spaces_of(options: &StartOptions) -> Arc<dyn Confluence
     match &options.confluence_spaces {
         Some(confluence) => confluence.clone(),
         None => Arc::new(HttpConfluenceSpaces::new()),
+    }
+}
+
+pub(super) fn gitlab_namespaces_of(options: &StartOptions) -> Arc<dyn GitlabNamespaces> {
+    match &options.gitlab_namespaces {
+        Some(gitlab) => gitlab.clone(),
+        None => Arc::new(HttpGitlabNamespaces::new()),
     }
 }
 

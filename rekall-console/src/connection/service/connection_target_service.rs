@@ -1,4 +1,4 @@
-//! The target a binding names on Jira or Confluence, checked against the site before it is kept,
+//! The target a binding names on Jira, Confluence or GitLab, checked against the site before it is kept,
 //! and the projects or spaces the site offers to fill it with. Any other connection's target is
 //! free text and passes. The site is asked before any transaction opens.
 
@@ -14,6 +14,7 @@ use crate::connection::rule::confluence_rules::{space_key_of, SUGGESTION_LIMIT};
 use crate::connection::rule::connection_rules::target_of;
 use crate::connection::rule::jira_rules::project_key_of;
 use crate::connection::support::atlassian_access::{access_of, refused_by};
+use crate::connection::service::gitlab_target_service::GitlabTargetService;
 use crate::connection::view::target_suggestion_view::TargetSuggestionView;
 use crate::connection::{ProjectConnectionCommand, ProjectConnectionService, ProjectConnectionView};
 
@@ -24,11 +25,12 @@ pub struct ConnectionTargetService {
     secrets: Arc<dyn SecretStore>,
     jira: Arc<dyn JiraIssues>,
     confluence: Arc<dyn ConfluenceSpaces>,
+    gitlab: GitlabTargetService,
 }
 
 impl ConnectionTargetService {
-    pub fn new(ctx: Ctx, bindings: ProjectConnectionService, secrets: Arc<dyn SecretStore>, jira: Arc<dyn JiraIssues>, confluence: Arc<dyn ConfluenceSpaces>) -> Self {
-        Self { ctx, bindings, secrets, jira, confluence }
+    pub fn new(ctx: Ctx, bindings: ProjectConnectionService, secrets: Arc<dyn SecretStore>, jira: Arc<dyn JiraIssues>, confluence: Arc<dyn ConfluenceSpaces>, gitlab: GitlabTargetService) -> Self {
+        Self { ctx, bindings, secrets, jira, confluence, gitlab }
     }
 
     pub async fn bind(&self, project_id: Id, connection_id: Id, command: ProjectConnectionCommand) -> Result<ProjectConnectionView> {
@@ -67,7 +69,8 @@ impl ConnectionTargetService {
         match connection.kind {
             ConnectionKind::Jira => self.require_jira_project(connection, target).await,
             ConnectionKind::Confluence => self.require_confluence_space(connection, target).await,
-            ConnectionKind::Gitlab | ConnectionKind::Github | ConnectionKind::Kubernetes | ConnectionKind::Grafana => Ok(()),
+            ConnectionKind::Gitlab => self.gitlab.require_existing(connection, target).await,
+            ConnectionKind::Github | ConnectionKind::Kubernetes | ConnectionKind::Grafana => Ok(()),
         }
     }
 

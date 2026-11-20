@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use rekall_core::connection::{AtlassianCredential, AtlassianFailure, AtlassianSite, ConfluencePage, ConfluenceSpace, InMemorySecretStore, JiraIssue, JiraProject, Secret};
+use rekall_core::connection::{ScriptedGitlabNamespaces, AtlassianCredential, AtlassianFailure, AtlassianSite, ConfluencePage, ConfluenceSpace, InMemorySecretStore, JiraIssue, JiraProject, Secret};
 use rekall_core::{Ctx, EventBus};
 use rekall_kernel::Instant;
 use rekall_store::{company, external_connection, project, ProjectStatus};
@@ -91,7 +91,8 @@ async fn world(kind: ConnectionKind, credential_stored: bool, confluence_failure
     let jira = Arc::new(FakeJira { keys: vec!["ENG", "OPS"], asked: Mutex::new(Vec::new()) });
     let confluence = Arc::new(FakeConfluence { keys: vec!["DOCS"], failure: confluence_failure });
     let bindings = ProjectConnectionService::new(ctx.clone());
-    let service = ConnectionTargetService::new(ctx, bindings.clone(), secrets, jira.clone(), confluence);
+    let gitlab = GitlabTargetService::new(ctx.clone(), secrets.clone(), Arc::new(ScriptedGitlabNamespaces::new()));
+    let service = ConnectionTargetService::new(ctx, bindings.clone(), secrets, jira.clone(), confluence, gitlab);
     World { service, bindings, jira, project_id: project.id, connection_id: connection.id }
 }
 

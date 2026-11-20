@@ -80,6 +80,7 @@ pub struct ApiState {
     pub jira_issues: connection::JiraIssueService,
     pub confluence_spaces: connection::ConfluenceSpaceService,
     pub connection_targets: connection::ConnectionTargetService,
+    pub gitlab_targets: connection::GitlabTargetService,
     pub task_tracker_sync: connection::TaskTrackerSyncService,
     pub icons: catalog::ProjectIconService,
     pub directories: filesystem::DirectoryListingService,
@@ -113,6 +114,7 @@ struct Wired {
     jira_issues: connection::JiraIssueService,
     confluence_spaces: connection::ConfluenceSpaceService,
     connection_targets: connection::ConnectionTargetService,
+    gitlab_targets: connection::GitlabTargetService,
     task_tracker_sync: connection::TaskTrackerSyncService,
     vulnerability_fixes: vulnerability::VulnerabilityFixService,
     graphs: graph::DeploymentGraphService,
@@ -146,7 +148,8 @@ impl Wired {
             ports.secrets.clone(),
             ports.confluence.clone(),
         );
-        let connection_targets = connection::ConnectionTargetService::new(ctx.clone(), project_connections.clone(), ports.secrets.clone(), ports.jira.clone(), ports.confluence.clone());
+        let gitlab_targets = connection::GitlabTargetService::new(ctx.clone(), ports.secrets.clone(), ports.gitlab.clone());
+        let connection_targets = connection::ConnectionTargetService::new(ctx.clone(), project_connections.clone(), ports.secrets.clone(), ports.jira.clone(), ports.confluence.clone(), gitlab_targets.clone());
         let task_tracker_sync = connection::TaskTrackerSyncService::new(ports.task_tracker.clone(), tasks.clone());
         let vulnerability_fixes = vulnerability::VulnerabilityFixService::new(ctx.clone(), services.exposures.clone(), tasks.clone(), services.steps.clone());
         let graphs = graph::DeploymentGraphService::new(ctx.clone());
@@ -161,7 +164,7 @@ impl Wired {
         );
         let terminals = terminal::TerminalService::new(ports.terminals.clone(), ports.task_worktrees.clone());
         let quick_tasks = quick::QuickTaskService::new(ctx.clone(), tasks.clone(), terminals.clone());
-        Self { tasks, project_connections, projects, connections, component_catalog, repository_discovery, jira_issues, confluence_spaces, connection_targets, task_tracker_sync, vulnerability_fixes, graphs, graph_attach, terminals, quick_tasks }
+        Self { tasks, project_connections, projects, connections, component_catalog, repository_discovery, jira_issues, confluence_spaces, connection_targets, gitlab_targets, task_tracker_sync, vulnerability_fixes, graphs, graph_attach, terminals, quick_tasks }
     }
 }
 
@@ -178,7 +181,7 @@ impl ApiState {
         ports: ApiPorts,
     ) -> Self {
         let ctx = services.ctx.clone();
-        let Wired { tasks, project_connections, projects, connections, component_catalog, repository_discovery, jira_issues, confluence_spaces, connection_targets, task_tracker_sync, vulnerability_fixes, graphs, graph_attach, terminals, quick_tasks } =
+        let Wired { tasks, project_connections, projects, connections, component_catalog, repository_discovery, jira_issues, confluence_spaces, connection_targets, gitlab_targets, task_tracker_sync, vulnerability_fixes, graphs, graph_attach, terminals, quick_tasks } =
             Wired::of(&ctx, &services, &ports);
         Self {
             companies: catalog::CompanyService::new(ctx.clone()),
@@ -212,6 +215,7 @@ impl ApiState {
             jira_issues,
             confluence_spaces,
             connection_targets,
+            gitlab_targets,
             task_tracker_sync,
             icons: catalog::ProjectIconService::new(ctx.clone()),
             directories: filesystem::DirectoryListingService::new(user_home),

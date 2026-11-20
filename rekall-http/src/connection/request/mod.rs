@@ -3,6 +3,8 @@ pub(super) mod connection_access_query;
 pub(super) mod connection_companies_request;
 pub(super) mod connection_credential_request;
 pub(super) mod connection_request;
+pub(super) mod gitlab_children_query;
+pub(super) mod gitlab_path_query;
 pub(super) mod jira_import_request;
 pub(super) mod target_suggestion_query;
 pub(super) mod kubeconfig_preview_request;

@@ -12,6 +12,8 @@ import type {
   ConnectionRemoved,
   CredentialDraft,
   JiraIssue,
+  GitlabNamespace,
+  TargetCheck,
   TargetSuggestion,
   KubeContextOption,
   ProjectConnection,
@@ -154,6 +156,15 @@ export const useConnectionsStore = defineStore('connections', () => {
   /** The projects or spaces of the site whose key or name holds the query; read fresh each time, never kept. */
   async function targetSuggestions(id: ConnectionId, query: string): Promise<TargetSuggestion[]> {
     return await api.fetchTargetSuggestions(id, query)
+  }
+
+  /** What GitLab has at a path; read fresh each time, never kept. */
+  async function targetCheck(id: ConnectionId, path: string): Promise<TargetCheck> {
+    return await api.fetchTargetCheck(id, path)
+  }
+
+  async function gitlabChildren(id: ConnectionId, parent: string, query: string): Promise<GitlabNamespace[]> {
+    return await api.fetchGitlabChildren(id, parent, query)
   }
 
   async function check(id: ConnectionId): Promise<ConnectionCheck> {
@@ -309,6 +320,8 @@ export const useConnectionsStore = defineStore('connections', () => {
     check,
     jiraIssues,
     targetSuggestions,
+    targetCheck,
+    gitlabChildren,
     loadAccess,
     loadMoreAccess,
     previewKubeconfig,
