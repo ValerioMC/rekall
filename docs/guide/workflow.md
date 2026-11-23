@@ -94,6 +94,14 @@ When a step's outcome decides what comes next (tests that can fail, a deploy tha
 
 Once every step is claimed, **Accept** appears beside the session buttons at the top of the checklist and accepts all of them at once, as ticking each would; it is refused while a step is still open or running. A claimed step is also reviewed from its detail: **Accept** ticks it to done, **Send back** returns it to open for another pass. Sending back seals the detail that pass worked from above the editor (`POST /api/steps/{id}/send-back`), and the detail starts empty for the feedback. `/rk` hands the next session each earlier pass in a `<previous-pass>` and the feedback in a `<feedback>`, so it builds on what was done instead of reading the feedback as a new brief. The **N awaiting review** count in the pane header jumps to the first one. Moving a task to **Done** accepts everything left in one go: every step that is open, running or claimed turns done (drafts stay, since you are still wording them), and a task without a checklist takes the accepted review line. Tasks already in Done were accepted the same way when Rekall updated. The step node itself only moves a step forward, so a stray click never walks it back; reopening an accepted step is a separate **Reopen** button that arms before it fires.
 
+## Decisions
+
+Before a task runs, you go through it with Claude in the terminal or the chat: what is missing, what could be better, which of several ways to take. `/rk task:RK-12 refine` is that conversation. Claude asks one question at a time, with the options it sees, what each causes and the one it recommends, and records each question and answer with `rekall_decision` as you talk. Nothing runs, and no step, description or wrapup changes.
+
+A decision is one record: a key, the question, why it was asked, the options offered, the answer, the details you add later, and the lines of the conversation behind it. It belongs to the task or, optionally, to one step; a task without steps has only task-level decisions. It is **open** until you answer, **answered**, or **on hold** while you find something out, with a note of what you are checking. A changed answer keeps the one it replaced. A decision you correct by telling Claude stays one record; a wrong one is removed the same way.
+
+Every context of the task carries a `<decisions>` block: the task's own records first, then each step's, read when that step runs. A session builds to the answers, asks you before building what depends on an open question, and does not contradict a record marked `[edited by you]`. Decisions are parallel to the plan: they add no count to the header or the Review queue, and nothing waits on them.
+
 ## Epics
 
 An epic is a task of kind **Epic**, chosen in the task dialog. It holds no steps: it carries the

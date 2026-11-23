@@ -133,6 +133,10 @@ good, from data other domains already keep. `PlanAdherenceService` (domain `adhe
   says the same in words. The panel prints the numbers with one line on how to read them and sets no
   threshold and raises no warning.
 
+### Decisions
+
+A decision is a row of `task_decision` (a key unique per task, an optional step number, a state `OPEN`, `ANSWERED` or `ON_HOLD`, the answer and the one it replaced, a source `TERMINAL`, `CHAT` or `PERSON`) with its `task_decision_option`, `task_decision_line` and `task_decision_detail` rows, all deleted with the task. `DecisionService` in `rekall-core` is the one write path of a session (`rekall_decision`): `ask`, `answer`, `correct`, `hold`, `remove`, each in one transaction with a `decision` event after commit. A step number must be on the checklist (drafts not counted) and a task without steps accepts none. A hold keeps its note in the answer column, which is empty until the decision is answered. `/rk ... refine` is the mode that drives it: it only talks and records.
+
 ## 4.3 The flow
 
 A checklist is an order, and some work is not: build, deploy, test, and a failed test goes to a
