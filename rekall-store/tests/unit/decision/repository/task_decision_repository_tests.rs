@@ -166,3 +166,18 @@ async fn one_record_is_read_by_its_key_with_what_hangs_from_it() {
 
     assert_eq!((found.decision, found.options.len(), found.lines, found.details), (record.decision, 2, record.lines, record.details));
 }
+
+#[tokio::test]
+async fn one_record_is_read_by_its_id_and_an_unknown_id_is_not_found() {
+    let database = crate::open_temporary().await.unwrap();
+    let db = &database.conn;
+    let task = a_task(db).await;
+    let record = a_record(&task, "region", None);
+    insert(db, &record).await.unwrap();
+
+    let found = require_record_by_id(db, record.decision.id).await.unwrap();
+    let missing = require_record_by_id(db, Id::random()).await.unwrap_err();
+
+    assert_eq!((found.decision, found.options.len()), (record.decision, 2));
+    assert!(matches!(missing, RekallError::NotFound(_)), "{missing:?}");
+}

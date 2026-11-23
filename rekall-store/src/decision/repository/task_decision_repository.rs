@@ -15,6 +15,13 @@ pub async fn require(db: &impl ConnectionTrait, task_id: Id, key: &str) -> Resul
     find_by_key(db, task_id, key).await?.ok_or_else(|| RekallError::not_found_msg(format!("No decision with key '{key}' on this task")))
 }
 
+/// The decision with its options, lines and details, or `NotFound` when there is none.
+pub async fn require_record_by_id(db: &impl ConnectionTrait, id: Id) -> Result<DecisionRecord, RekallError> {
+    let decision = Entity::find_by_id(id).one(db).await?.ok_or_else(|| RekallError::not_found("Decision", id))?;
+    let mut records = with_children(db, vec![decision]).await?;
+    Ok(records.remove(0))
+}
+
 /// The task's own decisions first, then each step's in step order; oldest first within one scope.
 pub async fn list_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<DecisionRecord>, RekallError> {
     let decisions = Entity::find()

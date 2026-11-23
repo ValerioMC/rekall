@@ -4,7 +4,7 @@
 
 mod command;
 mod event;
-mod rule;
+pub mod rule;
 mod service;
 mod view;
 
