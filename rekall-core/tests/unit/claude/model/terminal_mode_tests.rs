@@ -36,6 +36,13 @@ fn a_revise_terminal_asks_the_session_to_evaluate_the_pending_thread_and_follows
 }
 
 #[test]
+fn a_refine_terminal_asks_the_session_to_go_through_the_task_and_follows_no_step() {
+    assert_eq!(TerminalMode::Refine.first_line(ANCHORS), "/rk task:REPORT-BUILDER refine");
+    assert!(!TerminalMode::Refine.follows_steps() && !TerminalMode::Refine.works_on_a_project());
+    assert_eq!(TerminalMode::Refine.to_string(), "REFINE");
+}
+
+#[test]
 fn a_rewrite_terminal_names_the_style_and_follows_no_step() {
     let fix = TerminalMode::Rewrite { style: RewriteStyle::Fix };
     let restructure = TerminalMode::Rewrite { style: RewriteStyle::Restructure };

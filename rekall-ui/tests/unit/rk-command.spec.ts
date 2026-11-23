@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { rkCommand, rkPlanCommand, rkPlanFlowCommand, rkReplanCommand, rkReviseCommand, rkRewriteCommand, rkWrapupCommand } from '@/common/format/rk-command'
+import { rkCommand, rkPlanCommand, rkPlanFlowCommand, rkRefineCommand, rkReplanCommand, rkReviseCommand, rkRewriteCommand, rkWrapupCommand } from '@/common/format/rk-command'
 
 /**
  * What the anchor chips put on the clipboard. Four chips read from one function, because four
@@ -118,5 +118,15 @@ describe('rkReviseCommand', () => {
 
   it('stays empty when there is no anchor', () => {
     expect(rkReviseCommand('')).toBe('')
+  })
+})
+
+describe('rkRefineCommand', () => {
+  it('asks a session to go through the task and record its decisions', () => {
+    expect(rkRefineCommand('project:vega task:report-builder')).toBe('/rk project:vega task:report-builder refine')
+  })
+
+  it('stays empty when there is no anchor', () => {
+    expect(rkRefineCommand('')).toBe('')
   })
 })

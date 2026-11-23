@@ -10,6 +10,7 @@ pub enum TerminalModeName {
     PlanFlow,
     Replan,
     Revise,
+    Refine,
     Generate,
     Explain,
     Inventory,

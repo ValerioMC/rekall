@@ -43,6 +43,12 @@ export function rkReviseCommand(anchor: string): string {
   return base ? `${base} revise` : ''
 }
 
+/** The refining line: the session goes through the task with the person and records each decision, building nothing. */
+export function rkRefineCommand(anchor: string): string {
+  const base = rkCommand(anchor)
+  return base ? `${base} refine` : ''
+}
+
 /**
  * The rewriting line: the session corrects the wording of the task's description (`FIX`) or lays it
  * out under standard headings (`RESTRUCTURE`), and stores the result as the new description.

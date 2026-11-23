@@ -28,6 +28,12 @@ fn a_revise_request_evaluates_the_pending_thread_whatever_else_it_carries() {
 }
 
 #[test]
+fn a_refine_request_goes_through_the_task_whatever_else_it_carries() {
+    assert_eq!(parsed(r#"{"mode":"REFINE"}"#).mode().unwrap(), TerminalMode::Refine);
+    assert_eq!(parsed(r#"{"mode":"REFINE","request":"ignored"}"#).mode().unwrap(), TerminalMode::Refine);
+}
+
+#[test]
 fn a_rewrite_request_names_its_style_whatever_else_it_carries() {
     assert_eq!(parsed(r#"{"mode":"REWRITE_FIX"}"#).mode().unwrap(), TerminalMode::Rewrite { style: RewriteStyle::Fix });
     assert_eq!(

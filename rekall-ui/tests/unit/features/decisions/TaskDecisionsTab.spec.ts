@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import * as api from '@/features/decisions/api/decisions.api'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import TaskDecisionsTab from '@/features/task/components/TaskDecisionsTab.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Task } from '@/features/catalog/model/catalog'
@@ -9,10 +10,10 @@ import { answered, decision, TASK } from './fixtures'
 
 vi.mock('@/features/decisions/api/decisions.api')
 
-const task = { id: TASK, code: 'VG-41' } as unknown as Task
+const task = { id: TASK, code: 'VG-41', anchor: 'task:VG-41', projectRepoFolder: '/code/vega' } as unknown as Task
 
-function mountTab() {
-  return mount(TaskDecisionsTab, { props: { task } })
+function mountTab(forTask: Task = task) {
+  return mount(TaskDecisionsTab, { props: { task: forTask } })
 }
 
 async function settle(): Promise<void> {
@@ -59,5 +60,27 @@ describe('the Decisions tab', () => {
 
     expect(page.get('[data-testid="decision-block"]').text()).toBe('<decisions count="1">\nregion: eu-west-1\n</decisions>')
     expect(page.find('[data-testid="decision-ledger"]').exists()).toBe(false)
+  })
+
+  it('has a session refine the task from the button, whether or not decisions were recorded', async () => {
+    vi.mocked(api.fetchDecisions).mockResolvedValue({ decisions: [], sessionBlock: '' })
+    const planForTask = vi.spyOn(useTerminalStore(), 'planForTask').mockResolvedValue({} as never)
+    const page = mountTab()
+    await settle()
+
+    await page.get('[data-testid="decision-refine"]').trigger('click')
+
+    expect(planForTask).toHaveBeenCalledWith(TASK, 'task:VG-41', expect.anything(), 'REFINE', '')
+  })
+
+  it('refuses to start a session when the project has no folder', async () => {
+    vi.mocked(api.fetchDecisions).mockResolvedValue({ decisions: [], sessionBlock: '' })
+    const planForTask = vi.spyOn(useTerminalStore(), 'planForTask').mockResolvedValue({} as never)
+    const page = mountTab({ ...task, projectRepoFolder: null } as Task)
+    await settle()
+
+    await page.get('[data-testid="decision-refine"]').trigger('click')
+
+    expect(planForTask).not.toHaveBeenCalled()
   })
 })
