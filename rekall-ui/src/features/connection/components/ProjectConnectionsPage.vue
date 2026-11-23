@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import AppButton from '@/components/ui/AppButton.vue'
 import ConnectionKindIcon from '@/features/connection/components/ConnectionKindIcon.vue'
 import ConnectionOption from '@/features/connection/components/ConnectionOption.vue'
+import ConnectionProjectBinder from '@/features/connection/components/ConnectionProjectBinder.vue'
 import ConnectionSheet from '@/features/connection/components/ConnectionSheet.vue'
 import ConnectionTrunk from '@/features/connection/components/ConnectionTrunk.vue'
 import ConfluenceImportDialog from '@/features/connection/components/ConfluenceImportDialog.vue'
@@ -31,7 +32,8 @@ import type { ConnectionId } from '@/model/branded'
  * GitHub repository, namespace or Jira project key it is narrowed to. This screen only binds: a
  * credential, a check and the companies a connection is shared with are changed in the
  * Connections screen, one link away. A connection can be created here, shared with the project's
- * company and bound in one go.
+ * company and bound in one go. A GitLab one is bound through the path field, which checks the path
+ * against the instance; the others bind the whole connection and are narrowed in their row.
  */
 const props = defineProps<{ project: Project }>()
 
@@ -46,6 +48,7 @@ const { run: runDiscovery, isRunning: isDiscovering } = useAsyncAction()
 const discovery = ref<RepositoryDiscovery | null>(null)
 const query = ref('')
 const creating = ref(false)
+const gitlabBinder = ref<Connection | null>(null)
 const importing = ref<ProjectConnection | null>(null)
 const filling = ref<ProjectConnection | null>(null)
 const returnTo = computed(() => `/projects/${props.project.id}`)
@@ -65,6 +68,11 @@ const unused = computed(() => unusedConnections(bindings.value, companyConnectio
 const unsharedElsewhere = computed(() => store.connections.length - companyConnections.value.length)
 
 async function bind(connectionId: ConnectionId): Promise<void> {
+  const connection = companyConnections.value.find((known) => known.id === connectionId)
+  if (connection?.kind === 'GITLAB') {
+    gitlabBinder.value = connection
+    return
+  }
   await run(() => store.bind(props.project.id, connectionId, { target: null }))
 }
 
@@ -103,6 +111,7 @@ watch(
   () => props.project.id,
   () => {
     discovery.value = null
+    gitlabBinder.value = null
     query.value = ''
   }
 )
@@ -153,6 +162,21 @@ watch(
     </header>
 
     <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+      <ConnectionProjectBinder
+        v-if="gitlabBinder"
+        :key="gitlabBinder.id"
+        class="mb-5"
+        :connection-id="gitlabBinder.id"
+        :connection-title="gitlabBinder.title"
+        :kind="gitlabBinder.kind"
+        :credential-set="!!gitlabBinder.credentialSetAt"
+        :base-url="gitlabBinder.baseUrl"
+        :root-path="gitlabBinder.rootPath"
+        :locked-project-id="project.id"
+        :projects="[project]"
+        @close="gitlabBinder = null"
+        @bound="gitlabBinder = null"
+      />
       <RepositoryDiscoveryResult v-if="discovery" class="mb-5" :discovery="discovery" @dismiss="discovery = null" />
 
       <div v-if="kindGroups.length" class="flex flex-col gap-8">

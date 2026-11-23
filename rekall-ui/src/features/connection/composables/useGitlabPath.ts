@@ -42,6 +42,12 @@ export function useGitlabPath(connectionId: () => ConnectionId) {
     pause = setTimeout(() => void ask(), TYPING_PAUSE_MS)
   }
 
+  function seed(initial: string): void {
+    value.value = initial
+    verdict.value = pathOf(initial) ? { state: 'checking', path: pathOf(initial) } : { state: 'blank' }
+    void checkPath(++latestCheck)
+  }
+
   function open(): void {
     isOpen.value = true
     void listChildren(++latestListing)
@@ -114,5 +120,5 @@ export function useGitlabPath(connectionId: () => ConnectionId) {
     if (pause) clearTimeout(pause)
   })
 
-  return { value, isOpen, rows, activeIndex, cursor, listingUnavailable, verdict, verified, isBindable, type, open, close, choose, chooseActive, jumpTo, move, retry }
+  return { value, isOpen, rows, activeIndex, cursor, listingUnavailable, verdict, verified, isBindable, type, seed, open, close, choose, chooseActive, jumpTo, move, retry }
 }

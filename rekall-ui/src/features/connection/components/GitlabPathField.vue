@@ -9,13 +9,21 @@ import type { ConnectionId } from '@/model/branded'
 /**
  * The GitLab path a project is narrowed to, typed or chosen from what the token can read, and
  * checked against the instance before it can be bound. Says through `resolve` whether the path may
- * be bound and which one it is: blank binds the whole connection, a found path binds that path.
+ * be bound and which one it is: blank binds the whole connection, a found path binds that path. A
+ * path the binding already has is checked on arrival without opening the list.
  */
-const props = defineProps<{ connectionId: ConnectionId; connectionTitle: string; baseUrl: string | null; rootPath: string | null }>()
+const props = defineProps<{
+  connectionId: ConnectionId
+  connectionTitle: string
+  baseUrl: string | null
+  rootPath: string | null
+  initialPath?: string | null
+}>()
 const emit = defineEmits<{ resolve: [binding: { readonly ready: boolean; readonly path: string | null }] }>()
 
 const listId = useId()
 const path = useGitlabPath(() => props.connectionId)
+if (props.initialPath) path.seed(props.initialPath)
 const host = computed(() => (props.baseUrl ? new URL(props.baseUrl).host : 'GitLab'))
 const verdictStatus = computed(() => (path.verdict.value.state === 'answered' ? path.verdict.value.check.status : null))
 const isRefused = computed(() => verdictStatus.value === 'NOT_FOUND' || verdictStatus.value === 'OUTSIDE_ROOT')

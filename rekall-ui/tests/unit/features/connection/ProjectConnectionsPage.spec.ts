@@ -86,6 +86,17 @@ async function mountPage(project: Project = PROJECT) {
   return mount(ProjectConnectionsPage, { props: { project }, global: { plugins: [router] }, attachTo: document.body })
 }
 
+const FOUND_BILLING = {
+  kind: 'PROJECT',
+  path: 'acme/billing',
+  name: 'Billing',
+  visibility: 'private',
+  defaultBranch: 'main',
+  lastActivityAt: null,
+  subgroupCount: null,
+  projectCount: null
+} as const
+
 describe('ProjectConnectionsPage', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -270,22 +281,75 @@ describe('ProjectConnectionsPage as a binding screen', () => {
     wrapper.unmount()
   })
 
-  it('warns, without blocking, when a target is outside the root path of its connection', async () => {
-    vi.mocked(api.fetchConnections).mockResolvedValue([connection('platform', { kind: 'GITLAB', rootPath: 'acme' })])
-    vi.mocked(api.fetchProjectConnections).mockResolvedValue([{ ...binding('platform', null, 'GITLAB'), target: 'other/billing' }])
-    vi.mocked(api.updateBinding).mockResolvedValue({ ...binding('platform', null, 'GITLAB'), target: 'other/billing' })
+  it('opens the path field instead of binding a GitLab connection with no target', async () => {
+    vi.mocked(api.fetchConnections).mockResolvedValue([
+      connection('platform', { kind: 'GITLAB', baseUrl: 'https://gitlab.example.com', rootPath: 'acme', credentialSetAt: '2026-10-21T10:00:00Z' })
+    ])
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([])
+    vi.mocked(api.fetchGitlabChildren).mockResolvedValue([])
     const wrapper = await mountPage()
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="target-warning"]').text()).toBe('Expected to start with acme/')
-    const target = wrapper.get('[data-testid="connection-target"]')
-    await target.setValue('acme/billing')
-    expect(wrapper.find('[data-testid="target-warning"]').exists()).toBe(false)
-    await target.setValue('other/api')
-    expect(wrapper.get('[data-testid="target-warning"]').text()).toBe('Expected to start with acme/')
-    await target.trigger('blur')
+    await wrapper.get('[data-testid="use-connection-platform"]').trigger('click')
     await flushPromises()
-    expect(api.updateBinding).toHaveBeenCalledWith('p-1', 'b-platform', { label: 'platform', target: 'other/api' })
+
+    expect(api.bindConnection).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="project-binder"] select').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="binder-target"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('binds the GitLab path the instance found, for this project', async () => {
+    vi.mocked(api.fetchConnections).mockResolvedValue([
+      connection('platform', { kind: 'GITLAB', baseUrl: 'https://gitlab.example.com', rootPath: 'acme', credentialSetAt: '2026-10-21T10:00:00Z' })
+    ])
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([])
+    vi.mocked(api.fetchGitlabChildren).mockResolvedValue([])
+    vi.mocked(api.fetchTargetCheck).mockResolvedValue({ status: 'FOUND', found: { ...FOUND_BILLING } })
+    vi.mocked(api.bindConnection).mockResolvedValue({ ...binding('platform', '2026-10-21T10:00:00Z', 'GITLAB'), target: 'acme/billing' })
+    const wrapper = await mountPage()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="use-connection-platform"]').trigger('click')
+    await wrapper.get('[data-testid="binder-target"]').setValue('acme/billing')
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    await flushPromises()
+    await wrapper.get('[data-testid="project-binder"]').trigger('submit')
+    await flushPromises()
+
+    expect(api.bindConnection).toHaveBeenCalledWith('p-1', 'platform', { target: 'acme/billing' })
+    expect(wrapper.find('[data-testid="project-binder"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('changes the target of a GitLab binding only to a path the instance found', async () => {
+    vi.mocked(api.fetchConnections).mockResolvedValue([
+      connection('platform', { kind: 'GITLAB', baseUrl: 'https://gitlab.example.com', rootPath: 'acme', credentialSetAt: '2026-10-21T10:00:00Z' })
+    ])
+    vi.mocked(api.fetchProjectConnections).mockResolvedValue([{ ...binding('platform', null, 'GITLAB'), target: 'acme/old' }])
+    vi.mocked(api.fetchGitlabChildren).mockResolvedValue([])
+    vi.mocked(api.fetchTargetCheck).mockImplementation(async (_id, path) =>
+      path === 'acme/billing' ? { status: 'FOUND', found: { ...FOUND_BILLING } } : { status: 'NOT_FOUND', nearest: null }
+    )
+    vi.mocked(api.updateBinding).mockResolvedValue({ ...binding('platform', null, 'GITLAB'), target: 'acme/billing' })
+    const wrapper = await mountPage()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="change-gitlab-target"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="binder-target"]').setValue('acme/bilng')
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    await flushPromises()
+    expect(wrapper.get('[data-testid="gitlab-target-save"]').attributes('disabled')).toBeDefined()
+
+    await wrapper.get('[data-testid="binder-target"]').setValue('acme/billing')
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    await flushPromises()
+    await wrapper.get('[data-testid="gitlab-target-editor"]').trigger('submit')
+    await flushPromises()
+
+    expect(api.updateBinding).toHaveBeenCalledWith('p-1', 'b-platform', { label: 'platform', target: 'acme/billing' })
+    expect(wrapper.find('[data-testid="gitlab-target-editor"]').exists()).toBe(false)
     wrapper.unmount()
   })
 
