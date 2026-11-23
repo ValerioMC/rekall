@@ -6,6 +6,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import SubNav from '@/components/ui/SubNav.vue'
 import TaskChangesTab from '@/features/task/components/TaskChangesTab.vue'
 import TaskPageHeader from '@/features/task/components/TaskPageHeader.vue'
+import TaskDecisionsTab from '@/features/task/components/TaskDecisionsTab.vue'
 import TaskDeviationsTab from '@/features/task/components/TaskDeviationsTab.vue'
 import TaskDescriptionTab from '@/features/task/components/TaskDescriptionTab.vue'
 import TaskNotesTab from '@/features/task/components/TaskNotesTab.vue'
@@ -117,7 +118,8 @@ watch(
           <SubNav :model-value="tab" :items="tabs" label="Task" class="px-6">
             <template #trailing><TaskWidthMenu v-model="preferences.taskWidth" /></template>
           </SubNav>
-          <TaskPlanTab v-if="tab === 'plan'" :task="row.task" />
+          <TaskDecisionsTab v-if="tab === 'decisions'" :task="row.task" />
+          <TaskPlanTab v-else-if="tab === 'plan'" :task="row.task" />
           <TaskChangesTab v-else-if="tab === 'changes'" :task="row.task" />
           <WrapupPane v-else-if="tab === 'wrapup'" embedded />
           <TaskNotesTab v-else-if="tab === 'notes'" :task="row.task" />

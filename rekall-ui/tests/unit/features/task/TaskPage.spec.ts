@@ -99,6 +99,7 @@ async function mountAt(path: string) {
         TaskDescriptionTab: { template: '<div data-testid="description-tab-stub" />' },
         TaskTimeTab: { template: '<div data-testid="time-tab-stub" />' },
         TaskDeviationsTab: { template: '<div data-testid="deviations-tab-stub" />' },
+        TaskDecisionsTab: { template: '<div data-testid="decisions-tab-stub" />' },
         WrapupPane: { template: '<div data-testid="wrapup-pane-stub" />' },
         TaskTokenChip: true
       }
@@ -139,15 +140,16 @@ describe('TaskPage', () => {
     expect(page.get('[data-testid="task-status"]').text()).toContain('Awaiting review')
   })
 
-  it('lists the seven tabs as links, with Plan counting its steps and turning amber while one waits', async () => {
+  it('lists the eight tabs as links, with Plan counting its steps and turning amber while one waits', async () => {
     seed()
     const page = await mountAt('/task/rk-1/plan')
 
     const tabs = page.findAll('[role="tab"]')
-    expect(tabs.map((tab) => tab.text().replace(/\s*\d+$/, ''))).toEqual(['Description', 'Plan', 'Changes', 'Wrapup', 'Notes', 'Time', 'Deviations'])
-    expect(tabs[1]!.get('[data-testid="sub-nav-count"]').text()).toBe('1')
-    expect(tabs[4]!.attributes('href')).toBe('/task/rk-1/notes')
-    expect(tabs[4]!.get('[data-testid="sub-nav-count"]').text()).toBe('2')
+    expect(tabs.map((tab) => tab.text().replace(/\s*\d+$/, ''))).toEqual(['Description', 'Decisions', 'Plan', 'Changes', 'Wrapup', 'Notes', 'Time', 'Deviations'])
+    expect(tabs[1]!.find('[data-testid="sub-nav-count"]').exists()).toBe(false)
+    expect(tabs[2]!.get('[data-testid="sub-nav-count"]').text()).toBe('1')
+    expect(tabs[5]!.attributes('href')).toBe('/task/rk-1/notes')
+    expect(tabs[5]!.get('[data-testid="sub-nav-count"]').text()).toBe('2')
   })
 
   it('shows the pane each tab names', async () => {
@@ -159,7 +161,8 @@ describe('TaskPage', () => {
       notes: 'notes-tab-stub',
       description: 'description-tab-stub',
       time: 'time-tab-stub',
-      deviations: 'deviations-tab-stub'
+      deviations: 'deviations-tab-stub',
+      decisions: 'decisions-tab-stub'
     }
 
     for (const [tab, testid] of Object.entries(shown)) {
