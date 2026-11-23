@@ -7,6 +7,7 @@ import DecisionAddForm from '@/features/decisions/components/DecisionAddForm.vue
 import DecisionLedger from '@/features/decisions/components/DecisionLedger.vue'
 import DecisionRowActions from '@/features/decisions/components/DecisionRowActions.vue'
 import DecisionSessionView from '@/features/decisions/components/DecisionSessionView.vue'
+import RefineButton from '@/features/decisions/components/RefineButton.vue'
 import DecisionsBand, { type DecisionsView } from '@/features/decisions/components/DecisionsBand.vue'
 import { countDecisions } from '@/features/decisions/lib/decision-tally'
 import { NO_DECISIONS } from '@/features/decisions/model/decision'
@@ -47,6 +48,7 @@ watch(
   <div class="flex min-h-0 flex-1 flex-col" data-testid="decisions-tab">
     <DecisionsBand v-model="view" :counts="counts">
       <template #actions>
+        <RefineButton :task-id="task.id" :anchor="task.anchor" :folder="task.projectRepoFolder" />
         <AppButton size="sm" :disabled="adding" data-testid="decision-add" @click="adding = true">Add decision</AppButton>
       </template>
     </DecisionsBand>

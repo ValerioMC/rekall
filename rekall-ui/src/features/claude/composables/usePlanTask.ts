@@ -66,8 +66,14 @@ export function usePlanTask(
           mode,
           message
         ),
-      mode === 'REPLAN' ? 'Replanning. The new steps land here.' : 'Planning. Its proposals land here.'
+      startedMessage(mode)
     )
+  }
+
+  function startedMessage(mode: PlanMode): string {
+    if (mode === 'REPLAN') return 'Replanning. The new steps land here.'
+    if (mode === 'REFINE') return 'Refining. Its decisions land here.'
+    return 'Planning. Its proposals land here.'
   }
 
   return { isConfirmingReplan, missedMessage, start, confirmReplan, cancelReplan }
