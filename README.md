@@ -125,6 +125,7 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 | `/rk … section "Deployment" "how we ship"` | Write a titled section on the task's project, or rewrite the one with that title |
 | `/rk … plan` | Propose the task's checklist, open and ready to work, with Mermaid diagrams of the solution where they help, then stop; `plan flow` proposes a flow |
 | `/rk … replan ["what the plan missed"]` | Redesign the task's draft and open steps as new ready-to-work steps, bending them to the quoted message when there is one; running, claimed and done steps stay |
+| `/rk … refine` | Go through the task with you before it runs and record each question, answer, correction and hold with `rekall_decision`; builds nothing |
 | `/rk … rewrite fix` / `rewrite restructure` | Replace the task's description with `rekall_description`: the same text with its wording corrected, or laid out under Goal, Problem, Solution, Implementation and Out of scope (a project page titled `Task template` replaces those headings); nothing keeps the old text, then stop |
 | `/rk … step:3 start` / `step:3 done` | Move a step to running / claimed; on a flow `done outcome:<name>` follows that route |
 | `/rk project:vega generate kinds:sequence,state "how checkout charges"` | Store a diagram answering the request, one sheet per type |
@@ -153,6 +154,7 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_note` | write | Write a note on one task, or rewrite one it carries by title with `replace` |
 | `rekall_feedback` | write | Reply to the open entries of a task's thread, by seq; it cannot create, edit or delete an entry |
 | `rekall_deviation` | write | Record where the work departed from the plan, on one task and for one step; kept apart from the notes |
+| `rekall_decision` | write | Record what a person settles about a task before it runs: a question with its options, its answer, a correction, a hold; shown in the console as it is written |
 | `rekall_project_section` | write | Write a titled markdown section on a task's project, or rewrite one by title with `replace` |
 | `rekall_read_sections` | read | List a project's sections by title, or read one whole with `title` |
 | `rekall_component` | write | Record a folder of a project as a component: a name, a folder, a summary every context carries and a structured markdown description; the component with that name or folder is rewritten |

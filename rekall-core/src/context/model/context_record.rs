@@ -1,5 +1,6 @@
 use crate::component::ProjectComponentView;
 use crate::connection::ConnectionView;
+use crate::decision::DecisionView;
 use crate::deviation::DeviationView;
 use crate::feedback::FeedbackView;
 use crate::step::TaskStepView;
@@ -22,6 +23,8 @@ pub struct ContextRecord {
     pub documents: Vec<DocumentView>,
     /// Where the task's work departed from its plan, by step; apart from the notes.
     pub deviations: Vec<DeviationView>,
+    /// What was settled about the task before it runs: its own decisions, then each step's.
+    pub decisions: Vec<DecisionView>,
     /// The task's thread: pending entries load in full, applied ones as one line.
     pub thread: Vec<FeedbackView>,
     pub steps: Vec<TaskStepView>,

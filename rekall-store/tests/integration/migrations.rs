@@ -117,7 +117,7 @@ async fn a_database_written_by_v0_2_moves_onto_the_baseline_with_its_rows() {
     let database = rekall_store::open(&path).await.unwrap();
     let db = &database.conn;
 
-    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target", "074-accept-done-tasks", "075-task-manager", "076-commit-reference-step-kept", "077-foreign-key-indexes", "078-enum-and-scope-checks", "079-step-owned-task-keys", "080-task-tracker-link", "081-pull-request-flow", "082-task-pull-request", "083-pull-request-merged", "084-note-owned-by-task", "085-task-tracker-synced-content", "086-task-code", "087-commit-reference-component", "088-skill-arguments", "089-confluence-connection", "090-component-summary"]);
+    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target", "074-accept-done-tasks", "075-task-manager", "076-commit-reference-step-kept", "077-foreign-key-indexes", "078-enum-and-scope-checks", "079-step-owned-task-keys", "080-task-tracker-link", "081-pull-request-flow", "082-task-pull-request", "083-pull-request-merged", "084-note-owned-by-task", "085-task-tracker-synced-content", "086-task-code", "087-commit-reference-component", "088-skill-arguments", "089-confluence-connection", "090-component-summary", "091-task-decision"]);
     let task = Task::find().one(db).await.unwrap().unwrap();
     assert_eq!((task.label.as_str(), task.title.as_str()), ("report", "Report"));
     let wrapup = Wrapup::find().one(db).await.unwrap().unwrap();
@@ -137,7 +137,7 @@ async fn a_database_on_the_baseline_opens_again_unchanged() {
 
     let database = rekall_store::open(&path).await.unwrap();
 
-    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target", "074-accept-done-tasks", "075-task-manager", "076-commit-reference-step-kept", "077-foreign-key-indexes", "078-enum-and-scope-checks", "079-step-owned-task-keys", "080-task-tracker-link", "081-pull-request-flow", "082-task-pull-request", "083-pull-request-merged", "084-note-owned-by-task", "085-task-tracker-synced-content", "086-task-code", "087-commit-reference-component", "088-skill-arguments", "089-confluence-connection", "090-component-summary"]);
+    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target", "074-accept-done-tasks", "075-task-manager", "076-commit-reference-step-kept", "077-foreign-key-indexes", "078-enum-and-scope-checks", "079-step-owned-task-keys", "080-task-tracker-link", "081-pull-request-flow", "082-task-pull-request", "083-pull-request-merged", "084-note-owned-by-task", "085-task-tracker-synced-content", "086-task-code", "087-commit-reference-component", "088-skill-arguments", "089-confluence-connection", "090-component-summary", "091-task-decision"]);
 }
 
 #[tokio::test]
@@ -635,6 +635,30 @@ async fn projects_get_a_key_and_their_tasks_a_number_when_086_runs() {
     let codes = scalar_list(&db, "SELECT code FROM task ORDER BY number").await;
     assert_eq!(codes, ["RV-1", "RV-2"]);
     assert_eq!(scalar_list(&db, "SELECT id FROM task ORDER BY number").await, ["t1", "t2"], "tasks are numbered in the order they were created");
+}
+
+#[tokio::test]
+async fn a_database_at_version_090_gains_the_decision_tables() {
+    let folder = tempfile::tempdir().unwrap();
+    let path = folder.path().join("rekall.db");
+    let database = rekall_store::open(&path).await.unwrap();
+    for statement in [
+        "DROP TABLE task_decision_detail",
+        "DROP TABLE task_decision_line",
+        "DROP TABLE task_decision_option",
+        "DROP TABLE task_decision",
+        "DELETE FROM seaql_migrations WHERE version = '091-task-decision'",
+    ] {
+        database.conn.execute_unprepared(statement).await.unwrap();
+    }
+    database.close().await.unwrap();
+
+    let database = rekall_store::open(&path).await.unwrap();
+
+    assert_eq!(applied_versions(&database.conn).await.last().map(String::as_str), Some("091-task-decision"));
+    for table in ["task_decision", "task_decision_option", "task_decision_line", "task_decision_detail"] {
+        assert!(table_exists(&database.conn, table).await, "{table}");
+    }
 }
 
 async fn scalar_list(db: &impl ConnectionTrait, query: &str) -> Vec<String> {

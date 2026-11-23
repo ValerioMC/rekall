@@ -10,6 +10,6 @@ mod view;
 
 pub use event::deviation_stream_event::DeviationStreamEvent;
 pub use model::written::Written;
-pub use rule::planned_step_rule::step_at;
+pub use rule::planned_step_rule::{planned_count, step_at};
 pub use service::deviation_service::DeviationService;
 pub use view::deviation_view::DeviationView;

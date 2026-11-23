@@ -20,7 +20,7 @@ use rekall_core::queue::RunQueueService;
 use rekall_core::skill::SkillGroupService;
 use rekall_core::Services;
 
-use rekall_console::{adherence, backup, catalog, chat, check, claude, component, connection, dependency, deviation, diagram, feedback, filesystem, graph, guard, note, queue, quick, section, settings, skill, tag, terminal, version, vulnerability, worktree};
+use rekall_console::{adherence, backup, catalog, chat, check, claude, component, connection, decision, dependency, deviation, diagram, feedback, filesystem, graph, guard, note, queue, quick, section, settings, skill, tag, terminal, version, vulnerability, worktree};
 
 use crate::{ApiPorts, StepEventStream};
 
@@ -63,6 +63,7 @@ pub struct ApiState {
     pub component_catalog: component::ProjectComponentCatalogService,
     pub checks: check::CheckService,
     pub task_dependencies: dependency::TaskDependencyService,
+    pub task_decisions: decision::TaskDecisionService,
     pub task_deviations: deviation::TaskDeviationService,
     pub feedback: feedback::FeedbackService,
     pub task_branches: worktree::TaskBranchService,
@@ -198,6 +199,7 @@ impl ApiState {
             component_catalog,
             checks: check::CheckService::new(ctx.clone()),
             task_dependencies: dependency::TaskDependencyService::new(ctx.clone(), RunQueueService::new(ctx.clone())),
+            task_decisions: decision::TaskDecisionService::new(ctx.clone()),
             task_deviations: deviation::TaskDeviationService::new(ctx.clone()),
             feedback: feedback::FeedbackService::new(ctx.clone()),
             task_branches: worktree::TaskBranchService::new(ports.task_worktrees.clone()),

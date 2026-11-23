@@ -14,6 +14,7 @@ pub mod check;
 pub mod component;
 pub mod connection;
 pub mod context;
+pub mod decision;
 pub mod dependency;
 pub mod deviation;
 pub mod diagram;

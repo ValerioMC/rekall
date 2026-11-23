@@ -11,6 +11,7 @@ mod components;
 mod pages;
 mod documents;
 mod deviations;
+mod decisions;
 mod thread;
 mod flow;
 mod steps;

@@ -10,6 +10,7 @@ pub use crate::check::repository::done_check_result_repository as done_check_res
 pub use crate::commit::repository::{commit_reference_repository as commit_reference, step_snapshot_repository as step_snapshot};
 pub use crate::component::repository::project_component_repository as project_component;
 pub use crate::connection::{repository::connection_access_repository as connection_access, repository::connection_company_repository as connection_company, repository::external_connection_repository as external_connection, repository::project_connection_repository as project_connection};
+pub use crate::decision::repository::task_decision_repository as task_decision;
 pub use crate::dependency::repository::task_dependency_repository as task_dependency;
 pub use crate::deviation::repository::task_deviation_repository as task_deviation;
 pub use crate::diagram::repository::diagram_repository as diagram;

@@ -7,6 +7,7 @@ use crate::protocol::McpTool;
 use crate::commit::CommitReferenceTool;
 use crate::component::{ComponentReadTool, ComponentTool};
 use crate::context::ContextTool;
+use crate::decision::DecisionTool;
 use crate::deviation::DeviationTool;
 use crate::diagram::DiagramTool;
 use crate::feedback::FeedbackTool;
@@ -30,6 +31,7 @@ pub fn all(services: &Services) -> Vec<Arc<dyn McpTool>> {
         Arc::new(TaskDescriptionTool::new(services.task_descriptions.clone())),
         Arc::new(NoteTool::new(services.notes.clone())),
         Arc::new(DeviationTool::new(services.deviations.clone())),
+        Arc::new(DecisionTool::new(services.decisions.clone())),
         Arc::new(FeedbackTool::new(services.feedback.clone())),
         Arc::new(StepProposalTool::new(services.steps.clone())),
         Arc::new(FlowProposalTool::new(services.flow_proposals.clone())),

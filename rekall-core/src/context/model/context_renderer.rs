@@ -55,6 +55,7 @@ impl ContextRenderer {
         out.push_str(&self.render_wrapup(record.wrapup.as_ref(), &record.wrapup_freshness));
         out.push_str(&self.render_documents(&record.documents));
         out.push_str(&self.render_deviations(&record.deviations));
+        out.push_str(&self.render_decisions(&record.decisions));
         out.push_str(&self.render_thread(&record.thread));
         for reference in &record.references {
             let nested = self.render_record(reference, heading_level + 1, rendered);
@@ -70,6 +71,10 @@ impl ContextRenderer {
 #[cfg(test)]
 #[path = "../../../tests/unit/context/model/context_renderer_deviation_tests.rs"]
 mod deviation_tests;
+
+#[cfg(test)]
+#[path = "../../../tests/unit/context/model/context_renderer_decision_tests.rs"]
+mod decision_tests;
 
 #[cfg(test)]
 #[path = "../../../tests/unit/context/model/context_renderer_thread_tests.rs"]

@@ -53,7 +53,7 @@ Every screen is a page header, optional tabs and a body, and the body is always 
 |---|---|---|
 | `#/work` | `/` (`/work` redirects to it) | Work ledger |
 | `#/work/board` | `/work/board` | Work board |
-| `#/task/:id/:tab` | `/task/:id/:tab` | Task page, tab `description`, `plan`, `wrapup`, `notes`, `time` or `deviations` |
+| `#/task/:id/:tab` | `/task/:id/:tab` | Task page, tab `description`, `decisions`, `plan`, `wrapup`, `notes`, `time` or `deviations` |
 | `#/review/:key` | `/review/:key?` | Review queue |
 | `#/projects`, `#/projects/:id/:tab` | `/projects`, `/projects/:id/:tab` | Project list, project page |
 | `#/companies` | `/companies` | Companies |

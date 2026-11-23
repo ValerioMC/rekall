@@ -183,6 +183,23 @@ describe('useStepStream', () => {
     scope.stop()
   })
 
+  it('hands the task of a decision frame to the decision callback, and drops one that does not parse', () => {
+    const onDecision = vi.fn()
+    const scope = effectScope()
+    scope.run(() =>
+      useStepStream(vi.fn(), undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, onDecision)
+    )
+
+    FakeEventSource.instances[0]!.emit('decision', {
+      data: JSON.stringify({ taskId: '22222222-2222-2222-2222-222222222222', key: 'db-password' })
+    })
+    FakeEventSource.instances[0]!.emit('decision', { data: JSON.stringify({ taskId: 'x' }) })
+
+    expect(onDecision).toHaveBeenCalledTimes(1)
+    expect(onDecision).toHaveBeenCalledWith('22222222-2222-2222-2222-222222222222')
+    scope.stop()
+  })
+
   it('closes the connection when its scope is disposed', () => {
     const scope = effectScope()
     scope.run(() => useStepStream(vi.fn()))
