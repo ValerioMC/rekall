@@ -24,6 +24,17 @@ pub async fn list_of_task(db: &impl ConnectionTrait, task_id: Id) -> Result<Vec<
         .order_by_asc(Column::Id)
         .all(db)
         .await?;
+    with_children(db, decisions).await
+}
+
+/// The task's decision under `key` with its options, lines and details, or `NotFound` naming the key.
+pub async fn require_record(db: &impl ConnectionTrait, task_id: Id, key: &str) -> Result<DecisionRecord, RekallError> {
+    let decision = require(db, task_id, key).await?;
+    let mut records = with_children(db, vec![decision]).await?;
+    Ok(records.remove(0))
+}
+
+async fn with_children(db: &impl ConnectionTrait, decisions: Vec<Model>) -> Result<Vec<DecisionRecord>, RekallError> {
     let ids: Vec<Id> = decisions.iter().map(|decision| decision.id).collect();
     let mut options = group_by_decision(options_of(db, &ids).await?, |option| option.decision_id);
     let mut lines = group_by_decision(lines_of(db, &ids).await?, |line| line.decision_id);

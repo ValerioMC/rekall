@@ -9,10 +9,11 @@ use rekall_store::document::ANCHOR_ID_LENGTH;
 use rekall_store::{company, project, task, TaskStatus, TaskStepState};
 use rekall_store::repository as repo;
 
-use crate::context::{AnchorEntity, ContextCommitView, ContextRecord, ContextSkillScope, ContextSkillView, DocumentView, StepConnectionView};
+use crate::context::{AnchorEntity, ContextCommitView, ContextRecord, ContextRenderer, ContextSkillScope, ContextSkillView, DocumentView, StepConnectionView};
 use crate::component::{names_task, referenced_task_labels, ProjectComponentView};
 use crate::connection::ConnectionView;
 use crate::dependency::{TaskWait, TaskWaitService};
+use crate::decision::{DecisionService, DecisionView};
 use crate::deviation::DeviationView;
 use crate::feedback::FeedbackView;
 use crate::step::{flow_entry, StepFlowRows, TaskStepView};
@@ -24,11 +25,12 @@ use crate::{in_read, load, Ctx, Tx};
 pub struct ContextService {
     ctx: Ctx,
     freshness: WrapupFreshnessService,
+    decisions: DecisionService,
 }
 
 impl ContextService {
     pub fn new(ctx: Ctx) -> Self {
-        Self { freshness: WrapupFreshnessService::new(ctx.clone()), ctx }
+        Self { freshness: WrapupFreshnessService::new(ctx.clone()), decisions: DecisionService::new(ctx.clone()), ctx }
     }
 
     pub async fn load(&self, entity: Option<AnchorEntity>, value: &str) -> Result<ContextRecord> {
@@ -65,6 +67,11 @@ impl ContextService {
     pub async fn load_task_in(&self, tx: &Tx, project_label: &str, task_label: &str) -> Result<ContextRecord> {
         let task = load::resolve_task(tx.db(), Some(project_label), task_label).await?;
         self.render_task(tx, &task).await
+    }
+
+    /// The task's decisions as a context carries them, with no blank lines around: what a person reads in the console as the session reads it.
+    pub async fn decisions_block(&self, task_id: Id) -> Result<String> {
+        Ok(ContextRenderer.render_decisions(&self.decisions.list(task_id).await?).trim().to_string())
     }
 
     /// The project and the task, as `/rk project:<label> task:<label>` loads them for this task.
@@ -277,6 +284,7 @@ impl ContextService {
         let connections = repo::project_connection::list_of_project(db, project.id).await?;
         let documents = repo::document::documents_of_task(db, task.id).await?;
         let deviations = repo::task_deviation::list_of_task(db, task.id).await?;
+        let decisions = repo::task_decision::list_of_task(db, task.id).await?;
         let thread = repo::task_feedback::list_of_task(db, task.id).await?;
         let wrapup = load::wrapup_of(db, task.id).await?.map(|found| WrapupView::of(&found, task, project));
         let wrapup_freshness = match wrapup {
@@ -292,6 +300,7 @@ impl ContextService {
             related: children.iter().map(|child| child.anchor()).collect(),
             documents: documents.iter().map(DocumentView::of).collect(),
             deviations: deviations.iter().map(|deviation| DeviationView::of(deviation, step_title_at(&steps, deviation.step_number))).collect(),
+            decisions: decisions.iter().map(|record| DecisionView::of(record, record.decision.step_number.and_then(|number| step_title_at(&steps, number)))).collect(),
             thread: thread.iter().map(FeedbackView::of).collect(),
             skills: self.skills_of(tx, task, &steps).await?,
             step_connections: self.step_connections_of(tx, project, &steps).await?,

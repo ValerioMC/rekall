@@ -152,3 +152,17 @@ async fn a_state_source_or_speaker_outside_its_enum_is_refused_by_the_schema() {
         assert!(refused.contains("CHECK constraint failed"), "{statement}: {refused}");
     }
 }
+
+#[tokio::test]
+async fn one_record_is_read_by_its_key_with_what_hangs_from_it() {
+    let database = crate::open_temporary().await.unwrap();
+    let db = &database.conn;
+    let task = a_task(db).await;
+    insert(db, &a_record(&task, "region", None)).await.unwrap();
+    let record = a_record(&task, "db-password", Some(1));
+    insert(db, &record).await.unwrap();
+
+    let found = require_record(db, task.id, "db-password").await.unwrap();
+
+    assert_eq!((found.decision, found.options.len(), found.lines, found.details), (record.decision, 2, record.lines, record.details));
+}
