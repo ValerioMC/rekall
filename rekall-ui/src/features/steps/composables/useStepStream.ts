@@ -6,6 +6,7 @@ import {
   TaskReviewEventSchema,
   WrapupStreamEventSchema
 } from '@/features/catalog/api/schemas/catalog.schema'
+import { DecisionStreamEventSchema } from '@/features/decisions/api/schemas/decision.schema'
 import { DeviationStreamEventSchema } from '@/features/deviations/api/schemas/deviation.schema'
 import { FeedbackStreamEventSchema } from '@/features/feedback/api/schemas/feedback.schema'
 import { CommitReferenceStreamEventSchema } from '@/features/commits/api/schemas/commitReference.schema'
@@ -18,8 +19,8 @@ import type { RunQueue } from '@/features/queue/model/runQueue'
 import type { TaskId } from '@/model/branded'
 
 /**
- * One SSE connection carrying nine console feeds: `steps`, `task-review`, `wrapup`,
- * `commit-reference`, `run-queue`, `note`, `deviation`, `feedback` and `task-created`.
+ * One SSE connection carrying ten console feeds: `steps`, `task-review`, `wrapup`,
+ * `commit-reference`, `run-queue`, `note`, `deviation`, `feedback`, `decision` and `task-created`.
  */
 export function useStepStream(
   onSteps: (taskId: TaskId, steps: TaskStep[]) => void,
@@ -30,7 +31,8 @@ export function useStepStream(
   onNote?: (event: NoteStreamEvent) => void,
   onTaskCreated?: () => void,
   onDeviation?: (taskId: TaskId) => void,
-  onFeedback?: (taskId: TaskId) => void
+  onFeedback?: (taskId: TaskId) => void,
+  onDecision?: (taskId: TaskId) => void
 ): { connected: Ref<boolean>; stop: () => void } {
   const connected = ref(isConsoleStreamOpen())
   const unsubscribers: Array<() => void> = []
@@ -75,6 +77,7 @@ export function useStepStream(
   listenToPayload('note', NoteStreamEventSchema, (event) => onNote?.(event))
   listenToPayload('deviation', DeviationStreamEventSchema, (event) => onDeviation?.(event.taskId))
   listenToPayload('feedback', FeedbackStreamEventSchema, (event) => onFeedback?.(event.taskId))
+  listenToPayload('decision', DecisionStreamEventSchema, (event) => onDecision?.(event.taskId))
 
   onScopeDispose(stop)
 

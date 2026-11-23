@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { createConsoleState } from './console/console-state'
 import { useCommitReferences } from '../features/commits/store/useCommitReferences'
 import { useCompanyWrites } from '../features/catalog/store/useCompanyWrites'
+import { useTaskDecisions } from '../features/decisions/store/decisions.slice'
 import { useFeedbackThread } from '../features/feedback/store/feedback.slice'
 import { useGraphAttach } from '../features/graph/store/useGraphAttach'
 import { useConsoleNavigation } from './console/useConsoleNavigation'
@@ -45,6 +46,7 @@ export const useConsoleStore = defineStore('console', () => {
   const graphAttach = useGraphAttach(state, steps)
   const wrapups = useWrapupWrites(state, refreshes, timers)
   const feedback = useFeedbackThread(state, refreshes)
+  const decisions = useTaskDecisions(state)
   const commitReferences = useCommitReferences(state)
   const skills = useSkillAssignments(state)
   const jiraImport = useJiraImport(state, refreshes)
@@ -81,6 +83,7 @@ export const useConsoleStore = defineStore('console', () => {
     ...graphAttach,
     ...wrapups,
     ...feedback,
+    ...decisions,
     ...commitReferences,
     ...skills,
     ...jiraImport,
