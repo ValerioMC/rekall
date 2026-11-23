@@ -141,6 +141,15 @@
         ],
         "createdAt": "2026-11-20T10:06:13.087Z",
         "reason": "False positive: pills, chips, buttons and fields are fixed-height flex boxes with text centred vertically and 8px or more horizontal padding. Decided by the model, not user confirmed."
+      },
+      {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/task-decisions/index.html"
+        ],
+        "createdAt": "2026-11-23T14:55:00.000Z",
+        "reason": "DESIGN.md sanctions the session orb pulse as state made visible; it marks only the session working on the task right now. Decided by the model from DESIGN.md, not user confirmed."
       }
     ]
   }

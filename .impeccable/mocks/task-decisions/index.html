@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Task Decisions tab</title>
+<style>
+  @font-face { font-family: 'Fira Sans'; font-weight: 400; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 500; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 600; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Code'; font-weight: 300 700; src: url('../../../rekall-ui/node_modules/@fontsource-variable/fira-code/files/fira-code-latin-wght-normal.woff2') format('woff2'); }
+
+  :root {
+    --canvas: #0d1017; --surface: #151922; --raised: #1d2330; --hover: #262d3c;
+    --border: #2a3243; --border-strong: #3b4558; --border-field: #5e6a82;
+    --text: #f2f5f9; --muted: #a3acba; --subtle: #8c96a6;
+    --accent: #eaa43c; --accent-strong: #ffd88e; --accent-deep: #a8651a; --accent-soft: #eaa43c24; --accent-ink: #2b1804;
+    --anchor: #55c9ea;
+    --session: #7c83f7; --session-strong: #b4b9ff; --session-soft: #7c83f71f;
+    --safe: #3ddc97; --safe-soft: #3ddc971a; --warn: #f3c04a; --warn-soft: #f3c04a1a; --danger: #fb7185;
+    --font-sans: 'Fira Sans', ui-sans-serif, -apple-system, sans-serif;
+    --font-mono: 'Fira Code', ui-monospace, Menlo, monospace;
+    --t-micro: 11px; --t-caption: 11.5px; --t-small: 12.5px; --t-body: 13.5px; --t-title: 15px; --t-heading: 19px; --t-display: 26px;
+    --r-key: 3px; --r-control: 5px; --r-card: 8px;
+    --ease: cubic-bezier(.22, 1, .36, 1);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--canvas); color: var(--text); font: 400 var(--t-body)/1.4 var(--font-sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; text-align: left; }
+  a { color: inherit; text-decoration: none; cursor: pointer; }
+  button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  ::selection { background: var(--accent-soft); color: var(--accent-strong); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 9999px; border: 2px solid var(--canvas); }
+  .mono { font-family: var(--font-mono); }
+  svg.i { width: 14px; height: 14px; flex: none; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  .app { display: flex; flex-direction: column; height: 100vh; min-width: 1100px; }
+
+  /* header */
+  .topbar { height: 48px; flex: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 620px) minmax(0, 1fr); gap: 12px; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .brand { font-weight: 600; font-size: var(--t-title); letter-spacing: -0.01em; }
+  .search { height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); color: var(--subtle); font-size: var(--t-small); }
+  .search kbd, kbd.k { margin-left: auto; font: 400 var(--t-micro) var(--font-mono); border: 1px solid var(--border-strong); border-radius: var(--r-key); padding: 0 5px; color: var(--subtle); }
+  .topr { justify-self: end; display: flex; align-items: center; gap: 8px; position: relative; }
+  .brandcell { display: flex; align-items: center; gap: 16px; min-width: 0; }
+  .mockview { display: flex; gap: 2px; padding: 2px; border: 1px dashed var(--border-strong); border-radius: var(--r-card); }
+  .mockview a { height: 26px; padding: 0 10px; display: inline-flex; align-items: center; border-radius: var(--r-control); font-size: var(--t-small); color: var(--subtle); white-space: nowrap; }
+  .mockview a[aria-current="true"] { background: var(--raised); color: var(--text); }
+  .capsule { white-space: nowrap; height: 32px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); color: var(--muted); font-size: var(--t-small); }
+  .capsule .rv { color: var(--accent); font-weight: 600; }
+  .capsule a.rv:hover { color: var(--accent-strong); }
+  .about > summary { white-space: nowrap; list-style: none; height: 32px; padding: 0 10px; display: inline-flex; align-items: center; border: 1px dashed var(--border-strong); border-radius: var(--r-card); color: var(--subtle); font-size: var(--t-small); cursor: pointer; }
+  .about > summary::-webkit-details-marker { display: none; }
+  .about[open] > summary { color: var(--text); border-color: var(--border-field); }
+  .about > div { position: absolute; right: 0; top: 40px; z-index: 20; width: 440px; max-height: calc(100vh - 64px); overflow-y: auto; padding: 14px 16px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--surface); box-shadow: 0 1px 2px rgb(0 0 0 / .55), 0 10px 22px -8px rgb(0 0 0 / .65); color: var(--muted); font-size: var(--t-small); line-height: 1.5; }
+  .about b { color: var(--text); font-weight: 500; }
+  .about p + p, .about ul + p, .about p + ul { margin-top: 8px; }
+  .about ul { padding-left: 16px; display: grid; gap: 3px; }
+  .about code { font: 400 var(--t-caption) var(--font-mono); color: var(--text); }
+
+  .page { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .head { flex: none; padding: 10px 24px 0; }
+  .crumbs { display: flex; align-items: center; gap: 12px; min-height: 32px; }
+  .crumbs nav { flex: 1; display: flex; gap: 8px; color: var(--muted); font-size: var(--t-small); }
+  .crumbs nav span { color: var(--subtle); }
+  .actions { display: flex; gap: 6px; }
+  .btn { height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: var(--r-control); font-size: var(--t-small); font-weight: 500; white-space: nowrap; }
+  .btn.secondary { background: var(--raised); border: 1px solid var(--border-strong); box-shadow: inset 0 1px 0 rgb(255 255 255 / .07), 0 1px 1px rgb(0 0 0 / .35); }
+  .btn.secondary:hover { background: var(--hover); }
+  .btn.quiet { color: var(--muted); }
+  .btn.quiet:hover { background: var(--raised); color: var(--text); }
+  .btn.primary { background: var(--accent); border: 1px solid var(--accent-deep); color: var(--accent-ink); font-weight: 600; box-shadow: inset 0 1px 0 rgb(255 255 255 / .3), 0 1px 1px rgb(0 0 0 / .4); }
+  .btn.primary:hover { background: var(--accent-strong); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.key { height: 32px; padding: 0 14px; font-size: var(--t-body); }
+  .btn kbd { font: 400 var(--t-micro) var(--font-mono); padding: 0 5px; border-radius: var(--r-key); border: 1px solid var(--border-strong); color: var(--subtle); }
+  .btn.primary kbd { border-color: #2b180455; color: var(--accent-ink); }
+  h1 { margin: 2px 0 10px; font-size: var(--t-heading); font-weight: 600; letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .body { flex: 1; min-height: 0; display: flex; border-top: 1px solid var(--border); }
+  .rail { flex: none; width: 52px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; }
+  .iconbtn { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--r-control); color: var(--muted); flex: none; }
+  .iconbtn:hover { background: var(--raised); color: var(--text); }
+  .iconbtn svg { width: 16px; height: 16px; }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .tabs { flex: none; height: 40px; display: flex; align-items: flex-end; gap: 22px; padding: 0 24px; border-bottom: 1px solid var(--border); }
+  .tab { position: relative; height: 100%; display: flex; align-items: center; gap: 6px; font-size: var(--t-body); color: var(--muted); }
+  .tab:hover { color: var(--text); }
+  .tab .c { font: 400 var(--t-micro) var(--font-mono); color: var(--subtle); }
+  .tab .wait { font: 600 var(--t-micro) var(--font-mono); color: var(--accent-ink); background: var(--accent); border-radius: 9999px; padding: 0 6px; line-height: 16px; }
+  .tab[aria-current="page"] { color: var(--text); }
+  .tab[aria-current="page"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); border-radius: var(--r-key); }
+
+  /* the band: where the decisions stand, and what is live */
+  .pane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .band { flex: none; display: flex; align-items: center; gap: 20px; padding: 12px 24px; border-bottom: 1px solid var(--border); }
+  .progress { flex: 0 1 460px; min-width: 280px; display: flex; flex-direction: column; gap: 8px; }
+  .tube { height: 10px; display: flex; border-radius: 9999px; overflow: hidden; background: #0a0d13; box-shadow: inset 0 2px 4px rgb(0 0 0 / .5), 0 1px 0 rgb(255 255 255 / .035); }
+  .tube i { display: block; height: 100%; background: linear-gradient(180deg, var(--accent-strong), var(--accent) 45%, var(--accent-deep)); border-radius: 9999px; transition: width 360ms var(--ease); }
+  .tube.full i { background: var(--safe); }
+  .tally { font-size: var(--t-small); color: var(--muted); }
+  .tally b { color: var(--text); font-weight: 600; }
+  .band .sp { flex: 1; }
+  .live { display: flex; align-items: center; gap: 8px; font-size: var(--t-small); color: var(--muted); white-space: nowrap; }
+  .live .orb { width: 7px; height: 7px; border-radius: 50%; background: var(--session); animation: pulse 1.6s ease-in-out infinite; }
+  .live.idle .orb { background: var(--subtle); animation: none; }
+  .live b { color: var(--session-strong); font-weight: 500; }
+  .seg { display: flex; gap: 2px; padding: 2px; border-radius: var(--r-control); background: var(--canvas); border: 1px solid var(--border); }
+  .seg button { height: 22px; padding: 0 9px; border-radius: var(--r-key); font-size: var(--t-small); font-weight: 500; color: var(--muted); white-space: nowrap; }
+  .seg button:hover { color: var(--text); }
+  .seg button[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06); }
+
+  /* the ledger */
+  .ledger { flex: 1; min-height: 0; overflow-y: auto; padding: 0 16px 16px; }
+  .cols { --cols: 28px minmax(260px, 5fr) minmax(220px, 4fr) 172px; }
+  .lhead { position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: var(--cols); gap: 0 14px; padding: 8px 8px; margin: 0; background: var(--canvas); border-bottom: 1px solid var(--border); font-size: var(--t-caption); font-weight: 500; color: var(--subtle); }
+  .lhead span:last-child { text-align: right; }
+  .grp { display: flex; align-items: baseline; gap: 10px; padding: 20px 8px 6px; }
+  .grp h2 { font-size: var(--t-body); font-weight: 600; }
+  .grp .n { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .grp .rule { flex: 1; height: 1px; background: var(--border); align-self: center; }
+  .item { border-radius: var(--r-control); }
+  .item + .item { margin-top: 1px; }
+  .item[data-open="true"] { background: var(--surface); box-shadow: inset 0 0 0 1px #eaa43c59; margin: 4px 0; }
+  .item.fresh { animation: arrive 2.4s var(--ease); }
+  @keyframes arrive { from { background: var(--accent-soft); } }
+  .dr { display: grid; grid-template-columns: var(--cols); gap: 0 14px; align-items: start; padding: 9px 8px; border-radius: var(--r-control); cursor: pointer; }
+  .item:not([data-open="true"]) .dr:hover { background: var(--hover); }
+  .dr .q { display: block; font-size: var(--t-body); color: var(--text); line-height: 1.35; text-wrap: pretty; }
+  .dr .m { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; margin-top: 3px; font-size: var(--t-caption); color: var(--subtle); }
+  .dr .m .blocks { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+  .dr .m .blocks svg { width: 11px; height: 11px; }
+  .dr .a { font-size: var(--t-body); color: var(--text); line-height: 1.35; min-width: 0; }
+  .dr .a .changed { font-size: var(--t-caption); color: var(--subtle); margin-left: 6px; }
+  .dr .a .add { display: block; margin-top: 2px; font-size: var(--t-small); color: var(--muted); }
+  .dr .a .add time { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); margin-right: 6px; }
+  .dr .a .wait { color: var(--subtle); }
+  .dr .a .wait b { color: var(--muted); font-weight: 500; }
+  .dr .a .park { color: var(--warn); }
+  .dr .a .you { color: var(--session-strong); }
+  .dr .st { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; font-size: var(--t-caption); color: var(--subtle); white-space: nowrap; }
+  .dr .st .read { display: inline-flex; align-items: center; gap: 6px; color: var(--session-strong); }
+  .dr .st .read i { width: 6px; height: 6px; border-radius: 50%; background: var(--session); }
+  .dr .st .read.not { color: var(--subtle); }
+  .dr .st .read.not i { background: transparent; border: 1.5px solid var(--border-field); }
+  .by { color: var(--muted); }
+
+  .seal { width: 22px; height: 22px; margin-top: 1px; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid var(--border-field); color: var(--muted); }
+  .seal svg { width: 12px; height: 12px; }
+  .seal.answered { background: var(--safe); border-color: var(--safe); color: #06281b; }
+  .seal.parked { border-color: var(--warn); color: var(--warn); background: var(--warn-soft); }
+  .seal.asked { border-color: var(--session); color: var(--session-strong); background: var(--session-soft); border-style: dashed; }
+  .item[data-open="true"] .seal.open { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  @keyframes pulse { 50% { opacity: .35; } }
+
+  /* the answer form, inline under its row */
+  .drawer { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 0 40px; padding: 4px 16px 18px 50px; }
+  .compose { min-width: 0; max-width: 70ch; }
+  .compose h3 { font-size: var(--t-title); font-weight: 600; letter-spacing: -0.005em; line-height: 1.35; text-wrap: balance; margin-bottom: 10px; }
+  .opts { list-style: none; padding: 0; display: grid; gap: 2px; }
+  .opt { width: 100%; display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 0 10px; align-items: start; padding: 8px 10px; border-radius: var(--r-control); border: 1px solid transparent; }
+  .opt:hover { background: var(--hover); }
+  .opt .radio { width: 16px; height: 16px; margin-top: 1px; border-radius: 50%; border: 1.5px solid var(--border-field); display: grid; place-items: center; }
+  .opt[aria-checked="true"] { background: var(--raised); border-color: var(--border-strong); }
+  .opt[aria-checked="true"] .radio { border-color: var(--accent); }
+  .opt[aria-checked="true"] .radio::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .opt .l { display: flex; align-items: center; gap: 8px; font-size: var(--t-body); font-weight: 500; color: var(--text); }
+  .opt .e { display: block; margin-top: 1px; font-size: var(--t-small); color: var(--muted); line-height: 1.45; }
+  .tag { height: 18px; display: inline-flex; align-items: center; padding: 0 6px; border: 1px solid var(--border-strong); border-radius: var(--r-key); font-size: var(--t-micro); font-weight: 500; color: var(--muted); }
+  .opt kbd { font: 400 var(--t-micro) var(--font-mono); border: 1px solid var(--border-strong); border-radius: var(--r-key); padding: 0 5px; color: var(--subtle); margin-top: 1px; }
+  .flabel { display: block; margin: 14px 0 5px; font-size: var(--t-caption); font-weight: 500; color: var(--subtle); }
+  .field { width: 100%; min-height: 32px; padding: 6px 10px; border: 1px solid var(--border-field); border-radius: var(--r-control); background: var(--canvas); color: var(--text); font: inherit; font-size: var(--t-body); line-height: 1.4; resize: vertical; }
+  .field::placeholder { color: var(--subtle); }
+  .field:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); outline: none; }
+  .field.bad { border-color: var(--danger); }
+  .err { margin-top: 6px; font-size: var(--t-small); color: var(--danger); }
+  .keys { display: flex; align-items: center; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .keys .note { margin-left: auto; font-size: var(--t-caption); color: var(--subtle); max-width: 34ch; text-align: right; line-height: 1.4; }
+  .context { min-width: 0; border-left: 1px solid var(--border); padding-left: 28px; display: flex; flex-direction: column; gap: 18px; }
+  .context h4 { font-size: var(--t-caption); font-weight: 500; color: var(--subtle); margin-bottom: 6px; }
+  .context p { font-size: var(--t-small); color: var(--muted); line-height: 1.55; }
+  .unlocks { list-style: none; padding: 0; display: grid; gap: 6px; }
+  .unlocks li { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: var(--t-small); color: var(--text); }
+  .unlocks .no { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .unlocks .gate { display: block; font-size: var(--t-caption); color: var(--subtle); }
+  .hist { list-style: none; padding: 0; display: grid; gap: 4px; font-size: var(--t-small); color: var(--muted); }
+  .hist time { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); margin-right: 8px; }
+
+  .ask { flex: none; display: flex; gap: 8px; align-items: center; padding: 10px 24px; border-top: 1px solid var(--border); background: var(--surface); }
+  .ask .field { flex: 1; max-width: 720px; height: 32px; min-height: 32px; padding: 0 10px; resize: none; }
+  .ask .hint { font-size: var(--t-caption); color: var(--subtle); }
+
+  .empty { flex: 1; display: grid; place-items: center; padding: 40px; }
+  .empty div { max-width: 52ch; text-align: left; }
+  .empty h2 { font-size: var(--t-title); font-weight: 600; margin-bottom: 6px; }
+  .empty p { font-size: var(--t-body); color: var(--muted); line-height: 1.55; }
+  .empty p + p { margin-top: 8px; }
+  .empty code, .doc code, .compose code { font: 400 var(--t-small) var(--font-mono); padding: 1px 5px; border-radius: var(--r-key); background: var(--raised); color: var(--muted); }
+
+  /* what the session reads */
+  .read-view { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px 28px; }
+  .read-wrap { max-width: 880px; }
+  .read-wrap > p { max-width: 70ch; font-size: var(--t-body); color: var(--muted); line-height: 1.55; margin-bottom: 14px; }
+  .doc { padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--canvas); box-shadow: inset 0 1px 2px rgb(0 0 0 / .3); font: 400 var(--t-small)/1.7 var(--font-mono); color: var(--text); overflow-x: auto; white-space: normal; }
+  .doc .tagl { display: block; color: var(--subtle); }
+  .doc .topic { display: block; margin-top: 6px; color: var(--muted); }
+  .doc .ln { display: grid; grid-template-columns: 18ch minmax(0, 1fr); gap: 0 12px; padding-left: 16px; white-space: pre-wrap; }
+  .doc .ln .k { color: var(--subtle); }
+  .doc .ln.q .v { color: var(--text); font-weight: 600; }
+  .doc .ln .v em { font-style: normal; color: var(--subtle); }
+  .read-foot { margin-top: 10px; display: flex; gap: 16px; font-size: var(--t-caption); color: var(--subtle); }
+  .read-foot b { color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+  /* review screen */
+  .rv-tabs { flex: none; height: 40px; display: flex; align-items: flex-end; gap: 22px; padding: 0 24px; border-bottom: 1px solid var(--border); }
+  .rv-work { flex: 1; min-height: 0; display: flex; }
+  .queue { flex: none; width: 460px; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border); }
+  .queue-h { flex: none; height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 14px 0 20px; }
+  .queue-h h2 { font-size: var(--t-title); font-weight: 600; }
+  .queue-h .n { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .queue-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 12px 12px; }
+  .qrow { width: 100%; cursor: pointer; display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 0 12px; padding: 10px 10px; border-radius: var(--r-control); }
+  .qrow:hover { background: var(--hover); }
+  .qrow[aria-current="true"] { background: var(--accent-soft); box-shadow: inset 0 0 0 1px #eaa43c59; }
+  .qrow[aria-current="true"] .seal { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .qrow .q { display: block; font-size: var(--t-body); line-height: 1.35; color: var(--text); }
+  .qrow .m { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 10px; margin-top: 5px; font-size: var(--t-caption); color: var(--subtle); }
+  .qrow .m .blocks { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+  .qrow .m .blocks svg { width: 11px; height: 11px; }
+  .anchor { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 6px; border: 1px solid var(--border); border-radius: var(--r-key); background: var(--surface); font: 400 var(--t-caption) var(--font-mono); color: var(--anchor); }
+  .anchor.cur { color: #a9ecfa; border-color: var(--border-strong); }
+  .anchor button { display: grid; place-items: center; width: 16px; height: 16px; color: var(--subtle); border-radius: var(--r-key); }
+  .anchor button:hover { color: var(--text); background: var(--raised); }
+  .anchor svg { width: 11px; height: 11px; }
+  .detail { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--surface); overflow-y: auto; }
+  .d-head { flex: none; padding: 16px 28px 14px; border-bottom: 1px solid var(--border); }
+  .d-head .top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .d-head .ttl { font-size: var(--t-small); color: var(--muted); }
+  .d-head .sp { flex: 1; }
+  .d-head .facts { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: var(--t-small); color: var(--muted); }
+  .d-head .facts .blocks { display: inline-flex; align-items: center; gap: 5px; color: var(--text); }
+  .d-head .facts svg { width: 12px; height: 12px; }
+  .detail .drawer { padding: 20px 28px 28px; }
+  .done-wrap { flex: 1; display: grid; place-items: center; padding: 40px; text-align: center; }
+  .done-wrap .seal { width: 56px; height: 56px; margin: 0 auto 14px; }
+  .done-wrap .seal svg { width: 26px; height: 26px; }
+  .done-wrap p { font-size: var(--t-body); color: var(--muted); }
+  .done-wrap p b { display: block; color: var(--text); font-size: var(--t-title); font-weight: 600; margin-bottom: 4px; }
+
+  @media (max-width: 1240px) {
+    .drawer { grid-template-columns: minmax(0, 1fr); }
+    .context { border-left: 0; padding-left: 0; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border); }
+    .queue { width: 400px; }
+    .cols { --cols: 28px minmax(220px, 5fr) minmax(180px, 4fr) 150px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .live .orb, .item.fresh { animation: none; } .tube i { transition: none; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-q" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6.1a2.1 2.1 0 1 1 3.5 1.6c-.9.6-1.5 1.1-1.5 2.1"/><path d="M8 12.4v.1"/></symbol>
+    <symbol id="i-check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.2 8.4 6.6 11.6 12.8 4.8"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 4.5v7M10 4.5v7"/></symbol>
+    <symbol id="i-send" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.2 13.5 3 9.6 13.2 7.6 9.2 2.5 8.2Z"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="5.4"/><path d="M4.2 11.8 11.8 4.2"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/></symbol>
+    <symbol id="i-commit" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2.6"/><path d="M1.5 8h3.9M10.6 8h3.9"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="m5 6.5 2 1.5-2 1.5M8.5 10h2.5"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M6 2.5v11"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 2.5h5l6 6-5 5-6-6v-5Z"/><path d="M5.6 5.6v.1"/></symbol>
+    <symbol id="i-branch" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="4.5" cy="3.5" r="1.6"/><circle cx="4.5" cy="12.5" r="1.6"/><circle cx="11.5" cy="6" r="1.6"/><path d="M4.5 5.1v5.8M11.5 7.6c0 2.4-2.6 2.4-5.4 3.2"/></symbol>
+  </defs>
+</svg>
+
+<div class="app" id="app"></div>
+<div class="sr" id="live" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+
+/* Demo data is synthetic: tasks, sessions and answers below are invented for this mockup. */
+const NOW = '14:36';
+const TASKS = {
+  'VG-41': { title: 'Deploy the billing API to Kubernetes', project: 'Acme · Vega Platform', session: 2, steps: { 2: 'Choose the namespace and replicas', 3: 'Write the manifests', 4: 'Provision the database', 5: 'Roll out to staging' } },
+  'VG-38': { title: 'Refactor the invoice export module', project: 'Acme · Vega Platform', session: 1, steps: { 4: 'Remove the legacy exporters' } },
+  'VG-44': { title: 'Add rate limiting to the public API', project: 'Acme · Vega Platform', session: 3, steps: { 2: 'Choose the limit key' } }
+};
+
+const items = [
+  { id: 'd1', task: 'VG-41', topic: 'Cluster', key: 'namespace', from: 'claude', q: 'Which namespace should billing-api run in?', session: 2, step: 2, state: 'answered', answer: 'billing', by: 'You', at: '14:06', read: true, addenda: [] },
+  { id: 'd2', task: 'VG-41', topic: 'Cluster', key: 'replicas', from: 'claude', q: 'How many replicas in production?', session: 2, step: 2, state: 'answered', answer: '3', was: '2', changedAt: '14:31', by: 'You', at: '14:31', read: false, addenda: [{ at: '14:31', text: 'Autoscale between 3 and 6 on CPU 70%.' }],
+    opts: [{ id: 'r2', label: '2', effect: 'Cheapest. One node loss leaves a single pod.' }, { id: 'r3', label: '3', effect: 'Survives one node loss with a spare.', rec: true }, { id: 'r5', label: '5', effect: 'Headroom for the month-end invoice run.' }], pick: 'r3' },
+  { id: 'd7', task: 'VG-41', topic: 'Ingress', key: 'host', from: 'claude', q: 'Which hostname should the ingress serve?', session: 2, step: 3, state: 'answered', answer: 'billing.acme.internal', by: 'You', at: '14:12', read: true, addenda: [] },
+  { id: 'd3', task: 'VG-41', topic: 'Secrets', key: 'db-password', from: 'claude', q: 'Where should the database password live?', why: 'Step 3 writes the manifests, and the three ways to hold a password need different files and different permissions.', session: 2, step: 3, blocks: 3, waited: 14, state: 'open', unlocks: [3, 5],
+    opts: [{ id: 'k8s', label: 'Kubernetes Secret', effect: 'One manifest, no extra component. The value sits base64-encoded in etcd.' }, { id: 'eso', label: 'External Secrets with Vault', effect: 'Rotation and an audit trail. The operator is already installed on this cluster.', rec: true }, { id: 'sealed', label: 'Sealed Secrets', effect: 'Encrypted value committed to git. Needs the controller installed first.' }], addenda: [] },
+  { id: 'd4', task: 'VG-41', topic: 'Secrets', key: 'vault-path', from: 'claude', q: 'Is there already a Vault path for billing credentials?', why: 'If one exists, step 3 points at it; if not, step 3 has to ask the platform team for one.', session: 2, step: 3, state: 'parked', note: 'Checking with the platform team.', parkedAt: '14:20', addenda: [] },
+  { id: 'd5', task: 'VG-41', topic: 'Database', key: 'postgres', from: 'claude', q: 'Dedicated PostgreSQL or the shared cluster?', why: 'Step 4 provisions the database. A dedicated instance adds a manifest and a backup job; the shared cluster only adds a database and a role.', session: 2, step: 4, blocks: 4, waited: 6, state: 'open', unlocks: [4, 5],
+    opts: [{ id: 'ded', label: 'Dedicated instance', effect: 'Own backups and sizing. About 3 extra manifests.', rec: true }, { id: 'shared', label: 'Shared cluster pg-main', effect: 'Cheaper. Billing queries share I/O with the other services.' }, { id: 'rds', label: 'Managed (RDS)', effect: 'No operator to run. Needs an AWS role the cluster does not have yet.' }], addenda: [] },
+  { id: 'u1', task: 'VG-41', topic: 'Your questions', key: 'pdb', from: 'you', q: 'Does the chart need a PodDisruptionBudget?', session: 2, step: 3, state: 'answered', answer: 'Yes. With 3 replicas, minAvailable 2. Added to step 3.', by: 'Claude', at: '14:19', read: true, addenda: [] },
+  { id: 'u2', task: 'VG-41', topic: 'Your questions', key: 'wildcard-cert', from: 'you', q: 'Can the ingress use the existing wildcard certificate?', session: 2, step: 3, state: 'asked', at: '14:33', addenda: [] },
+  { id: 'x1', task: 'VG-38', topic: 'Exporters', key: 'legacy-csv', from: 'claude', q: 'Keep the legacy CSV exporter behind a flag, or remove it?', why: 'Step 4 deletes the legacy exporters. Two internal reports still call the CSV one.', session: 1, step: 4, blocks: 4, waited: 22, state: 'open', unlocks: [4],
+    opts: [{ id: 'rm', label: 'Remove it', effect: 'The two reports break until they move to the JSON export.' }, { id: 'flag', label: 'Keep behind a feature flag', effect: 'Nothing breaks. The flag has to be removed in a later task.', rec: true }, { id: 'keep', label: 'Leave it as it is', effect: 'No change. The refactor stops short of the module boundary.' }], addenda: [] },
+  { id: 'x2', task: 'VG-44', topic: 'Limits', key: 'limit-key', from: 'claude', q: 'Rate limit per API key or per IP address?', why: 'Step 2 picks the key the limiter counts against. Clients behind one corporate proxy share an IP.', session: 3, step: 2, waited: 9, state: 'open', unlocks: [2],
+    opts: [{ id: 'key', label: 'Per API key', effect: 'Fair for shared proxies. Anonymous calls need a separate default.', rec: true }, { id: 'ip', label: 'Per IP address', effect: 'Works without a key. Penalises clients behind one proxy.' }, { id: 'both', label: 'Both', effect: 'Strictest. Two counters per request.' }], addenda: [] }
+];
+
+const params = new URLSearchParams(location.search);
+const S = {
+  route: location.hash.startsWith('#/review') ? 'review' : 'task',
+  view: params.get('view') === 'read' ? 'read' : 'ledger',
+  sel: params.get('open') || 'd3',
+  isel: params.get('isel') || null,
+  draft: {}, error: {}, fresh: null, live: 'Session 2 is working on step 3'
+};
+if (params.get('state') === 'empty') items.splice(0, items.length);
+if (params.get('sel') === 'none') S.sel = null;
+
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const icon = (n) => `<svg class="i" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const byId = (id) => items.find((i) => i.id === id);
+const ofTask = (t) => items.filter((i) => i.task === t);
+const open = () => items.filter((i) => i.state === 'open');
+const stepName = (i) => TASKS[i.task].steps[i.step] ?? `step ${i.step}`;
+const draft = (id) => (S.draft[id] ??= { pick: byId(id)?.pick ?? null, text: '' });
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+const mins = (n) => (n ? `${n} min` : 'just now');
+const announce = (t) => { $('#live').textContent = t; };
+
+function queue() {
+  return open().slice().sort((a, b) => (b.blocks ? 1 : 0) - (a.blocks ? 1 : 0) || b.waited - a.waited);
+}
+function counts(task) {
+  const list = ofTask(task);
+  const n = (s) => list.filter((i) => i.state === s).length;
+  return { total: list.length, answered: n('answered'), open: n('open'), parked: n('parked'), asked: n('asked') };
+}
+
+/* ---------- pieces shared by both screens ---------- */
+function seal(i) {
+  const g = { open: 'q', answered: 'check', parked: 'pause', asked: 'send' }[i.state];
+  return `<span class="seal ${i.state}" aria-hidden="true">${icon(g)}</span>`;
+}
+function metaOf(i, withTask) {
+  const origin = i.from === 'you' ? 'You asked' : `Claude · session ${i.session}`;
+  const bits = [];
+  if (withTask) bits.push(anchor(i.task));
+  bits.push(`<span>${origin}</span>`);
+  if (i.from === 'claude') bits.push(`<span>step ${i.step}</span>`);
+  if (i.state === 'open' && i.blocks) bits.push(`<span class="blocks">${icon('stop')}Blocks step ${i.blocks}</span>`);
+  else if (i.state === 'open') bits.push(`<span>Session carries on</span>`);
+  return bits.join('');
+}
+function anchor(task, cur) {
+  return `<span class="anchor ${cur ? 'cur' : ''}">task:${task}<button type="button" data-act="copy" data-text="/rk task:${task}" aria-label="Copy /rk task:${task}">${icon('copy')}</button></span>`;
+}
+function answerText(i) {
+  if (i.state === 'open') {
+    const rec = i.opts.find((o) => o.rec);
+    return `<span class="wait">${plural(i.opts.length, 'option')}${rec ? `, recommended <b>${esc(rec.label)}</b>` : ''}</span>`;
+  }
+  if (i.state === 'parked') return `<span class="park">Parked: ${esc(i.note)}</span>`;
+  if (i.state === 'asked') return `<span class="you">Waiting for session ${i.session} to answer</span>`;
+  const was = '';
+  const changed = i.was ? `<span class="changed">changed ${i.changedAt}, was ${esc(i.was)}</span>` : '';
+  const add = i.addenda.map((a) => `<span class="add"><time>${a.at}</time>${esc(a.text)}</span>`).join('');
+  return `${esc(i.answer)}${changed}${add}`;
+}
+function stateCell(i) {
+  if (i.state === 'open') return `<span>Waiting ${mins(i.waited)}</span>`;
+  if (i.state === 'parked') return `<span>Parked ${i.parkedAt}</span>`;
+  if (i.state === 'asked') return `<span>Asked ${i.at}</span>`;
+  const delivered = i.read ? `<span class="read"><i></i>Read by session ${i.session}</span>` : `<span class="read not"><i></i>Not read yet</span>`;
+  return `<span class="by">${i.by} · ${i.at}</span>${delivered}`;
+}
+
+/* the form that answers, changes or adds to one decision; the same on the task page and in Review */
+function form(i) {
+  const d = draft(i.id);
+  const err = S.error[i.id];
+  const hasOpts = !!i.opts;
+  const isOpen = i.state === 'open';
+  const opts = hasOpts ? `<ul class="opts" role="radiogroup" aria-label="Options">${i.opts.map((o, n) => `
+      <li><button type="button" class="opt" role="radio" aria-checked="${d.pick === o.id}" data-act="pick" data-id="${i.id}" data-opt="${o.id}">
+        <span class="radio"></span>
+        <span><span class="l">${esc(o.label)}${o.rec ? '<span class="tag">Recommended</span>' : ''}</span><span class="e">${esc(o.effect)}</span></span>
+        <kbd>${n + 1}</kbd></button></li>`).join('')}</ul>` : '';
+  const label = hasOpts ? (isOpen ? 'Add a detail, or answer in your own words' : 'Add a detail the session should know') : (i.state === 'answered' ? 'Change the answer' : 'Your answer');
+  const placeholder = hasOpts ? 'Optional. Kept next to the answer.' : (i.answer ? i.answer : 'Write the answer');
+  let keys;
+  if (i.state === 'open') keys = `<button type="button" class="btn primary key" data-act="answer" data-id="${i.id}">Answer<kbd>⌘↵</kbd></button>
+      <button type="button" class="btn secondary key" data-act="park" data-id="${i.id}">Park it</button>
+      <button type="button" class="btn quiet key" data-act="askback" data-id="${i.id}">Ask Claude first</button>
+      <span class="note">The session reads it the next time it loads the task${i.blocks ? '. It is stopped at step ' + i.blocks + ' until then' : ''}.</span>`;
+  else if (i.state === 'parked') keys = `<button type="button" class="btn secondary key" data-act="answer" data-id="${i.id}">Answer now</button><span class="note">Step ${i.step} goes on without it, then waits at the point it is needed.</span>`;
+  else if (i.state === 'answered') keys = `<button type="button" class="btn secondary key" data-act="answer" data-id="${i.id}">Save change</button><span class="note">The session sees the new answer and what it replaced.</span>`;
+  else keys = `<button type="button" class="btn quiet key" data-act="withdraw" data-id="${i.id}">Withdraw question</button>`;
+  const field = i.state === 'asked' ? '' : `<label class="flabel" for="f-${i.id}">${label}</label>
+      <textarea class="field ${err ? 'bad' : ''}" id="f-${i.id}" rows="2" data-draft="${i.id}" placeholder="${esc(placeholder)}">${esc(d.text)}</textarea>
+      ${err ? `<p class="err" role="alert">${err}</p>` : ''}`;
+  return `<div class="compose">${opts}${field}<div class="keys">${keys}</div></div>`;
+}
+function context(i) {
+  const unlocks = (i.unlocks ?? []).map((n) => `<li><span class="no">step ${n}</span><span>${esc(TASKS[i.task].steps[n] ?? '')}${n === i.blocks ? '<span class="gate">stopped here until answered</span>' : ''}</span></li>`).join('');
+  const parts = [];
+  if (i.why) parts.push(`<div><h4>Why Claude asks</h4><p>${esc(i.why)}</p></div>`);
+  if (unlocks) parts.push(`<div><h4>What the answer unlocks</h4><ul class="unlocks">${unlocks}</ul></div>`);
+  if (i.was) parts.push(`<div><h4>What changed</h4><ul class="hist"><li><time>${i.changedAt}</time>${esc(i.was)} to ${esc(i.answer)}</li><li><time>${i.at}</time>Session told to use the new value</li></ul></div>`);
+  if (i.state === 'asked') parts.push(`<div><h4>Your question</h4><p>Claude answers it when the session next loads the task. The answer lands in the Answer column and stays with the task.</p></div>`);
+  if (i.state === 'answered' && i.by === 'Claude') parts.push(`<div><h4>Answered by Claude</h4><p>It changed step ${i.step}. You can reopen it by writing a detail.</p></div>`);
+  if (!parts.length) parts.push(`<div><h4>Where it came from</h4><p>Asked by session ${i.session} at ${i.at} while it worked on step ${i.step}.</p></div>`);
+  return `<aside class="context" aria-label="Context for this decision">${parts.join('')}</aside>`;
+}
+
+/* ---------- the task page ---------- */
+function chrome(inner) {
+  const need = open().length + 1;
+  return `<header class="topbar">
+    <div class="brandcell"><span class="brand">Rekall</span>
+      <nav class="mockview" aria-label="Mockup view"><a href="#/task" data-route="task" aria-current="${S.route === 'task'}">Task · Decisions</a><a href="#/review" data-route="review" aria-current="${S.route === 'review'}">Review · Questions</a></nav></div>
+    <div class="search"><span>Search or type an anchor</span><kbd>⌘K</kbd></div>
+    <div class="topr">
+      <details class="about"><summary>About this mockup</summary><div>
+        <p><b>The question and its answer are one record.</b> A decision is what Claude asked, the options it saw, the answer you gave, anything you added later and whether the session has read it. Nothing is a chat message you have to scroll back to.</p>
+        <p><b>Decisions is a tab of the task.</b> It updates by itself while you work in the terminal or the chat. A new question lights the tab, the Review menu entry and the header capsule.</p>
+        <p><b>Review gains a second lane.</b> Claims and Questions share the queue, so parallel sessions never wait on a task you forgot to open. Questions that stop a session sort first.</p>
+        <p><b>As the session reads it</b> shows the exact compact block <code>/rk</code> would hand over: current answers only, a question mark where one is open.</p>
+        <ul>
+          <li>Click a row, or J and K then Enter. 1 to 9 pick an option, ⌘↵ answers, Esc closes.</li>
+          <li>About seven seconds in, session 2 asks a new question so you can watch the tab update.</li>
+          <li>Add <code>?state=empty</code> to see the empty tab, <code>?view=read</code> for the session's view.</li>
+        </ul>
+        <p><b>Not in this mockup:</b> the MCP tool Claude asks with and how a waiting session is nudged. Names, sessions and answers are invented demo data.</p>
+      </div></details>
+      <div class="capsule"><span>3 sessions</span><a class="rv" href="#/review" data-route="review" aria-label="${need} need you, open Review">${need} need you</a><span>42% usage</span></div>
+    </div>
+  </header>${inner}`;
+}
+
+function taskScreen() {
+  const t = TASKS['VG-41'];
+  const c = counts('VG-41');
+  const tabs = `<nav class="tabs" aria-label="Task">
+    <a class="tab">Description</a><a class="tab">Plan</a>
+    <a class="tab" aria-current="page">Decisions ${c.open ? `<span class="wait" title="${plural(c.open, 'question')} wait for you">${c.open}</span>` : `<span class="c">${c.total || ''}</span>`}</a>
+    <a class="tab">Changes</a><a class="tab">Wrapup</a><a class="tab">Notes <span class="c">2</span></a><a class="tab">Time</a><a class="tab">Deviations</a></nav>`;
+  const opened = S.sel && byId(S.sel) && byId(S.sel).state === 'open';
+  const next = open().filter((i) => i.task === 'VG-41')[0];
+  const pct = c.total ? Math.round((c.answered / c.total) * 100) : 0;
+  const tally = c.total === 0 ? 'Nothing asked yet.' : c.open ? `<b>${plural(c.open, 'question')} ${c.open === 1 ? 'waits' : 'wait'} for you.</b> ${c.answered} of ${c.total} answered${c.parked ? `, ${c.parked} parked` : ''}${c.asked ? `, ${c.asked} waiting on Claude` : ''}.` : `<b>Nothing waits for you.</b> ${c.answered} of ${c.total} answered${c.parked ? `, ${c.parked} parked` : ''}${c.asked ? `, ${c.asked} waiting on Claude` : ''}.`;
+  const band = `<section class="band" aria-label="Where the decisions stand">
+    <div class="progress"><div class="tube ${c.total && c.answered === c.total ? 'full' : ''}" role="img" aria-label="${c.answered} of ${c.total} answered"><i style="width:${pct}%"></i></div><p class="tally">${tally}</p></div>
+    <span class="sp"></span>
+    <p class="live"><span class="orb" aria-hidden="true"></span><span>${esc(S.live)}</span></p>
+    ${c.total ? `<div class="seg" role="group" aria-label="Show the decisions as"><button type="button" data-act="view" data-v="ledger" aria-pressed="${S.view === 'ledger'}">Ledger</button><button type="button" data-act="view" data-v="read" aria-pressed="${S.view === 'read'}">As the session reads it</button></div>` : ''}
+    ${next ? `<button type="button" class="btn ${opened ? 'secondary' : 'primary'} key" data-act="next">${opened ? 'Next question' : 'Answer next'}</button>` : ''}
+  </section>`;
+  let body;
+  if (!c.total) body = `<div class="empty"><div><h2>No decisions yet</h2><p>When a session needs a choice from you, it asks here instead of in the chat. The question, its options and your answer stay in one row, and the count lights this tab.</p><p>You can ask first: write a question below and the session answers it the next time it loads <code>task:VG-41</code>.</p></div></div>`;
+  else body = S.view === 'read' ? readView() : ledger();
+  const ask = `<form class="ask" data-form="ask" aria-label="Ask Claude a question about this task"><input class="field" name="q" placeholder="Ask Claude something about this task" aria-label="Ask Claude something about this task" autocomplete="off"><button class="btn secondary key" type="submit">Ask</button><span class="hint">It is listed under Your questions.</span></form>`;
+  return chrome(`<div class="page">
+    <header class="head">
+      <div class="crumbs"><nav aria-label="Where this task is"><a>Work</a><span>/</span><a>${t.project}</a></nav>
+        <div class="actions"><button class="btn secondary">${icon('commit')}Log commit</button><button class="btn secondary">${icon('terminal')}Open terminal</button></div></div>
+      <h1>${t.title}</h1>
+    </header>
+    <div class="body">
+      <aside class="rail" aria-label="Task properties"><button class="iconbtn" aria-label="Properties">${icon('panel')}</button><button class="iconbtn" aria-label="Status, tag, skills">${icon('tag')}</button><button class="iconbtn" aria-label="Branch rekall/vg-41">${icon('branch')}</button></aside>
+      <main class="main">${tabs}<div class="pane" data-testid="decisions-tab">${band}${body}${ask}</div></main>
+    </div></div>`);
+}
+
+function topicOrder(list) {
+  const natural = ['Cluster', 'Ingress', 'Secrets', 'Database', 'Your questions'];
+  const waits = (g) => list.some((i) => i.topic === g && i.state === 'open');
+  return natural.filter((g) => list.some((i) => i.topic === g)).sort((a, b) => Number(waits(b)) - Number(waits(a)) || natural.indexOf(a) - natural.indexOf(b));
+}
+function ledger() {
+  const list = ofTask('VG-41');
+  const groups = topicOrder(list);
+  const head = `<div class="lhead" role="row"><span></span><span>Question</span><span>Answer</span><span>State</span></div>`;
+  const rows = groups.map((g) => {
+    const inG = list.filter((i) => i.topic === g);
+    const done = inG.filter((i) => i.state === 'answered').length;
+    const sorted = inG.slice().sort((a, b) => Number(b.state === 'open') - Number(a.state === 'open'));
+    return `<section aria-label="${g}"><div class="grp"><h2>${g}</h2><span class="n">${done} of ${inG.length} answered</span><span class="rule"></span></div>${sorted.map(item).join('')}</section>`;
+  }).join('');
+  return `<div class="ledger cols" id="ledger">${head}${rows}</div>`;
+}
+function item(i) {
+  const isSel = S.sel === i.id;
+  const d = isSel ? `<div class="drawer" id="drawer-${i.id}">${form(i)}${context(i)}</div>` : '';
+  return `<div class="item ${S.fresh === i.id ? 'fresh' : ''}" data-open="${isSel}" data-id="${i.id}">
+    <div class="dr" role="button" tabindex="0" aria-expanded="${isSel}" data-act="sel" data-id="${i.id}">
+      ${seal(i)}
+      <div><span class="q">${esc(i.q)}</span><span class="m">${metaOf(i, false)}</span></div>
+      <div class="a">${answerText(i)}</div>
+      <div class="st">${stateCell(i)}</div>
+    </div>${d}</div>`;
+}
+
+function docText(task) {
+  const list = ofTask(task);
+  const c = counts(task);
+  const lines = [`<span class="tagl">&lt;decisions task="${task}" answered="${c.answered}" open="${c.open}" parked="${c.parked}" asked="${c.asked}"&gt;</span>`];
+  let chars = 60;
+  topicOrder(list).forEach((g) => {
+    lines.push(`<span class="topic">${g}</span>`);
+    list.filter((i) => i.topic === g).forEach((i) => {
+      let v, cls = '';
+      if (i.state === 'answered') v = esc(i.answer) + (i.was ? ` <em>(was ${esc(i.was)})</em>` : '') + i.addenda.map((a) => ` <em>+ ${esc(a.text)}</em>`).join('');
+      else if (i.state === 'open') { cls = 'q'; v = '? ' + i.opts.map((o) => esc(o.label)).join(' | '); }
+      else if (i.state === 'parked') v = `<em>parked: ${esc(i.note)}</em>`;
+      else v = `<em>asked by you, unanswered: ${esc(i.q)}</em>`;
+      chars += i.key.length + v.replace(/<[^>]+>/g, '').length + 6;
+      lines.push(`<span class="ln ${cls}"><span class="k">${i.key}</span><span class="v">${v}</span></span>`);
+    });
+  });
+  lines.push('<span class="tagl">&lt;/decisions&gt;</span>');
+  return { html: lines.join(''), tokens: Math.ceil(chars / 4) };
+}
+function readView() {
+  const doc = docText('VG-41');
+  return `<div class="read-view"><div class="read-wrap">
+    <p>This is the block <code>/rk task:VG-41</code> hands a session with the task. It holds the current answer to each question, what an answer replaced and a question mark where you still owe one. It does not hold the conversation that led there.</p>
+    <pre class="doc" aria-label="Decisions as the session reads them">${doc.html}</pre>
+    <p class="read-foot"><span>About <b>${doc.tokens}</b> tokens in the task context</span><span>Updated ${NOW}</span></p></div></div>`;
+}
+
+/* ---------- the Review screen, questions lane ---------- */
+function reviewScreen() {
+  const q = queue();
+  if (!S.isel || !q.some((i) => i.id === S.isel)) S.isel = q[0]?.id ?? null;
+  const cur = S.isel ? byId(S.isel) : null;
+  const rows = q.map((i) => `<div class="qrow" role="button" tabindex="0" data-act="isel" data-id="${i.id}" aria-current="${i.id === S.isel}">${seal(i)}
+      <span><span class="q">${esc(i.q)}</span><span class="m">${metaOf(i, true)}<span>waiting ${mins(i.waited)}</span></span></span></div>`).join('');
+  let detail;
+  if (!cur) detail = `<div class="done-wrap"><div><span class="seal answered">${icon('check')}</span><p><b>No question waits for you.</b>Sessions that ask will show up here, and in the Decisions tab of their task.</p></div></div>`;
+  else {
+    const t = TASKS[cur.task];
+    detail = `<div class="d-head"><div class="top">${anchor(cur.task, true)}<span class="ttl">${esc(t.title)}</span><span class="sp"></span><button class="btn quiet" data-route="task">Open Decisions</button></div>
+      <div class="facts"><span>Session ${cur.session} · step ${cur.step}, ${esc(stepName(cur))}</span><span>Waiting ${mins(cur.waited)}</span>${cur.blocks ? `<span class="blocks">${icon('stop')}The session is stopped until you answer</span>` : '<span>The session carries on meanwhile</span>'}</div></div>
+      <div class="drawer"><div class="compose"><h3>${esc(cur.q)}</h3>${form(cur)}</div>${context(cur)}</div>`;
+  }
+  return chrome(`<div class="page">
+    <header class="head"><div class="crumbs"><nav aria-label="Where you are"><a>Work</a><span>/</span><a>Review</a></nav></div><h1>Review</h1></header>
+    <div class="body"><main class="main">
+      <nav class="rv-tabs" aria-label="Review"><a class="tab">Claims <span class="wait">1</span></a><a class="tab" aria-current="page">Questions ${q.length ? `<span class="wait">${q.length}</span>` : ''}</a></nav>
+      <div class="rv-work">
+        <section class="queue" aria-label="Questions waiting for you"><div class="queue-h"><h2>Waiting for you</h2><span class="n">${q.length}</span></div><div class="queue-scroll">${rows || '<p class="empty" style="padding:16px 8px;color:var(--subtle);font-size:var(--t-small)">Nothing is waiting.</p>'}</div></section>
+        <section class="detail" aria-label="Question">${detail}</section>
+      </div></main></div></div>`);
+}
+
+/* ---------- actions ---------- */
+function render() {
+  const keep = $('#ledger')?.scrollTop ?? 0;
+  $('#app').innerHTML = S.route === 'review' ? reviewScreen() : taskScreen();
+  const l = $('#ledger'); if (l) l.scrollTop = keep;
+}
+function nextOpenAfter(id, scope) {
+  const list = scope === 'review' ? queue() : open().filter((i) => i.task === 'VG-41');
+  const idx = list.findIndex((i) => i.id === id);
+  return (list[idx + 1] ?? list[idx - 1] ?? list.find((i) => i.id !== id))?.id ?? null;
+}
+function commit(id) {
+  const i = byId(id), d = draft(id);
+  const opt = i.opts?.find((o) => o.id === d.pick);
+  const text = d.text.trim();
+  const value = opt ? opt.label : text;
+  if (!value) { S.error[id] = i.opts ? 'Pick an option or write the answer, then answer.' : 'Write the answer first.'; render(); return; }
+  delete S.error[id];
+  const next = nextOpenAfter(id, S.route);
+  const was = i.state === 'answered' ? i.answer : null;
+  if (was && was !== value) { i.was = was; i.changedAt = NOW; }
+  if (opt && text) i.addenda.push({ at: NOW, text });
+  i.answer = value; i.pick = opt?.id ?? null; i.state = 'answered'; i.by = 'You'; i.at = NOW; i.read = false;
+  d.text = '';
+  S.sel = S.route === 'review' ? S.sel : (was ? id : next);
+  S.isel = next;
+  announce(`Answered: ${i.q}`);
+  render();
+  setTimeout(() => { i.read = true; S.live = `Session ${i.session} read your answer`; render(); setTimeout(() => { S.live = 'Session 2 is working on step 3'; render(); }, 2600); }, 2400);
+}
+function park(id) {
+  const i = byId(id), d = draft(id);
+  i.state = 'parked'; i.note = d.text.trim() || 'Finding out.'; i.parkedAt = NOW; d.text = '';
+  const next = nextOpenAfter(id, S.route);
+  S.sel = S.route === 'review' ? S.sel : next; S.isel = next;
+  announce(`Parked: ${i.q}`);
+  render();
+}
+function askBack(id) {
+  S.sel = id; announce('Write your question below, then Ask.');
+  render(); const f = $('.ask .field'); if (f) f.focus();
+}
+function arrive(silent) {
+  if (byId('d6')) return;
+  items.push({ id: 'd6', task: 'VG-41', topic: 'Database', key: 'migrations', from: 'claude', q: 'Run migrations as an init container or a pre-deploy Job?', why: 'Step 4 has to apply the schema before the pods start. An init container retries with every pod; a Job runs once per release.', session: 2, step: 4, blocks: 4, waited: 0, state: 'open', unlocks: [4, 5],
+    opts: [{ id: 'job', label: 'Pre-deploy Job', effect: 'Runs once per release. A failed migration stops the rollout before any pod changes.', rec: true }, { id: 'init', label: 'Init container', effect: 'Simplest manifest. Every replica races to migrate on start.' }], addenda: [] });
+  if (silent) return;
+  S.fresh = 'd6';
+  S.live = 'Session 2 asked a question just now';
+  announce('New question from session 2: Run migrations as an init container or a pre-deploy Job?');
+  render();
+  setTimeout(() => { S.fresh = null; S.live = 'Session 2 is working on step 4'; render(); }, 2800);
+}
+
+document.addEventListener('click', (e) => {
+  const r = e.target.closest('[data-route]');
+  if (r) { e.preventDefault(); S.route = r.dataset.route; location.hash = '#/' + S.route; render(); return; }
+  const a = e.target.closest('[data-act]');
+  if (!a) return;
+  const id = a.dataset.id;
+  switch (a.dataset.act) {
+    case 'sel': S.sel = S.sel === id ? null : id; render(); { const el = $(`.dr[data-id="${id}"]`); if (el) el.focus(); } break;
+    case 'isel': S.isel = id; render(); break;
+    case 'pick': { const d = draft(id); d.pick = d.pick === a.dataset.opt ? null : a.dataset.opt; delete S.error[id]; render(); break; }
+    case 'answer': commit(id); break;
+    case 'park': park(id); break;
+    case 'askback': askBack(id); break;
+    case 'withdraw': items.splice(items.findIndex((i) => i.id === id), 1); S.sel = null; render(); break;
+    case 'view': S.view = a.dataset.v; render(); break;
+    case 'next': { const n = open().filter((i) => i.task === 'VG-41').find((i) => i.id !== S.sel); if (n) { S.sel = n.id; S.view = 'ledger'; render(); const el = $(`.item[data-id="${n.id}"]`); if (el) el.scrollIntoView({ block: 'nearest' }); } break; }
+    case 'copy': navigator.clipboard?.writeText(a.dataset.text).catch(() => {}); announce(`Copied ${a.dataset.text}`); break;
+  }
+});
+document.addEventListener('input', (e) => { const f = e.target.closest('[data-draft]'); if (f) { draft(f.dataset.draft).text = f.value; delete S.error[f.dataset.draft]; } });
+document.addEventListener('submit', (e) => {
+  const f = e.target.closest('[data-form="ask"]'); if (!f) return;
+  e.preventDefault();
+  const q = f.q.value.trim(); if (!q) return;
+  const id = 'u' + (items.length + 1);
+  items.push({ id, task: 'VG-41', topic: 'Your questions', key: 'ask-' + id, from: 'you', q, session: 2, step: 3, state: 'asked', at: NOW, addenda: [] });
+  S.sel = id; announce('Question added. The session answers it when it next loads the task.');
+  render();
+});
+document.addEventListener('keydown', (e) => {
+  const typing = e.target.matches('input, textarea');
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && S.sel) { const i = byId(S.sel); if (i && i.state !== 'asked') { e.preventDefault(); commit(S.sel); } return; }
+  if (e.target.matches('.dr, .qrow') && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.target.click(); return; }
+  if (e.key === 'Escape') { if (S.route === 'task' && S.sel) { S.sel = null; render(); } return; }
+  if (typing) return;
+  const cur = S.route === 'review' ? S.isel : S.sel;
+  if (/^[1-9]$/.test(e.key) && cur) { const i = byId(cur); const o = i?.opts?.[Number(e.key) - 1]; if (o) { draft(cur).pick = o.id; delete S.error[cur]; render(); } return; }
+  if (e.key === 'j' || e.key === 'k') {
+    const list = S.route === 'review' ? queue() : (S.view === 'ledger' ? ofTask('VG-41') : []);
+    if (!list.length) return;
+    const idx = list.findIndex((i) => i.id === cur);
+    const n = list[Math.max(0, Math.min(list.length - 1, idx + (e.key === 'j' ? 1 : -1)))];
+    if (S.route === 'review') S.isel = n.id; else S.sel = n.id;
+    render();
+  }
+});
+window.addEventListener('hashchange', () => { S.route = location.hash.startsWith('#/review') ? 'review' : 'task'; render(); });
+
+if (params.get('arrived') === '1') arrive(true);
+render();
+if (!params.has('still')) {
+  setTimeout(() => arrive(false), 7000);
+  setTimeout(() => { items.filter((i) => i.state === 'answered' && !i.read && i.by === 'You').forEach((i) => { i.read = true; }); render(); }, 4200);
+}
+</script>
+</body>
+</html>
