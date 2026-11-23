@@ -332,6 +332,7 @@ async fn the_mcp_endpoint_exposes_four_ways_to_read_and_ten_writes() {
             "rekall_component",
             "rekall_context",
             "rekall_create_task",
+            "rekall_decision",
             "rekall_delete_step",
             "rekall_description",
             "rekall_deviation",
