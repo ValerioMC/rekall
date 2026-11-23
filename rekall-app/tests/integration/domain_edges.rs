@@ -196,6 +196,7 @@ const MCP: LayeredCrate = LayeredCrate {
         ("commit", &[]),
         ("component", &[]),
         ("context", &[]),
+        ("decision", &[]),
         ("deviation", &[]),
         ("diagram", &[]),
         ("feedback", &[]),

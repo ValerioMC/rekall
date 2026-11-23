@@ -8,6 +8,8 @@ mod rule;
 mod service;
 mod view;
 
+pub use rekall_store::{DecisionSource, DecisionState, Speaker};
+
 pub use command::answer_decision::AnswerDecision;
 pub use command::ask_decision::AskDecision;
 pub use command::correct_decision::CorrectDecision;

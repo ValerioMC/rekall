@@ -7,6 +7,7 @@ pub mod commit;
 pub mod component;
 pub mod context;
 pub mod controller;
+pub mod decision;
 pub mod deviation;
 pub mod diagram;
 pub mod feedback;
