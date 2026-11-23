@@ -9,6 +9,7 @@
 //! moved onto the baseline when it is opened.
 
 pub mod constraints;
+#[macro_use]
 pub mod enums;
 pub mod migration;
 pub mod repository;
@@ -25,6 +26,7 @@ pub mod check;
 pub mod commit;
 pub mod component;
 pub mod connection;
+pub mod decision;
 pub mod dependency;
 pub mod deviation;
 pub mod diagram;
@@ -51,6 +53,9 @@ pub use check::{entity::done_check, entity::done_check_result};
 pub use commit::{entity::commit_reference, entity::step_snapshot, entity::step_snapshot_file};
 pub use component::entity::project_component;
 pub use connection::{entity::connection_access, entity::connection_company, entity::external_connection, entity::project_connection};
+pub use decision::{entity::task_decision, entity::task_decision_detail, entity::task_decision_line, entity::task_decision_option};
+pub use decision::enums::{DecisionSource, DecisionState, Speaker};
+pub use decision::DecisionRecord;
 pub use dependency::entity::task_dependency;
 pub use deviation::entity::task_deviation;
 pub use feedback::entity::task_feedback;
@@ -102,7 +107,12 @@ pub mod prelude {
     pub use super::tag::{Entity as Tag, Model as TagModel};
     pub use super::tag_skill::{Entity as TagSkill, Model as TagSkillModel};
     pub use super::task::{Entity as Task, Model as TaskModel};
+    pub use super::task_decision::{Entity as TaskDecision, Model as TaskDecisionModel};
+    pub use super::task_decision_detail::{Entity as TaskDecisionDetail, Model as TaskDecisionDetailModel};
+    pub use super::task_decision_line::{Entity as TaskDecisionLine, Model as TaskDecisionLineModel};
+    pub use super::task_decision_option::{Entity as TaskDecisionOption, Model as TaskDecisionOptionModel};
     pub use super::task_dependency::{Entity as TaskDependency, Model as TaskDependencyModel};
+    pub use super::{DecisionSource, DecisionState, Speaker};
     pub use super::task_deviation::{Entity as TaskDeviation, Model as TaskDeviationModel};
     pub use super::task_feedback::{Entity as TaskFeedback, Model as TaskFeedbackModel};
     pub use super::task_skill::{Entity as TaskSkill, Model as TaskSkillModel};
