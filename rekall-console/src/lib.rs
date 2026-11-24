@@ -29,4 +29,5 @@ pub mod tag;
 pub mod terminal;
 pub mod version;
 pub mod vulnerability;
+pub mod workingset;
 pub mod worktree;

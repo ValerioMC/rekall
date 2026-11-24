@@ -135,6 +135,7 @@ const CONSOLE: LayeredCrate = LayeredCrate {
         ("terminal", &["claude", "worktree"]),
         ("version", &[]),
         ("vulnerability", &["catalog", "step", "task"]),
+        ("workingset", &[]),
         ("worktree", &[]),
     ],
     refuses_mutual_use: true,
