@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useClaudeCommandUpdateStore } from '@/features/claude/store/claudeCommandUpdate.store'
 import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
 
 defineEmits<{ open: [] }>()
 
 const { needsRepair } = storeToRefs(useClaudeConnectionStore())
+const { updating } = storeToRefs(useClaudeCommandUpdateStore())
+const showsWarning = computed<boolean>(() => needsRepair.value && !updating.value)
 </script>
 
 <template>
@@ -12,8 +16,8 @@ const { needsRepair } = storeToRefs(useClaudeConnectionStore())
     type="button"
     class="header-key focus-ring relative"
     data-testid="settings-trigger"
-    :aria-label="needsRepair ? 'Settings: Claude Code needs repair' : 'Settings'"
-    :title="needsRepair ? 'Claude Code needs repair. Open Settings to fix it.' : 'Settings'"
+    :aria-label="showsWarning ? 'Settings: Claude Code needs repair' : 'Settings'"
+    :title="showsWarning ? 'Claude Code needs repair. Open Settings to fix it.' : 'Settings'"
     @click="$emit('open')"
   >
     <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -34,7 +38,7 @@ const { needsRepair } = storeToRefs(useClaudeConnectionStore())
     </svg>
     <!-- A triangle, not a dot: a dot beside a cog reads as "new", this has to read as "broken". -->
     <svg
-      v-if="needsRepair"
+      v-if="showsWarning"
       class="absolute -right-0.5 -top-0.5 size-3 text-warn"
       viewBox="0 0 12 12"
       fill="none"

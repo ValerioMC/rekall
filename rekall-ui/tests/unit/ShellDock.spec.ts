@@ -5,6 +5,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import ShellDock from '@/components/shell/ShellDock.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import { useClaudeCommandUpdateStore } from '@/features/claude/store/claudeCommandUpdate.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useOpenSession } from '@/features/claude/composables/useOpenSession'
 import type { Terminal } from '@/features/claude/model/terminal'
@@ -178,6 +179,39 @@ describe('ShellDock', () => {
       const { wrapper } = await mountDock([], [running()])
       expect(wrapper.find('[data-testid="running-dock-toggle"]').exists()).toBe(true)
       expect(wrapper.find('[data-testid="terminal-dock-toggle"]').exists()).toBe(false)
+    })
+
+    it('shows the commands update on its own while the server replaces the /rk commands', async () => {
+      const { wrapper } = await mountDock([])
+      useClaudeCommandUpdateStore().commandUpdate = { state: 'UPDATING' }
+      await flushPromises()
+
+      const segment = wrapper.get('[data-testid="command-update-dock"]')
+      expect(segment.text()).toBe('rk commands updating')
+      expect(segment.find('[data-testid="step-seal"]').attributes('data-state')).toBe('RUNNING')
+      expect(segment.element.tagName).toBe('SPAN')
+    })
+
+    it('puts the commands update before the other segments', async () => {
+      const { wrapper } = await mountDock([terminal()])
+      useClaudeCommandUpdateStore().commandUpdate = { state: 'UPDATING' }
+      await flushPromises()
+
+      const bar = wrapper.get('[data-testid="shell-dock-bar"]').element
+      expect(bar.firstElementChild?.getAttribute('data-testid')).toBe('command-update-dock')
+      expect(wrapper.find('[data-testid="terminal-dock-toggle"]').exists()).toBe(true)
+    })
+
+    it('leaves the dock when the update ends', async () => {
+      const { wrapper } = await mountDock([])
+      const update = useClaudeCommandUpdateStore()
+      update.commandUpdate = { state: 'UPDATING' }
+      await flushPromises()
+
+      update.commandUpdate = { state: 'UPDATED' }
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="shell-dock"]').exists()).toBe(false)
     })
 
     it('is a fixed capsule in the corner of the window', async () => {

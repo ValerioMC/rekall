@@ -7,6 +7,8 @@ import SessionChoiceGroup from '@/features/settings/components/SessionChoiceGrou
 import SessionPermissionSwitch from '@/features/settings/components/SessionPermissionSwitch.vue'
 import { storeToRefs } from 'pinia'
 import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
+import { useClaudeCommandUpdateStore } from '@/features/claude/store/claudeCommandUpdate.store'
+import CommandUpdateMark from '@/features/claude/components/CommandUpdateMark.vue'
 import { useToastStore } from '@/stores/toast.store'
 import {
   preferredEffort,
@@ -37,6 +39,7 @@ const toast = useToastStore()
 
 const connection = useClaudeConnectionStore()
 const { installation } = storeToRefs(connection)
+const { updating: updatingCommands } = storeToRefs(useClaudeCommandUpdateStore())
 const loading = ref(true)
 const installing = ref(false)
 const installed = ref(false)
@@ -161,7 +164,10 @@ onMounted(() => void load())
     >
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0 flex-1">
-          <AppBadge :tone="presentation!.tone" dot data-testid="claude-status">
+          <AppBadge v-if="updatingCommands" tone="accent" data-testid="claude-status">
+            <CommandUpdateMark />
+          </AppBadge>
+          <AppBadge v-else :tone="presentation!.tone" dot data-testid="claude-status">
             {{ presentation!.label }}
           </AppBadge>
           <p class="mt-1.5 text-small leading-relaxed text-text-muted">{{ explanation }}</p>
@@ -170,7 +176,7 @@ onMounted(() => void load())
           </p>
         </div>
         <AppButton
-          v-if="presentation!.action"
+          v-if="presentation!.action && !updatingCommands"
           size="sm"
           :variant="presentation!.variant"
           :loading="installing"

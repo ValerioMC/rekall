@@ -3,9 +3,14 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import SettingsTrigger from '@/components/console/SettingsTrigger.vue'
 import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
+import { useClaudeCommandUpdateStore } from '@/features/claude/store/claudeCommandUpdate.store'
 import type { ClaudeConnectionStatus } from '@/features/claude/model/claude'
 
-vi.mock('@/features/claude/api/claude.api', () => ({ fetchClaudeInstallation: vi.fn(), installClaudeIntegration: vi.fn() }))
+vi.mock('@/features/claude/api/claude.api', () => ({
+  fetchClaudeInstallation: vi.fn(),
+  installClaudeIntegration: vi.fn(),
+  fetchCommandUpdateState: vi.fn()
+}))
 
 function mountWith(status: ClaudeConnectionStatus | null) {
   const connection = useClaudeConnectionStore()
@@ -42,6 +47,15 @@ describe('SettingsTrigger', () => {
 
     expect(wrapper.find('[data-testid="settings-warning"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="settings-trigger"]').attributes('aria-label')).toContain('needs repair')
+  })
+
+  it('shows no warning while the server updates the /rk commands', async () => {
+    const wrapper = mountWith('OUTDATED')
+    useClaudeCommandUpdateStore().commandUpdate = { state: 'UPDATING' }
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('[data-testid="settings-warning"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="settings-trigger"]').attributes('aria-label')).toBe('Settings')
   })
 
   it('opens settings on click', async () => {

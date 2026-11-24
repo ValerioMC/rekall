@@ -214,6 +214,8 @@ One capsule at the bottom left (`1 in progress | 1 session`) that opens a panel 
 
 The two panels answer each other. A timer row nests the sessions on its task, or says `No open session`; a session row says whether its task is tracking time. Every session carries one state pill: Open, Working, Work completed (a step or review was claimed during the session, so the work is waiting for a person while the session stays open) or Awaiting approval. The sessions segment of the capsule appends `Awaiting approval` when any session waits.
 
+While the server replaces a stale `/rk` command at startup, a status segment at the capsule's left end reads `rk commands updating` beside the running step seal. It is not a button and leaves when the update ends. The Claude Code section of Settings shows the same seal and words in place of its status badge and Repair, and the Settings key shows no warning triangle meanwhile.
+
 ## Do's and Don'ts
 
 ### Do:

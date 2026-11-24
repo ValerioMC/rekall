@@ -1,6 +1,6 @@
 import { apiClient, request } from '../../../api/client'
-import { ClaudeInstallationSchema, ClaudeUsageSchema } from './schemas/claude.schema'
-import type { ClaudeInstallation, ClaudeUsage } from '@/features/claude/model/claude'
+import { ClaudeInstallationSchema, ClaudeUsageSchema, CommandUpdateStateSchema } from './schemas/claude.schema'
+import type { ClaudeInstallation, ClaudeUsage, CommandUpdateState } from '@/features/claude/model/claude'
 
 export async function fetchClaudeInstallation(): Promise<ClaudeInstallation> {
   return request(async () => ClaudeInstallationSchema.parse(await apiClient('/api/settings/claude')))
@@ -9,6 +9,12 @@ export async function fetchClaudeInstallation(): Promise<ClaudeInstallation> {
 export async function installClaudeIntegration(): Promise<ClaudeInstallation> {
   return request(async () =>
     ClaudeInstallationSchema.parse(await apiClient('/api/settings/claude/install', { method: 'POST' }))
+  )
+}
+
+export async function fetchCommandUpdateState(): Promise<CommandUpdateState> {
+  return request(async () =>
+    CommandUpdateStateSchema.parse(await apiClient('/api/settings/claude/commands-update'))
   )
 }
 

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ClaudeCodeSection from '@/features/settings/components/ClaudeCodeSection.vue'
+import { useClaudeCommandUpdateStore } from '@/features/claude/store/claudeCommandUpdate.store'
 import type { ClaudeInstallation } from '@/features/claude/model/claude'
 
 /**
@@ -14,7 +15,8 @@ const installClaudeIntegration = vi.fn()
 
 vi.mock('@/features/claude/api/claude.api', () => ({
   fetchClaudeInstallation: () => fetchClaudeInstallation(),
-  installClaudeIntegration: () => installClaudeIntegration()
+  installClaudeIntegration: () => installClaudeIntegration(),
+  fetchCommandUpdateState: vi.fn()
 }))
 
 const ENDPOINT = 'http://localhost:47355/mcp'
@@ -131,5 +133,30 @@ describe('ClaudeCodeSection', () => {
 
     expect(wrapper.text()).toContain("Couldn't read the Claude Code configuration")
     expect(wrapper.find('[data-testid="claude-install"]').exists()).toBe(false)
+  })
+  describe('while the /rk commands update', () => {
+    async function mountOutdatedWhileUpdating(updating: boolean) {
+      fetchClaudeInstallation.mockResolvedValue(installation({ status: 'OUTDATED', commandInstalled: true }))
+      const wrapper = mount(ClaudeCodeSection)
+      useClaudeCommandUpdateStore().commandUpdate = { state: updating ? 'UPDATING' : 'IDLE' }
+      await flushPromises()
+      return wrapper
+    }
+
+    it('shows the spinner and the words in place of the status and Repair', async () => {
+      const wrapper = await mountOutdatedWhileUpdating(true)
+
+      expect(wrapper.get('[data-testid="claude-status"]').text()).toBe('rk commands updating')
+      expect(wrapper.find('[data-testid="step-seal"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="claude-install"]').exists()).toBe(false)
+    })
+
+    it('keeps the warning and Repair when no update runs', async () => {
+      const wrapper = await mountOutdatedWhileUpdating(false)
+
+      expect(wrapper.get('[data-testid="claude-status"]').text()).toBe('Out of date')
+      expect(wrapper.find('[data-testid="step-seal"]').exists()).toBe(false)
+      expect(wrapper.get('[data-testid="claude-install"]').text()).toBe('Repair')
+    })
   })
 })

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CLAUDE_USAGE_SEVERITIES, CLAUDE_USAGE_STATUSES } from '@/features/claude/model/claude'
+import { CLAUDE_USAGE_SEVERITIES, CLAUDE_USAGE_STATUSES, COMMAND_UPDATE_STATUSES } from '@/features/claude/model/claude'
 
 export const ClaudeInstallationSchema = z.object({
   status: z.enum(['CONNECTED', 'OUTDATED', 'NOT_CONNECTED', 'CLI_MISSING']),
@@ -9,6 +9,11 @@ export const ClaudeInstallationSchema = z.object({
   commandInstalled: z.boolean(),
   cliPath: z.string().nullable(),
   manualCommand: z.string()
+})
+
+export const CommandUpdateStateSchema = z.object({
+  state: z.enum(COMMAND_UPDATE_STATUSES),
+  reason: z.string().optional()
 })
 
 export const ClaudeUsageSchema = z.object({

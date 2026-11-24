@@ -4,7 +4,9 @@ import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 import { useConsoleStore } from '@/stores/console.store'
 import { useChatWindowShown } from '@/features/chat/composables/useChatWindowShown'
+import { useClaudeCommandUpdateStore } from '@/features/claude/store/claudeCommandUpdate.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import CommandUpdateMark from '@/features/claude/components/CommandUpdateMark.vue'
 import type { Terminal } from '@/features/claude/model/terminal'
 import RunningTasksPanel from './RunningTasksPanel.vue'
 import TerminalFloat from './TerminalFloat.vue'
@@ -15,7 +17,8 @@ import TerminalSessionsPanel from './TerminalSessionsPanel.vue'
  * at a time. The sheet belongs to whichever segment was pressed last: pressing the other
  * switches; pressing the same one again, Escape, or a click anywhere else closes it. A segment
  * that has nothing to show leaves, and takes its sheet with it; when neither has anything, so
- * does the capsule. A terminal session picked from the sessions sheet opens in a floating panel
+ * does the capsule. While the server replaces a stale /rk command, a plain status segment at the
+ * left end says so: it is not a button and opens no sheet. A terminal session picked from the sessions sheet opens in a floating panel
  * above the bar instead of the full terminal pane; it stays until minimized or the session is gone.
  */
 type DockPanel = 'running' | 'sessions'
@@ -24,6 +27,7 @@ const store = useConsoleStore()
 const terminals = useTerminalStore()
 const { runningEntries, paneFocus } = storeToRefs(store)
 const { terminals: allTerminals, floatingId } = storeToRefs(terminals)
+const { updating: updatingCommands } = storeToRefs(useClaudeCommandUpdateStore())
 const route = useRoute()
 const root = ref<HTMLElement | null>(null)
 const chatWindowShown = useChatWindowShown()
@@ -38,7 +42,10 @@ const onTerminalPane = computed(() => route.name === 'console' && paneFocus.valu
 
 const showsRunning = computed(() => runningEntries.value.length > 0)
 const showsSessions = computed(() => liveSessions.value.length > 0 && !onTerminalPane.value && !chatWindowShown.value)
-const visible = computed(() => showsRunning.value || showsSessions.value || floating.value !== null)
+const visible = computed(
+  () => updatingCommands.value || showsRunning.value || showsSessions.value || floating.value !== null
+)
+const showsLiveWork = computed(() => showsRunning.value || showsSessions.value)
 
 const awaitingApproval = computed(() => liveSessions.value.some((terminal) => terminal.awaitingPermission))
 const sessionsLabel = computed(() =>
@@ -109,6 +116,17 @@ onUnmounted(() => {
       aria-label="Live work"
       data-testid="shell-dock-bar"
     >
+      <span
+        v-if="updatingCommands"
+        class="flex items-center pl-3 pr-3.5 text-small font-medium text-text"
+        role="status"
+        data-testid="command-update-dock"
+      >
+        <CommandUpdateMark />
+      </span>
+
+      <span v-if="updatingCommands && showsLiveWork" class="dock-divider" aria-hidden="true" />
+
       <button
         v-if="showsRunning"
         class="dock-segment dock-segment-time"

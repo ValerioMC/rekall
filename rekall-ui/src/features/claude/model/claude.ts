@@ -10,6 +10,15 @@ export interface ClaudeInstallation {
   readonly manualCommand: string
 }
 
+export const COMMAND_UPDATE_STATUSES = ['IDLE', 'UPDATING', 'UPDATED', 'FAILED'] as const
+export type CommandUpdateStatus = (typeof COMMAND_UPDATE_STATUSES)[number]
+
+/** What the server's startup check did with the installed /rk command files; `reason` only on FAILED. */
+export interface CommandUpdateState {
+  readonly state: CommandUpdateStatus
+  readonly reason?: string | undefined
+}
+
 export const CLAUDE_USAGE_STATUSES = ['OK', 'UNAUTHENTICATED', 'RATE_LIMITED', 'UNAVAILABLE'] as const
 export type ClaudeUsageStatus = (typeof CLAUDE_USAGE_STATUSES)[number]
 

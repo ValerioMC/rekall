@@ -12,6 +12,7 @@ import ChatReopenTag from '@/features/chat/components/ChatReopenTag.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useDeviationsStore } from '@/features/deviations/store/deviations.store'
 import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
+import { useClaudeCommandUpdateStore } from '@/features/claude/store/claudeCommandUpdate.store'
 import { useCodexStore } from '@/features/codex/store/codex.store'
 import { useChatDockArea } from '@/features/chat/composables/useChatDockArea'
 import { useChatWindowShown } from '@/features/chat/composables/useChatWindowShown'
@@ -62,6 +63,7 @@ useClaimNotifications(reviewQueue, isLoading)
 useConsoleLocation()
 
 const claudeConnection = useClaudeConnectionStore()
+const claudeCommandUpdate = useClaudeCommandUpdateStore()
 const codex = useCodexStore()
 const router = useRouter()
 
@@ -105,7 +107,10 @@ function onKeydown(event: KeyboardEvent): void {
 
 /** The warning on the Settings key is a hint: a registration that cannot be read stays silent. */
 async function refreshClaudeConnection(): Promise<void> {
-  await claudeConnection.load().catch(() => undefined)
+  await Promise.all([
+    claudeConnection.load().catch(() => undefined),
+    claudeCommandUpdate.load().catch(() => undefined)
+  ])
 }
 
 onMounted(() => {
