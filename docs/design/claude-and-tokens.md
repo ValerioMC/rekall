@@ -78,6 +78,15 @@ case; its lines carry `entrypoint: sdk-cli` where a terminal's say `cli`, which 
 `scripts/session_shape.py` uses. `headless_transcript.jsonl` in `rekall-infra/tests/fixtures/chat/` is a sanitised
 real one and `session_ledger_tests` reads it.
 
+**Context fill.** A chat turn reports how much of its context window the last API call held. The last such
+fill of a task, and of each step a turn ran on, is kept in `context_fill`: a row per task with no step (the
+task's own, written by every turn) and a row per step, overwritten each turn. It is a table of its own, not columns of `task`
+and `task_step`, because those rows are stamped and a write per turn would move their `updated_at`, which the
+lists and `useContextSize` read as a change. `ContextFillService` (`rekall-core`) is its only writer: `record`
+upserts the rows in one transaction and publishes a `context-fill` frame carrying the task's whole list. A
+unique index per case (a partial one over `task_id` where `step_id` is null, one over both where it is not)
+keeps a task to one row of each kind, and a row goes with its task or its step.
+
 **Comparing the two modes.** `scripts/session_shape.py [folder ...]` (standard library, read-only, aggregates only, no
 message text) reads `~/.claude/projects/<folder>/*.jsonl`, counts each message once by its id, keeping the largest
 counts, and prints every figure per `entrypoint`, so terminal and chat sessions are compared on the same days:

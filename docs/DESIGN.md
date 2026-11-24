@@ -122,6 +122,7 @@ is found by opening one folder per crate:
 | `note` | documents, each owned by one task and deleted with it, and how they load (in full or by reference) |
 | `wrapup`, `review`, `timeentry` | the wrapup, the review line, logged time |
 | `commit`, `diagram`, `token`, `search`, `context` | logged commits and what they and the working tree changed, stored diagrams, token usage, search, context assembly and its size |
+| `context_fill` | the last share of its context window a chat held at the end of a turn, per task and per step (`ContextFillService`, the only writer of `context_fill`; the console reads it) |
 | `quick` | the quick task: a task started from one line of text with its session opened at once, accepted without a review when Claude's wrapup lands; console and HTTP only, the acceptance itself is in `review` and `wrapup` |
 | `skill`, `tag`, `queue`, `claude` | skill assignments, tags, the run queue, what a session launch needs |
 | `codex` | the Codex CLI port for the model catalog, account limits and Rekall setup. The console calls it through its service and HTTP routes. Infrastructure runs the CLI and its App Server. The header draws both provider readings with the same account usage meter. |
@@ -187,6 +188,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `component` | `catalog` | `catalog`, `connection`, `task` | nothing | nothing | nothing |
 | `connection` | `catalog`, `task` | `task`, `tracker` | `catalog`, `commit`, `component`, `section`, `task` | `catalog`, `section` | - |
 | `context` | - | `catalog`, `commit`, `component`, `connection`, `decision`, `dependency`, `deviation`, `feedback`, `note`, `section`, `step`, `tag`, `task`, `wrapup` | - | nothing | nothing |
+| `context_fill` | `step`, `task` | `chat` | - | - | - |
 | `decision` | `task` | `deviation`, `step` | `context`, `deviation`, `step` | nothing | nothing |
 | `dependency` | `task` | `claude` | `queue`, `task` | nothing | - |
 | `deviation` | `task` | `step`, `task` | `task` | nothing | nothing |
