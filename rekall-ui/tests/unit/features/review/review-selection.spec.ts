@@ -37,7 +37,7 @@ describe('reviewItemLine', () => {
   const task = { companyName: 'Acme', projectTitle: 'Vega' } as Task
 
   it('names the company, the project and the piece that waits', () => {
-    expect(reviewItemLine(task, 3)).toBe('Acme · Vega · step 3')
+    expect(reviewItemLine(task, { number: 3, total: 6 })).toBe('Acme · Vega · step 3 of 6')
     expect(reviewItemLine(task, null)).toBe('Acme · Vega · whole task')
   })
 })

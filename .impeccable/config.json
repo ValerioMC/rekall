@@ -150,6 +150,27 @@
         ],
         "createdAt": "2026-11-23T14:55:00.000Z",
         "reason": "DESIGN.md sanctions the session orb pulse as state made visible; it marks only the session working on the task right now. Decided by the model from DESIGN.md, not user confirmed."
+      },
+      {
+        "rule": "design-system-font",
+        "value": "sans\",ui-sans-serif,sans-serif",
+        "createdAt": "2026-11-24T19:32:11.531Z",
+        "reason": "false positive: the stack is DESIGN.md's Fira Sans with its system fallbacks; the detector split the list on the comma (model triage, not user confirmed)"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "code\",ui-monospace,monospace",
+        "createdAt": "2026-11-24T19:32:11.566Z",
+        "reason": "false positive: the stack is DESIGN.md's Fira Code with its system fallbacks; the detector split the list on the comma (model triage, not user confirmed)"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/review/index.html"
+        ],
+        "createdAt": "2026-11-24T19:32:44.345Z",
+        "reason": "false positive: the header capsule is a fixed 36px flex box with centred text and 12px side padding, as in the other mocks (model triage, not user confirmed)"
       }
     ]
   }

@@ -324,16 +324,23 @@ queue) is followed to its page, on the tab that shows the pane it asked for.
 
 ## Review
 
-Review is its own screen at `/review/:key?`: a queue of every claimed step and every task handed in
-whole, the longest waiting first, beside the same decision panel as Plan. The queue is the
-console's `reviewQueue`, so its length is the Needs me count, the badge on the Review entry of the
-menu and the header review segment, which is a link to this screen (the popover list it used to
-open is gone). The item in view is in the URL; after a decision the item leaves the queue and the
-next one in its order opens, or the one before it at the end. Under the panel sits the task's
-adherence (steps accepted at the first pass, sent back, deviations) from the real adherence data.
-With nothing waiting the screen says "Nothing waits for you." over the large done seal. The
-shortcuts A, S and J/K shown by the mockup are a proposal and are not built until they are
-approved.
+Review is its own screen at `/review/:key?`: a feed of every claimed step and every task handed in
+whole, the longest waiting first. Each claim is a card that decides itself: the step's title, its
+anchor with the copy key, where it sits (company, project, step n of m), how long it has waited, and
+one line of what was found on it (the last run of its checks, how many commits are logged against it,
+a deviation when the plan was left), with Send back and Accept at its right. The claim in the URL is
+open and carries the evidence: what the step asked for (the wrapup, for a task handed in whole), the
+earlier passes it was sent back from, the deviation, each check with the end of its output when it
+failed, the commits, and the task's adherence in one line under a link to the task. Only the open
+claim has the amber Accept. The queue is the console's `reviewQueue`, so its length is the Needs me
+count, the badge on the Review entry of the menu and the header review segment, which is a link to
+this screen. After a decision the item leaves the queue and the next one in its order opens, or the
+one before it at the end; with auto-advance off nothing is open until a title is pressed. With nothing
+waiting the screen says "Nothing waits for you." over the large done seal.
+
+The bare keys J and K move the open claim, A accepts it and S sends it back (through the same
+confirmation Settings asks for). They are ignored while a field has focus or the send-back question is
+open, and are listed in Settings under Keyboard.
 
 ## The other sections
 

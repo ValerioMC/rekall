@@ -8,6 +8,9 @@ const SHORTCUTS: readonly Shortcut[] = [
   { keys: '⌘K', does: 'Search tasks, projects, notes and screens, or find a phrase in the text' },
   { keys: 'T', does: 'New task' },
   { keys: 'Q', does: 'Open the run queue' },
+  { keys: 'J  K', does: 'On Review, move between the claims' },
+  { keys: 'A', does: 'On Review, accept the open claim' },
+  { keys: 'S', does: 'On Review, send the open claim back' },
   { keys: 'Esc', does: 'Close the sheet, dialog or palette in front' }
 ]
 </script>

@@ -54,7 +54,8 @@ export const useChecksStore = defineStore('checks', () => {
   }
 
   async function loadResults(taskId: TaskId): Promise<void> {
-    resultsByTask.value = { ...resultsByTask.value, [taskId]: await fetchTaskCheckResults(taskId) }
+    const results = await fetchTaskCheckResults(taskId)
+    resultsByTask.value = { ...resultsByTask.value, [taskId]: results }
   }
 
   async function createForProject(projectId: ProjectId, input: CheckInput): Promise<DoneCheck> {
