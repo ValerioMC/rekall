@@ -16,6 +16,7 @@ export const useWorkingSetStore = defineStore('workingSet', () => {
   const toast = useToastStore()
   const openTasks = ref<readonly OpenTask[]>([])
   const places = ref<readonly OpenPlace[]>([])
+  const isLoaded = ref(false)
 
   const groups = computed(() => groupByProject(openTasks.value, catalog.companies, catalog.projects, catalog.tasks))
 
@@ -28,9 +29,10 @@ export const useWorkingSetStore = defineStore('workingSet', () => {
   }
 
   async function load(): Promise<void> {
-    const loaded = await fetchWorkingSet()
-    openTasks.value = loaded.tasks
-    places.value = loaded.places
+    const read = await fetchWorkingSet()
+    openTasks.value = read.tasks
+    places.value = read.places
+    isLoaded.value = true
   }
 
   async function open(taskId: TaskId, projectId: ProjectId): Promise<void> {
@@ -77,5 +79,5 @@ export const useWorkingSetStore = defineStore('workingSet', () => {
     }
   }
 
-  return { openTasks, places, groups, isOpen, placeOf, load, open, close, remember }
+  return { openTasks, places, isLoaded, groups, isOpen, placeOf, load, open, close, remember }
 })
