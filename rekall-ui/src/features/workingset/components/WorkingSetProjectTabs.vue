@@ -36,7 +36,7 @@ function nameOf(group: ProjectGroup): string {
 
 <template>
   <div
-    class="flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-surface px-3"
+    class="flex h-10 shrink-0 items-center gap-1 overflow-x-auto overflow-y-hidden border-b border-border bg-surface px-3"
     role="tablist"
     aria-label="Open projects"
     data-testid="working-set-projects"

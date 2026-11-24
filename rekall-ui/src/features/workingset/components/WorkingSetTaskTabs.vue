@@ -30,7 +30,7 @@ function selectList(): void {
 
 <template>
   <div
-    class="flex h-[38px] shrink-0 items-stretch gap-0.5 overflow-x-auto border-b border-border bg-canvas px-3"
+    class="flex h-[38px] shrink-0 items-stretch gap-0.5 overflow-x-auto overflow-y-hidden border-b border-border bg-canvas px-3"
     role="tablist"
     :aria-label="`${project.title} tasks`"
     data-testid="working-set-tasks"
