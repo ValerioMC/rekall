@@ -10,6 +10,15 @@ const PERMISSION_ALLOW: &str = include_str!("../../fixtures/chat/permission_requ
 const PERMISSION_DENY: &str = include_str!("../../fixtures/chat/permission_request_deny.jsonl");
 const INTERRUPTED: &str = include_str!("../../fixtures/chat/interrupted_turn.jsonl");
 const ERROR_RETRY: &str = include_str!("../../fixtures/chat/error_retry.jsonl");
+const TOOL_READ: &str = include_str!("../../fixtures/chat/tool_read.jsonl");
+const TOOL_WRITE: &str = include_str!("../../fixtures/chat/tool_write.jsonl");
+const TOOL_EDIT: &str = include_str!("../../fixtures/chat/tool_edit.jsonl");
+const TOOL_GREP: &str = include_str!("../../fixtures/chat/tool_grep.jsonl");
+const TOOL_GLOB: &str = include_str!("../../fixtures/chat/tool_glob.jsonl");
+const TOOL_BASH: &str = include_str!("../../fixtures/chat/tool_bash.jsonl");
+const TOOL_BASH_FAILED: &str = include_str!("../../fixtures/chat/tool_bash_failed.jsonl");
+const TOOL_TODO_WRITE: &str = include_str!("../../fixtures/chat/tool_todo_write.jsonl");
+const TOOL_WEB_SEARCH: &str = include_str!("../../fixtures/chat/tool_web_search.jsonl");
 const LOCAL_COMMAND: &str = include_str!("../../fixtures/chat/local_command_context.jsonl");
 
 fn parse_all(fixture: &str) -> Vec<ChatBody> {
@@ -92,7 +101,7 @@ fn a_tool_call_is_typed_and_its_result_names_the_call_it_answers() {
     let ChatBody::ToolUse { tool_use_id, name, input } = &events[0] else { panic!("the tool call comes first") };
     assert_eq!(name, "Read");
     assert_eq!(*input, ToolInput::Read { file_path: "/work/project/hello.txt".into() });
-    let ChatBody::ToolResult { tool_use_id: answered, is_error, excerpt, truncated } = &events[1] else { panic!("its result follows") };
+    let ChatBody::ToolResult { tool_use_id: answered, is_error, excerpt, truncated, .. } = &events[1] else { panic!("its result follows") };
     assert_eq!(answered, tool_use_id);
     assert!(!is_error);
     assert_eq!(excerpt, "1\thello spike\n2\t");
@@ -258,7 +267,7 @@ fn a_tool_output_in_parts_is_read_as_the_text_of_its_parts() {
         "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_1", "is_error": true, "content": [{"type": "text", "text": "a"}, {"type": "image"}, {"type": "text", "text": "b"}]}]}
     })]);
 
-    assert_eq!(events, vec![ChatBody::tool_result("toolu_1", true, "a\nb")]);
+    assert_eq!(events, vec![ChatBody::tool_result("toolu_1", true, "a\nb", None)]);
 }
 
 #[test]
@@ -357,4 +366,68 @@ fn a_local_command_with_no_output_produces_nothing() {
     })]);
 
     assert!(events.is_empty());
+}
+
+fn tool_summary(fixture: &str) -> Option<String> {
+    parse(fixture).into_iter().find_map(|event| match event {
+        ChatBody::ToolResult { summary, .. } => Some(summary),
+        _ => None,
+    })?
+}
+
+#[test]
+fn each_tool_result_says_in_one_line_what_the_tool_did() {
+    assert_eq!(tool_summary(TOOL_READ).as_deref(), Some("Read 4 lines"));
+    assert_eq!(tool_summary(TOOL_WRITE).as_deref(), Some("Added 3 lines, removed 0"));
+    assert_eq!(tool_summary(TOOL_EDIT).as_deref(), Some("Added 1 line, removed 1"));
+    assert_eq!(tool_summary(TOOL_GREP).as_deref(), Some("1 match"));
+    assert_eq!(tool_summary(TOOL_GLOB).as_deref(), Some("1 file"));
+    assert_eq!(tool_summary(TOOL_BASH).as_deref(), Some("exit code 0"));
+}
+
+#[test]
+fn a_failed_command_says_its_exit_code() {
+    assert_eq!(tool_summary(TOOL_BASH_FAILED).as_deref(), Some("exit code 3"));
+}
+
+#[test]
+fn an_interrupted_command_says_so() {
+    let events = parse_lines(&[json!({
+        "type": "user",
+        "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t", "content": "partial"}]},
+        "tool_use_result": {"stdout": "partial", "stderr": "", "interrupted": true, "isImage": false, "noOutputExpected": false}
+    })]);
+
+    assert!(matches!(&events[0], ChatBody::ToolResult { summary: Some(summary), .. } if summary == "interrupted"));
+}
+
+#[test]
+fn a_result_of_a_shape_nobody_summarises_or_with_no_report_has_no_summary() {
+    assert_eq!(tool_summary(TOOL_TODO_WRITE), None);
+    assert_eq!(tool_summary(TOOL_WEB_SEARCH), None);
+    let events = parse_lines(&[json!({"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t", "content": "x"}]}})]);
+    assert!(matches!(&events[0], ChatBody::ToolResult { summary: None, .. }));
+}
+
+#[test]
+fn a_report_shared_by_several_results_is_not_taken_for_any_of_them() {
+    let events = parse_lines(&[json!({
+        "type": "user",
+        "message": {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": "a", "content": "x"},
+            {"type": "tool_result", "tool_use_id": "b", "content": "y"}
+        ]},
+        "tool_use_result": {"file": {"numLines": 3}}
+    })]);
+
+    assert!(events.iter().all(|event| matches!(event, ChatBody::ToolResult { summary: None, .. })));
+}
+
+#[test]
+fn the_tools_the_terminal_draws_in_its_own_way_are_typed_and_not_other() {
+    let todo_call = parse(TOOL_TODO_WRITE).into_iter().find(|event| matches!(event, ChatBody::ToolUse { .. })).expect("the call");
+    let web_call = parse(TOOL_WEB_SEARCH).into_iter().find(|event| matches!(event, ChatBody::ToolUse { .. })).expect("the call");
+
+    assert!(matches!(todo_call, ChatBody::ToolUse { input: ToolInput::Todos { ref items }, .. } if items.len() == 2));
+    assert!(matches!(web_call, ChatBody::ToolUse { input: ToolInput::Web { ref target, .. }, .. } if target == "rust serde tutorial"));
 }

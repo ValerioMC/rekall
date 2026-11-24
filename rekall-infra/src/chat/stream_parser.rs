@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use rekall_core::chat::{ChatBody, NoticeKind, ToolInput, TurnOutcome, TurnUsage};
 use tracing::warn;
 
-use super::wire::{WireBlock, WireBlockStart, WireControlRequest, WireDelta, WireLine, WireLocalCommand, WireMessage, WireResult, WireStreamEvent, WireSystem};
+use super::tool_summary::summarise;
+use super::wire::{WireBlock, WireBlockStart, WireControlRequest, WireDelta, WireLine, WireLocalCommand, WireMessage, WireResult, WireStreamEvent, WireSystem, WireToolUseResult};
 
 const LOGGED_LINE_CHARACTERS: usize = 200;
 const ABORTED_PREFIX: &str = "aborted";
@@ -47,7 +48,7 @@ impl StreamParser {
                 command_output(&output, local_command_run).into_iter().collect()
             }
             WireLine::Assistant { message, .. } => self.assistant(message),
-            WireLine::User { message, is_replay } if !is_replay => tool_results(message),
+            WireLine::User { message, is_replay, tool_use_result } if !is_replay => tool_results(message, tool_use_result.as_ref()),
             WireLine::User { .. } => Vec::new(),
             WireLine::Result(result) => self.finish_turn(result),
             WireLine::ControlRequest { request_id, request } => permission_request(request_id, request).into_iter().collect(),
@@ -158,17 +159,22 @@ fn outcome_of(is_error: bool, terminal_reason: Option<&str>) -> TurnOutcome {
     TurnOutcome::Completed
 }
 
-fn tool_results(message: WireMessage) -> Vec<ChatBody> {
-    message
+fn tool_results(message: WireMessage, reported: Option<&WireToolUseResult>) -> Vec<ChatBody> {
+    let results: Vec<_> = message
         .content
         .0
         .into_iter()
         .filter_map(|block| match block {
-            WireBlock::ToolResult { tool_use_id, content, is_error } => {
-                let output = content.map(|content| content.text()).unwrap_or_default();
-                Some(ChatBody::tool_result(&tool_use_id, is_error, &output))
-            }
+            WireBlock::ToolResult { tool_use_id, content, is_error } => Some((tool_use_id, content, is_error)),
             _ => None,
+        })
+        .collect();
+    let summary = if results.len() == 1 { reported.and_then(summarise) } else { None };
+    results
+        .into_iter()
+        .map(|(tool_use_id, content, is_error)| {
+            let output = content.map(|content| content.text()).unwrap_or_default();
+            ChatBody::tool_result(&tool_use_id, is_error, &output, summary.clone())
         })
         .collect()
 }

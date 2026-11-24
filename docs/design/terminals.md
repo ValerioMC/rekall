@@ -102,8 +102,16 @@ version from `system` / `init`, announced again only when one of them changed be
 `CommandOutput` with the output of a local slash command such as `/context` and the command that printed it,
 read from the `local_command_source` and `local_command_run` of the `assistant` line `claude -p` prints it as,
 tags stripped, empty output dropped; `UserMessage`, `AssistantText` and `AssistantThinking` that
-grow until `complete`, `ToolUse` with a typed `ToolInput`, `ToolResult`, `PermissionRequested` and
-`PermissionResolved`, `TurnFinished` with the turn's usage, `Notice` and `Ended`). `EventJournal`
+grow until `complete`, `ToolUse` with a typed `ToolInput`, `ToolResult` with a one-line `summary`, `PermissionRequested` and
+`PermissionResolved`, `TurnFinished` with the turn's usage, `Notice` and `Ended`). `ToolInput` types what the terminal draws in its own way: `Bash`, `Edit`, `Write`, `Read`, `Search` (Grep, Glob),
+`Todos` (TodoWrite, each item `pending`, `inProgress` or `completed`), `Agent` (Task and Agent), `Web` (WebFetch url,
+WebSearch query) and `Mcp` (`mcp__<server>__<tool>` split in its server and tool, arguments as text); a call missing
+the fields its tool is known by stays `Other`. A result's `summary` is read from the `tool_use_result` of its `user` line
+(`wire_tool_use_result.rs`, one variant per shape; the rule is `tool_summary.rs`): Read "Read N lines", Edit and Write
+"Added X lines, removed Y", Bash "exit code N" or "interrupted", Grep "N matches" or "N files", Glob "N files". A failed
+call reports a plain string, so only a failed Bash (`Error: Exit code N`) has one; a line with several results shares one
+report and gives none a summary. `WebFetch` is not in the headless tool list of the `claude` Rekall was built against, so
+its result is not summarised yet. `EventJournal`
 numbers and keeps them, which is what lets a reader that reconnects resume from `Last-Event-ID`.
 `ChatSessionManager` owns the processes, the journal and the idle sweep; it talks to the rest of
 the application through two ports, `ChatPipe` (what a client does to a session: attach a listener, send a

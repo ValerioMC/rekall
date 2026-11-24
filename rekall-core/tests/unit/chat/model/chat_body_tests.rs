@@ -3,7 +3,7 @@ use crate::chat::ChatEvent;
 
 #[test]
 fn a_short_output_is_kept_whole() {
-    let ChatBody::ToolResult { excerpt, truncated, is_error, .. } = ChatBody::tool_result("toolu_1", false, "done") else {
+    let ChatBody::ToolResult { excerpt, truncated, is_error, .. } = ChatBody::tool_result("toolu_1", false, "done", None) else {
         panic!("a tool result");
     };
 
@@ -16,7 +16,7 @@ fn a_short_output_is_kept_whole() {
 fn a_long_output_is_cut_at_the_limit_and_flagged() {
     let output = "é".repeat(TOOL_EXCERPT_MAX_CHARACTERS + 10);
 
-    let ChatBody::ToolResult { excerpt, truncated, .. } = ChatBody::tool_result("toolu_1", true, &output) else {
+    let ChatBody::ToolResult { excerpt, truncated, .. } = ChatBody::tool_result("toolu_1", true, &output, None) else {
         panic!("a tool result");
     };
 

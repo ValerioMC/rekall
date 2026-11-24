@@ -17,7 +17,7 @@ pub enum ChatBody {
     AssistantText { message_id: String, text: String, complete: bool },
     AssistantThinking { message_id: String, text: String, complete: bool },
     ToolUse { tool_use_id: String, name: String, input: ToolInput },
-    ToolResult { tool_use_id: String, is_error: bool, excerpt: String, truncated: bool },
+    ToolResult { tool_use_id: String, is_error: bool, excerpt: String, truncated: bool, summary: Option<String> },
     PermissionRequested { request_id: String, tool_use_id: String, name: String, input: ToolInput },
     PermissionResolved { request_id: String, allowed: bool },
     TurnFinished { usage: TurnUsage, duration_ms: u64, outcome: TurnOutcome },
@@ -26,11 +26,12 @@ pub enum ChatBody {
 }
 
 impl ChatBody {
-    /// A tool's result, its output cut to [`TOOL_EXCERPT_MAX_CHARACTERS`].
-    pub fn tool_result(tool_use_id: &str, is_error: bool, output: &str) -> Self {
+    /// A tool's result, its output cut to [`TOOL_EXCERPT_MAX_CHARACTERS`]; `summary` is the one line
+    /// of what the tool did, when `claude` reported enough to say.
+    pub fn tool_result(tool_use_id: &str, is_error: bool, output: &str, summary: Option<String>) -> Self {
         let truncated = output.chars().count() > TOOL_EXCERPT_MAX_CHARACTERS;
         let excerpt = output.chars().take(TOOL_EXCERPT_MAX_CHARACTERS).collect();
-        ChatBody::ToolResult { tool_use_id: tool_use_id.to_string(), is_error, excerpt, truncated }
+        ChatBody::ToolResult { tool_use_id: tool_use_id.to_string(), is_error, excerpt, truncated, summary }
     }
 
     pub fn notice(kind: NoticeKind, text: impl Into<String>) -> Self {
