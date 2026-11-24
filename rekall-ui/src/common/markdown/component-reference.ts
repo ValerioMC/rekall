@@ -1,6 +1,7 @@
 import type { config } from 'md-editor-v3'
 import type { ProjectComponent } from '@/features/project/model/project-component'
 import { connectionChipHtml, connectionReferenceLabel } from '@/common/markdown/connection-reference'
+import { pageChipHtml, pageReferenceTitle } from '@/common/markdown/page-reference'
 import { taskChipHtml, taskReferenceLabel } from '@/common/markdown/task-reference'
 
 type MarkdownIt = Parameters<NonNullable<Parameters<typeof config>[0]['markdownItConfig']>>[0]
@@ -33,9 +34,10 @@ const referenceRule: InlineRule = (state, silent) => {
 }
 
 /**
- * Renders a reference as a chip carrying the written name, or the label of a `[[connection:label]]`
- * or `[[task:label]]`. The page does not know which project the text belongs to, so
- * `paintComponentReferences`, `paintConnectionReferences` and `paintTaskReferences` settle each chip once it does.
+ * Renders a reference as a chip carrying the written name, or the label of a `[[connection:label]]`,
+ * `[[task:label]]` or `[[page:Title]]`. The page does not know which project the text belongs to, so
+ * `paintComponentReferences`, `paintConnectionReferences`, `paintTaskReferences` and `paintPageReferences`
+ * settle each chip once it does.
  */
 export function markComponentReferences(md: MarkdownIt): void {
   md.inline.ruler.before('link', TOKEN, referenceRule)
@@ -45,6 +47,8 @@ export function markComponentReferences(md: MarkdownIt): void {
     if (label !== null) return connectionChipHtml(md.utils.escapeHtml(label))
     const task = taskReferenceLabel(written)
     if (task !== null) return taskChipHtml(md.utils.escapeHtml(task))
+    const page = pageReferenceTitle(written)
+    if (page !== null) return pageChipHtml(md.utils.escapeHtml(page))
     const name = md.utils.escapeHtml(written)
     return `<span class="${CHIP_CLASS}" data-component="${name}" data-state="plain">${name}</span>`
   }

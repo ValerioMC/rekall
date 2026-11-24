@@ -13,6 +13,8 @@ import { paintComponentReferences } from '@/common/markdown/component-reference'
 import { connectionCompletion } from '@/common/markdown/connection-completion'
 import { paintConnectionReferences } from '@/common/markdown/connection-reference'
 import { taskCompletion } from '@/common/markdown/task-completion'
+import { pageCompletion } from '@/common/markdown/page-completion'
+import { PAGE_CHIP_CLASS, paintPageReferences, type ReferencePage } from '@/common/markdown/page-reference'
 import { paintTaskReferences } from '@/common/markdown/task-reference'
 import { useReferenceChips } from '@/composables/useReferenceChips'
 import { useEditorPathPicker } from '@/composables/useEditorPathPicker'
@@ -63,6 +65,8 @@ const props = withDefaults(
     connections?: readonly ProjectConnection[] | null
     /** The project's other tasks, for `[[task:label]]`; offered only once `[[task:` is typed. */
     tasks?: readonly Task[] | null
+    /** The project's pages, for `[[page:Title]]`; offered only once `[[page:` is typed. A click on one in the read view asks to open it. */
+    pages?: readonly ReferencePage[] | null
   }>(),
   {
     readonly: false,
@@ -77,11 +81,12 @@ const props = withDefaults(
     pathRoot: null,
     components: null,
     connections: null,
-    tasks: null
+    tasks: null,
+    pages: null
   }
 )
 
-const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: string]; openPage: [title: string] }>()
 
 const body = computed({
   get: () => props.modelValue,
@@ -111,18 +116,21 @@ const tableMenu = useTableContextMenu(editor)
 const componentChips = useReferenceChips(root, () => props.components, paintComponentReferences)
 const connectionChips = useReferenceChips(root, () => props.connections, paintConnectionReferences)
 const taskChips = useReferenceChips(root, () => props.tasks, paintTaskReferences)
+const pageChips = useReferenceChips(root, () => props.pages, paintPageReferences)
 const mermaidFences = useMermaidFences(root)
 
 useReferenceWidgets(editor, () => ({
   components: props.components,
   connections: props.connections,
-  tasks: props.tasks
+  tasks: props.tasks,
+  pages: props.pages
 }))
 
 function paintChips(): void {
   componentChips.paint()
   connectionChips.paint()
   taskChips.paint()
+  pageChips.paint()
   mermaidFences.paint()
 }
 
@@ -130,11 +138,18 @@ function paintChips(): void {
 const completions = [
   componentCompletion(() => props.components),
   connectionCompletion(() => props.connections),
-  taskCompletion(() => props.tasks)
+  taskCompletion(() => props.tasks),
+  pageCompletion(() => props.pages)
 ]
 
 // A card-sized read view has no room for a bar; ⌘F there is left to the page.
 const flush = computed(() => props.compact || props.bare)
+
+function openPageClicked(event: MouseEvent): void {
+  if (!props.readonly || !(event.target instanceof Element)) return
+  const chip = event.target.closest<HTMLElement>(`.${PAGE_CHIP_CLASS}[data-state='found']`)
+  if (chip?.dataset['page']) emit('openPage', chip.dataset['page'])
+}
 
 const search = useReadModeSearch(root, { enabled: () => props.readonly && !flush.value })
 
@@ -184,6 +199,7 @@ const toolbars = computed(() => (props.pageFullscreen ? TOOLBARS : TOOLBARS.filt
     }"
     :style="readonly && !flush ? readStyle : undefined"
     @keydown.capture="onEditorKeydown"
+    @click="openPageClicked"
     @rk-table-menu="tableMenu.open"
   >
     <div v-if="readonly && !flush" class="rekall-read-controls">

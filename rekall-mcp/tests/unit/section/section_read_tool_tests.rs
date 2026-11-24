@@ -1,15 +1,21 @@
 use rekall_kernel::{Id, Instant};
-use rekall_core::section::{ProjectSectionView, SectionsRead};
+use rekall_core::section::{ProjectSectionView, SectionContextView, SectionsRead};
 use rekall_core::ProjectRef;
 
 use super::{report, target_of};
 use crate::tool::Anchor;
 
-fn section(title: &str, body: &str) -> ProjectSectionView {
+fn context(title: &str) -> SectionContextView {
+    let now = Instant::now();
+    SectionContextView { id: Id::random(), project_id: Id::random(), title: title.into(), position: 0, created_at: now, updated_at: now }
+}
+
+fn section_in(context: &SectionContextView, title: &str, body: &str) -> ProjectSectionView {
     let now = Instant::now();
     ProjectSectionView {
         id: Id::random(),
-        project_id: Id::random(),
+        project_id: context.project_id,
+        context_id: context.id,
         title: title.into(),
         body_markdown: body.into(),
         position: 0,
@@ -18,29 +24,47 @@ fn section(title: &str, body: &str) -> ProjectSectionView {
     }
 }
 
-fn read(sections: Vec<ProjectSectionView>, asked_for_one: bool) -> SectionsRead {
-    SectionsRead { project_anchor: "project:vega".into(), sections, asked_for_one }
+fn read(contexts: Vec<SectionContextView>, sections: Vec<ProjectSectionView>, asked_for_one: bool) -> SectionsRead {
+    SectionsRead { project_anchor: "project:vega".into(), contexts, sections, asked_for_one }
 }
 
 #[test]
-fn without_a_title_the_sections_are_listed_with_their_size() {
-    let listed = report(&read(vec![section("Deployment", "ship it"), section("Glossary", "")], false));
+fn without_a_title_the_sections_are_listed_by_context_with_their_size() {
+    let operations = context("Operations");
+    let team = context("Team");
+    let sections = vec![section_in(&operations, "Deployment", "ship it"), section_in(&team, "Glossary", "")];
+
+    let listed = report(&read(vec![operations, team], sections, false));
 
     assert!(listed.contains("2 sections"), "{listed}");
-    assert!(listed.contains("- Deployment (7 characters)"), "{listed}");
-    assert!(listed.contains("- Glossary (0 characters)"), "{listed}");
+    assert!(listed.contains("Operations:\n- Deployment (7 characters)"), "{listed}");
+    assert!(listed.contains("Team:\n- Glossary (0 characters)"), "{listed}");
+}
+
+#[test]
+fn a_context_with_no_section_is_left_out_of_the_list() {
+    let operations = context("Operations");
+    let empty = context("Empty");
+    let sections = vec![section_in(&operations, "Deployment", "ship it")];
+
+    let listed = report(&read(vec![operations, empty], sections, false));
+
+    assert!(!listed.contains("Empty"), "{listed}");
 }
 
 #[test]
 fn a_project_without_sections_says_so() {
-    assert_eq!(report(&read(vec![], false)), "`project:vega` has no sections.");
+    assert_eq!(report(&read(vec![], vec![], false)), "`project:vega` has no sections.");
 }
 
 #[test]
-fn a_section_asked_for_by_title_comes_back_whole() {
-    let one = report(&read(vec![section("Deployment", "## Steps\nship it")], true));
+fn a_section_asked_for_by_title_comes_back_whole_with_its_context() {
+    let operations = context("Operations");
+    let sections = vec![section_in(&operations, "Deployment", "## Steps\nship it")];
 
-    assert_eq!(one, "Section \"Deployment\" of `project:vega`:\n\n## Steps\nship it");
+    let one = report(&read(vec![operations], sections, true));
+
+    assert_eq!(one, "Section \"Deployment\" of `project:vega`, in the context \"Operations\":\n\n## Steps\nship it");
 }
 
 #[test]

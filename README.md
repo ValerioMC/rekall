@@ -123,6 +123,7 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 | `/rk … wrapup` | Write the task's wrapup instead of loading it |
 | `/rk … note "what to keep"` | Write a note on the task, then stop |
 | `/rk … section "Deployment" "how we ship"` | Write a titled section on the task's project, or rewrite the one with that title |
+| `/rk project:<label> reorganize` | Read every page of the project and regroup them in contexts by concept; pages only move |
 | `/rk … plan` | Propose the task's checklist, open and ready to work, with Mermaid diagrams of the solution where they help, then stop; `plan flow` proposes a flow |
 | `/rk … replan ["what the plan missed"]` | Redesign the task's draft and open steps as new ready-to-work steps, bending them to the quoted message when there is one; running, claimed and done steps stay |
 | `/rk … refine` | Go through the task with you before it runs and record each question, answer, correction and hold with `rekall_decision`; builds nothing |
@@ -155,8 +156,9 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_feedback` | write | Reply to the open entries of a task's thread, by seq; it cannot create, edit or delete an entry |
 | `rekall_deviation` | write | Record where the work departed from the plan, on one task and for one step; kept apart from the notes |
 | `rekall_decision` | write | Record what a person settles about a task before it runs: a question with its options, its answer, a correction, a hold; shown in the console as it is written |
-| `rekall_project_section` | write | Write a titled markdown section on a task's project, or rewrite one by title with `replace` |
-| `rekall_read_sections` | read | List a project's sections by title, or read one whole with `title` |
+| `rekall_project_section` | write | Write a titled markdown section on a task's project, in a `context` it names, or rewrite one by title with `replace` |
+| `rekall_read_sections` | read | List a project's sections by context and title, or read one whole with `title` |
+| `rekall_reorganize_sections` | write | Regroup a project's pages: name every page once under the contexts wanted; pages move, none is rewritten or deleted |
 | `rekall_component` | write | Record a folder of a project as a component: a name, a folder, a summary every context carries and a structured markdown description; the component with that name or folder is rewritten |
 | `rekall_read_components` | read | List a project's components with their summaries, or read one whole with `name` |
 | `rekall_search` | read | Find a phrase in descriptions, steps, wrapups and notes, optionally in one project; returns anchors and excerpts to load with `rekall_context` |
@@ -182,7 +184,7 @@ The guides describe each area as it behaves today, with its REST routes and prop
 | Review | Accept a claim, send a step back, and keep revisions of a description in a tab beside it (each aimed at the work or the plan), run as numbered passes that a session replies to; the review queue and its notifications | [workflow](docs/guide/workflow.md#description-review) |
 | Terminals | A real `claude` in a pseudo-terminal inside the app, or the same `claude` as a chat window (Settings > Sessions and run queue > Session view); the run queue, which can work up to four tasks at once in git worktrees of their own; the usage meter | [sessions](docs/guide/sessions.md) |
 | Token usage | Tokens Claude Code generated per task and step, read from its transcripts | [sessions](docs/guide/sessions.md#token-usage) |
-| Projects | Page, sections, components, icons, autoconfigure; connections to GitLab, GitHub, Kubernetes, Jira, Confluence and Grafana shared across companies; a Confluence space that fills a project's description, blueprint and sections; a task manager (GitLab, GitHub or Jira) that receives the project's tasks, and a main branch their work is merged into | [projects](docs/guide/projects.md) |
+| Projects | Page, sections grouped in contexts (with a Reorganize session), components, icons, autoconfigure; connections to GitLab, GitHub, Kubernetes, Jira, Confluence and Grafana shared across companies; a Confluence space that fills a project's description, blueprint and sections; a task manager (GitLab, GitHub or Jira) that receives the project's tasks, and a main branch their work is merged into | [projects](docs/guide/projects.md) |
 | Console | Search, notes, tags, skills, the markdown editor, timers | [console](docs/guide/console.md) |
 | Report | Hours per client over a week or a month | [console](docs/guide/console.md#report) |
 | Claude resources | Edit `~/.claude`: instructions, skills, commands, agents, memories, memory review | [claude-resources](docs/guide/claude-resources.md) |

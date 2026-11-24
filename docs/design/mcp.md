@@ -93,7 +93,7 @@ epic and never changes a kind, and publishes `task-created` so the console reads
 `rekall_description` replaces the description of one task: the anchors and the `body`, the whole new text. `TaskDescriptionService::replace` in rekall-core writes it and nothing else on the task, a blank body or one over 100000 characters is refused, and it does not go through the console's revision tracking, so a rewrite opens no revision and nothing keeps the old text.
 
 `rekall_read_sections` is the read side of `rekall_project_section`: a context lists a project's
-sections by title only, so this is the only way a session reads one. `ProjectSectionService::read` lists the titles, or returns one
+sections by title only, so this is the only way a session reads one. `ProjectSectionService::read` lists the titles by context, or returns one
 section by title ignoring case; a title the project lacks is refused with the titles it has.
 
 `rekall_component` writes one component of a project: `anchors` name the project, then `name`, `folder`, a `summary`
@@ -135,8 +135,20 @@ The context of a task also carries its thread in a `<thread pending="N" running=
 `rekall_project_section` is `rekall_note` for a project: the anchors name a task, the section lands on that
 task's project, and `replace` rewrites the body of the section with the same title (ignoring case) instead
 of refusing. Sections live in their own table, `project_section`, not in `document`, because a note is
-reached through tasks and loads into a context and a section does neither. Renaming, reordering and
-deleting are the console's, in `ProjectSectionCatalogService` in rekall-console.
+reached through tasks and loads into a context and a section does neither. A section is kept in a
+context of the project, a titled group: the optional `context` names it by title and the project
+gets it if it has none (a new section with no `context` goes in the project's first, "General" on a
+project with none); a `replace` leaves the section where a person put it. Renaming, moving between
+contexts and deleting are the console's, in `ProjectSectionCatalogService`, `SectionLayoutService` and
+`SectionContextService` in rekall-console.
+
+`rekall_reorganize_sections` is the one other write a session has on pages: the whole arrangement
+in one call (`groups`: the contexts in order, each with its page titles), refused with nothing moved
+unless every page of the project is named exactly once. `ProjectSectionService::reorganize` adds the
+contexts it names, moves the pages and drops the contexts left empty; it renames, rewrites and deletes
+nothing. It is what `/rk project:<label> reorganize` (terminal mode `REORGANIZE`) calls once it has
+read every page. A page names another as `[[page:Title]]`, a chip in the console like
+`[[task:RK-12]]`, resolved by title, so moving a page between contexts never breaks a link.
 
 A project's components are the folders of it that are parts of it, one row each in `project_component`
 (`name`, `folder`, `description`, `position`; the name is unique per project ignoring case, and starts as

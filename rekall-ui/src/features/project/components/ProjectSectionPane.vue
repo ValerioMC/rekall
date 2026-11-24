@@ -7,6 +7,7 @@ import ProjectReadingColumn from '@/features/project/components/ProjectReadingCo
 import TaskWidthMenu from '@/features/task/components/TaskWidthMenu.vue'
 import { usePreferencesStore } from '@/features/settings/store/preferences.store'
 import ProjectComponentOutline from '@/features/project/components/ProjectComponentOutline.vue'
+import ProjectSectionContextChip from '@/features/project/components/ProjectSectionContextChip.vue'
 import ProjectPaneFrame from '@/features/project/components/ProjectPaneFrame.vue'
 import ProjectSectionGauge from '@/features/project/components/ProjectSectionGauge.vue'
 import { relativeTime } from '@/common/format/relative-time'
@@ -15,19 +16,32 @@ import { useEditorMode } from '@/composables/useEditorMode'
 import { useProjectSectionsStore } from '@/features/project/store/projectSections.store'
 import { jumpToHeading } from '@/features/project/lib/heading-jump'
 import { outlineOf } from '@/features/project/lib/markdown-outline'
+import type { ReferencePage } from '@/common/markdown/page-reference'
 import type { Direction } from '@/features/project/lib/section-order'
 import type { ProjectSection } from '@/features/project/model/project-section'
+import type { SectionContext } from '@/features/project/model/section-context'
+import type { SectionContextId } from '@/model/branded'
 
 const SAVE_DELAY_MS = 700
 
 const props = defineProps<{
   section: ProjectSection
+  contexts: readonly SectionContext[]
+  sections: readonly ProjectSection[]
+  pages: readonly ReferencePage[]
   repoFolder: string | null
   canMoveUp: boolean
   canMoveDown: boolean
 }>()
 
-const emit = defineEmits<{ move: [direction: Direction]; delete: []; replace: [] }>()
+const emit = defineEmits<{
+  move: [direction: Direction]
+  moveToContext: [id: SectionContextId]
+  createContext: [title: string]
+  openPage: [title: string]
+  delete: []
+  replace: []
+}>()
 
 const store = useProjectSectionsStore()
 const preferences = usePreferencesStore()
@@ -113,6 +127,13 @@ onUnmounted(() => {
             <span :class="saveState === 'unsaved' ? 'text-warn' : ''" role="status" data-testid="section-save-state">{{ saveLabel }}</span>
           </p>
         </div>
+        <ProjectSectionContextChip
+          :contexts="contexts"
+          :sections="sections"
+          :current-id="section.contextId"
+          @move="emit('moveToContext', $event)"
+          @create-context="emit('createContext', $event)"
+        />
         <AppButton variant="quiet" size="sm" title="Replace the text with a markdown file" data-testid="section-replace" @click="emit('replace')">
           <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
             <path d="M7 9V2M4.5 4.3 7 1.8l2.5 2.5M2 8.8v1.7a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V8.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
@@ -125,7 +146,7 @@ onUnmounted(() => {
             size="icon"
             class="disabled:opacity-30"
             :disabled="!canMoveUp"
-            aria-label="Move section up"
+            aria-label="Move page up in its context"
             title="Move up"
             data-testid="section-move-up"
             @click="emit('move', 'up')"
@@ -139,7 +160,7 @@ onUnmounted(() => {
             size="icon"
             class="disabled:opacity-30"
             :disabled="!canMoveDown"
-            aria-label="Move section down"
+            aria-label="Move page down in its context"
             title="Move down"
             data-testid="section-move-down"
             @click="emit('move', 'down')"
@@ -163,6 +184,7 @@ onUnmounted(() => {
             :height="editorHeight"
             grow
             :path-root="repoFolder"
+            :pages="pages"
             placeholder="Write in markdown. Anything about this project that isn't the blueprint."
             @update:model-value="schedule"
           />
@@ -170,7 +192,14 @@ onUnmounted(() => {
         <div v-else key="read" class="@container">
           <div class="grid gap-x-10 @4xl:grid-cols-[minmax(0,1fr)_184px]">
             <article ref="article" class="min-w-0" data-testid="section-page">
-              <AppMarkdownEditor :model-value="bodyDraft" readonly :read-settings="false" :path-root="repoFolder" />
+              <AppMarkdownEditor
+                :model-value="bodyDraft"
+                readonly
+                :read-settings="false"
+                :path-root="repoFolder"
+                :pages="pages"
+                @open-page="emit('openPage', $event)"
+              />
             </article>
             <ProjectComponentOutline
               v-if="headings.length > 1"

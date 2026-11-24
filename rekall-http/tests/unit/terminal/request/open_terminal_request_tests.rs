@@ -80,6 +80,11 @@ fn an_autoconfigure_request_opens_an_autoconfigure_terminal() {
 }
 
 #[test]
+fn a_reorganize_request_opens_a_reorganize_terminal() {
+    assert_eq!(parsed(r#"{"mode":"REORGANIZE"}"#).mode().unwrap(), TerminalMode::Reorganize);
+}
+
+#[test]
 fn an_assess_request_names_the_advisory_by_its_ghsa_id() {
     assert_eq!(
         parsed(r#"{"mode":"ASSESS","advisory":"ghsa-JFH8-c2jp-5v3q"}"#).mode().unwrap(),

@@ -537,10 +537,11 @@
   color: var(--color-accent-ink);
 }
 
-/* A `[[Name]]`, `[[connection:label]]` or `[[task:label]]` in the read view: a component, connection or task of the project, or a reference that matches none. */
+/* A `[[Name]]`, `[[connection:label]]`, `[[task:label]]` or `[[page:Title]]` in the read view: a component, connection, task or page of the project, or a reference that matches none. */
 .rekall-md .md-editor-preview .rk-component-ref,
 .rekall-md .md-editor-preview .rk-connection-ref,
-.rekall-md .md-editor-preview .rk-task-ref {
+.rekall-md .md-editor-preview .rk-task-ref,
+.rekall-md .md-editor-preview .rk-page-ref {
   display: inline-block;
   padding: 0 0.45em;
   border: 1px solid var(--color-anchor-line);
@@ -554,7 +555,8 @@
 
 .rekall-md .md-editor-preview .rk-component-ref[data-state='missing'],
 .rekall-md .md-editor-preview .rk-connection-ref[data-state='missing'],
-.rekall-md .md-editor-preview .rk-task-ref[data-state='missing'] {
+.rekall-md .md-editor-preview .rk-task-ref[data-state='missing'],
+.rekall-md .md-editor-preview .rk-page-ref[data-state='missing'] {
   color: var(--color-danger);
   background: var(--color-danger-soft);
   border-color: var(--color-danger);
@@ -565,7 +567,8 @@
 /* Text with no project behind it keeps the brackets and looks like text. */
 .rekall-md .md-editor-preview .rk-component-ref[data-state='plain'],
 .rekall-md .md-editor-preview .rk-connection-ref[data-state='plain'],
-.rekall-md .md-editor-preview .rk-task-ref[data-state='plain'] {
+.rekall-md .md-editor-preview .rk-task-ref[data-state='plain'],
+.rekall-md .md-editor-preview .rk-page-ref[data-state='plain'] {
   display: inline;
   padding: 0;
   border: 0;
@@ -588,10 +591,27 @@
   content: '[[task:';
 }
 
+.rekall-md .md-editor-preview .rk-page-ref[data-state='plain']::before {
+  content: '[[page:';
+}
+
 .rekall-md .md-editor-preview .rk-component-ref[data-state='plain']::after,
 .rekall-md .md-editor-preview .rk-connection-ref[data-state='plain']::after,
-.rekall-md .md-editor-preview .rk-task-ref[data-state='plain']::after {
+.rekall-md .md-editor-preview .rk-task-ref[data-state='plain']::after,
+.rekall-md .md-editor-preview .rk-page-ref[data-state='plain']::after {
   content: ']]';
+}
+
+/* A page reference is a document, not a part of the code or a piece of work: the text colour on a raised chip, and a click opens it. */
+.rekall-md .md-editor-preview .rk-page-ref[data-state='found'] {
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+  border-color: var(--color-border-strong);
+  cursor: pointer;
+}
+
+.rekall-md .md-editor-preview .rk-page-ref[data-state='found']:hover {
+  background: var(--color-surface-hover);
 }
 
 /* A task reference reads as work, not as a part of the code: the accent, where components and connections take the anchor colour. */

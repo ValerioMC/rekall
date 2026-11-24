@@ -64,7 +64,7 @@ pub use graph::{entity::deployment_graph, entity::graph_route, entity::graph_ste
 pub use inventory::entity::project_dependency;
 pub use note::entity::document;
 pub use queue::{entity::run_queue, entity::run_queue_item};
-pub use section::entity::project_section;
+pub use section::entity::{project_section, section_context};
 pub use skill::{entity::skill_arguments, entity::skill_name, entity::skill_placement, entity::tag_skill, entity::task_skill};
 pub use step::{entity::step_pass, entity::task_step};
 pub use telemetry::entity::telemetry_setting;
@@ -98,6 +98,7 @@ pub mod prelude {
     pub use super::project_connection::{Entity as ProjectConnection, Model as ProjectConnectionModel};
     pub use super::project_icon_image::{Entity as ProjectIconImage, Model as ProjectIconImageModel};
     pub use super::project_section::{Entity as ProjectSection, Model as ProjectSectionModel};
+    pub use super::section_context::{Entity as SectionContext, Model as SectionContextModel};
     pub use super::run_queue::{Entity as RunQueue, Model as RunQueueModel};
     pub use super::run_queue_item::{Entity as RunQueueItem, Model as RunQueueItemModel};
     pub use super::security_advisory::{Entity as SecurityAdvisory, Model as SecurityAdvisoryModel};

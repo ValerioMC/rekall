@@ -7,6 +7,7 @@ use serde::Serialize;
 pub struct ProjectSectionView {
     pub id: Id,
     pub project_id: Id,
+    pub context_id: Id,
     pub title: String,
     pub body_markdown: String,
     pub position: i32,
@@ -19,6 +20,7 @@ impl ProjectSectionView {
         Self {
             id: row.id,
             project_id: row.project_id,
+            context_id: row.context_id,
             title: row.title.clone(),
             body_markdown: row.body_markdown.clone(),
             position: row.position,

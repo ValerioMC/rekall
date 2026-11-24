@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use rekall_core::section::{ProjectSectionService, SectionsRead};
+use rekall_core::section::{ProjectSectionService, ProjectSectionView, SectionsRead};
 use rekall_core::ProjectRef;
 use serde_json::Value;
 
@@ -20,9 +20,9 @@ impl SectionReadTool {
 }
 
 /// Where to read: a project alone, or a task whose project it is.
-struct ReadTarget {
-    project: Option<ProjectRef>,
-    task_code: Option<String>,
+pub(super) struct ReadTarget {
+    pub project: Option<ProjectRef>,
+    pub task_code: Option<String>,
 }
 
 #[async_trait]
@@ -62,7 +62,7 @@ impl McpTool for SectionReadTool {
     }
 }
 
-fn target_of(anchors: &[Anchor]) -> Result<ReadTarget, ToolError> {
+pub(super) fn target_of(anchors: &[Anchor]) -> Result<ReadTarget, ToolError> {
     if anchors.iter().any(|anchor| anchor.is("task") || !anchor.is_qualified()) {
         let task = AnchoredTask::from(anchors)?;
         return Ok(ReadTarget { project: task.project_label.as_deref().map(ProjectRef::bare), task_code: Some(task.task_code) });
@@ -82,24 +82,39 @@ fn report(read: &SectionsRead) -> String {
         return read
             .sections
             .iter()
-            .map(|section| format!("Section \"{}\" of `{}`:\n\n{}", section.title, read.project_anchor, section.body_markdown))
+            .map(|section| {
+                let context = context_title(read, section);
+                format!("Section \"{}\" of `{}`, in the context \"{context}\":\n\n{}", section.title, read.project_anchor, section.body_markdown)
+            })
             .collect();
     }
     if read.sections.is_empty() {
         return format!("`{}` has no sections.", read.project_anchor);
     }
-    let lines: Vec<String> = read
-        .sections
+    let groups: Vec<String> = read
+        .contexts
         .iter()
-        .map(|section| format!("- {} ({} characters)", section.title, section.body_markdown.chars().count()))
+        .filter_map(|context| {
+            let lines: Vec<String> = read
+                .sections
+                .iter()
+                .filter(|section| section.context_id == context.id)
+                .map(|section| format!("- {} ({} characters)", section.title, section.body_markdown.chars().count()))
+                .collect();
+            (!lines.is_empty()).then(|| format!("{}:\n{}", context.title, lines.join("\n")))
+        })
         .collect();
     format!(
-        "`{}` has {} section{}. Pass `title` to read one:\n{}",
+        "`{}` has {} section{}. Pass `title` to read one:\n\n{}",
         read.project_anchor,
         read.sections.len(),
         if read.sections.len() == 1 { "" } else { "s" },
-        lines.join("\n")
+        groups.join("\n\n")
     )
+}
+
+fn context_title<'a>(read: &'a SectionsRead, section: &ProjectSectionView) -> &'a str {
+    read.contexts.iter().find(|context| context.id == section.context_id).map(|context| context.title.as_str()).unwrap_or_default()
 }
 
 #[cfg(test)]

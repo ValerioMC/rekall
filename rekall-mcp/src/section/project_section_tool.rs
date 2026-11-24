@@ -7,8 +7,8 @@ use crate::protocol::{McpTool, ToolError, ToolSchema};
 use crate::texts;
 
 /// Lets a session keep project-wide knowledge in a titled section of the task's project, out of
-/// every context. It adds a section, or with `replace` rewrites the body of the one with that
-/// title; nothing can be renamed, reordered or deleted.
+/// every task context. It adds a section, in the context it names, or with `replace` rewrites the
+/// body of the one with that title; nothing can be renamed, moved or deleted.
 pub struct ProjectSectionTool {
     sections: ProjectSectionService,
 }
@@ -42,6 +42,12 @@ impl McpTool for ProjectSectionTool {
             )
             .required_string("title", "What the section is, short, like a heading.")
             .required_string("body", "The complete section, in markdown.")
+            .optional_string(
+                "context",
+                "The context the section is kept in, by title (compared ignoring case); the project gets it if it has \
+                 none by that title. Omitted, a new section goes in the project's first context. Ignored when `replace` \
+                 rewrites a section that already exists: it stays where a person put it.",
+            )
             .optional_boolean(
                 "replace",
                 "`true` rewrites the body of the section this project already has under the same title (compared \
@@ -55,10 +61,11 @@ impl McpTool for ProjectSectionTool {
         let target = AnchoredTask::from(&Anchor::parse_all(Some(&args.required_string("anchors")?))?)?;
         let title = args.required_string("title")?;
         let body = args.required_string("body")?;
+        let context = args.optional_string("context");
         let on_clash = if args.flag("replace") { OnTitleClash::Replace } else { OnTitleClash::Refuse };
         let written = self
             .sections
-            .write(target.project_label.as_deref(), &target.task_code, Some(&title), Some(&body), on_clash)
+            .write(target.project_label.as_deref(), &target.task_code, Some(&title), Some(&body), context.as_deref(), on_clash)
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
         let count = written.sections_on_project;
@@ -71,9 +78,9 @@ impl McpTool for ProjectSectionTool {
             ));
         }
         Ok(format!(
-            "Section \"{}\" written on `{}`. The project has {count} section{plural}, shown beside its blueprint in \
-             the console and loaded into no context.",
-            written.title, written.project_anchor
+            "Section \"{}\" written on `{}`, in the context \"{}\". The project has {count} section{plural}, shown beside its \
+             blueprint in the console and loaded into no task context.",
+            written.title, written.project_anchor, written.context_title
         ))
     }
 }

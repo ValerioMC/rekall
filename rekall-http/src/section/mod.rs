@@ -4,6 +4,7 @@ mod controller;
 mod request;
 mod routes;
 
-pub use request::project_section_order_request::ProjectSectionOrderRequest;
 pub use request::project_section_request::ProjectSectionRequest;
+pub use request::section_context_request::SectionContextRequest;
+pub use request::section_layout_request::{ContextPlacementRequest, SectionLayoutRequest};
 pub(crate) use routes::routes;

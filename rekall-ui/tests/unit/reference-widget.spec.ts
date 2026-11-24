@@ -4,6 +4,7 @@ import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { livePreview } from '@/common/live-preview/live-preview'
 import { referenceTargetsChanged } from '@/common/live-preview/reference-targets'
+import type { ReferencePage } from '@/common/markdown/page-reference'
 import { NO_REFERENCE_TARGETS, referenceChipFor, type ReferenceTargets } from '@/common/markdown/reference-chip'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { ProjectConnection } from '@/features/connection/model/connection'
@@ -37,9 +38,11 @@ const PROD: ProjectConnection = {
   credentialSetAt: null
 }
 
+const DEPLOYMENT_PAGE: ReferencePage = { title: 'Deployment', contextTitle: 'Operations', characters: 3180 }
+
 const EXPORT: Task = { ...task('t-1' as TaskId, 'export', 'p-1' as ProjectId), title: 'Export the report' }
 
-const TARGETS: ReferenceTargets = { components: [AUTH], connections: [PROD], tasks: [EXPORT] }
+const TARGETS: ReferenceTargets = { components: [AUTH], connections: [PROD], tasks: [EXPORT], pages: [DEPLOYMENT_PAGE] }
 
 const views: EditorView[] = []
 
@@ -91,16 +94,26 @@ describe('referenceChipFor', () => {
     expect(chip?.title).toContain('Export the report')
   })
 
+  it('names a page by its title ignoring case, with its context and size on hover', () => {
+    const chip = referenceChipFor('page:deployment', TARGETS)
+
+    expect(chip).toMatchObject({ text: 'deployment', icon: 'page', missing: false })
+    expect(chip?.title).toContain('Operations')
+    expect(chip?.title).toContain('3,180 characters')
+  })
+
   it('marks a name the project does not have as missing', () => {
     expect(referenceChipFor('Billing', TARGETS)).toMatchObject({ text: 'Billing', missing: true })
     expect(referenceChipFor('connection:ghost', TARGETS)).toMatchObject({ icon: null, missing: true })
     expect(referenceChipFor('task:ghost', TARGETS)).toMatchObject({ icon: 'task', missing: true })
+    expect(referenceChipFor('page:Ghost', TARGETS)).toMatchObject({ icon: 'page', missing: true })
   })
 
   it('leaves a reference as written when the text has no project to ask', () => {
     expect(referenceChipFor('Auth', NO_REFERENCE_TARGETS)).toBeNull()
     expect(referenceChipFor('connection:prod', NO_REFERENCE_TARGETS)).toBeNull()
     expect(referenceChipFor('task:export', NO_REFERENCE_TARGETS)).toBeNull()
+    expect(referenceChipFor('page:Deployment', NO_REFERENCE_TARGETS)).toBeNull()
   })
 })
 
