@@ -133,6 +133,7 @@ is found by opening one folder per crate:
 | `terminal`, `filesystem`, `stream` | the in-app terminals, the folder listing behind the path picker, the event stream the console listens to; console and HTTP only |
 | `vulnerability` | the advisories, the projects they reach, the scan that finds them and what it looks for, a session's verdict and the fix task |
 | `tracker` | the issue a task was written to in its project's task manager, and why the last write failed: the console creates it for a task imported with its issue, `rekall-core`'s `TaskTrackerService` keeps it on every write, with a fingerprint of the content written, and removes the issue when `TaskDeletedEvent` says its task was deleted (`rekall-store` only) |
+| `workingset` | the tasks a person keeps open, in the order they were opened, and the place last seen in each project; saved on the server and read by the console's two-level bar. Only a person opening or closing a task changes it: no session, queue or review does |
 | `telemetry` | where Claude Code's OpenTelemetry traces are sent (a self-hosted Langfuse), and the variables a terminal's `claude` starts with when they are on |
 
 `diagram` also has `rekall-diagram`, the one domain with a crate of its own, because the format
@@ -215,6 +216,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `tracker` | `task` | - | - | - | - |
 | `version` | - | nothing | nothing | nothing | - |
 | `vulnerability` | `catalog`, `task` | `catalog`, `commit`, `connection`, `inventory` | `catalog`, `step`, `task` | `catalog` | nothing |
+| `workingset` | `catalog`, `task` | - | nothing | nothing | - |
 | `worktree` | - | `claude`, `commit`, `connection`, `task`, `tracker` | nothing | nothing | - |
 | `wrapup` | `task` | `catalog`, `commit`, `review`, `task` | - | nothing | `commit` |
 
@@ -359,6 +361,8 @@ Project ──< VulnerabilityExposure >── SecurityAdvisory
 | `security_advisory` | `ghsa_id`, unique | `cve_id`, `summary`, `description`, `url`, `published_at`, `severity` (GitHub's, upper-cased; `CRITICAL` on advisories recorded before it), `malware`, `affected_json` (the packages it affects, one entry per release line: ecosystem, name, vulnerable range, first patched version, vulnerable functions) |
 | `vulnerability_exposure` | through its project | `project_id`, `advisory_id`, `ecosystem`, `package_name` and `package_version` unique together (one exposure per package version an advisory reaches), `verdict` (`AFFECTED`, `NOT_AFFECTED`, null until judged), `reasoning`, `conclusion` (why the project is or is not affected, in plain words; null on verdicts given before it), `assessed_at`, `assessed_commit` (the project's `HEAD` at the verdict), `fix_task_id` (set null when the task goes); deleted with its project or advisory |
 | `scan_scope` | one row | `include_high`, `include_malware`; absent until first changed, which reads as both off |
+| `working_set_task` | `task_id` | `position` (from zero, kept without gaps; the tasks a person keeps open, in the order they were opened). Deleted with its task |
+| `working_set_place` | `project_id` | `task_id`, the task last seen in the project, or empty for its task list; set to empty when that task is deleted. Deleted with its project |
 | `telemetry_setting` | one row | `enabled`, `host` (the Langfuse address), `public_key`, `log_content` (whether prompt and command text travel with the traces); absent until first saved, which reads as off. The secret key is in the credential store under `langfuse-secret-key`, never in the row |
 | `token_usage` | through its task | `session_id`, `task_id`, `step_id`, the four token counts, `spent_on` |
 | `transcript_scan` | `session_id` | `scanned_bytes`, `scanned_at` |

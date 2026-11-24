@@ -21,6 +21,9 @@ import { useUpdateStore } from '@/features/settings/store/update.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 import { useVulnerabilityStore } from '@/features/vulnerability/store/vulnerability.store'
+import WorkingSetBar from '@/features/workingset/components/WorkingSetBar.vue'
+import { useWorkingSetFollowsRoute } from '@/features/workingset/composables/useWorkingSetFollowsRoute'
+import { useWorkingSetStore } from '@/features/workingset/store/workingSet.store'
 import { useChatDockArea } from '@/features/chat/composables/useChatDockArea'
 import { useChatWindowShown } from '@/features/chat/composables/useChatWindowShown'
 import { useRevealOpenedChat } from '@/features/chat/composables/useRevealOpenedChat'
@@ -47,6 +50,7 @@ useChatDockArea(pageArea, false, () => !onConsole.value)
 useRevealOpenedChat()
 usePaletteShortcut()
 usePreferenceEffects()
+useWorkingSetFollowsRoute()
 
 let refreshing = false
 
@@ -72,6 +76,7 @@ onMounted(async () => {
       // Opened only once the database is there: the store's stream would otherwise retry forever.
       void useTokenUsageStore().load().catch((caught: unknown) => toast.notifyError(caught))
       void useVulnerabilityStore().load().catch((caught: unknown) => toast.notifyError(caught))
+      void useWorkingSetStore().load().catch((caught: unknown) => toast.notifyError(caught))
       void update.checkAtStartup()
     }
   } catch {
@@ -93,6 +98,7 @@ onUnmounted(() => {
     <template v-if="status.status === 'READY'">
       <div class="flex h-full flex-col">
         <AppHeaderChrome />
+        <WorkingSetBar />
         <div ref="pageArea" class="relative flex min-h-0 flex-1 flex-col">
           <router-view v-slot="{ Component }">
             <Transition name="pane" mode="out-in">

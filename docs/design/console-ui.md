@@ -21,6 +21,8 @@ to the others.
 
 The console has no permanent task list and no fixed columns. A person moves between screens grouped
 under one menu, all inside one shell: the header, the page, and the sessions dock at the bottom left.
+What the person keeps open is the one standing exception: the working-set bar under the header,
+described in its own section below.
 
 ```mermaid
 flowchart LR
@@ -88,6 +90,39 @@ match with the term marked. For a phrase of three letters or more, In the text l
 descriptions, steps, wrapups and notes. **Tab** and **Shift+Tab** walk the tabs. It opens on every screen, from ⌘K
 or a click on the `/rk` field (`CommandPalette`, mounted once by `Bootstrap`); a task opens its page, a note
 its Notes tab, a step hit its Plan with the step open. It is how a person changes task, since there is no list to click.
+
+## The working-set bar
+
+A two-level bar under the header, mounted once in `Bootstrap.vue`, for moving between the tasks a
+person keeps open, across projects, and between a project's task list and its tasks
+(`features/workingset`, `WorkingSetBar`). It shows on a task page and on a project page while at
+least one task is open, and nowhere else (Settings, the Calendar, Companies and the rest leave it
+and the set alone).
+
+- **Level 1, `WorkingSetProjectTabs`:** one tab per project with an open task, grouped under its
+  company's name, each with the project mark, the count of its open tasks and, in amber, the count
+  of items waiting for review. The current project's tab has the gold rule.
+- **Level 2, `WorkingSetTaskTabs`, for the project in view:** "All tasks N" first, which is the
+  project's task list, then a tab per open task: a dot in the task's own status colour, its code, a
+  truncated title, an amber review count when work waits and a cross on hover or focus. A plus
+  goes to the task list, where another task is opened.
+- **The set belongs to the person.** A task joins it when its page is opened and leaves it only
+  through its cross. A running session, a queued run or a waiting review never adds, removes or
+  orders anything. It is saved on the server (`working_set_task`, `working_set_place`,
+  `/api/working-set`), so it survives a reload and a second browser; a second window sees a change
+  on its next reload.
+- **Where a project lands.** Pressing a project tab goes to the place last seen there, or to its
+  task list when that task is no longer open. Closing the task in view goes to its neighbour in the
+  same project (the one opened after it, else the one before it), else to the task list; the server
+  decides that so every client lands the same way. A ledger row marks a task already open with a
+  small dot beside its arrow.
+- **Keys**, bare like the console's others, off in a dialog, in a field and with Cmd, Ctrl or Alt
+  held: `1` to `9` open the n-th project of the bar, `[` and `]` step through the open tasks across
+  projects and wrap, and the backtick flips to the previous place. The previous place is kept in
+  memory and is not saved.
+
+Variants the mockup (`.impeccable/mocks/task-switching/index.html`) also drew, a keyboard switcher
+and a bottom taskbar, are not built.
 
 ## A project's tasks
 

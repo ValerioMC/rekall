@@ -125,6 +125,10 @@ name = "e2e_vulnerabilities"
 path = "tests/integration/e2e_vulnerabilities.rs"
 
 [[test]]
+name = "e2e_working_set"
+path = "tests/integration/e2e_working_set.rs"
+
+[[test]]
 name = "e2e_wrapup_time"
 path = "tests/integration/e2e_wrapup_time.rs"
 
