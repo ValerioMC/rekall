@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
-import { ageLabel } from '@/features/work/lib/age-label'
+import { ageLabel } from '@/features/task/lib/age-label'
 import { reviewItemLine } from '@/features/review/lib/review-item-line'
 import { stepNumberOf } from '@/features/deviations/model/deviation'
 import { useNow } from '@/composables/useNow'

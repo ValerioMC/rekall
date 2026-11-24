@@ -7,7 +7,7 @@ import { fetchTaskBranch } from '@/features/worktree/api/taskBranch.api'
 import { usePreferencesStore } from '@/features/settings/store/preferences.store'
 import { useConsoleStore } from '@/stores/console.store'
 import { useClaudeResourcesStore } from '@/features/claude-resources/store/claudeResources.store'
-import { workRows } from '@/features/work/lib/work-rows'
+import { taskRows } from '@/features/task/lib/task-rows'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { CommitReference } from '@/features/commits/model/commitReference'
 import type { TaskBranch } from '@/features/worktree/model/taskBranch'
@@ -74,7 +74,7 @@ async function render(props: { onPlan?: boolean } = {}) {
   const store = useConsoleStore()
   store.tasks = [task()]
   store.selectTask(taskId)
-  const row = workRows([task()], [], () => 0)[0]!
+  const row = taskRows([task()], [], () => 0)[0]!
   const wrapper = mount(TaskRail, { props: { row, ...props } })
   await flushPromises()
   return wrapper

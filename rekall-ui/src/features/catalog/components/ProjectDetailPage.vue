@@ -9,7 +9,7 @@ import SubNav from '@/components/ui/SubNav.vue'
 import type { SubNavItem } from '@/components/ui/SubNav.vue'
 import ProjectDiagramsTab from '@/features/project/components/ProjectDiagramsTab.vue'
 import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
-import TasksSection from '@/features/work/components/TasksSection.vue'
+import ProjectTasksSection from '@/features/project/components/ProjectTasksSection.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import ProjectBlueprintPage from '@/features/project/components/ProjectBlueprintPage.vue'
@@ -29,7 +29,7 @@ import { useProjectSectionStream } from '@/features/project/composables/useProje
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useRecentProjectsStore } from '@/features/catalog/store/recentProjects.store'
 import { useTaskEditor } from '@/features/catalog/composables/useTaskEditor'
-import { useWorkStore } from '@/features/work/store/work.store'
+import { useProjectTasksStore } from '@/features/project/store/projectTasks.store'
 import type { ScopeTarget } from '@/features/catalog/model/scope-target'
 import { asProjectId } from '@/model/branded'
 import { PROJECT_TABS, PROJECT_TAB_LABEL, projectTabOf, type ProjectTab } from '@/features/project/model/project-page'
@@ -52,7 +52,7 @@ const graphsStore = useDeploymentGraphsStore()
 const componentsStore = useProjectComponentsStore()
 const connectionsStore = useConnectionsStore()
 const recentProjects = useRecentProjectsStore()
-const work = useWorkStore()
+const taskList = useProjectTasksStore()
 const taskEditor = useTaskEditor()
 const { run } = useAsyncAction()
 
@@ -112,13 +112,13 @@ function leaveDeletedProject(): void {
 }
 
 function openProject(target: ScopeTarget): void {
-  if (target.kind === 'project') void router.push(`/projects/${target.projectId}/${tab.value}`)
+  void router.push(`/projects/${target.projectId}/${tab.value}`)
 }
 
 watch(
   () => project.value?.id ?? null,
   () => {
-    work.focusProject(project.value?.id ?? null)
+    taskList.focusProject(project.value?.id ?? null)
     sectionId.value = null
     componentId.value = null
     graphId.value = null
@@ -134,7 +134,7 @@ watch(
   { immediate: true }
 )
 
-onBeforeUnmount(() => work.focusProject(null))
+onBeforeUnmount(() => taskList.focusProject(null))
 
 watch(
   [() => componentsStore.componentsOf(projectId.value), tab],
@@ -185,14 +185,14 @@ watch([graphs, tab], () => {
       <div class="page-column flex min-h-[540px] flex-1 basis-0 flex-col" data-testid="project-workspace">
         <ScopeBar>
           <template #switcher>
-            <ScopeSwitcher mode="project" :company-id="project.companyId" :project-id="project.id" @select="openProject" />
+            <ScopeSwitcher :company-id="project.companyId" :project-id="project.id" @select="openProject" />
           </template>
           <template #meta><ProjectScopeMeta :project="project" /></template>
         </ScopeBar>
         <SubNav class="mt-3 shrink-0" :model-value="tab" :items="tabItems" label="Project pages" />
         <div class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] py-4">
           <Transition name="fade-quick" mode="out-in">
-            <TasksSection v-if="tab === 'tasks'" key="tasks" :chooses-layout="false" />
+            <ProjectTasksSection v-if="tab === 'tasks'" key="tasks" />
             <ProjectBlueprintPage v-else-if="tab === 'blueprint'" key="blueprint" :project="project" />
             <ProjectSectionsPage
               v-else-if="tab === 'pages'"

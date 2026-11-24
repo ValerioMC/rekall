@@ -61,7 +61,7 @@ const mounted: ReturnType<typeof mount>[] = []
 
 async function mountBootstrap() {
   setActivePinia(createPinia())
-  await router.push('/')
+  await router.push('/console')
   const wrapper = mount(Bootstrap, { global: { plugins: [router] } })
   mounted.push(wrapper)
   await flushPromises()

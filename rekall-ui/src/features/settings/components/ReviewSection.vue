@@ -13,7 +13,7 @@ const { reviewAutoAdvance, reviewConfirmSendBack } = storeToRefs(usePreferencesS
     <FormRow label="Open the next item after a decision" hint="Off leaves nothing selected on Review until you pick the next item.">
       <AppCheckbox v-model="reviewAutoAdvance" label="On" />
     </FormRow>
-    <FormRow label="Confirm before sending work back" hint="Asks once, wherever a step or a task is sent back: Work, the task page and Review.">
+    <FormRow label="Confirm before sending work back" hint="Asks once, wherever a step or a task is sent back: a project's task list, the task page and Review.">
       <AppCheckbox v-model="reviewConfirmSendBack" label="On" />
     </FormRow>
   </FormPanel>

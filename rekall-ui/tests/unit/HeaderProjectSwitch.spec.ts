@@ -4,11 +4,11 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import HeaderProjectSwitch from '@/components/shell/HeaderProjectSwitch.vue'
 import { useRecentProjectsStore } from '@/features/catalog/store/recentProjects.store'
-import { useWorkStore } from '@/features/work/store/work.store'
+import { useProjectTasksStore } from '@/features/project/store/projectTasks.store'
 import { useConsoleStore } from '@/stores/console.store'
 import type { CompanyId, TaskId } from '@/model/branded'
 import { installStorage } from './support/memoryStorage'
-import { project, task } from './features/work/work-fixtures'
+import { project, task } from './features/project/project-task-fixtures'
 
 const Blank = { render: () => null }
 
@@ -20,7 +20,7 @@ async function mountAt(path: string): Promise<VueWrapper> {
   router = createRouter({
     history: createMemoryHistory(),
     routes: [
-      { path: '/', name: 'work', component: Blank },
+      { path: '/projects', name: 'projects', component: Blank },
       { path: '/task/:id/:tab?', name: 'task', component: Blank },
       { path: '/projects/:id/:tab?', name: 'project-detail', component: Blank }
     ]
@@ -53,7 +53,7 @@ afterEach(() => wrapper?.unmount())
 
 describe('the header project switch', () => {
   it('reads Projects when no project is in view', async () => {
-    const view = await mountAt('/')
+    const view = await mountAt('/projects')
 
     expect(view.get('[data-testid="scope-trigger-title"]').text()).toBe('Projects')
   })
@@ -66,18 +66,18 @@ describe('the header project switch', () => {
     expect(useRecentProjectsStore().ids).toEqual(['p2'])
   })
 
-  it('narrows Work to the chosen project from any other screen', async () => {
+  it("opens the chosen project's page from any other screen", async () => {
     const view = await mountAt('/task/t1')
 
     await choose(view, 'Vega')
 
     expect(useConsoleStore().scopeProject).toBe('p1')
-    expect(router.currentRoute.value.fullPath).toBe('/')
+    expect(router.currentRoute.value.fullPath).toBe('/projects/p1')
   })
 
   it('keeps a project page on its tab when the project changes', async () => {
     const view = await mountAt('/projects/p1/pages')
-    useWorkStore().focusProject('p1' as never)
+    useProjectTasksStore().focusProject('p1' as never)
 
     await choose(view, 'Atlas')
 

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import CopyAnchorButton from '@/components/console/CopyAnchorButton.vue'
-import TaskStatusMenu from '@/features/work/components/TaskStatusMenu.vue'
-import type { WorkRow } from '@/features/work/model/work-view'
+import TaskStatusMenu from '@/features/task/components/TaskStatusMenu.vue'
+import type { TaskRow } from '@/features/task/model/task-row'
 import { rkCommand } from '@/common/format/rk-command'
 
 /** The top of the properties bar: the status pill that changes the status, and the copyable `/rk` anchor. */
-const props = defineProps<{ row: WorkRow }>()
+const props = defineProps<{ row: TaskRow }>()
 
 const task = computed(() => props.row.task)
 </script>

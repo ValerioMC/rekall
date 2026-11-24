@@ -6,7 +6,6 @@ import ConsoleHeader from '@/components/console/ConsoleHeader.vue'
 import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import ReviewPage from '@/features/review/components/ReviewPage.vue'
 import TaskPage from '@/features/task/components/TaskPage.vue'
-import WorkPage from '@/features/work/components/WorkPage.vue'
 import RunQueuePanel from '@/features/queue/components/RunQueuePanel.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
 import ChatReopenTag from '@/features/chat/components/ChatReopenTag.vue'
@@ -33,7 +32,6 @@ const ChatWindow = defineAsyncComponent(() => import('@/features/chat/components
 const store = useConsoleStore()
 const route = useRoute()
 const taskEditor = useTaskEditor()
-const onWork = computed(() => route.name === 'work' || route.name === 'work-board')
 const onTask = computed(() => route.name === 'task')
 const onReview = computed(() => route.name === 'review')
 const { selectedTaskId, selectedTask, paneFocus, reviewQueue, isLoading } = storeToRefs(store)
@@ -74,7 +72,7 @@ watch(
   [() => route.name, showsTerminal, () => store.isLoading, chatWindowShown],
   ([name, terminal, loading, chatShown]) => {
     if (name !== 'console' || terminal || loading || chatShown) return
-    void router.replace(selectedTaskId.value ? `/task/${selectedTaskId.value}` : '/')
+    void router.replace(selectedTaskId.value ? `/task/${selectedTaskId.value}` : '/projects')
   },
   { immediate: true }
 )
@@ -131,8 +129,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
     <ConsoleHeader />
     <div class="flex min-h-0 flex-1">
-      <WorkPage v-if="onWork" />
-      <TaskPage v-else-if="onTask" />
+      <TaskPage v-if="onTask" />
       <ReviewPage v-else-if="onReview" />
       <div v-else ref="noteArea" class="relative flex min-h-0 min-w-0 flex-1" data-testid="console-terminal">
         <!-- A place focus is sent to (the skip link), never a control, so it draws no ring: the pane

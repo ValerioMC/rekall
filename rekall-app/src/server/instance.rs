@@ -47,6 +47,7 @@ pub struct Instance {
     pub services: Services,
     pub status: SetupStatus,
     pub(super) router: Router,
+    api: ApiState,
     stream: Arc<StepEventStream>,
     terminals: Arc<PtyTerminalManager>,
     chats: Arc<ChatSessionManager>,
@@ -138,13 +139,14 @@ impl Instance {
             release_feed: config.update_check.enabled.then_some(release_feed_of(options, config)),
         };
         let api = ApiState::new(services.clone(), stream.clone(), config.user_home.clone(), vulnerability_scans.clone(), scan_settings, ports);
-        let router = assemble_router(config, api, mcp, database.conn.clone());
+        let router = assemble_router(config, api.clone(), mcp, database.conn.clone());
 
         Self {
             database,
             services,
             status,
             router,
+            api,
             stream,
             terminals,
             chats,
@@ -175,6 +177,12 @@ impl Instance {
         self.start_idle_sweep();
         *self.transcript_scan.lock().expect("never poisoned") = Some(self.transcripts.start(self.transcript_scan_every));
         self.start_vulnerability_scans();
+        self.start_claude_command_update();
+    }
+
+    fn start_claude_command_update(&self) {
+        let update = self.api.claude_command_update.clone();
+        tokio::spawn(async move { update.run_if_outdated().await });
     }
 
     fn start_vulnerability_scans(&self) {

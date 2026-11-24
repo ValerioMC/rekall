@@ -12,7 +12,7 @@ import CompanyMark from '@/components/ui/CompanyMark.vue'
 import CompanyDetail from '@/features/catalog/components/CompanyDetail.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { projectComposition } from '@/features/catalog/lib/project-composition'
-import { workRows } from '@/features/work/lib/work-rows'
+import { taskRows } from '@/features/task/lib/task-rows'
 import { useConsoleStore } from '@/stores/console.store'
 import { useConnectionsStore } from '@/features/connection/store/connections.store'
 import { plural } from '@/features/connection/lib/connection-impact'
@@ -65,7 +65,7 @@ const projectsOfSelected = computed(() => store.projects.filter((project) => pro
 const compositionOfSelected = computed(() => {
   const projectIds = new Set(projectsOfSelected.value.map((project) => project.id))
   const tasks = store.tasks.filter((task) => projectIds.has(task.projectId))
-  return projectComposition(workRows(tasks, store.steps, () => 0))
+  return projectComposition(taskRows(tasks, store.steps, () => 0))
 })
 
 function newProjectOfSelected(): void {

@@ -27,6 +27,10 @@ impl ClaudeCodeSetup for FakeSetup {
     fn install(&self) -> Result<Installation> {
         Err(RekallError::conflict("Claude Code is not installed."))
     }
+
+    fn update_commands(&self) -> Result<Installation> {
+        Err(RekallError::conflict("Claude Code is not installed."))
+    }
 }
 
 #[tokio::test]

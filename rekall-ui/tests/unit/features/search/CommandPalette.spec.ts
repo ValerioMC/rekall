@@ -9,7 +9,7 @@ import { useRecentProjectsStore } from '@/features/catalog/store/recentProjects.
 import { useConsoleStore } from '@/stores/console.store'
 import type { SearchHit } from '@/features/search/model/search'
 import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
-import { project, step, task } from '../work/work-fixtures'
+import { project, step, task } from '../project/project-task-fixtures'
 
 const searchText = vi.fn<(term: string) => Promise<SearchHit[]>>()
 vi.mock('@/features/search/api/search.api', () => ({ searchText: (term: string) => searchText(term) }))

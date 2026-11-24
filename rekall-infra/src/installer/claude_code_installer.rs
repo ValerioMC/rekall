@@ -15,7 +15,7 @@ use super::{Installation, Outcome};
 pub const SERVER_NAME: &str = "rekall";
 
 pub const CONNECTED: &str = "CONNECTED";
-pub const OUTDATED: &str = "OUTDATED";
+pub const OUTDATED: &str = Installation::OUTDATED;
 pub const NOT_CONNECTED: &str = "NOT_CONNECTED";
 pub const CLI_MISSING: &str = "CLI_MISSING";
 
@@ -123,6 +123,12 @@ impl ClaudeCodeInstaller {
         self.clear_folder_scoped(&cli, &environment);
         self.install_command()?;
         info!(server = SERVER_NAME, endpoint = %self.endpoint, "Registered at user scope and installed the /rk command");
+        Ok(self.status())
+    }
+
+    pub fn update_commands(&self) -> Result<Installation, RekallError> {
+        self.install_command()?;
+        info!(server = SERVER_NAME, "Updated the installed /rk command files");
         Ok(self.status())
     }
 
@@ -302,6 +308,10 @@ impl ClaudeCodeSetup for ClaudeCodeInstaller {
 
     fn install(&self) -> Result<Installation, RekallError> {
         ClaudeCodeInstaller::install(self)
+    }
+
+    fn update_commands(&self) -> Result<Installation, RekallError> {
+        ClaudeCodeInstaller::update_commands(self)
     }
 }
 

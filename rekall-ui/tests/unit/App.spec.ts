@@ -4,7 +4,6 @@ import { flushPromises } from '@vue/test-utils'
 import App from '@/App.vue'
 import { router } from '@/router'
 import { useConsoleStore } from '@/stores/console.store'
-import { useWorkStore } from '@/features/work/store/work.store'
 import { mountWithHeaderChrome } from './support/mountWithHeaderChrome'
 import type { Company, Project, Task } from '@/features/catalog/model/catalog'
 import type * as CodexApi from '@/features/codex/api/codex.api'
@@ -354,8 +353,6 @@ async function mountConsole(path = '/console') {
   return wrapper
 }
 
-const mountWork = (): ReturnType<typeof mountConsole> => mountConsole('/')
-
 describe('the console', () => {
   beforeEach(() => {
     useTaskEditor().close()
@@ -371,59 +368,15 @@ describe('the console', () => {
     document.body.innerHTML = ''
   })
 
-  it('renders the Work screen with the project scope above the ledger', async () => {
-    const wrapper = await mountWork()
+  it('sends the old Work addresses to the project list', async () => {
+    await mountConsole('/work/board')
+    expect(router.currentRoute.value.name).toBe('projects')
 
-    expect(wrapper.find('[data-testid="anchor-trigger"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="work-page"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('All work')
-  })
+    await router.push('/work')
+    expect(router.currentRoute.value.name).toBe('projects')
 
-  /**
-   * Four levels in one control. A select per level would put three controls above the list and
-   * make choosing a project a two-step act; this shows the whole tree and takes one click.
-   */
-  it('shows companies with their projects nested in one picker', async () => {
-    const wrapper = await mountWork()
-
-    await wrapper.find('[data-testid="scope-trigger"]').trigger('click')
-
-    expect(wrapper.findAll('[data-testid="scope-company"]')).toHaveLength(1)
-    expect(wrapper.findAll('[data-testid="scope-project"]')).toHaveLength(2)
-    expect(wrapper.find('[data-testid="scope-company"]').text()).toContain('acme')
-    const projectRows = wrapper.findAll('[data-testid="scope-project"]')
-    expect(projectRows.map((row) => row.text())).toEqual([
-      expect.stringContaining('Vega Platform'),
-      expect.stringContaining('Beacon')
-    ])
-  })
-
-  it('narrows to a project and says so in the breadcrumb', async () => {
-    const wrapper = await mountWork()
-
-    await wrapper.find('[data-testid="scope-trigger"]').trigger('click')
-    await wrapper.findAll('[data-testid="scope-project"]')[0]?.trigger('click')
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="scope-trigger"]').text()).toContain('Vega Platform')
-    expect(wrapper.find('[data-testid="project-anchor"]').text()).toContain('project:vega')
-    useWorkStore().view = 'open'
-    await flushPromises()
-    expect(wrapper.findAll('[data-testid="work-row"]')).toHaveLength(2)
-  })
-
-  it('offers creating a company and a project where projects are chosen', async () => {
-    const wrapper = await mountWork()
-
-    await wrapper.find('[data-testid="scope-trigger"]').trigger('click')
-
-    expect(wrapper.find('[data-testid="new-company"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="new-project"]').exists()).toBe(true)
-
-    await wrapper.find('[data-testid="new-company"]').trigger('click')
-    expect(wrapper.find('[data-testid="record-dialog"]').exists()).toBe(true)
-    // A company has one name and no anchor label of its own.
-    expect(wrapper.find('[data-testid="record-label"]').exists()).toBe(false)
+    await router.push('/')
+    expect(router.currentRoute.value.name).toBe('projects')
   })
 
   /** Shortcuts must be inert while writing, or typing a note would navigate away from it. */
@@ -471,8 +424,7 @@ describe('the console', () => {
 
     /**
      * The project is half of the task's anchor, so it is a field and not something the screen
-     * decided quietly. It used to be inferred from the scope, which meant a task created from
-     * All work landed in whichever project sorted first with nothing on screen saying so.
+     * decided quietly. It used to be inferred from the scope, which meant a task created with no project in view landed in whichever project sorted first with nothing on screen saying so.
      */
     it('shows the project a task will land in, and lets it be changed', async () => {
       const wrapper = await mountConsole()
@@ -555,19 +507,6 @@ describe('the console', () => {
         retry,
         expect.objectContaining({ description: '## Scope\n\nRitenta solo gli errori 5xx, con backoff esponenziale.' })
       )
-    })
-
-    /** A project's own page has the room `RecordDialog` never did, so the switcher's "Open page" goes there. */
-    it('opens the project page from the switcher rather than the dialog', async () => {
-      const wrapper = await mountWork()
-
-      const pushSpy = vi.spyOn(router, 'push')
-
-      await wrapper.find('[data-testid="scope-trigger"]').trigger('click')
-      await wrapper.findAll('[data-testid="scope-open-page"]')[0]?.trigger('click')
-
-      expect(wrapper.find('[data-testid="record-dialog"]').exists()).toBe(false)
-      expect(pushSpy).toHaveBeenCalledWith(`/projects/${vega}/tasks`)
     })
 
     /** The same field that decides where a task lands is what moves it afterwards. */

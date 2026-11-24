@@ -22,14 +22,8 @@ export type NavGroup = Readonly<{
 
 export const NAV_GROUPS: readonly NavGroup[] = [
   {
-    label: 'Work',
+    label: 'Review',
     screens: [
-      {
-        to: '/',
-        label: 'Work',
-        hint: 'Tasks, steps and sessions',
-        routes: ['work', 'work-board', 'task', 'console']
-      },
       {
         to: '/review',
         label: 'Review',
@@ -46,7 +40,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         to: '/projects',
         label: 'Projects',
         hint: 'Every project and its folder',
-        routes: ['projects', 'project-detail']
+        routes: ['projects', 'project-detail', 'task', 'console']
       },
       { to: '/companies', label: 'Companies', hint: 'Who the work is for', routes: ['companies'] },
       {

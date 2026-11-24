@@ -301,6 +301,22 @@ fn installing_removes_the_old_registration_adds_it_at_user_scope_writes_the_comm
 }
 
 #[test]
+fn updating_the_commands_rewrites_only_the_command_files_and_runs_no_command() {
+    let h = Harness::new();
+    h.fake_cli();
+    h.register_user_scope(ENDPOINT);
+    h.write_command_file("an earlier version of the command");
+    h.write_mode_file("stepping.md", "an earlier version of the mode");
+
+    let status = h.installer(h.recording()).update_commands().unwrap();
+
+    assert!(h.commands().is_empty());
+    assert_eq!(std::fs::read_to_string(h.home().join(".claude/commands/rk.md")).unwrap(), PACKAGED_COMMAND);
+    assert!(status.outdated_files.is_empty());
+    assert_eq!(status.status, CONNECTED);
+}
+
+#[test]
 fn installing_clears_the_copy_a_folder_carried_from_inside_that_folder() {
     let h = Harness::new();
     let cli = h.fake_cli();
