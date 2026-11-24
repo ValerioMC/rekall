@@ -103,7 +103,7 @@ version from `system` / `init`, announced again only when one of them changed be
 read from the `local_command_source` and `local_command_run` of the `assistant` line `claude -p` prints it as,
 tags stripped, empty output dropped; `UserMessage`, `AssistantText` and `AssistantThinking` that
 grow until `complete`, `ToolUse` with a typed `ToolInput`, `ToolResult` with a one-line `summary`, `PermissionRequested` and
-`PermissionResolved`, `TurnFinished` with the turn's usage, `Notice` and `Ended`). `ToolInput` types what the terminal draws in its own way: `Bash`, `Edit`, `Write`, `Read`, `Search` (Grep, Glob),
+`PermissionResolved`, `TurnFinished` with the turn's usage, its `cost_usd` (`total_cost_usd`) and its `context`, `Notice` and `Ended`). `ToolInput` types what the terminal draws in its own way: `Bash`, `Edit`, `Write`, `Read`, `Search` (Grep, Glob),
 `Todos` (TodoWrite, each item `pending`, `inProgress` or `completed`), `Agent` (Task and Agent), `Web` (WebFetch url,
 WebSearch query) and `Mcp` (`mcp__<server>__<tool>` split in its server and tool, arguments as text); a call missing
 the fields its tool is known by stays `Other`. A result's `summary` is read from the `tool_use_result` of its `user` line
@@ -112,7 +112,10 @@ the fields its tool is known by stays `Other`. A result's `summary` is read from
 call reports a plain string, so only a failed Bash (`Error: Exit code N`) has one; a line with several results shares one
 report and gives none a summary. `WebFetch` is not in the headless tool list of the `claude` Rekall was built against, so
 its result is not summarised yet. The text, thinking, tool call and tool result of a subagent carry `parent_tool_use_id`, the id of
-the `Agent` call that started it (`None` in the main conversation), so the window can draw them under that call. `EventJournal`
+the `Agent` call that started it (`None` in the main conversation), so the window can draw them under that call. A turn's `context` is a `ContextFill` (`used_tokens`, `window_tokens`): the input, cache-read and cache-creation tokens of the
+last entry of `usage.iterations`, which is the turn's last API call, over the `contextWindow` of the model in `modelUsage` that
+wrote most (`turn_context.rs`). `result.usage` as a whole sums every call of the turn and is not used for it. Both `cost_usd`
+and `context` are `None` when the line carries none (a local command, an older `claude`). `EventJournal`
 numbers and keeps them, which is what lets a reader that reconnects resume from `Last-Event-ID`.
 `ChatSessionManager` owns the processes, the journal and the idle sweep; it talks to the rest of
 the application through two ports, `ChatPipe` (what a client does to a session: attach a listener, send a

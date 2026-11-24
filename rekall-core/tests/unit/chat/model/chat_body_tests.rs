@@ -1,5 +1,5 @@
 use super::*;
-use crate::chat::ChatEvent;
+use crate::chat::{ChatEvent, ContextFill};
 
 #[test]
 fn a_short_output_is_kept_whole() {
@@ -37,15 +37,31 @@ fn an_event_is_written_flat_with_its_type_and_camel_case_fields() {
 #[test]
 fn a_turn_is_written_with_its_counters_and_outcome() {
     let usage = TurnUsage { input_tokens: 2, cache_creation_input_tokens: 3, cache_read_input_tokens: 4, output_tokens: 5 };
-    let event = ChatEvent { seq: 1, body: ChatBody::TurnFinished { usage, duration_ms: 90, outcome: TurnOutcome::Interrupted } };
+    let event = ChatEvent { seq: 1, body: ChatBody::TurnFinished { usage, duration_ms: 90, outcome: TurnOutcome::Interrupted, cost_usd: None, context: None } };
 
     assert_eq!(
         serde_json::to_value(&event).unwrap(),
         serde_json::json!({
-            "seq": 1, "type": "turnFinished", "durationMs": 90, "outcome": "interrupted",
+            "seq": 1, "type": "turnFinished", "durationMs": 90, "outcome": "interrupted", "costUsd": null, "context": null,
             "usage": {"inputTokens": 2, "cacheCreationInputTokens": 3, "cacheReadInputTokens": 4, "outputTokens": 5}
         })
     );
+}
+
+#[test]
+fn a_turn_with_a_cost_and_a_context_fill_writes_both() {
+    let body = ChatBody::TurnFinished {
+        usage: TurnUsage::default(),
+        duration_ms: 1,
+        outcome: TurnOutcome::Completed,
+        cost_usd: Some(0.0125),
+        context: Some(ContextFill { used_tokens: 38_009, window_tokens: 1_000_000 }),
+    };
+
+    let written = serde_json::to_value(&body).unwrap();
+
+    assert_eq!(written["costUsd"], serde_json::json!(0.0125));
+    assert_eq!(written["context"], serde_json::json!({"usedTokens": 38009, "windowTokens": 1000000}));
 }
 
 #[test]

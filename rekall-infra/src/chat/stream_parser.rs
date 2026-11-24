@@ -4,6 +4,7 @@ use rekall_core::chat::{ChatBody, NoticeKind, ToolInput, TurnOutcome, TurnUsage}
 use tracing::warn;
 
 use super::tool_summary::summarise;
+use super::turn_context::context_of;
 use super::wire::{WireBlock, WireBlockStart, WireControlRequest, WireDelta, WireLine, WireLocalCommand, WireMessage, WireResult, WireStreamEvent, WireSystem, WireToolUseResult};
 
 const LOGGED_LINE_CHARACTERS: usize = 200;
@@ -143,6 +144,7 @@ impl StreamParser {
     fn finish_turn(&mut self, result: WireResult) -> Vec<ChatBody> {
         self.streaming_message = None;
         self.texts.clear();
+        let context = context_of(&result);
         let usage = result.usage.unwrap_or_default();
         vec![ChatBody::TurnFinished {
             usage: TurnUsage {
@@ -153,6 +155,8 @@ impl StreamParser {
             },
             duration_ms: result.duration_ms.unwrap_or_default(),
             outcome: outcome_of(result.is_error, result.terminal_reason.as_deref()),
+            cost_usd: result.total_cost_usd,
+            context,
         }]
     }
 }

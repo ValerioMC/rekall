@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::chat::ToolInput;
+use crate::chat::{ContextFill, ToolInput};
 
 /// Longest tool output an event carries; the rest is cut and flagged.
 pub const TOOL_EXCERPT_MAX_CHARACTERS: usize = 4000;
@@ -8,7 +8,7 @@ pub const TOOL_EXCERPT_MAX_CHARACTERS: usize = 4000;
 /// What a chat event says. A text or thinking event not yet `complete` carries only the words that
 /// arrived since the last one, to append; the `complete` one carries the whole text, which replaces
 /// what was appended. `parent_tool_use_id` is the id of the Agent call a subagent's event belongs to,
-/// and `None` for the main conversation.
+/// and `None` for the main conversation. A turn's `context` is what its last API call held, not the sum of its calls.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum ChatBody {
@@ -21,7 +21,7 @@ pub enum ChatBody {
     ToolResult { tool_use_id: String, is_error: bool, excerpt: String, truncated: bool, summary: Option<String>, parent_tool_use_id: Option<String> },
     PermissionRequested { request_id: String, tool_use_id: String, name: String, input: ToolInput },
     PermissionResolved { request_id: String, allowed: bool },
-    TurnFinished { usage: TurnUsage, duration_ms: u64, outcome: TurnOutcome },
+    TurnFinished { usage: TurnUsage, duration_ms: u64, outcome: TurnOutcome, cost_usd: Option<f64>, context: Option<ContextFill> },
     Notice { kind: NoticeKind, text: String },
     Ended { exit_code: i32, detail: String },
 }

@@ -1,4 +1,4 @@
-use rekall_core::chat::TOOL_EXCERPT_MAX_CHARACTERS;
+use rekall_core::chat::{ContextFill, TOOL_EXCERPT_MAX_CHARACTERS};
 use serde_json::json;
 
 use super::*;
@@ -20,6 +20,7 @@ const TOOL_BASH_FAILED: &str = include_str!("../../fixtures/chat/tool_bash_faile
 const TOOL_TODO_WRITE: &str = include_str!("../../fixtures/chat/tool_todo_write.jsonl");
 const TOOL_WEB_SEARCH: &str = include_str!("../../fixtures/chat/tool_web_search.jsonl");
 const SUBAGENT: &str = include_str!("../../fixtures/chat/subagent_run.jsonl");
+const MULTI_CALL_TURN: &str = include_str!("../../fixtures/chat/multi_call_turn.jsonl");
 const LOCAL_COMMAND: &str = include_str!("../../fixtures/chat/local_command_context.jsonl");
 
 fn parse_all(fixture: &str) -> Vec<ChatBody> {
@@ -489,4 +490,61 @@ fn streamed_deltas_of_a_subagent_carry_its_parent() {
 
     assert_eq!(parent_of(&events[0]), Some("toolu_A"));
     assert_eq!(parent_of(&events[1]), None);
+}
+
+fn finished_turn(events: &[ChatBody]) -> (Option<f64>, Option<ContextFill>) {
+    events
+        .iter()
+        .find_map(|event| match event {
+            ChatBody::TurnFinished { cost_usd, context, .. } => Some((*cost_usd, *context)),
+            _ => None,
+        })
+        .expect("a finished turn")
+}
+
+#[test]
+fn a_turn_of_many_calls_reports_its_cost_and_what_its_last_call_held() {
+    let (cost, context) = finished_turn(&parse(MULTI_CALL_TURN));
+
+    assert!((cost.expect("a cost") - 0.01015964).abs() < 1e-9);
+    assert_eq!(context, Some(ContextFill { used_tokens: 2 + 37_070 + 937, window_tokens: 1_000_000 }));
+}
+
+#[test]
+fn a_result_without_a_cost_or_iterations_has_neither() {
+    let events = parse_lines(&[
+        json!({"type": "result", "subtype": "success", "is_error": false, "usage": {"input_tokens": 1}}),
+        json!({"type": "result", "subtype": "success", "is_error": false, "usage": {"iterations": []}, "modelUsage": {}}),
+        json!({"type": "result", "subtype": "success", "is_error": false, "usage": {"iterations": null}}),
+    ]);
+
+    for event in &events {
+        assert!(matches!(event, ChatBody::TurnFinished { cost_usd: None, context: None, .. }));
+    }
+    assert_eq!(events.len(), 3);
+}
+
+#[test]
+fn the_window_is_the_one_of_the_model_that_wrote_most() {
+    let events = parse_lines(&[json!({
+        "type": "result", "subtype": "success", "is_error": false, "total_cost_usd": 0.5,
+        "usage": {"iterations": [{"input_tokens": 10, "cache_read_input_tokens": 20, "cache_creation_input_tokens": 30}]},
+        "modelUsage": {
+            "small-model": {"outputTokens": 5, "contextWindow": 200_000},
+            "main-model": {"outputTokens": 900, "contextWindow": 1_000_000}
+        }
+    })]);
+
+    assert_eq!(finished_turn(&events).1, Some(ContextFill { used_tokens: 60, window_tokens: 1_000_000 }));
+}
+
+#[test]
+fn a_model_that_names_no_window_leaves_the_fill_unknown() {
+    let events = parse_lines(&[json!({
+        "type": "result", "subtype": "success", "is_error": false,
+        "usage": {"iterations": [{"input_tokens": 10}]},
+        "modelUsage": {"m": {"outputTokens": 5}}
+    })]);
+
+    assert_eq!(finished_turn(&events).1, None);
 }
