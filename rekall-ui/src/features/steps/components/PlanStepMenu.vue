@@ -1,27 +1,87 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import PopoverMenu, { type PopoverMenuEntry } from '@/components/ui/PopoverMenu.vue'
+import type { SessionPlace, StepPlaces } from '@/features/steps/lib/step-places'
 
 /**
- * What a person rarely does to an open step, behind one key and said in words: take it off the
- * plan until it is promoted again, or delete it for good. Everything else a row does has a place of
- * its own, so nothing here is a click whose effect has to be guessed.
+ * What a person does to an open step without dragging it: move it a place, choose the session it
+ * runs in, give it a session of its own, return it to draft or delete it. A session that cannot
+ * take it says why.
  */
-defineProps<{ title: string; number: number }>()
+const props = defineProps<{ title: string; number: number; places: StepPlaces }>()
 
-const emit = defineEmits<{ 'to-draft': []; remove: [] }>()
+const emit = defineEmits<{
+  'to-draft': []
+  remove: []
+  nudge: [by: number]
+  'run-in': [sessionNumber: number]
+  alone: [where: 'before-own-session' | 'end']
+}>()
 
 const open = ref(false)
 
+const SESSION_PREFIX = 'session:'
+
+const currentSessionNumber = computed(() => props.places.sessions.find((session) => session.current)?.number ?? 0)
+
+function sessionHint(place: SessionPlace): string | undefined {
+  if (place.current) return undefined
+  if (!place.takes) return 'Started, it takes no more steps'
+  return place.number < currentSessionNumber.value ? 'Joins it at the end' : 'Joins it at the start'
+}
+
+const sessionEntries = computed<PopoverMenuEntry[]>(() =>
+  props.places.sessions.map((place) => ({
+    kind: 'item',
+    id: `${SESSION_PREFIX}${place.number}`,
+    label: `Session ${place.number}`,
+    current: place.current,
+    disabled: !place.current && !place.takes,
+    hint: sessionHint(place)
+  }))
+)
+
+const aloneEntries = computed<PopoverMenuEntry[]>(() => [
+  ...(props.places.aloneBeforeSession === null
+    ? []
+    : [{ kind: 'item' as const, id: 'alone-before', label: `New session before Session ${props.places.aloneBeforeSession}` }]),
+  ...(props.places.aloneAtEnd ? [{ kind: 'item' as const, id: 'alone-end', label: 'New session at the end' }] : [])
+])
+
 const ENTRIES = computed<readonly PopoverMenuEntry[]>(() => [
-  { kind: 'item', id: 'to-draft', label: 'Return to draft', hint: 'Takes it off the plan until you promote it again.' },
+  {
+    kind: 'item',
+    id: 'up',
+    label: 'Move up',
+    shortcut: '⌥ ↑',
+    disabled: !props.places.canMoveUp,
+    hint: props.places.canMoveUp ? undefined : 'Nothing open above it'
+  },
+  {
+    kind: 'item',
+    id: 'down',
+    label: 'Move down',
+    shortcut: '⌥ ↓',
+    disabled: !props.places.canMoveDown,
+    hint: props.places.canMoveDown ? undefined : 'Nothing open below it'
+  },
   { kind: 'separator' },
+  { kind: 'heading', label: 'Run in' },
+  ...sessionEntries.value,
+  ...aloneEntries.value,
+  { kind: 'separator' },
+  { kind: 'item', id: 'to-draft', label: 'Return to draft', hint: 'Takes it off the plan until you promote it again.' },
   { kind: 'item', id: 'remove', label: 'Delete step…', hint: 'Removes it for good. Asks first.', tone: 'danger' }
 ])
 
 function pick(id: string): void {
   if (id === 'to-draft') emit('to-draft')
   if (id === 'remove') emit('remove')
+  if (id === 'up') emit('nudge', -1)
+  if (id === 'down') emit('nudge', 1)
+  if (id === 'alone-before') emit('alone', 'before-own-session')
+  if (id === 'alone-end') emit('alone', 'end')
+  if (id.startsWith(SESSION_PREFIX)) emit('run-in', Number(id.slice(SESSION_PREFIX.length)))
 }
 </script>
 

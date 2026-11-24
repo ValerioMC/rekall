@@ -4,7 +4,9 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useCheckStream } from '@/features/check/composables/useCheckStream'
 import { useChecksStore } from '@/features/check/store/checks.store'
 import { provideStepEditor, type StepEditor } from '@/features/steps/composables/useStepEditor'
-import { openerHandover, planStepMove, type SessionChange } from '@/features/steps/lib/step-order'
+import { useStepDrag, type StepDrag } from '@/features/steps/composables/useStepDrag'
+import { usePlanMoves, type PlanMoves } from '@/features/steps/composables/usePlanMoves'
+import { openerHandover } from '@/features/steps/lib/step-order'
 import { groupBySession, visibleSessions as sessionsShown, type StepSession } from '@/features/steps/lib/step-sessions'
 import { stepIsComplete, type TaskStep } from '@/features/steps/model/task-step'
 import type { Task } from '@/features/catalog/model/catalog'
@@ -47,8 +49,9 @@ export interface TaskPlan {
   sendBack: (step: TaskStep) => Promise<void>
   reopen: (step: TaskStep) => Promise<void>
   move: (step: TaskStep, by: number) => Promise<void>
-  reorder: (step: TaskStep, target: TaskStep, after: boolean) => Promise<void>
-  nudge: (step: TaskStep, by: number) => Promise<void>
+  /** What is held while a step, a draft or a session is dragged, and where a drop lands. */
+  readonly drag: StepDrag
+  readonly moves: PlanMoves
   promote: (step: TaskStep) => Promise<void>
   returnToDraft: (step: TaskStep) => Promise<void>
   removeDeleting: () => Promise<void>
@@ -86,6 +89,15 @@ export function useTaskPlan(): TaskPlan {
     hideDone.value ? checklistSteps.value.filter((step) => !step.done) : checklistSteps.value
   )
   const visibleSessions = computed(() => sessionsShown(sessions.value, hideDone.value))
+
+  const moves = usePlanMoves({ steps: checklistSteps, sessions, flush: editor.flush })
+  const drag = useStepDrag({
+    onEdge: (moving, target, after) =>
+      void (moving.state === 'DRAFT' ? moves.promoteBeside(moving, target, after) : moves.reorder(moving, target, after)),
+    onSlot: (moving, before) =>
+      void (moving.state === 'DRAFT' ? moves.promoteAlone(moving, before) : moves.placeAlone(moving, before)),
+    onSessionSlot: (session, before) => void moves.moveSession(session, before)
+  })
 
   const view = ref<'list' | 'flow'>('list')
   const isFlow = computed(() => checklistSteps.value.some((step) => step.links.length > 0))
@@ -210,28 +222,6 @@ export function useTaskPlan(): TaskPlan {
     await run(() => store.moveStep(step.id, step.position + by))
   }
 
-  async function applySessionChanges(changes: readonly SessionChange[]): Promise<void> {
-    for (const change of changes) await store.beginStepSession(change.step.id, change.startsSession)
-  }
-
-  /** Puts an open step before or after another, regrouping the sessions around it as the move needs. */
-  async function reorder(step: TaskStep, target: TaskStep, after: boolean): Promise<void> {
-    const plan = planStepMove(checklistSteps.value, step, target, after)
-    if (!plan) return
-    editor.flush()
-    await run(async () => {
-      await store.moveStep(step.id, plan.position)
-      await applySessionChanges(plan.sessionChanges)
-    })
-  }
-
-  /** The keyboard's move: one place up or down, never past a step that has been started. */
-  async function nudge(step: TaskStep, by: number): Promise<void> {
-    const neighbour = checklistSteps.value[checklistSteps.value.indexOf(step) + by]
-    if (step.state !== 'OPEN' || neighbour?.state !== 'OPEN') return
-    await reorder(step, neighbour, by > 0)
-  }
-
   const promoting = ref<TaskStepId | null>(null)
 
   async function promote(step: TaskStep): Promise<void> {
@@ -251,7 +241,7 @@ export function useTaskPlan(): TaskPlan {
     editor.flush()
     const outcome = await run(async () => {
       await store.returnStepToDraft(step.id)
-      await applySessionChanges(handover)
+      await moves.applySessionChanges(handover)
     })
     if (outcome === null) return
     toast.notify(`${step.title} is a draft now`, {
@@ -260,7 +250,7 @@ export function useTaskPlan(): TaskPlan {
         void run(async () => {
           await store.promoteStep(step.id)
           await store.moveStep(step.id, position)
-          await applySessionChanges(handover.map(({ step: successor }) => ({ step: successor, startsSession: false })))
+          await moves.applySessionChanges(handover.map(({ step: successor }) => ({ step: successor, startsSession: false })))
         })
     })
   }
@@ -280,7 +270,7 @@ export function useTaskPlan(): TaskPlan {
     const handover = openerHandover(checklistSteps.value, step)
     await run(async () => {
       await store.removeStep(step.id)
-      await applySessionChanges(handover)
+      await moves.applySessionChanges(handover)
     })
   }
 
@@ -344,8 +334,8 @@ export function useTaskPlan(): TaskPlan {
     sendBack,
     reopen,
     move,
-    reorder,
-    nudge,
+    drag,
+    moves,
     promote,
     returnToDraft,
     removeDeleting,

@@ -5,6 +5,7 @@ import StepPassBars from '@/features/steps/components/StepPassBars.vue'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
 import StepThread from '@/features/steps/components/StepThread.vue'
 import { relativeTime } from '@/common/format/relative-time'
+import type { StepPlaces } from '@/features/steps/lib/step-places'
 import type { TaskStep } from '@/features/steps/model/task-step'
 
 /**
@@ -26,6 +27,7 @@ const props = defineProps<{
   droppable: boolean
   dropEdge: 'before' | 'after' | null
   dragging: boolean
+  places: StepPlaces
 }>()
 
 const emit = defineEmits<{
@@ -33,6 +35,8 @@ const emit = defineEmits<{
   'mark-forward': []
   'to-draft': []
   nudge: [by: number]
+  'run-in': [sessionNumber: number]
+  alone: [where: 'before-own-session' | 'end']
   remove: []
   'drag-start': []
   'drag-over': [after: boolean]
@@ -191,7 +195,16 @@ function endDrag(): void {
     </span>
 
     <span v-if="editable" class="absolute top-1.5 right-2" @click.stop>
-      <PlanStepMenu :title="step.title" :number="number" @to-draft="emit('to-draft')" @remove="emit('remove')" />
+      <PlanStepMenu
+        :title="step.title"
+        :number="number"
+        :places="places"
+        @to-draft="emit('to-draft')"
+        @remove="emit('remove')"
+        @nudge="(by) => emit('nudge', by)"
+        @run-in="(sessionNumber) => emit('run-in', sessionNumber)"
+        @alone="(where) => emit('alone', where)"
+      />
     </span>
   </li>
 </template>

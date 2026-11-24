@@ -27,7 +27,8 @@ const step: TaskStep = {
   updatedAt: '2026-10-01T07:00:00Z'
 }
 
-const rowProps = { number: 2, selected: false, isNext: false, allDone: false, endsSession: false, droppable: false, dropEdge: null, dragging: false }
+const places = { canMoveUp: true, canMoveDown: true, sessions: [], aloneBeforeSession: null, aloneAtEnd: true }
+const rowProps = { number: 2, selected: false, isNext: false, allDone: false, endsSession: false, droppable: false, dropEdge: null, dragging: false, places }
 const open: TaskStep = { ...step, state: 'OPEN', done: false, doneAt: null }
 const claimed: TaskStep = { ...step, state: 'CLAIMED', done: false, doneAt: null, claimedAt: new Date(Date.now() - 14 * 60_000).toISOString() }
 
@@ -93,17 +94,46 @@ describe('PlanStepRow decisions and arranging', () => {
     const row = mount(PlanStepRow, { props: { ...rowProps, step: open } })
 
     await row.get('[data-testid="step-more"]').trigger('click')
-    const items = row.findAll('[data-testid="popover-menu-item"]')
-    expect(items.map((item) => item.get('[data-testid="popover-menu-hint"]').text())).toEqual([
-      'Takes it off the plan until you promote it again.',
-      'Removes it for good. Asks first.'
-    ])
+    const hints = row.findAll('[data-testid="popover-menu-hint"]').map((hint) => hint.text())
+    expect(hints).toEqual(['Takes it off the plan until you promote it again.', 'Removes it for good. Asks first.'])
 
-    await items[0]!.trigger('click')
+    const labelled = (label: string) => row.findAll('[data-testid="popover-menu-item"]').find((item) => item.text().includes(label))!
+    await labelled('Return to draft').trigger('click')
     await row.get('[data-testid="step-more"]').trigger('click')
-    await row.findAll('[data-testid="popover-menu-item"]')[1]!.trigger('click')
+    await labelled('Delete step').trigger('click')
     expect(row.emitted('to-draft')).toHaveLength(1)
     expect(row.emitted('remove')).toHaveLength(1)
+  })
+
+  it('offers the sessions the step can run in, each saying why it cannot take it, and sends the choice up', async () => {
+    const sessions = [
+      { number: 1, current: false, takes: false },
+      { number: 2, current: true, takes: true },
+      { number: 3, current: false, takes: true }
+    ]
+    const row = mount(PlanStepRow, {
+      props: { ...rowProps, step: open, places: { ...places, sessions, aloneBeforeSession: 2 } }
+    })
+
+    await row.get('[data-testid="step-more"]').trigger('click')
+    const labelled = (label: string) => row.findAll('[data-testid="popover-menu-item"]').find((item) => item.text().includes(label))!
+
+    expect(labelled('Session 1').attributes('disabled')).toBeDefined()
+    expect(labelled('Session 1').text()).toContain('Started, it takes no more steps')
+    expect(labelled('Session 2').attributes('aria-current')).toBe('true')
+    expect(labelled('Session 3').text()).toContain('Joins it at the start')
+
+    await labelled('Session 3').trigger('click')
+    await row.get('[data-testid="step-more"]').trigger('click')
+    await labelled('New session before Session 2').trigger('click')
+    await row.get('[data-testid="step-more"]').trigger('click')
+    await labelled('New session at the end').trigger('click')
+    await row.get('[data-testid="step-more"]').trigger('click')
+    await labelled('Move down').trigger('click')
+
+    expect(row.emitted('run-in')).toEqual([[3]])
+    expect(row.emitted('alone')).toEqual([['before-own-session'], ['end']])
+    expect(row.emitted('nudge')).toEqual([[1]])
   })
 
   it('moves an open step with Alt and the arrow keys, and leaves a started one where it is', async () => {

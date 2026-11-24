@@ -9,9 +9,9 @@ function step(id: string, state: TaskStepState, startsSession = false): TaskStep
   return { id: id as TaskStepId, taskId: 't' as TaskId, title: `Step ${id}`, state, startsSession, done: state === 'DONE' } as TaskStep
 }
 
-function mountGroup(session: StepSession, holdsSelection = false, workRemains = true) {
+function mountGroup(session: StepSession, holdsSelection = false, workRemains = true, movable = false, foldedForDrag = false) {
   return mount(PlanSessionGroup, {
-    props: { session, holdsSelection, workRemains },
+    props: { session, holdsSelection, workRemains, movable, foldedForDrag },
     slots: { step: '<li data-testid="row">{{ params.step.title }}</li>' }
   })
 }
@@ -72,5 +72,33 @@ describe('PlanSessionGroup', () => {
     const accepted: StepSession = { number: 1, steps: [step('a', 'DONE')] }
 
     expect(mountGroup(accepted, true).find('[data-testid="session-steps"]').exists()).toBe(true)
+  })
+
+  it('offers the grip only to a session that can be lifted whole, and sends the drag from it', async () => {
+    const idle: StepSession = { number: 2, steps: [step('a', 'OPEN', true), step('b', 'OPEN')] }
+
+    expect(mountGroup(idle).find('[data-testid="session-handle"]').exists()).toBe(false)
+    const group = mountGroup(idle, false, true, true)
+    await group.get('[data-testid="session-handle"]').trigger('pointerdown')
+    await group.get('[data-testid="session-header"]').element.parentElement!.dispatchEvent(
+      Object.assign(new Event('dragstart', { bubbles: true, cancelable: true }), { dataTransfer: { setData: () => undefined } })
+    )
+
+    expect(group.emitted('drag-start')).toHaveLength(1)
+  })
+
+  it('moves the whole session one place on Alt and the arrow keys from its grip', async () => {
+    const group = mountGroup({ number: 2, steps: [step('a', 'OPEN', true)] }, false, true, true)
+
+    await group.get('[data-testid="session-handle"]').trigger('keydown', { key: 'ArrowDown', altKey: true })
+
+    expect(group.emitted('nudge')?.[0]).toEqual([1])
+  })
+
+  it('folds to its header while a session is held, and says a started one stays where it is', () => {
+    const started = mountGroup(working, false, true, false, true)
+
+    expect(started.find('[data-testid="session-steps"]').exists()).toBe(false)
+    expect(started.get('[data-testid="session-started"]').text()).toBe('Started')
   })
 })
