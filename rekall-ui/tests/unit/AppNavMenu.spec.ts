@@ -68,7 +68,7 @@ describe('the screen menu', () => {
   it('sums the alerts of every screen in its key label so folding never hides a warning', async () => {
     useVulnerabilityStore().exposures = [exposure('a', 'p'), exposure('b', 'p', { open: false })]
     const { wrapper } = await mountMenu('/')
-    expect(wrapper.get('[data-testid="nav-menu-trigger"]').attributes('aria-label')).toBe('Screens: Work, 1 need attention')
+    expect(wrapper.get('[data-testid="nav-menu-trigger"]').attributes('aria-label')).toBe('Screens: Projects, 1 need attention')
 
     await wrapper.get('[data-testid="nav-menu-trigger"]').trigger('click')
     await flushPromises()
@@ -91,7 +91,8 @@ describe('the screen menu', () => {
 describe('the menu model', () => {
   it('finds the screen on display', () => {
     expect(activeScreenIn(NAV_GROUPS, 'project-detail')?.label).toBe('Projects')
-    expect(activeScreenIn(NAV_GROUPS, 'console')?.label).toBe('Work')
+    expect(activeScreenIn(NAV_GROUPS, 'console')?.label).toBe('Projects')
+    expect(activeScreenIn(NAV_GROUPS, 'task')?.label).toBe('Projects')
     expect(activeScreenIn(NAV_GROUPS, 'review')?.label).toBe('Review')
     expect(activeScreenIn(NAV_GROUPS, null)).toBeNull()
   })

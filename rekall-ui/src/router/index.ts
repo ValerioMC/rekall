@@ -3,9 +3,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', name: 'work', component: () => import('@/App.vue') },
-    { path: '/work', redirect: '/' },
-    { path: '/work/board', name: 'work-board', component: () => import('@/App.vue') },
+    { path: '/', redirect: '/projects' },
+    { path: '/work', redirect: '/projects' },
+    { path: '/work/board', redirect: '/projects' },
     { path: '/task/:id/:tab?/:noteId?', name: 'task', component: () => import('@/App.vue') },
     { path: '/review/:key?', name: 'review', component: () => import('@/App.vue') },
     { path: '/console', name: 'console', component: () => import('@/App.vue') },

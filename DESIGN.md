@@ -162,7 +162,7 @@ A blue-slate ground, warm gold for action, one cool cyan for anchors, and status
 
 ## Layout
 
-Screens are a title and a sub-navigation over a table, a list with a detail pane, or a queue beside a decision. Every page sits in one centred column of 1320px with 32px side padding (`page-column`), so a screen keeps its left edge when you move to its sub-navigation neighbour; a list with a detail pane is a bordered card inside that column, not a full-bleed workspace. Work's board and Review use the width they have. The first row of Work and of a project page is the same scope bar: the project switcher as the page's title and what to know about it; the page's one action is the composer under it, on Work and on a project's Tasks page alike. The header is one 48px row on a three-cell grid: the menu key, which names the screen on display, and the history arrows, the `/rk` search at the exact centre (240px to 620px), and the status capsule with tags and settings. Rows are 36px and controls 32px on a 4px rhythm; the Work ledger offers Comfortable and Compact. Under 1280px the header sheds its words before it moves anything, and under 1100px the ⌘K hint goes. There is no mobile layout.
+Screens are a title and a sub-navigation over a table, a list with a detail pane, or a queue beside a decision. Every page sits in one centred column of 1320px with 32px side padding (`page-column`), so a screen keeps its left edge when you move to its sub-navigation neighbour; a list with a detail pane is a bordered card inside that column, not a full-bleed workspace. Review uses the width it has. The first row of a project page is the scope bar: the project switcher as the page's title and what to know about it; the page's one action is the composer under it on a project's Tasks page. The header is one 48px row on a three-cell grid: the menu key, which names the screen on display, and the history arrows, the `/rk` search at the exact centre (240px to 620px), and the status capsule with tags and settings. Rows are 36px and controls 32px on a 4px rhythm; a project's task ledger offers Comfortable and Compact. Under 1280px the header sheds its words before it moves anything, and under 1100px the ⌘K hint goes. There is no mobile layout.
 
 ## Elevation & Depth
 
@@ -198,7 +198,7 @@ A 22px full-radius pill with one word, the state of a record: neutral, progress 
 Fira Code in cyan on the surface well with a hairline, 3px corners. A copy button beside it copies `/rk` followed by the anchor; the current anchor is the bright one.
 
 ### Sub-navigation
-Tabs under a title at body size (13.5px), with a count each in Fira Sans tabular figures, a gold rule that scales in under the current one, and an amber round pill for a count that waits on the reader. It is the same component for Work, the task page, Projects, Time, Library and the project page, as links.
+Tabs under a title at body size (13.5px), with a count each in Fira Sans tabular figures, a gold rule that scales in under the current one, and an amber round pill for a count that waits on the reader. It is the same component for the task page, Projects, Time, Library and the project page, as links.
 
 ### Fields
 Flat: a 1px Field Edge border over the canvas tone. Focus swaps the edge for amber and adds a one-pixel ring of it, two pixels in all and no halo. Invalid turns the edge rose.

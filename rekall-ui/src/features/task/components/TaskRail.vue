@@ -11,7 +11,7 @@ import TaskBranchPanel from '@/features/worktree/components/TaskBranchPanel.vue'
 import { useTaskBranchStore } from '@/features/worktree/store/taskBranch.store'
 import { usePreferencesStore } from '@/features/settings/store/preferences.store'
 import { useConsoleStore } from '@/stores/console.store'
-import type { WorkRow } from '@/features/work/model/work-view'
+import type { TaskRow } from '@/features/task/model/task-row'
 
 /**
  * The task's properties beside every tab, grouped so the tabs keep their height: status and
@@ -19,7 +19,7 @@ import type { WorkRow } from '@/features/work/model/work-view'
  * choice is remembered per browser. The Plan tab remembers its own choice and starts folded, so the
  * steps and the step being read have the width.
  */
-const props = defineProps<{ row: WorkRow; onPlan?: boolean }>()
+const props = defineProps<{ row: TaskRow; onPlan?: boolean }>()
 
 const FOLDED_GROUPS: readonly { readonly glyph: TaskRailGlyphName; readonly label: string }[] = [
   { glyph: 'labels', label: 'Labels' },

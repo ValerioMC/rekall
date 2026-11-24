@@ -35,11 +35,11 @@ const catalog: Project[] = [project(vega, 'Vega', acme, 'acme'), project(atlas, 
 let pinia: Pinia
 let wrapper: VueWrapper | null = null
 
-function render(mode: 'work' | 'project', companyId: CompanyId | null, projectId: ProjectId | null = null, projects: Project[] = catalog): VueWrapper {
+function render(companyId: CompanyId | null, projectId: ProjectId | null = null, projects: Project[] = catalog): VueWrapper {
   const store = useConsoleStore()
   store.companies = companies
   store.projects = projects
-  wrapper = mount(ScopeSwitcher, { props: { mode, companyId, projectId }, global: { plugins: [pinia] }, attachTo: document.body })
+  wrapper = mount(ScopeSwitcher, { props: { companyId, projectId }, global: { plugins: [pinia] }, attachTo: document.body })
   return wrapper
 }
 
@@ -65,26 +65,26 @@ afterEach(() => {
 })
 
 describe('the switcher trigger', () => {
-  it('reads All work with its own glyph when nothing is narrowed', () => {
-    const trigger = render('work', null).get('[data-testid="scope-trigger"]')
+  it('reads Projects with its own glyph when no project is open', () => {
+    const trigger = render(null).get('[data-testid="scope-trigger"]')
 
-    expect(trigger.get('[data-testid="scope-trigger-title"]').text()).toBe('All work')
+    expect(trigger.get('[data-testid="scope-trigger-title"]').text()).toBe('Projects')
     expect(trigger.find('[data-testid="scope-trigger-mark"]').exists()).toBe(false)
   })
 
   it("wears the company's logo when only the company is in scope", () => {
-    const mark = render('work', acme).get('[data-testid="scope-trigger-mark"]')
+    const mark = render(acme).get('[data-testid="scope-trigger-mark"]')
 
     expect(mark.get('img').attributes('src')).toContain(`/api/companies/${acme}/logo-image`)
     expect(mark.find('[data-testid="scope-trigger-project-mark"]').exists()).toBe(false)
   })
 
   it('falls back to the initial for a company without a logo', () => {
-    expect(render('work', globex).get('[data-testid="company-mark-initial"]').text()).toBe('G')
+    expect(render(globex).get('[data-testid="company-mark-initial"]').text()).toBe('G')
   })
 
   it("names the company and the project, with the project's mark on the company's", () => {
-    const trigger = render('project', acme, vega).get('[data-testid="scope-trigger"]')
+    const trigger = render(acme, vega).get('[data-testid="scope-trigger"]')
 
     expect(trigger.text()).toContain('acme')
     expect(trigger.get('[data-testid="scope-trigger-title"]').text()).toBe('Vega')
@@ -94,7 +94,7 @@ describe('the switcher trigger', () => {
 
 describe('the switcher list', () => {
   it('opens with the search field focused and closes on Escape', async () => {
-    const view = render('work', null)
+    const view = render(null)
     await open(view)
 
     expect(document.activeElement).toBe(view.get('[data-testid="switcher-search"]').element)
@@ -102,23 +102,16 @@ describe('the switcher list', () => {
     expect(view.find('[data-testid="scope-popover"]').exists()).toBe(false)
   })
 
-  it('lists every company with its projects, and All work first on Work only', async () => {
-    const work = render('work', null)
-    await open(work)
-    expect(work.find('[data-testid="scope-all"]').exists()).toBe(true)
-    expect(work.findAll('[data-testid="scope-company"]')).toHaveLength(2)
-    expect(work.findAll('[data-testid="scope-project"]')).toHaveLength(3)
-    work.unmount()
-
-    const page = render('project', acme, vega)
-    await open(page)
-    expect(page.find('[data-testid="scope-all"]').exists()).toBe(false)
-    expect(page.findAll('[data-testid="scope-company"]')).toHaveLength(0)
-    expect(page.findAll('[data-testid="scope-company-fold"]')).toHaveLength(2)
+  it('lists every company with its projects, each company a fold key', async () => {
+    const view = render(acme, vega)
+    await open(view)
+    expect(view.findAll('[data-testid="scope-company"]')).toHaveLength(0)
+    expect(view.findAll('[data-testid="scope-company-fold"]')).toHaveLength(2)
+    expect(view.find('[data-testid="scope-all"]').exists()).toBe(false)
   })
 
   it("unfolds only the open project's company, and a fold key opens or closes any other", async () => {
-    const view = render('project', acme, vega)
+    const view = render(acme, vega)
     await open(view)
     const titles = () => view.findAll('[data-testid="scope-project"]').map((row) => row.text().replace(/\d+$/, '').trim())
     expect(titles()).toEqual(['Atlas', 'Vega'])
@@ -131,19 +124,19 @@ describe('the switcher list', () => {
   })
 
   it('folds every company when nothing is in view but there are pins or recents to lead with, and unfolds them all when there are none', async () => {
-    const bare = render('work', null)
+    const bare = render(null)
     await open(bare)
     expect(bare.findAll('[data-testid="scope-project"]')).toHaveLength(3)
     bare.unmount()
 
     useRecentProjectsStore().remember(lumen)
-    const led = render('work', null)
+    const led = render(null)
     await open(led)
     expect(led.findAll('[data-testid="scope-project"]')).toHaveLength(1)
   })
 
   it('unfolds every company while searching, so a match is never hidden', async () => {
-    const view = render('project', acme, vega)
+    const view = render(acme, vega)
     await open(view)
 
     await view.get('[data-testid="switcher-search"]').setValue('lumen')
@@ -154,35 +147,31 @@ describe('the switcher list', () => {
   it('leaves an archived project out unless it is the one open', async () => {
     const archived = catalog.map((entry) => ({ ...entry, status: 'ARCHIVED' as const }))
 
-    const widened = render('work', acme, null, archived)
+    const widened = render(acme, null, archived)
     await open(widened)
     expect(widened.findAll('[data-testid="scope-project"]')).toHaveLength(0)
     widened.unmount()
 
-    const open1 = render('project', acme, vega, archived)
+    const open1 = render(acme, vega, archived)
     await open(open1)
     expect(open1.findAll('[data-testid="scope-project"]')).toHaveLength(1)
   })
 
   it('marks every company row with its logo or its initial and every project row with its icon', async () => {
-    const view = render('work', null)
+    const view = render(null, null)
     await open(view)
 
-    const rows = view.findAll('[data-testid="scope-company"]')
-    expect(rows.map((row) => row.find('[data-testid^="company-mark-"]').attributes('data-testid'))).toEqual([
-      'company-mark-image',
-      'company-mark-initial'
-    ])
+    const marks = view.findAll('[data-testid="scope-company-fold"]').map((row) => row.find('[data-testid^="company-mark-"]').attributes('data-testid'))
+    expect(marks).toEqual(['company-mark-image', 'company-mark-initial'])
     expect(view.get('[data-testid="scope-project"]').find('[data-testid^="project-mark-"]').exists()).toBe(true)
   })
 
   it('filters by what is typed and says so when nothing matches', async () => {
-    const view = render('work', null)
+    const view = render(null)
     await open(view)
 
     await view.get('[data-testid="switcher-search"]').setValue('lum')
     expect(view.findAll('[data-testid="scope-project"]').map((row) => row.text())).toEqual([expect.stringContaining('Lumen')])
-    expect(view.find('[data-testid="scope-all"]').exists()).toBe(false)
 
     await view.get('[data-testid="switcher-search"]').setValue('zzz')
     expect(view.get('[data-testid="switcher-empty"]').text()).toContain('zzz')
@@ -192,7 +181,7 @@ describe('the switcher list', () => {
     const recent = useRecentProjectsStore()
     recent.remember(lumen)
     recent.remember(atlas)
-    const view = render('work', null)
+    const view = render(null)
     await open(view)
 
     const titles = view.findAll('[data-testid="scope-project"]').map((row) => row.text())
@@ -209,7 +198,7 @@ describe('pinning in the switcher', () => {
     usePinnedProjectsStore().toggle(lumen)
     useRecentProjectsStore().remember(lumen)
     useRecentProjectsStore().remember(atlas)
-    const view = render('work', null)
+    const view = render(null)
     await open(view)
 
     expect(view.get('[data-testid="scope-pinned-heading"]').text()).toBe('Pinned')
@@ -218,7 +207,7 @@ describe('pinning in the switcher', () => {
   })
 
   it('pins and unpins from the star of a row without choosing the project', async () => {
-    const view = render('project', acme, vega)
+    const view = render(acme, vega)
     await open(view)
 
     await view.findAll('[data-testid="scope-pin"]')[0]!.trigger('click')
@@ -232,7 +221,7 @@ describe('pinning in the switcher', () => {
     const pins = usePinnedProjectsStore()
     ;[vega, atlas, lumen].forEach((id) => pins.toggle(id))
     const other = project('p4' as ProjectId, 'Orion', acme, 'acme')
-    const view = render('project', acme, other.id, [...catalog, other])
+    const view = render(acme, other.id, [...catalog, other])
     await open(view)
 
     const orionStar = view.findAll('[data-testid="scope-project-row"]').find((row) => row.text().includes('Orion'))!
@@ -245,59 +234,47 @@ describe('pinning in the switcher', () => {
 
 describe('the header variant', () => {
   it('wears the project in view and its title, and a Projects label when none is', () => {
-    const open = render('project', acme, vega)
+    const open = render(acme, vega)
     expect(open.get('[data-testid="scope-trigger"]').attributes('aria-label')).toBe('Switch project')
     open.unmount()
 
-    const none = mount(ScopeSwitcher, { props: { mode: 'project', companyId: null, projectId: null, variant: 'header' }, global: { plugins: [pinia] } })
+    const none = mount(ScopeSwitcher, { props: { companyId: null, projectId: null, variant: 'header' }, global: { plugins: [pinia] } })
     expect(none.get('[data-testid="scope-trigger-title"]').text()).toBe('Projects')
     none.unmount()
   })
 })
 
 describe('choosing in the switcher', () => {
-  it('hands back all work, a company or a project, and remembers the project', async () => {
-    const view = render('work', null)
-    await open(view)
-    await view.get('[data-testid="scope-all"]').trigger('click')
-    await open(view)
-    await view.findAll('[data-testid="scope-company"]')[1]!.trigger('click')
+  it('hands back the project and its company, and remembers the project', async () => {
+    const view = render(null, null)
     await open(view)
     await view.findAll('[data-testid="scope-project"]')[0]!.trigger('click')
 
-    expect(emitted(view)).toEqual([
-      { kind: 'all' },
-      { kind: 'company', companyId: globex },
-      { kind: 'project', companyId: acme, projectId: atlas }
-    ])
+    expect(emitted(view)).toEqual([{ companyId: acme, projectId: atlas }])
     expect(useRecentProjectsStore().ids).toEqual([atlas])
   })
 
   it('starts on the open project and wraps to the first row with the arrow and Enter', async () => {
-    const view = render('project', acme, vega)
+    const view = render(acme, vega)
     await open(view)
     const search = view.get('[data-testid="switcher-search"]')
 
     await search.trigger('keydown', { key: 'ArrowDown' })
     await search.trigger('keydown', { key: 'Enter' })
 
-    expect(emitted(view)).toEqual([{ kind: 'project', companyId: acme, projectId: atlas }])
+    expect(emitted(view)).toEqual([{ companyId: acme, projectId: atlas }])
   })
+})
 
-  it('opens the page of a project from its row, on Work', async () => {
-    const view = render('work', null)
+describe('creating from the switcher', () => {
+  it('offers a company and a project, and opens the record dialog for either', async () => {
+    const view = render(null, null)
     await open(view)
 
-    await view.findAll('[data-testid="scope-open-page"]')[0]!.trigger('click')
+    expect(view.find('[data-testid="new-project"]').exists()).toBe(true)
+    await view.get('[data-testid="new-company"]').trigger('click')
 
-    expect(view.emitted('open-page')).toEqual([[atlas]])
-    expect(view.find('[data-testid="scope-popover"]').exists()).toBe(false)
-  })
-
-  it('offers no page link on a project page, where the page is already open', async () => {
-    const view = render('project', acme, vega)
-    await open(view)
-
-    expect(view.find('[data-testid="scope-open-page"]').exists()).toBe(false)
+    expect(view.find('[data-testid="record-dialog"]').exists()).toBe(true)
+    expect(view.find('[data-testid="record-label"]').exists()).toBe(false)
   })
 })

@@ -6,7 +6,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { preferredProvider } from '@/common/config/session-launch'
 import SettingsPage from '@/features/settings/components/SettingsPage.vue'
 import { usePreferencesStore } from '@/features/settings/store/preferences.store'
-import { useWorkStore } from '@/features/work/store/work.store'
+import { useProjectTasksStore } from '@/features/project/store/projectTasks.store'
 import { mountWithHeaderChrome } from '../../support/mountWithHeaderChrome'
 
 vi.mock('@/features/settings/components/DatabaseSection.vue', () => ({ default: { template: '<div data-testid="database-section" />' } }))
@@ -86,7 +86,7 @@ describe('the Settings screen', () => {
     await page.get('[data-testid="segment-reduced"]').trigger('click')
     await flushPromises()
 
-    expect(useWorkStore().density).toBe('compact')
+    expect(useProjectTasksStore().density).toBe('compact')
     expect(usePreferencesStore().motion).toBe('reduced')
   })
 

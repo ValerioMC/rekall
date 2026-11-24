@@ -17,8 +17,6 @@ defineProps<{ task: Task }>()
   <header class="px-6 pt-2.5" data-testid="task-header">
     <div class="flex min-h-8 items-center gap-3 @max-[46rem]/task:[&_[data-label]]:hidden">
       <nav class="flex min-w-0 flex-1 items-center gap-2 text-small text-text-muted" aria-label="Where this task is">
-        <RouterLink :to="{ name: 'work' }" class="focus-ring shrink-0 rounded-key hover:text-text" data-testid="crumb-work">Work</RouterLink>
-        <span class="text-text-subtle" aria-hidden="true">/</span>
         <RouterLink
           :to="{ name: 'project-detail', params: { id: task.projectId } }"
           class="focus-ring min-w-0 truncate rounded-key hover:text-text"

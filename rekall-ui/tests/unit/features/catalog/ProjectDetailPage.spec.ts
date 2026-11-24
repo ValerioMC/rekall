@@ -10,7 +10,7 @@ import * as graphsApi from '@/features/graph/api/deployment-graphs.api'
 import * as connectionsApi from '@/features/connection/api/connections.api'
 import { useConsoleStore } from '@/stores/console.store'
 import { mountWithHeaderChrome } from '../../support/mountWithHeaderChrome'
-import { task as workTask } from '../work/work-fixtures'
+import { task as workTask } from '../project/project-task-fixtures'
 import type { Company, Project } from '@/features/catalog/model/catalog'
 import type { ProjectSection } from '@/features/project/model/project-section'
 import type { SectionContext } from '@/features/project/model/section-context'
@@ -115,7 +115,7 @@ describe('the project page', () => {
 
     expect(page.find('[data-testid="tasks-section"]').exists()).toBe(true)
     await page.get('[data-testid="tasks-section"] [data-testid="sub-nav-open"]').trigger('click')
-    expect(page.find('[data-testid="work-ledger"]').text()).toContain('Build the report')
+    expect(page.find('[data-testid="task-ledger"]').text()).toContain('Build the report')
     expect(page.get('[data-testid="sub-nav-tasks"]').attributes('aria-selected')).toBe('true')
   })
 

@@ -18,7 +18,7 @@ import WrapupPane from '@/features/wrapup/components/WrapupPane.vue'
 import { taskTabItems } from '@/features/task/lib/task-tab-items'
 import { tabOfPane, taskTabOf } from '@/features/task/model/task-tab'
 import { isEpic } from '@/features/catalog/model/catalog'
-import { workRows } from '@/features/work/lib/work-rows'
+import { taskRows } from '@/features/task/lib/task-rows'
 import { usePreferencesStore } from '@/features/settings/store/preferences.store'
 import { useDeviationsStore } from '@/features/deviations/store/deviations.store'
 import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
@@ -44,7 +44,7 @@ const known = computed(() => store.tasks.some((candidate) => candidate.id === ta
 const row = computed(() => {
   const task = selectedTask.value
   if (!task || task.id !== taskId.value) return null
-  return workRows([task], store.steps, (id) => tokenUsage.ofTask(id).generated)[0] ?? null
+  return taskRows([task], store.steps, (id) => tokenUsage.ofTask(id).generated)[0] ?? null
 })
 const tabs = computed(() => {
   const task = selectedTask.value
@@ -106,7 +106,7 @@ watch(
       <div class="flex flex-col items-center gap-3 text-center">
         <p class="text-body font-medium text-text">No such task.</p>
         <p class="text-small text-text-muted">It may have been deleted, or the link is wrong.</p>
-        <AppButton size="sm" @click="$router.push({ name: 'work' })">Back to work</AppButton>
+        <AppButton size="sm" @click="$router.push({ name: 'projects' })">Back to projects</AppButton>
       </div>
     </div>
 

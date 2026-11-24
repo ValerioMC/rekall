@@ -4,17 +4,17 @@ import FormPanel from '@/components/ui/FormPanel.vue'
 import FormRow from '@/components/ui/FormRow.vue'
 import SegmentedControl, { type SegmentOption } from '@/components/ui/SegmentedControl.vue'
 import { usePreferencesStore } from '@/features/settings/store/preferences.store'
-import { useWorkStore } from '@/features/work/store/work.store'
+import { useProjectTasksStore } from '@/features/project/store/projectTasks.store'
 import { SCALES, TASK_WIDTHS, type Motion, type TaskWidth } from '@/common/config/ui-preferences'
 import { TASK_WIDTH_LABEL } from '@/features/task/model/task-width'
-import type { WorkDensity } from '@/features/work/model/work-view'
+import type { ProjectTaskDensity } from '@/features/project/model/project-task-list'
 
 const preferences = usePreferencesStore()
-const work = useWorkStore()
+const projectTasks = useProjectTasksStore()
 const { motion, scale, taskWidth } = storeToRefs(preferences)
-const { density } = storeToRefs(work)
+const { density } = storeToRefs(projectTasks)
 
-const DENSITY: readonly SegmentOption<WorkDensity>[] = [
+const DENSITY: readonly SegmentOption<ProjectTaskDensity>[] = [
   { value: 'comfortable', label: 'Comfortable' },
   { value: 'compact', label: 'Compact' }
 ]
@@ -32,7 +32,7 @@ function chooseScale(value: string): void {
 
 <template>
   <FormPanel title="Appearance" aria-label="Appearance" data-testid="appearance-section">
-    <FormRow label="Density" hint="How tall a row of the Work ledger is.">
+    <FormRow label="Density" hint="How tall a row of a project's task list is.">
       <SegmentedControl v-model="density" :options="DENSITY" label="Density" />
     </FormRow>
     <FormRow label="Motion" hint="Reduced stops the loops, the running comet, the tube sheen and the session pulse. Every state change still shows.">

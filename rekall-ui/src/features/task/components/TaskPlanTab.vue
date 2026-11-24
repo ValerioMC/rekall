@@ -21,7 +21,7 @@ import { isTypingTarget, neighboursOf } from '@/features/steps/lib/step-navigati
 import { sessionPlaces } from '@/features/steps/lib/step-places'
 import type { StepSession } from '@/features/steps/lib/step-sessions'
 import { stepNumberOf } from '@/features/deviations/model/deviation'
-import { handedInWhole } from '@/features/work/lib/work-rows'
+import { handedInWhole } from '@/features/task/lib/task-rows'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { TaskStep } from '@/features/steps/model/task-step'

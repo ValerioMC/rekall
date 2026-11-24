@@ -24,16 +24,14 @@ under one menu, all inside one shell: the header, the page, and the sessions doc
 
 ```mermaid
 flowchart LR
-  Menu[Grouped menu] --> Work
-  Menu --> Review
+  Menu[Grouped menu] --> Review
   Menu --> Projects
   Menu --> Time
   Menu --> Library
   Menu --> Security
   Menu --> Settings
-  Work -->|row, card or ⌘K| Task[Task page]
-  Review -->|task link| Task
-  Projects -->|project page, Tasks tab| Work
+  Review -->|task link| Task[Task page]
+  Projects -->|project page, Tasks tab: row or ⌘K| Task
   Task -->|Accept, Send back| Review
 ```
 
@@ -51,8 +49,7 @@ Every screen is a page header, optional tabs and a body, and the body is always 
 
 | Mockup route | Real route | Screen |
 |---|---|---|
-| `#/work` | `/` (`/work` redirects to it) | Work ledger |
-| `#/work/board` | `/work/board` | Work board |
+| none | `/`, `/work`, `/work/board` | Redirect to the project list, so an old link does not 404 |
 | `#/task/:id/:tab` | `/task/:id/:tab` | Task page, tab `description`, `decisions`, `plan`, `wrapup`, `notes`, `time` or `deviations` |
 | `#/review/:key` | `/review/:key?` | Review queue |
 | `#/projects`, `#/projects/:id/:tab` | `/projects`, `/projects/:id/:tab` | Project list, project page |
@@ -66,20 +63,20 @@ Every screen is a page header, optional tabs and a body, and the body is always 
 | `#/settings/:section/:topic` | `/settings/:section?/:topic?` | Settings |
 
 The routes that exist today keep their paths: the redesign changes what a screen shows, not where it
-lives. `/` is the Work ledger instead of the three-column console, and `/review` and `/settings`
+lives. `/` is no screen of its own: it goes to the project list, and `/review` and `/settings`
 are new. A ledger row, a card and the sheet open the task page at `/task/:id/description`; a note in view
 is part of the path (`/task/:id/notes/:noteId`). `/console` is the terminal host and nothing else: Open in terminal, the dock and a deep link to a
 terminal show the session there, and a visit with no terminal open goes on to the task page of the task
-in view, or to Work. The notes list, the steps, wrapup, description and deviation panes of the old
+in view, or to the project list. The notes list, the steps, wrapup, description and deviation panes of the old
 console are gone; their tabs are on the task page.
 
 ### The grouped menu
 
-The Rekall mark to the left of the menu key opens Work with the scope reset to All work.
+The Rekall mark to the left of the menu key opens the project list and clears the scope left on (`HomeLink`).
 
 The menu key in the header is three lines, the name of the screen on display, the alert total and a chevron
 (`AppNavMenu`, `nav-menu-label`); it opens every screen under its section:
-Work (Work, Review), Projects (Projects, Companies, Connections), Time (Report, Calendar), Library
+Review (Review), Projects (Projects, Companies, Connections), Time (Report, Calendar), Library
 (Diagrams, Claude files), Security and Settings. The review count rides on the Review entry, and the key's
 accessible label names the screen on display and sums every alert. ⌘K opens the search:
 a row of group tabs (All, Projects, Tasks, Notes, Go to, In the text), each with how many it found, over the
@@ -92,10 +89,9 @@ descriptions, steps, wrapups and notes. **Tab** and **Shift+Tab** walk the tabs.
 or a click on the `/rk` field (`CommandPalette`, mounted once by `Bootstrap`); a task opens its page, a note
 its Notes tab, a step hit its Plan with the step open. It is how a person changes task, since there is no list to click.
 
-## Work
+## A project's tasks
 
-Work is one table, the ledger, grouped by project. A project heading carries its mark, its name,
-the company beside it, the task count, how many wait for review, and its tokens. The columns are
+A project's Tasks page is one table, the ledger, of the project's tasks. The columns are
 Task (the title, with a copy-anchor button shown on hover), Status (a pill), Plan (the plan tube
 and done over total), Needs you, Notes, Tokens and Updated. The anchor chip is not on every row.
 Sorting is on Task, Needs you, Tokens and Updated.
@@ -104,36 +100,31 @@ An epic is a row of its own, drawn with the stacked-plates mark in the epic tone
 folds the tasks it gathers: they are listed under it, indented on a thin rail, and nowhere else,
 and its Plan column says how many there are and how many are done. A task whose epic is not
 listed with it (another tab, or the epic is filed) keeps its place and carries the epic's name as
-a chip. The grouping is `features/work/lib/epic-entries.ts`; which epics are folded is kept in the
-Work store and not remembered.
+a chip. The grouping is `features/project/lib/epic-entries.ts`; which epics are folded is kept in the
+project tasks store and not remembered.
 
-The head is the scope bar shared with the project page (below): the project switcher as the title
-and what to know about the scope. Under it, the composer and the views are one section, `TasksSection`,
-that Work and a project's Tasks page share: the scope is its only input, and a
-project in view (a project page, or Work narrowed to one) adds the plan adherence strip and drops the
-project headers from the ledger. Only Work chooses the layout, since the layout is a route.
+The head is the project page's scope bar (below): the project switcher as the title and what to know
+about the project. Under it, the composer and the views are one section, `ProjectTasksSection`: the
+project in view adds the plan adherence strip, and the ledger shows no project headers.
 
 The composer (`TaskComposer`) is the one way to start work: one line that grows with the text, the
-project's folder (or, across projects, a picker that defaults to the project worked on last) and a
-split key. The key starts a quick task with the saved provider. Its menu offers a provider for
+project's folder and a split key. The key starts a quick task with the saved provider. Its menu offers a provider for
 this run when both CLIs are installed. **Plan a task…** opens the New task dialog with the text
 as its title, as does `T`. With no folder the key is inert and says why, and planning still works.
 The views are sub-navigation tabs with counts,
-and at their right end the filter on title and anchor, the Ledger or Board layout toggle and a **View**
-menu (`WorkViewMenu`) with the density (Comfortable or Compact) and whether quick tasks show; the
-toggle and the filter stay on the board, whose tabs are lanes: **Needs me** (the default), Running, Open and Filed. The ledger lists 25 tasks a page (`lib/work-pagination.ts`, `WorkPager`): the pager under it says which
-tasks the page holds out of how many and goes back to the first page when the view, the filter, the sort or
-the scope changes. A
-finished task never fills the table: each project folds its `DONE` tasks into one `N filed` line
+and at their right end the filter on title and anchor and a **View**
+menu (`ProjectTaskViewMenu`) with the density (Comfortable or Compact) and whether quick tasks show. The ledger lists 25 tasks a page (`lib/task-pagination.ts`, `ProjectTaskPager`): the pager under it says which
+tasks the page holds out of how many and goes back to the first page when the view, the filter or the sort
+changes. A
+finished task never fills the table: the ledger folds its `DONE` tasks into one `N filed` line
 that opens in place. The rules for which tasks a tab shows, the counts, the sort and the fold are
-pure functions in `features/work/lib/work-view-rules.ts`, over the rows `work-rows.ts` builds. Scope,
-view and density are layout preferences kept in `localStorage` by `common/config/work-preferences.ts`;
+pure functions in `features/project/lib/project-task-rules.ts`, over the rows `features/task/lib/task-rows.ts` builds. View
+and density are layout preferences kept in `localStorage` by `common/config/project-task-preferences.ts`;
 the sort and the filter are not.
 
-**Needs me** counts claimed steps plus tasks handed in whole. With nothing narrowing the scope that
-number is the same one as the menu badge, the header review segment and the Review queue, and the
-tests hold the two to each other. A scope narrows the tab counts to its tasks, so a count never
-promises rows the table does not list.
+**Needs me** counts claimed steps plus tasks handed in whole. Narrowed to one project, it counts that
+project's tasks, so a count never promises rows the table does not list; the menu badge, the header
+review segment and the Review queue count every project, and the tests hold them to each other.
 
 A row carries three actions that do not open it. The status pill is a menu (`TaskStatusMenu`, the
 same one the task page's properties bar uses): the pill says what the work is doing now, the menu
@@ -145,31 +136,19 @@ task wears a `Quick` badge beside its title.
 A row expands in place, one at a time, to its **peek**: the task's `/rk` anchor with copy, up to
 three claimed steps each with Send back and Accept, a task handed in whole with Accept task and
 Send back, Open task, and the session key (`OpenTerminalButton`, which reads Run here, or Working while
-a session runs). A person can clear a task's claims without leaving Work.
+a session runs). A person can clear a task's claims without leaving the list.
 
 Accepting stamps the step's seal in place and keeps the row listed for a moment, so the arrival is
 seen before the task leaves a tab it no longer belongs to; every count updates at once. The toast
 offers Reopen. Sending back has no Undo: only a session can claim a step again.
-
-### Board
-
-The board is a layout toggle of Work. Its lanes are To do, In progress (a running task wears the
-session mark), Awaiting your review (the amber one) and Filed, collapsed to a shelf with a count. A
-card is the project mark, a two-line title, the plan tube and one footer line. A card opens a 600px
-sheet over the board with the same peek and Open as page; Escape or a click outside closes it. The
-board and the ledger agree on every task and count: To do holds the to do and backlog tasks, In
-progress the in-progress, running and blocked ones, and together with Awaiting your review they
-hold exactly what the ledger lists on Open (`lib/work-lanes.ts`). A lane lists its first forty cards
-and says how many more there are. The layout is the route, `/` for the ledger and `/work/board`
-for the board.
 
 ## The task page
 
 A task is a page at `/task/:id/:tab`, opened on its Description when no tab is named. The page
 is as wide as the window. The page-width choice (Narrow, Standard, Wide or Full, from the key at
 the right of the tab strip; Wide at first) sets only how wide the description editor is, centred
-in the page; the choice is kept in the browser and holds for every task. The header is two lines: the breadcrumb (Work,
-then company and project) with the task's actions at its right (Log commit, Open in terminal and
+in the page; the choice is kept in the browser and holds for every task. The header is two lines: the breadcrumb (company
+and project) with the task's actions at its right (Log commit, Open in terminal and
 Run here, each offered once), and the title alone beneath. The tab strip is Description, Plan,
 Changes, Wrapup, Notes, Time and Deviations, with counts where a count means something (steps,
 logged commits, notes, deviations) and an amber one on Plan while a step waits for review; at its
@@ -326,19 +305,18 @@ approved.
 **Projects.** Projects, Companies and Connections share one sub-navigation with counts
 (`ProjectsSubNav`). The list is a card per project under its company, with the identity mark, anchor,
 status pill, a composition bar (filed, to review, in progress, to do: `lib/project-composition.ts`)
-and counts. The project page opens with the same scope bar as Work and a header that is the same on every working
+and counts. The project page opens with a scope bar and a header that is the same on every working
 screen, the `/rk` search and the status capsule (`ConsoleHeader`). The title is the project switcher
 (`ScopeSwitcher`): a search field, the **pinned** projects (`pinnedProjects.store`, three at most, a star on every
 row), the projects opened last that are not pinned (`recentProjects.store`, five kept in `localStorage`, three
 shown), then every company with its projects, folded except the open project's company (all of them when nothing is in
 view and there is no pin or recent to lead with) and unfolded while searching; archived projects are left out unless open.
 The same switcher is the **header's project key** on every screen (`HeaderProjectSwitch`, beside the history
-arrows): it names the project of a project page, the open task or Work's scope, records it as recent, and a choice keeps
-a project page on its tab and otherwise narrows Work to the project.
-On Work a choice narrows the list (All work, a company or a project) and a project row carries **Open page**;
-on a project page a choice goes to that project on the tab already open. What each page does with a choice
-is the page's; the switcher only hands back a `ScopeTarget`. The project page is a route per tab (`/projects/:id/:tab`): Tasks (the Work ledger
-narrowed to the project through `work.focusProject`), Blueprint, Pages, Components, Diagrams,
+arrows): it names the project of a project page, the open task or the console's scope, records it as recent, and a choice keeps
+a project page on its tab and otherwise opens the project's page.
+On a project page a choice goes to that project on the tab already open. What each page does with a choice
+is the page's; the switcher only hands back a `ScopeTarget`. The project page is a route per tab (`/projects/:id/:tab`): Tasks (the ledger
+narrowed to the project through `projectTasks.focusProject`), Blueprint, Pages, Components, Diagrams,
 Deployment, Connections and Settings; Blueprint and Deployment keep what the old page held beyond
 the mockup's six. Companies is a list with a detail pane (`/companies/:id`); Connections are grouped
 by kind with Check and the credential reveal. The company is named beside a project on the cards'
@@ -352,7 +330,7 @@ project rail. **Settings** is a screen at `/settings/:section?/:topic?` with a s
 menu. Workspace: General (the databases), Connections (a link to the screen), Data and backup. Work: Sessions and run queue
 (Claude Code and its protections), Review (open the next item after a decision, confirm before sending work back), Time and usage
 (the workday goal the report's dashed line reads, the percentage the usage meter warns from), Notifications. Console: Appearance
-(density, which is the Work ledger's, motion, text scale), Keyboard. Reference: Help and About. Help lists its topics (Load, Tasks,
+(density, which is the project task ledger's, motion, text scale), Keyboard. Reference: Help and About. Help lists its topics (Load, Tasks,
 Steps, Wrapup, Notes and pages, Revisions, Diagrams, Security, Outside Rekall) under its own rail entry, each a `:topic` address:
 the `/rk` commands of the topic with the MCP tool each calls, the tools a session can be asked for directly, and for a session
 outside Rekall requests to paste. Project label and Task code fill every command and request, and a search finds across topics;

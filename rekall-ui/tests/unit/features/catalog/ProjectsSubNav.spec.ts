@@ -7,7 +7,7 @@ import * as connectionsApi from '@/features/connection/api/connections.api'
 import { aConnection } from '../../support/connectionFixture'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Company } from '@/features/catalog/model/catalog'
-import { project } from '../work/work-fixtures'
+import { project } from '../project/project-task-fixtures'
 
 vi.mock('@/features/connection/api/connections.api')
 

@@ -19,7 +19,7 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { relativeTime } from '@/common/format/relative-time'
 import { useConsoleStore } from '@/stores/console.store'
 import { projectComposition, reviewWaiting } from '@/features/catalog/lib/project-composition'
-import { workRows } from '@/features/work/lib/work-rows'
+import { taskRows } from '@/features/task/lib/task-rows'
 import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 import { projectDraft } from '@/features/catalog/model/record-draft'
 import { identityHue } from '@/common/identity'
@@ -117,8 +117,8 @@ function blastOf(project: Project): string {
 }
 
 const rowsByProject = computed(() => {
-  const byProject = new Map<ProjectId, ReturnType<typeof workRows>>()
-  for (const row of workRows(store.tasks, store.steps, () => 0)) {
+  const byProject = new Map<ProjectId, ReturnType<typeof taskRows>>()
+  for (const row of taskRows(store.tasks, store.steps, () => 0)) {
     byProject.set(row.task.projectId, [...(byProject.get(row.task.projectId) ?? []), row])
   }
   return byProject

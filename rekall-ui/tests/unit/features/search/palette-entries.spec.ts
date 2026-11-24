@@ -5,7 +5,7 @@ import type { PaletteScope } from '@/features/search/model/palette'
 import type { RekallDocument } from '@/features/notes/model/document'
 import type { SearchHit } from '@/features/search/model/search'
 import type { DocumentId, ProjectId, TaskId, TaskStepId } from '@/model/branded'
-import { project, task } from '../work/work-fixtures'
+import { project, task } from '../project/project-task-fixtures'
 
 const vega = 'vega' as ProjectId
 const orion = 'orion' as ProjectId

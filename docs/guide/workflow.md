@@ -217,7 +217,7 @@ The message says what the work does, never which files it touched. The session t
 ## Quick tasks
 
 A small change does not need a task with a description, a run and a review. In the composer above the task list,
-on Work and on a project's page, one text field takes the change: press Enter, or **Start quick task**, and Rekall makes a task from
+on a project's page, one text field takes the change: press Enter, or **Start quick task**, and Rekall makes a task from
 it (its first line is the title, the whole text the description), opens a session on it and starts
 the timer. Shift+Enter goes to a new line. The key needs the project's folder; its menu, **Plan a task…**, opens the New task dialog with the text as the title instead. Across projects, a picker beside the key names the project. Any number of quick tasks can be worked on a project at once.
 

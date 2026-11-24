@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { projectComposition, reviewWaiting } from '@/features/catalog/lib/project-composition'
-import type { WorkKind, WorkRow } from '@/features/work/model/work-view'
-import { task } from '../work/work-fixtures'
+import type { TaskRowKind, TaskRow } from '@/features/task/model/task-row'
+import { task } from '../project/project-task-fixtures'
 
-function row(kind: WorkKind, needs = 0): WorkRow {
+function row(kind: TaskRowKind, needs = 0): TaskRow {
   return { task: task(`${kind}-${needs}`), kind, claimedSteps: needs, needs, running: kind === 'running', tokens: 0 }
 }
 

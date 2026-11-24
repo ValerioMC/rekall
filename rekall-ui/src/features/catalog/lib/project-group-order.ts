@@ -11,7 +11,7 @@ export interface OrderedProject {
 const STATUS_RANK: Readonly<Record<ProjectStatus, number>> = { ACTIVE: 0, PAUSED: 1, DONE: 2, ARCHIVED: 3 }
 
 /**
- * Projects by status, then title. Across companies (`All work`) they are first gathered under
+ * Projects by status, then title. Across companies they are first gathered under
  * their company, so a company's projects sit together instead of interleaving with another's.
  */
 export function compareProjects(acrossCompanies: boolean) {

@@ -5,7 +5,7 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import TaskDeleteButton from '@/features/task/components/TaskDeleteButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Task } from '@/features/catalog/model/catalog'
-import type { TaskId } from '@/model/branded'
+import type { ProjectId, TaskId } from '@/model/branded'
 
 const stub = { template: '<div />' }
 let router: Router
@@ -13,7 +13,7 @@ let wrapper: VueWrapper
 let deleteTask: ReturnType<typeof vi.fn>
 
 function task(overrides: Partial<Task> = {}): Task {
-  return { id: 't-1' as TaskId, code: 'RK-1', title: 'Report builder', documentCount: 2, trackerIssueKey: null, ...overrides } as Task
+  return { id: 't-1' as TaskId, projectId: 'p-1' as ProjectId, code: 'RK-1', title: 'Report builder', documentCount: 2, trackerIssueKey: null, ...overrides } as Task
 }
 
 async function mountButton(subject: Task): Promise<void> {
@@ -24,7 +24,7 @@ async function mountButton(subject: Task): Promise<void> {
   router = createRouter({
     history: createMemoryHistory(),
     routes: [
-      { path: '/work', name: 'work', component: stub },
+      { path: '/projects/:id/:tab?', name: 'project-detail', component: stub },
       { path: '/task/:id', name: 'task', component: stub }
     ]
   })
@@ -41,7 +41,7 @@ describe('TaskDeleteButton', () => {
   beforeEach(() => document.body.replaceChildren())
   afterEach(() => wrapper?.unmount())
 
-  it('deletes nothing until the confirm is accepted, then returns to Work', async () => {
+  it('deletes nothing until the confirm is accepted, then returns to its project', async () => {
     await mountButton(task())
 
     await wrapper.get('[data-testid="task-delete"]').trigger('click')
@@ -52,7 +52,7 @@ describe('TaskDeleteButton', () => {
     await flushPromises()
 
     expect(deleteTask).toHaveBeenCalledWith('t-1')
-    expect(router.currentRoute.value.name).toBe('work')
+    expect(router.currentRoute.value.fullPath).toBe('/projects/p-1/tasks')
   })
 
   it('says the task manager issue is deleted too', async () => {

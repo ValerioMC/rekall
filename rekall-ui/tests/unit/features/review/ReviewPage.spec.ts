@@ -88,7 +88,7 @@ describe('ReviewPage', () => {
     router = createRouter({
       history: createMemoryHistory(),
       routes: [
-        { path: '/', name: 'work', component: stub },
+        { path: '/projects', name: 'projects', component: stub },
         { path: '/review/:key?', name: 'review', component: stub },
         { path: '/task/:id/:tab?/:noteId?', name: 'task', component: stub }
       ]
