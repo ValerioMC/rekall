@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{WireBlocks, WireControlRequest, WireResult, WireStreamEvent, WireSystem};
+use super::{WireBlocks, WireControlRequest, WireLocalCommand, WireResult, WireStreamEvent, WireSystem};
 
 /// One line of `claude`'s stdout, by its `type`. A type Rekall does not read is `Other`.
 #[derive(Debug, Deserialize)]
@@ -12,6 +12,8 @@ pub(in crate::chat) enum WireLine {
     },
     Assistant {
         message: WireMessage,
+        local_command_source: Option<String>,
+        local_command_run: Option<WireLocalCommand>,
     },
     User {
         message: WireMessage,

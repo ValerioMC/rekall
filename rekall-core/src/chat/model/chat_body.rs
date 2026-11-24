@@ -11,6 +11,8 @@ pub const TOOL_EXCERPT_MAX_CHARACTERS: usize = 4000;
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum ChatBody {
+    SessionStarted { model: String, cwd: String, permission_mode: String, version: String },
+    CommandOutput { command: String, text: String },
     UserMessage { text: String },
     AssistantText { message_id: String, text: String, complete: bool },
     AssistantThinking { message_id: String, text: String, complete: bool },

@@ -97,7 +97,11 @@ UUID, because the id is the one `claude` gave the prompt. An unknown or closed s
 What a chat session is made of. `ChatProcess` (`rekall-infra/src/chat/`) runs `claude -p --verbose
 --input-format stream-json --output-format stream-json --include-partial-messages` with only the
 shell environment Rekall resolved, and `StreamParser` turns each stdout line into `ChatEvent`s of
-`rekall-core`: a `seq` and a `ChatBody` (`UserMessage`, `AssistantText` and `AssistantThinking` that
+`rekall-core`: a `seq` and a `ChatBody` (`SessionStarted` with the model, working directory, permission mode and
+version from `system` / `init`, announced again only when one of them changed because `claude` repeats `init` on every turn;
+`CommandOutput` with the output of a local slash command such as `/context` and the command that printed it,
+read from the `local_command_source` and `local_command_run` of the `assistant` line `claude -p` prints it as,
+tags stripped, empty output dropped; `UserMessage`, `AssistantText` and `AssistantThinking` that
 grow until `complete`, `ToolUse` with a typed `ToolInput`, `ToolResult`, `PermissionRequested` and
 `PermissionResolved`, `TurnFinished` with the turn's usage, `Notice` and `Ended`). `EventJournal`
 numbers and keeps them, which is what lets a reader that reconnects resume from `Last-Event-ID`.

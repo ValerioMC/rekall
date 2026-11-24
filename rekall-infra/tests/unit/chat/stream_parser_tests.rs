@@ -10,10 +10,15 @@ const PERMISSION_ALLOW: &str = include_str!("../../fixtures/chat/permission_requ
 const PERMISSION_DENY: &str = include_str!("../../fixtures/chat/permission_request_deny.jsonl");
 const INTERRUPTED: &str = include_str!("../../fixtures/chat/interrupted_turn.jsonl");
 const ERROR_RETRY: &str = include_str!("../../fixtures/chat/error_retry.jsonl");
+const LOCAL_COMMAND: &str = include_str!("../../fixtures/chat/local_command_context.jsonl");
 
-fn parse(fixture: &str) -> Vec<ChatBody> {
+fn parse_all(fixture: &str) -> Vec<ChatBody> {
     let mut parser = StreamParser::new();
     fixture.lines().flat_map(|line| parser.parse_line(line)).collect()
+}
+
+fn parse(fixture: &str) -> Vec<ChatBody> {
+    parse_all(fixture).into_iter().filter(|event| !matches!(event, ChatBody::SessionStarted { .. })).collect()
 }
 
 fn parse_lines(lines: &[serde_json::Value]) -> Vec<ChatBody> {
@@ -293,6 +298,63 @@ fn a_compaction_and_a_cleared_conversation_are_notices() {
 #[test]
 fn a_control_request_other_than_a_permission_prompt_is_ignored() {
     let events = parse_lines(&[json!({"type": "control_request", "request_id": "r", "request": {"subtype": "hook_callback"}})]);
+
+    assert!(events.is_empty());
+}
+
+#[test]
+fn the_init_line_announces_the_session_with_its_model_directory_mode_and_version() {
+    let events = parse_all(PLAIN_REPLY);
+
+    assert_eq!(
+        events[0],
+        ChatBody::SessionStarted {
+            model: "claude-haiku-5-5".into(),
+            cwd: "/work/project".into(),
+            permission_mode: "default".into(),
+            version: "2.1.314".into(),
+        }
+    );
+}
+
+#[test]
+fn an_init_repeated_on_every_turn_announces_the_session_once() {
+    let events = parse_all(PLAIN_REPLY);
+
+    let announcements = events.iter().filter(|event| matches!(event, ChatBody::SessionStarted { .. })).count();
+    assert_eq!(announcements, 1);
+}
+
+#[test]
+fn an_init_that_changed_the_model_announces_the_session_again() {
+    let init = |model: &str| json!({"type": "system", "subtype": "init", "model": model, "cwd": "/w", "permissionMode": "default", "claude_code_version": "2"});
+
+    let events = parse_lines(&[init("a"), init("a"), init("b")]);
+
+    assert_eq!(events.len(), 2);
+}
+
+#[test]
+fn a_local_command_prints_its_output_as_one_event_without_the_tags_and_no_assistant_text() {
+    let events = parse(LOCAL_COMMAND);
+
+    let outputs: Vec<&ChatBody> = events.iter().filter(|event| matches!(event, ChatBody::CommandOutput { .. })).collect();
+    assert_eq!(outputs.len(), 1);
+    let ChatBody::CommandOutput { command, text } = outputs[0] else { panic!("a command output") };
+    assert_eq!(command, "/context");
+    assert!(text.starts_with("## Context Usage"));
+    assert!(!text.contains("local-command-stdout"));
+    assert!(completed_texts(&events).is_empty());
+}
+
+#[test]
+fn a_local_command_with_no_output_produces_nothing() {
+    let events = parse_lines(&[json!({
+        "type": "assistant",
+        "message": {"id": "m", "content": [{"type": "text", "text": ""}]},
+        "local_command_source": "<local-command-stdout></local-command-stdout>",
+        "local_command_run": {"command": "compact", "args": ""}
+    })]);
 
     assert!(events.is_empty());
 }

@@ -47,3 +47,15 @@ fn a_turn_is_written_with_its_counters_and_outcome() {
         })
     );
 }
+
+#[test]
+fn a_session_start_and_a_command_output_are_written_with_camel_case_fields() {
+    let started = ChatBody::SessionStarted { model: "m".into(), cwd: "/w".into(), permission_mode: "default".into(), version: "2".into() };
+    let output = ChatBody::CommandOutput { command: "/context".into(), text: "ok".into() };
+
+    assert_eq!(
+        serde_json::to_value(&started).unwrap(),
+        serde_json::json!({"type": "sessionStarted", "model": "m", "cwd": "/w", "permissionMode": "default", "version": "2"})
+    );
+    assert_eq!(serde_json::to_value(&output).unwrap(), serde_json::json!({"type": "commandOutput", "command": "/context", "text": "ok"}));
+}
