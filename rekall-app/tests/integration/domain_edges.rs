@@ -184,6 +184,7 @@ const HTTP: LayeredCrate = LayeredCrate {
         ("token", &[]),
         ("version", &[]),
         ("vulnerability", &["catalog"]),
+        ("workingset", &[]),
         ("worktree", &[]),
         ("wrapup", &[]),
     ],

@@ -46,6 +46,7 @@ pub mod timeentry;
 pub mod token;
 pub mod version;
 pub mod vulnerability;
+pub mod workingset;
 pub mod worktree;
 pub mod wrapup;
 

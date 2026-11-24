@@ -6,5 +6,6 @@ mod service;
 mod view;
 
 pub use service::working_set_service::WorkingSetService;
+pub use view::open_task_view::OpenTaskView;
 pub use view::place_view::PlaceView;
 pub use view::working_set_view::WorkingSetView;

@@ -5,8 +5,7 @@ use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::repository as repo;
 
 use crate::workingset::rule::closing_rule::landing_after_closing;
-use crate::workingset::view::working_set_view::OpenTaskView;
-use crate::workingset::{PlaceView, WorkingSetView};
+use crate::workingset::{OpenTaskView, PlaceView, WorkingSetView};
 
 #[derive(Clone)]
 pub struct WorkingSetService {
