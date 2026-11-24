@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Task } from '@/features/catalog/model/catalog'
+import type { SessionPlace } from '@/features/steps/lib/step-places'
 import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TaskStepId } from '@/model/branded'
 import StepDraftRow from './StepDraftRow.vue'
@@ -10,11 +11,19 @@ defineProps<{
   task: Task
   selectedId: TaskStepId | null
   promoting: TaskStepId | null
+  /** The sessions a draft can be promoted into. */
+  sessions: readonly SessionPlace[]
+  /** The draft being dragged onto the plan. */
+  draggingId: TaskStepId | null
 }>()
 
 defineEmits<{
   select: [step: TaskStep]
   promote: [step: TaskStep]
+  'promote-into': [step: TaskStep, sessionNumber: number]
+  'promote-alone': [step: TaskStep]
+  'drag-start': [step: TaskStep]
+  'drag-end': []
   move: [step: TaskStep, by: number]
   remove: [step: TaskStep]
 }>()
@@ -39,8 +48,14 @@ defineEmits<{
         :is-first="index === 0"
         :is-last="index === steps.length - 1"
         :promoting="promoting === step.id"
+        :sessions="sessions"
+        :dragging="draggingId === step.id"
         @select="$emit('select', step)"
         @promote="$emit('promote', step)"
+        @promote-into="(sessionNumber) => $emit('promote-into', step, sessionNumber)"
+        @promote-alone="$emit('promote-alone', step)"
+        @drag-start="$emit('drag-start', step)"
+        @drag-end="$emit('drag-end')"
         @move="(by) => $emit('move', step, by)"
         @remove="$emit('remove', step)"
       />

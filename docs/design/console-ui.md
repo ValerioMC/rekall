@@ -206,13 +206,24 @@ yellow for a pass sent back, green for the one accepted, indigo for the one a se
 Nothing lies over the title. The seal is the decision (Accept a claim, Mark done on an open step) and
 names it under the pointer; ticking or accepting offers an Undo or Reopen toast. An open step also has a
 handle that replaces its number under the pointer, to drag it to another place (or Alt with the arrow
-keys), and a **⋯** menu with Return to draft and Delete step…, each with a line saying what it does
-(`PlanStepMenu`). A step that has been started has neither. A moved step joins the session it lands in,
-and a step that opens a session hands the opening to the step behind it when it leaves, so moving,
-returning to draft or deleting never merges two sessions (`planStepMove`, `openerHandover`); returning
-to draft offers an Undo that restores the place and the sessions. Under the rows come the drafts, each a line that selects it: its title, whether a detail is written,
-its skills, routes (a count) and a new-session tag, with Promote, which waits for a detail. A draft is
-never written in the list. The line docked at the foot, with the skills and new-session keys, adds a
+keys), and a **⋯** menu (`PlanStepMenu`): Move up and down with their keys, **Run in** with every
+session the step can join (one that has started is greyed and says so) and a new session in front of
+its own or at the end, then Return to draft and Delete step…, each with a line saying what it does.
+A step that has been started has neither. A step dropped on the edge of another joins the session it
+lands in, and a step that opens a session hands the opening to the step behind it when it leaves, so
+moving, returning to draft or deleting never merges two sessions (`planStepMove`, `openerHandover`).
+
+While a step, a draft or a session is held, a slot opens in front of every session that has not
+started and after the last (`PlanSessionSlot`): dropped there, a step runs alone in a session of its own
+(`planStepAlone`) and the sessions after it renumber. The header of a session none of whose steps has
+started has a grip that lifts it whole (Alt with the arrow keys moves it one session); every session
+then folds to its header, a started one says **Started**, and nothing lands above it (`planSessionMove`,
+`sessionIsMovable`). Every move offers an Undo toast that lays the checklist out as it was
+(`planRelayout`, `usePlanMoves`); the keyboard's one-place move does not. Under the rows come the
+drafts, each a line that selects it: its title, whether a detail is written, its skills, routes (a
+count) and a new-session tag, with Promote, which waits for a detail, an arrow beside it that lists
+the sessions to promote into, and a handle that drags it onto the plan to be promoted where it lands.
+A draft is never written in the list. The line docked at the foot, with the skills and new-session keys, adds a
 draft (a new step is a draft) and opens it in the pane with the caret in its detail.
 
 With the flow view the graph owns the whole workspace beside the picked step's routes and visits (a

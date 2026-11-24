@@ -565,6 +565,10 @@ describe('TaskPlanTab', () => {
       return { ...step, startsSession: true }
     }
 
+    function menuItem(tab: ReturnType<typeof render>, label: string) {
+      return tab.findAll('[data-testid="popover-menu-item"]').find((item) => item.text().includes(label))!
+    }
+
     it('groups the steps under the session they run in', () => {
       seed([makeStep('s1', 0, 'DONE'), opening(makeStep('s2', 1, 'CLAIMED')), makeStep('s3', 2, 'OPEN')])
       const tab = render()
@@ -619,7 +623,7 @@ describe('TaskPlanTab', () => {
       const tab = render()
 
       await tab.findAll('[data-testid="step-more"]')[0]!.trigger('click')
-      await tab.findAll('[data-testid="popover-menu-item"]')[0]!.trigger('click')
+      await menuItem(tab, 'Return to draft').trigger('click')
       await flushPromises()
 
       expect(store.returnStepToDraft).toHaveBeenCalledWith('s2')
@@ -633,6 +637,120 @@ describe('TaskPlanTab', () => {
       expect(store.promoteStep).toHaveBeenCalledWith('s2')
       expect(store.moveStep).toHaveBeenCalledWith('s2', 1)
       expect(store.beginStepSession).toHaveBeenCalledWith('s3', false)
+    })
+
+    function drag(tab: ReturnType<typeof render>, selector: string, index: number) {
+      const handle = tab.findAll(selector)[index]!
+      return handle.trigger('pointerdown').then(() => {
+        const row = handle.element.closest('[draggable]') as HTMLElement
+        row.dispatchEvent(Object.assign(new Event('dragstart', { bubbles: true, cancelable: true }), { dataTransfer: { setData: vi.fn() } }))
+      })
+    }
+
+    async function dropOnSlot(tab: ReturnType<typeof render>, index: number): Promise<void> {
+      const slot = tab.findAll('[data-testid="plan-session-slot"]')[index]!
+      await slot.trigger('dragover')
+      await slot.trigger('drop')
+      await flushPromises()
+    }
+
+    it('runs a step in a session of its own when it is dropped on the slot after the last session, and puts it back on Undo', async () => {
+      const store = seed([makeStep('s1', 0, 'OPEN'), makeStep('s2', 1, 'OPEN'), makeStep('s3', 2, 'OPEN')])
+      const tab = render()
+
+      await drag(tab, '[data-testid="step-handle"]', 0)
+      const slots = tab.findAll('[data-testid="plan-session-slot"]')
+      expect(slots.map((slot) => slot.text())).toEqual(['New session here', 'New session at the end'])
+      await dropOnSlot(tab, 1)
+
+      expect(store.moveStep).toHaveBeenCalledWith('s1', 2)
+      expect(store.beginStepSession).toHaveBeenCalledWith('s1', true)
+      expect(store.beginStepSession).toHaveBeenCalledTimes(1)
+      const toast = useToastStore().toasts[0]!
+      expect(toast.message).toBe('Step s1 runs in a session of its own')
+      expect(toast.action?.label).toBe('Undo')
+    })
+
+    it('offers no slot while nothing is held', () => {
+      seed([makeStep('s1', 0, 'OPEN'), opening(makeStep('s2', 1, 'OPEN'))])
+
+      expect(render().find('[data-testid="plan-session-slot"]').exists()).toBe(false)
+    })
+
+    it('opens a slot in front of every session that has not started, and none in front of one that has', async () => {
+      seed([makeStep('s1', 0, 'CLAIMED'), opening(makeStep('s2', 1, 'OPEN')), opening(makeStep('s3', 2, 'OPEN'))])
+      const tab = render()
+
+      await drag(tab, '[data-testid="step-handle"]', 1)
+
+      expect(tab.findAll('[data-testid="plan-session-slot"]').map((slot) => slot.text())).toEqual([
+        'New session here',
+        'New session here',
+        'New session at the end'
+      ])
+    })
+
+    it('runs a step in the session chosen from its menu, and says it cannot join one that has started', async () => {
+      const store = seed([makeStep('s1', 0, 'CLAIMED'), opening(makeStep('s2', 1, 'OPEN')), opening(makeStep('s3', 2, 'OPEN'))])
+      const tab = render()
+
+      await tab.findAll('[data-testid="step-more"]')[0]!.trigger('click')
+      expect(menuItem(tab, 'Session 1').attributes('disabled')).toBeDefined()
+      await menuItem(tab, 'Session 3').trigger('click')
+      await flushPromises()
+
+      expect(store.moveStep).not.toHaveBeenCalled()
+      expect(store.beginStepSession).toHaveBeenCalledWith('s3', false)
+    })
+
+    it('moves a whole session by its grip and lays the sessions out again on Undo', async () => {
+      const store = seed([makeStep('s1', 0, 'OPEN'), opening(makeStep('s2', 1, 'OPEN')), makeStep('s3', 2, 'OPEN')])
+      const tab = render()
+
+      await drag(tab, '[data-testid="session-handle"]', 1)
+      expect(tab.findAll('[data-testid="plan-session-slot"]').map((slot) => slot.text())).toEqual(['New session here'])
+      await dropOnSlot(tab, 0)
+
+      expect(store.moveStep).toHaveBeenCalledWith('s1', 2)
+      expect(useToastStore().toasts[0]!.message).toBe('Moved Session 2')
+    })
+
+    it('promotes a draft where it is dropped, in a session of its own', async () => {
+      const store = seed([
+        makeStep('s1', 0, 'OPEN'),
+        { ...makeStep('d1', 1, 'DRAFT'), bodyMarkdown: 'Write the toast.' }
+      ])
+      store.promoteStep = vi.fn().mockImplementation(async (id: string) => {
+        store.steps = store.steps.map((step) => (step.id === id ? { ...step, state: 'OPEN' as const } : step))
+      })
+      const tab = render()
+
+      await drag(tab, '[data-testid="draft-handle"]', 0)
+      await dropOnSlot(tab, 1)
+
+      expect(store.promoteStep).toHaveBeenCalledWith('d1')
+      expect(store.beginStepSession).toHaveBeenCalledWith('d1', true)
+      expect(useToastStore().toasts[0]!.message).toBe('Promoted Step d1')
+    })
+
+    it('promotes a draft into the session picked beside its Promote key', async () => {
+      const store = seed([
+        makeStep('s1', 0, 'OPEN'),
+        opening(makeStep('s2', 1, 'OPEN')),
+        { ...makeStep('d1', 2, 'DRAFT'), bodyMarkdown: 'Write the toast.' }
+      ])
+      store.promoteStep = vi.fn().mockImplementation(async (id: string) => {
+        store.steps = store.steps.map((step) => (step.id === id ? { ...step, state: 'OPEN' as const } : step))
+      })
+      const tab = render()
+
+      await tab.get('[data-testid="draft-promote-into"]').trigger('click')
+      await menuItem(tab, 'Session 1').trigger('click')
+      await flushPromises()
+
+      expect(store.promoteStep).toHaveBeenCalledWith('d1')
+      expect(store.moveStep).toHaveBeenCalledWith('d1', 1)
+      expect(store.beginStepSession).not.toHaveBeenCalled()
     })
 
     it('offers to undo ticking an open step from its seal', async () => {

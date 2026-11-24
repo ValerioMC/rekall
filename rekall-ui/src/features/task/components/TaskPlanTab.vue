@@ -18,6 +18,8 @@ import { columnMaxWidth } from '@/features/task/model/task-width'
 import { usePreferencesStore } from '@/features/settings/store/preferences.store'
 import { useTaskPlan } from '@/features/steps/composables/useTaskPlan'
 import { isTypingTarget, neighboursOf } from '@/features/steps/lib/step-navigation'
+import { sessionPlaces } from '@/features/steps/lib/step-places'
+import type { StepSession } from '@/features/steps/lib/step-sessions'
 import { stepNumberOf } from '@/features/deviations/model/deviation'
 import { handedInWhole } from '@/features/work/lib/work-rows'
 import { useConsoleStore } from '@/stores/console.store'
@@ -43,6 +45,7 @@ const {
   draftSteps,
   visibleSteps,
   visibleSessions,
+  sessions,
   allDone,
   currentId,
   firstClaimed,
@@ -191,8 +194,22 @@ function openDeviation(stepNumber: number): void {
   void router.push({ name: 'task', params: { id: props.task.id, tab: 'deviations' } })
 }
 
+function sessionNumbered(number: number): StepSession | undefined {
+  return sessions.value.find((session) => session.number === number)
+}
+
+async function runIn(step: TaskStep, sessionNumber: number): Promise<void> {
+  const session = sessionNumbered(sessionNumber)
+  if (session) await plan.moves.runIn(step, session)
+}
+
+async function promoteInto(draft: TaskStep, sessionNumber: number): Promise<void> {
+  const session = sessionNumbered(sessionNumber)
+  if (session) await plan.moves.promoteInto(draft, session)
+}
+
 async function nudge(step: TaskStep, by: number): Promise<void> {
-  await plan.nudge(step, by)
+  await plan.moves.nudge(step, by)
   await nextTick()
   listEl.value?.querySelector<HTMLElement>(`[data-step-id="${step.id}"] [data-testid="plan-step-title"]`)?.focus()
 }
@@ -240,6 +257,8 @@ async function nudge(step: TaskStep, by: number): Promise<void> {
               <template v-else>
                 <PlanSessionList
                   :sessions="visibleSessions"
+                  :steps="checklistSteps"
+                  :drag="plan.drag"
                   :selected-id="selectedStep?.id ?? null"
                   :current-id="currentId"
                   :all-done="allDone"
@@ -249,7 +268,9 @@ async function nudge(step: TaskStep, by: number): Promise<void> {
                   @to-draft="plan.returnToDraft"
                   @remove="(step) => (deleting = step)"
                   @nudge="nudge"
-                  @reorder="plan.reorder"
+                  @run-in="runIn"
+                  @alone="plan.moves.placeAlone"
+                  @nudge-session="plan.moves.nudgeSession"
                   @session="(step, startsSession) => plan.chooseSession(step, startsSession)"
                 />
                 <p class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 px-2 text-caption text-text-subtle" data-testid="plan-pass-legend">
@@ -270,8 +291,14 @@ async function nudge(step: TaskStep, by: number): Promise<void> {
               :task="task"
               :selected-id="selectedDraft?.id ?? null"
               :promoting="promoting"
+              :sessions="sessionPlaces(sessions, null)"
+              :dragging-id="plan.drag.dragged.value?.id ?? null"
               @select="stepTo"
               @promote="plan.promote"
+              @promote-into="promoteInto"
+              @promote-alone="(step) => plan.moves.promoteAlone(step, null)"
+              @drag-start="plan.drag.start"
+              @drag-end="plan.drag.end"
               @move="plan.move"
               @remove="(step) => (deleting = step)"
             />

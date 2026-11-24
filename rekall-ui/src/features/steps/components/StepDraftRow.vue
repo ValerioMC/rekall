@@ -1,16 +1,19 @@
 <script setup lang="ts">
-import { computed, toRef } from 'vue'
+import { computed, ref, toRef } from 'vue'
+import PopoverMenu, { type PopoverMenuEntry } from '@/components/ui/PopoverMenu.vue'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
 import SkillMark from '@/features/skills/components/SkillMark.vue'
 import { useStepSkills } from '@/features/skills/composables/useStepSkills'
 import type { Task } from '@/features/catalog/model/catalog'
+import type { SessionPlace } from '@/features/steps/lib/step-places'
 import type { TaskStep } from '@/features/steps/model/task-step'
 import StepRowControls from './StepRowControls.vue'
 
 /**
  * One draft on the shelf below the checklist, a line that selects it: its title, whether a detail
  * is written, and what it will carry (skills, a new session, routes). It is written in the pane
- * beside the list, never here. Promote waits for a detail, as it does in the pane.
+ * beside the list, never here. Promote waits for a detail, as it does in the pane, and so does
+ * placing the draft: its handle drags it onto the plan and the arrow beside Promote lists where.
  */
 const props = defineProps<{
   step: TaskStep
@@ -19,24 +22,75 @@ const props = defineProps<{
   isFirst: boolean
   isLast: boolean
   promoting: boolean
+  sessions: readonly SessionPlace[]
+  dragging: boolean
 }>()
 
-defineEmits<{ select: []; promote: []; move: [by: number]; remove: [] }>()
+const emit = defineEmits<{
+  select: []
+  promote: []
+  'promote-into': [sessionNumber: number]
+  'promote-alone': []
+  move: [by: number]
+  remove: []
+  'drag-start': []
+  'drag-end': []
+}>()
 
 const { effective: skills } = useStepSkills(toRef(props, 'step'), toRef(props, 'task'))
 const hasDetail = computed(() => Boolean(props.step.bodyMarkdown?.trim()))
 const routeCount = computed(() => props.step.links.length)
+
+const placing = ref(false)
+const handleHeld = ref(false)
+
+const SESSION_PREFIX = 'session:'
+
+const PLACES = computed<readonly PopoverMenuEntry[]>(() => [
+  { kind: 'heading', label: 'Promote into' },
+  ...props.sessions.map((session) => ({
+    kind: 'item' as const,
+    id: `${SESSION_PREFIX}${session.number}`,
+    label: `Session ${session.number}`,
+    disabled: !session.takes,
+    hint: session.takes ? 'Joins it at the end' : 'Started, it takes no more steps'
+  })),
+  { kind: 'item', id: 'alone', label: 'A new session at the end' }
+])
+
+function pickPlace(id: string): void {
+  if (id === 'alone') emit('promote-alone')
+  else emit('promote-into', Number(id.slice(SESSION_PREFIX.length)))
+}
+
+function beginDrag(event: DragEvent): void {
+  if (!handleHeld.value || !hasDetail.value || !event.dataTransfer) {
+    event.preventDefault()
+    return
+  }
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', props.step.id)
+  emit('drag-start')
+}
+
+function endDrag(): void {
+  handleHeld.value = false
+  emit('drag-end')
+}
 </script>
 
 <template>
   <li
     class="group/draft relative grid min-w-0 cursor-pointer grid-cols-[22px_minmax(0,1fr)_auto] items-start gap-x-2.5 rounded-control py-2 pl-2 pr-1.5 transition-colors duration-(--motion-quick)"
-    :class="selected ? 'selected-row' : 'hover:bg-surface-hover'"
+    :class="[selected ? 'selected-row' : 'hover:bg-surface-hover', dragging && 'opacity-40']"
+    :draggable="handleHeld"
     :aria-current="selected ? 'true' : undefined"
     data-testid="draft-row"
     data-seal-host
     :data-step-id="step.id"
     @click="$emit('select')"
+    @dragstart="beginDrag"
+    @dragend="endDrag"
   >
     <span class="mt-px size-[22px] shrink-0">
       <StepSeal state="DRAFT" />
@@ -95,6 +149,43 @@ const routeCount = computed(() => props.step.links.length)
           />
         </svg>
         Promote
+      </button>
+      <PopoverMenu v-model:open="placing" :entries="PLACES" :label="`Where to promote ${step.title}`" align="right" @pick="pickPlace">
+        <template #trigger="{ toggle }">
+          <button
+            type="button"
+            class="key-quiet rounded-key focus-ring grid size-7 cursor-pointer place-items-center disabled:cursor-not-allowed disabled:opacity-40"
+            :disabled="promoting || !hasDetail"
+            :aria-label="`Choose where to promote ${step.title}`"
+            :aria-expanded="placing"
+            aria-haspopup="menu"
+            data-popover-trigger
+            data-testid="draft-promote-into"
+            @click="toggle"
+          >
+            <svg class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+        </template>
+      </PopoverMenu>
+      <button
+        v-if="hasDetail"
+        type="button"
+        class="focus-ring grid size-6 cursor-grab place-items-center rounded-key text-text-subtle opacity-0 transition-colors hover:bg-surface-hover hover:text-text focus-visible:opacity-100 group-hover/draft:opacity-100 active:cursor-grabbing"
+        :aria-label="`Drag ${step.title} onto the plan to promote it there`"
+        data-testid="draft-handle"
+        @pointerdown="handleHeld = true"
+        @pointerup="handleHeld = false"
+      >
+        <svg class="h-3.5 w-2.5" viewBox="0 0 10 14" fill="currentColor" aria-hidden="true">
+          <circle cx="2.5" cy="2.5" r="1.2" />
+          <circle cx="7.5" cy="2.5" r="1.2" />
+          <circle cx="2.5" cy="7" r="1.2" />
+          <circle cx="7.5" cy="7" r="1.2" />
+          <circle cx="2.5" cy="11.5" r="1.2" />
+          <circle cx="7.5" cy="11.5" r="1.2" />
+        </svg>
       </button>
       <span class="flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/draft:opacity-100">
         <StepRowControls

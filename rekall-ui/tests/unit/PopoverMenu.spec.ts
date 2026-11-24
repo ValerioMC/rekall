@@ -58,4 +58,30 @@ describe('PopoverMenu', () => {
     await wrapper.get('[data-testid="popover-menu-list"]').trigger('keydown', { key: 'ArrowDown' })
     expect(document.activeElement?.textContent).toContain('To do')
   })
+
+  it('keeps a disabled item in view with its shortcut, passes over it with the arrow keys and never emits it', async () => {
+    const wrapper = mount(PopoverMenu, {
+      props: {
+        entries: [
+          { kind: 'item', id: 'up', label: 'Move up', shortcut: '⌥ ↑', disabled: true, hint: 'Nothing open above it' },
+          { kind: 'item', id: 'down', label: 'Move down', shortcut: '⌥ ↓' }
+        ],
+        label: 'Moves',
+        open: false
+      },
+      slots: { trigger: '<button data-popover-trigger>Moves</button>' },
+      attachTo: document.body
+    })
+    await wrapper.setProps({ open: true })
+    await flushPromises()
+    const [up, down] = wrapper.findAll('[data-testid="popover-menu-item"]')
+
+    expect(up!.attributes('disabled')).toBeDefined()
+    expect(up!.text()).toContain('⌥ ↑')
+    expect(up!.text()).toContain('Nothing open above it')
+    expect(document.activeElement).toBe(down!.element)
+
+    await up!.trigger('click')
+    expect(wrapper.emitted('pick')).toBeUndefined()
+  })
 })

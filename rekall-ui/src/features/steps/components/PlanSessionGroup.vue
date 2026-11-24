@@ -11,6 +11,8 @@ import { stepIsComplete, type TaskStep } from '@/features/steps/model/task-step'
  * there, and the header of a session that has not started can fold it into the one above. An
  * accepted session folds to its header while work remains elsewhere, and opens again when a step
  * in it is selected; once the whole plan is accepted nothing folds, so every step stays reachable.
+ * A session none of whose steps has started has a grip on its header to move it whole; while any
+ * session is held, all of them fold to their headers.
  */
 const props = defineProps<{
   session: StepSession
@@ -18,15 +20,30 @@ const props = defineProps<{
   holdsSelection: boolean
   /** Some session of the plan is not accepted yet. */
   workRemains: boolean
+  /** Every step is still open, so the session can be lifted whole. */
+  movable: boolean
+  /** A session is being dragged, so this one shows its header only. */
+  foldedForDrag: boolean
 }>()
 
-const emit = defineEmits<{ join: []; split: [step: TaskStep] }>()
+const emit = defineEmits<{
+  join: []
+  split: [step: TaskStep]
+  'drag-start': []
+  'drag-end': []
+  nudge: [by: number]
+}>()
 
 defineSlots<{ step(props: { step: TaskStep; endsSession: boolean }): unknown }>()
 
 const standing = computed(() => sessionStanding(props.session.steps))
 const folded = ref<boolean | null>(null)
-const open = computed(() => folded.value ?? (standing.value !== 'accepted' || !props.workRemains || props.holdsSelection))
+const gripHeld = ref(false)
+const open = computed(
+  () =>
+    !props.foldedForDrag &&
+    (folded.value ?? (standing.value !== 'accepted' || !props.workRemains || props.holdsSelection))
+)
 const opener = computed(() => props.session.steps[0])
 const canJoinAbove = computed(
   () => props.session.number > 1 && opener.value?.startsSession === true && !stepIsComplete(opener.value.state)
@@ -34,6 +51,21 @@ const canJoinAbove = computed(
 
 function toggle(): void {
   folded.value = !open.value
+}
+
+function beginDrag(event: DragEvent): void {
+  if (!gripHeld.value || !event.dataTransfer) {
+    event.preventDefault()
+    return
+  }
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', `session-${props.session.number}`)
+  emit('drag-start')
+}
+
+function endDrag(): void {
+  gripHeld.value = false
+  emit('drag-end')
 }
 
 function endsSession(step: TaskStep): boolean {
@@ -48,7 +80,12 @@ function endsSession(step: TaskStep): boolean {
     :aria-label="`Session ${session.number}`"
     data-testid="plan-session"
   >
-    <div class="relative grid min-h-9 grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-x-2.5 rounded-control px-2">
+    <div
+      class="relative grid min-h-9 grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-x-2.5 rounded-control px-2"
+      :draggable="gripHeld"
+      @dragstart="beginDrag"
+      @dragend="endDrag"
+    >
       <StepThread v-if="open" placement="from-orb" />
       <component
         :is="standing === 'accepted' ? 'button' : 'div'"
@@ -95,16 +132,45 @@ function endsSession(step: TaskStep): boolean {
           </svg>
         </span>
       </component>
-      <button
-        v-if="canJoinAbove"
-        type="button"
-        class="key-quiet focus-ring inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-key px-2.5 text-small font-medium opacity-0 transition-opacity duration-(--motion-quick) group-focus-within/session:opacity-100 group-hover/session:opacity-100"
-        :aria-label="`Run session ${session.number} in session ${session.number - 1}`"
-        data-testid="session-join"
-        @click="emit('join')"
-      >
-        Join session above
-      </button>
+      <span class="flex items-center gap-1.5">
+        <span v-if="foldedForDrag && !movable" class="inline-flex items-center gap-1.5 text-caption text-text-subtle" data-testid="session-started">
+          <svg class="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <rect x="2.5" y="5.5" width="7" height="5" rx="1" stroke="currentColor" stroke-width="1.2" />
+            <path d="M4 5.5V4a2 2 0 014 0v1.5" stroke="currentColor" stroke-width="1.2" />
+          </svg>
+          Started
+        </span>
+        <button
+          v-if="canJoinAbove && !foldedForDrag"
+          type="button"
+          class="key-quiet focus-ring inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-key px-2.5 text-small font-medium opacity-0 transition-opacity duration-(--motion-quick) group-focus-within/session:opacity-100 group-hover/session:opacity-100"
+          :aria-label="`Run session ${session.number} in session ${session.number - 1}`"
+          data-testid="session-join"
+          @click="emit('join')"
+        >
+          Join session above
+        </button>
+        <button
+          v-if="movable"
+          type="button"
+          class="focus-ring grid size-6 cursor-grab place-items-center rounded-key text-text-subtle opacity-0 transition-colors duration-(--motion-quick) group-focus-within/session:opacity-100 group-hover/session:opacity-100 hover:bg-surface-raised hover:text-text active:cursor-grabbing"
+          :aria-label="`Drag session ${session.number} to another place, or hold Alt and press the arrow keys`"
+          data-testid="session-handle"
+          @pointerdown="gripHeld = true"
+          @pointerup="gripHeld = false"
+          @keydown.alt.up.prevent="emit('nudge', -1)"
+          @keydown.alt.down.prevent="emit('nudge', 1)"
+        >
+          <svg class="h-3.5 w-2.5" viewBox="0 0 10 14" fill="currentColor" aria-hidden="true">
+            <circle cx="2.5" cy="2.5" r="1.2" />
+            <circle cx="7.5" cy="2.5" r="1.2" />
+            <circle cx="2.5" cy="7" r="1.2" />
+            <circle cx="7.5" cy="7" r="1.2" />
+            <circle cx="2.5" cy="11.5" r="1.2" />
+            <circle cx="7.5" cy="11.5" r="1.2" />
+          </svg>
+        </button>
+      </span>
     </div>
 
     <ol v-if="open" class="flex flex-col" data-testid="session-steps">

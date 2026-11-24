@@ -4,7 +4,17 @@ import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 export type PopoverMenuEntry =
   | Readonly<{ kind: 'heading'; label: string }>
   | Readonly<{ kind: 'separator' }>
-  | Readonly<{ kind: 'item'; id: string; label: string; current?: boolean; hint?: string; tone?: 'danger' }>
+  | Readonly<{
+      kind: 'item'
+      id: string
+      label: string
+      current?: boolean
+      hint?: string
+      tone?: 'danger'
+      disabled?: boolean
+      /** Keys that do the same without the menu, shown at the end of the line. */
+      shortcut?: string
+    }>
 
 /**
  * A small menu under its own trigger. Arrow keys walk the items, Escape closes and returns the
@@ -20,7 +30,7 @@ const host = ref<HTMLElement | null>(null)
 const menu = ref<HTMLElement | null>(null)
 
 function items(): HTMLElement[] {
-  return Array.from(menu.value?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])
+  return Array.from(menu.value?.querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled)') ?? [])
 }
 
 function close(returnFocus: boolean): void {
@@ -88,16 +98,20 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onPointerDown, t
             v-else
             type="button"
             role="menuitem"
-            class="focus-ring flex w-full cursor-pointer flex-col items-start gap-0.5 rounded-control px-2.5 py-2 text-left text-small transition-colors duration-(--motion-quick)"
+            class="focus-ring flex w-full cursor-pointer flex-col items-start gap-0.5 rounded-control px-2.5 py-2 text-left text-small transition-colors duration-(--motion-quick) disabled:cursor-default disabled:text-text-subtle"
             :class="[
-              entry.current ? 'bg-surface-raised text-text' : 'hover:bg-surface-raised hover:text-text',
-              !entry.current && (entry.tone === 'danger' ? 'text-danger' : 'text-text-muted')
+              entry.current ? 'bg-surface-raised text-text' : !entry.disabled && 'hover:bg-surface-raised hover:text-text',
+              !entry.current && !entry.disabled && (entry.tone === 'danger' ? 'text-danger' : 'text-text-muted')
             ]"
+            :disabled="entry.disabled"
             :aria-current="entry.current ? 'true' : undefined"
             data-testid="popover-menu-item"
             @click="pick(entry.id)"
           >
-            {{ entry.label }}
+            <span class="flex w-full items-center justify-between gap-4">
+              {{ entry.label }}
+              <kbd v-if="entry.shortcut" class="font-mono text-micro font-normal text-text-subtle">{{ entry.shortcut }}</kbd>
+            </span>
             <span v-if="entry.hint" class="text-caption font-normal text-text-subtle" data-testid="popover-menu-hint">{{ entry.hint }}</span>
           </button>
         </template>
