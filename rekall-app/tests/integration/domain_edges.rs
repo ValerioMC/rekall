@@ -53,6 +53,7 @@ const STORE: LayeredCrate = LayeredCrate {
         ("token", &["step", "task"]),
         ("tracker", &["task"]),
         ("vulnerability", &["catalog", "task"]),
+        ("workingset", &["catalog", "task"]),
         ("wrapup", &["task"]),
     ],
     refuses_mutual_use: false,

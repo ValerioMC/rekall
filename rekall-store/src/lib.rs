@@ -46,6 +46,7 @@ pub mod tracker;
 pub mod timeentry;
 pub mod token;
 pub mod vulnerability;
+pub mod workingset;
 pub mod wrapup;
 
 pub use catalog::{entity::company, entity::company_logo_image, entity::project, entity::project_icon_image};
@@ -68,6 +69,7 @@ pub use section::entity::{project_section, section_context};
 pub use skill::{entity::skill_arguments, entity::skill_name, entity::skill_placement, entity::tag_skill, entity::task_skill};
 pub use step::{entity::step_pass, entity::task_step};
 pub use telemetry::entity::telemetry_setting;
+pub use workingset::entity::{working_set_place, working_set_task};
 pub use tracker::entity::{task_pull_request, task_tracker_link};
 pub use timeentry::entity::time_entry;
 pub use token::{entity::token_usage, entity::transcript_scan};
@@ -122,6 +124,8 @@ pub mod prelude {
     pub use super::token_usage::{Entity as TokenUsage, Model as TokenUsageModel};
     pub use super::transcript_scan::{Entity as TranscriptScan, Model as TranscriptScanModel};
     pub use super::vulnerability_exposure::{Entity as VulnerabilityExposure, Model as VulnerabilityExposureModel};
+    pub use super::working_set_place::{Entity as WorkingSetPlace, Model as WorkingSetPlaceModel};
+    pub use super::working_set_task::{Entity as WorkingSetTask, Model as WorkingSetTaskModel};
     pub use super::wrapup::{Entity as Wrapup, Model as WrapupModel};
     pub use super::enums::*;
 }
