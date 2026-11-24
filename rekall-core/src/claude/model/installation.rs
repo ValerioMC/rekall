@@ -12,3 +12,11 @@ pub struct Installation {
     pub cli_path: Option<String>,
     pub manual_command: String,
 }
+
+impl Installation {
+    pub const OUTDATED: &'static str = "OUTDATED";
+
+    pub fn needs_command_update(&self) -> bool {
+        self.status == Self::OUTDATED && !self.outdated_files.is_empty()
+    }
+}

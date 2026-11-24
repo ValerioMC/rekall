@@ -8,4 +8,7 @@ pub trait ClaudeCodeSetup: Send + Sync {
     fn status(&self) -> Installation;
 
     fn install(&self) -> Result<Installation>;
+
+    /// Rewrites only the `/rk` command files; the registration and folder setups stay as they are.
+    fn update_commands(&self) -> Result<Installation>;
 }

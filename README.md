@@ -91,6 +91,8 @@ On macOS and Linux, either provider can use the project’s saved connections fr
 
 **Settings > Sessions and run queue** in the app registers the MCP server for every folder and installs the `/rk` command in one click, with its mode files in `~/.claude/rk/`. It also repairs a registration that points at the wrong port, carries an older command or a missing or older mode file, or is shadowed in one folder by a registration made without `--scope user`. While a registration is out of date, a warning triangle sits on the Settings key in the top bar until Repair is run.
 
+At startup the server rewrites the `/rk` command and mode files by itself when they are older than the ones it ships, in the background and without delaying readiness. Only those files are touched: a wrong port or a folder-scoped registration still waits for Repair, and nothing runs when Claude Code is not installed or Rekall is not registered. `GET /api/settings/claude/commands-update` answers `IDLE`, `UPDATING`, `UPDATED` or `FAILED` with a `reason`.
+
 From a terminal:
 
 ```bash
