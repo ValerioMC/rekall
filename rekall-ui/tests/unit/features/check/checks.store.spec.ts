@@ -101,4 +101,19 @@ describe('the checks store', () => {
     expect(api.fetchTaskCheckResults).toHaveBeenCalledTimes(2)
     expect(store.resultsOf(TASK).map((r) => r.id)).toEqual(['r1'])
   })
+
+  it('keeps the results of every task when several load at once', async () => {
+    const other = 't-2' as typeof TASK
+    const first = Promise.withResolvers<ReturnType<typeof result>[]>()
+    vi.mocked(api.fetchTaskCheckResults).mockImplementation((taskId) => (taskId === TASK ? first.promise : Promise.resolve([result('r2', 'c2', true, '2026-10-01T10:01:00Z')])))
+    const store = useChecksStore()
+
+    const slow = store.loadResults(TASK)
+    await store.loadResults(other)
+    first.resolve([result('r1', 'c1', true, '2026-10-01T10:00:00Z')])
+    await slow
+
+    expect(store.resultsOf(TASK).map((r) => r.id)).toEqual(['r1'])
+    expect(store.resultsOf(other).map((r) => r.id)).toEqual(['r2'])
+  })
 })

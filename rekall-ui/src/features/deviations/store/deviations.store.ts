@@ -13,7 +13,8 @@ export const useDeviationsStore = defineStore('deviations', () => {
   }
 
   async function load(taskId: TaskId): Promise<void> {
-    byTask.value = { ...byTask.value, [taskId]: await fetchDeviations(taskId) }
+    const loaded = await fetchDeviations(taskId)
+    byTask.value = { ...byTask.value, [taskId]: loaded }
   }
 
   function isKnown(taskId: TaskId): boolean {
