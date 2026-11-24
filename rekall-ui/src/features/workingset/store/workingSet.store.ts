@@ -17,6 +17,8 @@ export const useWorkingSetStore = defineStore('workingSet', () => {
   const openTasks = ref<readonly OpenTask[]>([])
   const places = ref<readonly OpenPlace[]>([])
   const isLoaded = ref(false)
+  const currentPlace = ref<OpenPlace | null>(null)
+  const previousPlace = ref<OpenPlace | null>(null)
 
   const groups = computed(() => groupByProject(openTasks.value, catalog.companies, catalog.projects, catalog.tasks))
 
@@ -63,6 +65,13 @@ export const useWorkingSetStore = defineStore('workingSet', () => {
     })
   }
 
+  /** What the person is looking at now and the place before it; kept in memory, never saved. */
+  function noteVisit(place: OpenPlace): void {
+    if (currentPlace.value?.projectId === place.projectId && currentPlace.value.taskId === place.taskId) return
+    previousPlace.value = currentPlace.value
+    currentPlace.value = place
+  }
+
   function putPlace(place: OpenPlace): void {
     places.value = [...places.value.filter((entry) => entry.projectId !== place.projectId), place]
   }
@@ -79,5 +88,5 @@ export const useWorkingSetStore = defineStore('workingSet', () => {
     }
   }
 
-  return { openTasks, places, isLoaded, groups, isOpen, placeOf, load, open, close, remember }
+  return { openTasks, places, isLoaded, previousPlace, groups, isOpen, placeOf, load, open, close, remember, noteVisit }
 })

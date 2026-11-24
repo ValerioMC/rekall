@@ -6,7 +6,8 @@ import { useConsoleStore } from '@/stores/console.store'
 
 /**
  * Fills the working set from what the person does: a task page opens that task, and a task page or
- * a project's task list is the place last seen in its project. Leaving a page closes nothing, and
+ * a project's task list is the place last seen in its project. Each place is also noted as the
+ * one the flip key goes back from. Leaving a page closes nothing, and
  * nothing a session or the queue does is read here.
  */
 export function useWorkingSetFollowsRoute(): void {
@@ -23,6 +24,7 @@ export function useWorkingSetFollowsRoute(): void {
   function visitTask(id: string): void {
     const task = catalog.tasks.find((candidate) => candidate.id === id)
     if (!task) return
+    workingSet.noteVisit({ projectId: task.projectId, taskId: task.id })
     void workingSet.open(task.id, task.projectId)
     void workingSet.remember({ projectId: task.projectId, taskId: task.id })
   }
@@ -30,6 +32,7 @@ export function useWorkingSetFollowsRoute(): void {
   function visitTaskList(id: string, tab: unknown): void {
     const project = catalog.projects.find((candidate) => candidate.id === id)
     if (!project || projectTabOf(typeof tab === 'string' ? tab : undefined) !== 'tasks') return
+    workingSet.noteVisit({ projectId: project.id, taskId: null })
     void workingSet.remember({ projectId: project.id, taskId: null })
   }
 

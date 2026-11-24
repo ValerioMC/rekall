@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import ProjectMark from '@/components/ui/ProjectMark.vue'
 import type { CompanyGroup, ProjectGroup } from '@/features/workingset/model/working-set'
 import type { ProjectId, TaskId } from '@/model/branded'
@@ -14,6 +15,13 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ select: [projectId: ProjectId] }>()
+
+const projectOrder = computed(() => props.groups.flatMap((company) => company.projects.map((group) => group.project.id)))
+
+function keyHintOf(group: ProjectGroup): string {
+  const key = projectOrder.value.indexOf(group.project.id) + 1
+  return key >= 1 && key <= 9 ? `${group.project.title} (key ${key})` : group.project.title
+}
 
 function reviewCountOf(group: ProjectGroup): number {
   return group.tasks.reduce((sum, task) => sum + (props.reviewCounts.get(task.id) ?? 0), 0)
@@ -50,7 +58,7 @@ function nameOf(group: ProjectGroup): string {
         "
         :aria-selected="currentProjectId === group.project.id"
         :aria-label="nameOf(group)"
-        :title="group.project.title"
+        :title="keyHintOf(group)"
         data-testid="working-set-project"
         @click="emit('select', group.project.id)"
       >
@@ -71,5 +79,12 @@ function nameOf(group: ProjectGroup): string {
         </span>
       </button>
     </template>
+    <span
+      class="ml-auto shrink-0 whitespace-nowrap pl-3 text-caption text-text-subtle"
+      title="1-9 open a project, [ and ] step through the open tasks, ` goes back to the previous place"
+      data-testid="working-set-keys"
+    >
+      <span class="font-mono">[ ]</span> step · <span class="font-mono">`</span> back
+    </span>
   </div>
 </template>

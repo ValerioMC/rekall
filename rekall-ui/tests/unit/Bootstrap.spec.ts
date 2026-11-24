@@ -27,6 +27,7 @@ vi.mock('@/features/notes/api/documents.api', () => ({ fetchAllDocuments: vi.fn(
 vi.mock('@/features/claude/api/terminal.api', () => ({ fetchTerminals: vi.fn(async () => []) }))
 vi.mock('@/features/wrapup/api/wrapups.api', () => ({ fetchWrapups: vi.fn(async () => []) }))
 vi.mock('@/features/steps/api/steps.api', () => ({ fetchSteps: vi.fn(async () => []) }))
+vi.mock('@/features/workingset/api/working-set.api', () => ({ fetchWorkingSet: vi.fn(async () => ({ tasks: [], places: [] })) }))
 vi.mock('@/features/time/api/time-entries.api', () => ({ fetchTimeEntries: vi.fn(async () => []) }))
 vi.mock('@/features/skills/api/skill-assignments.api', () => ({
   fetchSkillAssignments: vi.fn(async () => ({ taskSkills: [], tagSkills: [] })),
