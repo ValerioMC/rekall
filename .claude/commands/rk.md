@@ -1,7 +1,7 @@
 ---
 description: Load a Rekall working context by anchor, e.g. /rk task:RK-12
-argument-hint: "company:|project:|task: <label or code> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan [flow]] | [replan] | [refine] | [revise] | [rewrite fix|restructure] | [generate [kinds:sequence,state] \"what to diagram\"] | [explain \"what to walk through\"] | [inventory] | [assess [advisory:GHSA-xxxx-xxxx-xxxx]] | [components] | [autoconfigure] | [merge [pull-request base:<branch>]] | [step:N start|done [outcome:<name>] [report:\"what you saw\"]]   (labels and codes, not titles)"
-allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_propose_flow, mcp__rekall__rekall_replan, mcp__rekall__rekall_feedback, mcp__rekall__rekall_description, mcp__rekall__rekall_delete_step, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note, mcp__rekall__rekall_decision, mcp__rekall__rekall_project_section, mcp__rekall__rekall_read_sections, mcp__rekall__rekall_component, mcp__rekall__rekall_read_components, mcp__rekall__rekall_search, mcp__rekall__rekall_diagram, mcp__rekall__rekall_inventory, mcp__rekall__rekall_vulnerabilities, mcp__rekall__rekall_assess_vulnerability, Read, Grep, Glob, WebFetch
+argument-hint: "company:|project:|task: <label or code> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan [flow]] | [replan] | [refine] | [revise] | [rewrite fix|restructure] | [generate [kinds:sequence,state] \"what to diagram\"] | [explain \"what to walk through\"] | [inventory] | [assess [advisory:GHSA-xxxx-xxxx-xxxx]] | [components] | [autoconfigure] | [reorganize] | [merge [pull-request base:<branch>]] | [step:N start|done [outcome:<name>] [report:\"what you saw\"]]   (labels and codes, not titles)"
+allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_propose_flow, mcp__rekall__rekall_replan, mcp__rekall__rekall_feedback, mcp__rekall__rekall_description, mcp__rekall__rekall_delete_step, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note, mcp__rekall__rekall_decision, mcp__rekall__rekall_project_section, mcp__rekall__rekall_read_sections, mcp__rekall__rekall_reorganize_sections, mcp__rekall__rekall_component, mcp__rekall__rekall_read_components, mcp__rekall__rekall_search, mcp__rekall__rekall_diagram, mcp__rekall__rekall_inventory, mcp__rekall__rekall_vulnerabilities, mcp__rekall__rekall_assess_vulnerability, Read, Grep, Glob, WebFetch
 ---
 
 The arguments are:
@@ -20,6 +20,7 @@ planning or noting.
 | `inventory` | `inventorying.md` |
 | `assess` | `assessing.md` |
 | `autoconfigure` | `autoconfiguring.md` |
+| `reorganize` | `reorganizing.md` |
 | `components` | `scanning-components.md` |
 | `merge` | `merging.md` |
 | `wrapup` | `wrapping-up.md` |

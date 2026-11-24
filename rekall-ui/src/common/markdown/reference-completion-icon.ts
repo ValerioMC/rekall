@@ -4,7 +4,7 @@ import { CONNECTION_KIND_PATH } from '@/features/connection/lib/connection-kind-
 import type { ConnectionKind } from '@/features/connection/model/connection'
 
 /** What a `[[...]]` suggestion names, and so the glyph its row starts with. */
-export type ReferenceIcon = 'component' | 'task' | ConnectionKind
+export type ReferenceIcon = 'component' | 'task' | 'page' | ConnectionKind
 
 interface Glyph {
   readonly path: string
@@ -18,6 +18,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg'
 const GLYPH: Readonly<Record<ReferenceIcon, Glyph>> = {
   component: { path: 'M12 2.8 3.8 7.2v9.6l8.2 4.4 8.2-4.4V7.2L12 2.8ZM3.8 7.2 12 11.6l8.2-4.4M12 11.6v9.6', outline: true },
   task: { path: 'M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm2.5 8.3 2.4 2.4 4.8-5.2', outline: true },
+  page: { path: 'M6 3h8l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm8 0v4h4M8.5 12h7M8.5 15.5h7', outline: true },
   GITLAB: { path: CONNECTION_KIND_PATH.GITLAB, outline: false },
   GITHUB: { path: CONNECTION_KIND_PATH.GITHUB, outline: false },
   KUBERNETES: { path: CONNECTION_KIND_PATH.KUBERNETES, outline: false },

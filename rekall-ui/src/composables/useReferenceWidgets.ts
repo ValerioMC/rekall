@@ -10,5 +10,5 @@ export function useReferenceWidgets(editor: Ref<ExposeParam | null>, targets: ()
   }
 
   onMounted(send)
-  watch(() => [targets().components, targets().connections, targets().tasks], send)
+  watch(() => [targets().components, targets().connections, targets().tasks, targets().pages], send)
 }

@@ -17,8 +17,9 @@
 | `rekall_feedback` | write | Reply to the open revisions of a task's thread (waiting or in a pass) by seq; each moves to applied and keeps the reply, and the answer lists what is still open; it cannot create, edit or delete an entry |
 | `rekall_deviation` | write | Record where the work departed from the plan, on one task and for one step; recording again for the step rewrites it |
 | `rekall_decision` | write | Record what a person settles about a task before it runs: ask a question with its options, answer it, correct the answer (the old one is kept), put it on hold or remove it; the console lists the decisions as they are written |
-| `rekall_project_section` | write | Write a titled markdown section on a task's project, or rewrite one by title with `replace` |
-| `rekall_read_sections` | read | List a project's sections by title, or read one whole with `title` |
+| `rekall_project_section` | write | Write a titled markdown section on a task's project, in a `context` it names, or rewrite one by title with `replace` |
+| `rekall_read_sections` | read | List a project's sections by context and title, or read one whole with `title` |
+| `rekall_reorganize_sections` | write | Regroup a project's pages: name every page once under the contexts wanted; pages move, none is rewritten or deleted |
 | `rekall_component` | write | Record a folder of a project as a component: a name, a folder, a summary every context carries and a structured markdown description; the component with that name or folder is rewritten |
 | `rekall_read_components` | read | List a project's components with their summaries, or read one whole with `name` |
 | `rekall_search` | read | Find a phrase in descriptions, steps, wrapups and notes, optionally in one project; returns anchors and excerpts to load with `rekall_context` |

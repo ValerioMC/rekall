@@ -211,9 +211,19 @@ JOIN tproject_template m ON m.n = p.tmpl
 JOIN ttask_template k ON k.n = t.tmpl
 JOIN tepic_template e ON e.n = (t.pn - 1) % 12 + 1;
 
-INSERT INTO project_section (id, project_id, title, body_markdown, position, created_at, updated_at)
+INSERT INTO section_context (id, project_id, title, position, created_at, updated_at)
+SELECT printf('%08x-0000-4000-8000-%012x', 28, p.pn),
+       printf('%08x-0000-4000-8000-%012x', 2, p.pn),
+       'Operations',
+       0,
+       strftime('%Y-%m-%dT%H:%M:%S.000000Z', 'now', '-60 days'),
+       strftime('%Y-%m-%dT%H:%M:%S.000000Z', 'now', '-10 days')
+FROM tproject p;
+
+INSERT INTO project_section (id, project_id, context_id, title, body_markdown, position, created_at, updated_at)
 SELECT printf('%08x-0000-4000-8000-%012x', 12, p.pn * 10 + k.n),
        printf('%08x-0000-4000-8000-%012x', 2, p.pn),
+       printf('%08x-0000-4000-8000-%012x', 28, p.pn),
        CASE k.n WHEN 1 THEN 'Deployment' ELSE 'Runbook' END,
        CASE k.n WHEN 1 THEN '## Deploying' || char(10) || 'Merge to trunk; the pipeline builds, deploys to staging and waits for a person before production.' || char(10) || char(10) || '1. Check the dashboards.' || char(10) || '2. Approve the production stage.' || char(10) || '3. Watch the error rate for ten minutes.'
                 ELSE '## When it pages' || char(10) || '- Look at the last deploy first.' || char(10) || '- Roll back before debugging.' || char(10) || '- Write the postmortem within two days.' END,

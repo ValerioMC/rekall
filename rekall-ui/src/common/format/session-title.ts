@@ -14,6 +14,8 @@ function projectWorkTitle(mode: Terminal['mode'], projectLabel: string): string 
       return `Assessment of ${projectLabel}`
     case 'AUTOCONFIGURE':
       return `Autoconfigure ${projectLabel}`
+    case 'REORGANIZE':
+      return `Reorganize pages of ${projectLabel}`
     case 'SCAN_COMPONENTS':
       return `Scan components of ${projectLabel}`
     default:

@@ -1,7 +1,14 @@
 import { apiClient, request } from '../../../api/client'
-import { ProjectSectionListSchema, ProjectSectionSchema } from './schemas/project-section.schema'
+import {
+  ProjectSectionListSchema,
+  ProjectSectionSchema,
+  SectionContextListSchema,
+  SectionContextSchema,
+  SectionLayoutSchema
+} from './schemas/project-section.schema'
 import type { ProjectSection, ProjectSectionInput } from '@/features/project/model/project-section'
-import type { ProjectId, ProjectSectionId } from '@/model/branded'
+import type { ContextPlacement, SectionContext, SectionLayout } from '@/features/project/model/section-context'
+import type { ProjectId, ProjectSectionId, SectionContextId } from '@/model/branded'
 
 export async function fetchProjectSections(projectId: ProjectId): Promise<ProjectSection[]> {
   return request(async () =>
@@ -31,15 +38,39 @@ export async function updateProjectSection(
   )
 }
 
-export async function reorderProjectSections(
-  projectId: ProjectId,
-  sectionIds: readonly ProjectSectionId[]
-): Promise<ProjectSection[]> {
+export async function fetchSectionContexts(projectId: ProjectId): Promise<SectionContext[]> {
   return request(async () =>
-    ProjectSectionListSchema.parse(
-      await apiClient(`/api/projects/${projectId}/sections/order`, {
+    SectionContextListSchema.parse(await apiClient(`/api/projects/${projectId}/section-contexts`))
+  )
+}
+
+export async function createSectionContext(projectId: ProjectId, title: string): Promise<SectionContext> {
+  return request(async () =>
+    SectionContextSchema.parse(
+      await apiClient(`/api/projects/${projectId}/section-contexts`, { method: 'POST', body: { title } })
+    )
+  )
+}
+
+export async function renameSectionContext(id: SectionContextId, title: string): Promise<SectionContext> {
+  return request(async () =>
+    SectionContextSchema.parse(await apiClient(`/api/section-contexts/${id}`, { method: 'PUT', body: { title } }))
+  )
+}
+
+export async function deleteSectionContext(id: SectionContextId): Promise<void> {
+  await request(() => apiClient(`/api/section-contexts/${id}`, { method: 'DELETE' }))
+}
+
+export async function arrangeProjectSections(
+  projectId: ProjectId,
+  placements: readonly ContextPlacement[]
+): Promise<SectionLayout> {
+  return request(async () =>
+    SectionLayoutSchema.parse(
+      await apiClient(`/api/projects/${projectId}/sections/layout`, {
         method: 'PUT',
-        body: { sectionIds }
+        body: { contexts: placements }
       })
     )
   )

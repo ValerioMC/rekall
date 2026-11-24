@@ -126,7 +126,7 @@ async fn a_space_fills_the_blueprint_the_description_and_a_section_per_concept()
 async fn a_second_import_keeps_what_the_project_has_unless_asked_to_replace_it() {
     let world = world(ConnectionKind::Confluence, Some("ENG"), None).await;
     world.service.import(world.project_id, world.binding_id, ConfluenceImportCommand::default()).await.unwrap();
-    let edited = world.sections.create(world.project_id, crate::section::ProjectSectionCommand { title: Some("Notes".into()), body_markdown: Some("mine".into()) }).await.unwrap();
+    let edited = world.sections.create(world.project_id, crate::section::ProjectSectionCommand { title: Some("Notes".into()), body_markdown: Some("mine".into()), ..Default::default() }).await.unwrap();
 
     let kept = world.service.import(world.project_id, world.binding_id, ConfluenceImportCommand::default()).await.unwrap();
     let replaced = world.service.import(world.project_id, world.binding_id, ConfluenceImportCommand { replace: true }).await.unwrap();

@@ -119,6 +119,14 @@ fn an_autoconfigure_terminal_works_on_the_project_and_follows_no_step() {
 }
 
 #[test]
+fn a_reorganize_terminal_works_on_the_project_and_follows_no_step() {
+    let mode = TerminalMode::Reorganize;
+    assert_eq!(mode.first_line("project:lightcraft"), "/rk project:lightcraft reorganize");
+    assert!(mode.works_on_a_project() && !mode.follows_steps());
+    assert_eq!(mode.to_string(), "REORGANIZE");
+}
+
+#[test]
 fn a_mode_goes_to_the_console_under_its_display_name_whatever_it_carries() {
     let generate = TerminalMode::Generate { request: "how checkout charges".into(), kinds: Vec::new() };
     assert_eq!(serde_json::to_string(&generate).unwrap(), "\"GENERATE\"");

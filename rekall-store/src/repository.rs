@@ -20,7 +20,7 @@ pub use crate::graph::{repository::deployment_graph_repository as deployment_gra
 pub use crate::inventory::repository::project_dependency_repository as project_dependency;
 pub use crate::note::repository::document_repository as document;
 pub use crate::queue::repository::run_queue_repository as run_queue;
-pub use crate::section::repository::project_section_repository as project_section;
+pub use crate::section::repository::{project_section_repository as project_section, section_context_repository as section_context};
 pub use crate::skill::{repository::skill_placement_repository as skill_placement, repository::tag_skill_repository as tag_skill, repository::task_skill_repository as task_skill};
 pub use crate::step::repository::task_step_repository as task_step;
 pub use crate::tag::repository::tag_repository as tag;

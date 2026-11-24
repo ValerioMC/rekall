@@ -27,7 +27,7 @@ export class ReferenceWidget extends WidgetType {
 
   override toDOM(view: EditorView): HTMLElement {
     const element = document.createElement('span')
-    element.className = ['cm-rk-ref', this.chip.icon === 'task' && 'cm-rk-ref--task', this.chip.missing && 'cm-rk-ref--missing']
+    element.className = ['cm-rk-ref', this.chip.icon === 'task' && 'cm-rk-ref--task', this.chip.icon === 'page' && 'cm-rk-ref--page', this.chip.missing && 'cm-rk-ref--missing']
       .filter(Boolean)
       .join(' ')
     element.title = this.chip.title

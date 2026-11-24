@@ -1,19 +1,18 @@
-//! What a person does to a project's sections: write one, edit it, put the sections in order,
-//! delete one. Console-only, so a session can add a section but never rename, reorder or remove.
-
-use std::collections::HashSet;
+//! What a person does to a project's sections: write one, edit it, delete one. Console-only, so a
+//! session can add a section but never rename, move or remove one. Where they sit is
+//! `SectionLayoutService`'s.
 
 use rekall_core::Ctx;
 
 use rekall_kernel::{Id, RekallError, Result};
-use rekall_store::project_section;
+use rekall_store::{project_section, section_context};
 use rekall_store::repository as repo;
-use rekall_core::section::{rule::rules, ProjectSectionView, SectionStreamEvent};
+use rekall_core::section::rule::{context_rules, rules};
+use rekall_core::section::{ProjectSectionView, SectionStreamEvent};
 use rekall_core::{in_write, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
-use crate::shared::require_by_id;
-use crate::section::{ProjectSectionCommand, ProjectSectionOrderCommand, SectionWriteOutcome};
+use crate::section::{ProjectSectionCommand, SectionWriteOutcome};
 
 #[derive(Clone)]
 pub struct ProjectSectionCatalogService {
@@ -30,9 +29,22 @@ impl ProjectSectionCatalogService {
             repo::project::require(tx.db(), project_id).await?;
             let title = rules::title(command.title.as_deref())?;
             require_title_free(&tx, project_id, &title, None).await?;
-            let section = self.insert_in(&mut tx, project_id, title, command.body_markdown.clone().unwrap_or_default()).await?;
+            let context = self.context_for_new_section(&tx, project_id, command.context_id.as_deref()).await?;
+            let section = self.insert_in(&mut tx, &context, title, command.body_markdown.clone().unwrap_or_default()).await?;
             Ok::<_, RekallError>(ProjectSectionView::of(&section))
         })
+    }
+
+    async fn context_for_new_section(&self, tx: &Tx, project_id: Id, context_id: Option<&str>) -> Result<section_context::Model> {
+        let Some(raw) = context_id else {
+            return context_rules::landing(tx.db(), project_id, None, self.ctx.now()).await;
+        };
+        let id = raw.parse::<Id>().map_err(|_| RekallError::illegal(format!("'{raw}' is not a context id.")))?;
+        let context = repo::section_context::require(tx.db(), id).await?;
+        if context.project_id != project_id {
+            return Err(RekallError::illegal("That context belongs to another project."));
+        }
+        Ok(context)
     }
 
     /// Writes an imported section: a new title is added, one the project has is rewritten only when
@@ -40,7 +52,8 @@ impl ProjectSectionCatalogService {
     pub async fn import_in(&self, tx: &mut Tx, project_id: Id, title: &str, body: String, replace: bool) -> Result<SectionWriteOutcome> {
         let title = rules::title(Some(title))?;
         let Some(existing) = rules::clashing(tx.db(), project_id, &title, None).await? else {
-            self.insert_in(tx, project_id, title, body).await?;
+            let context = context_rules::landing(tx.db(), project_id, None, self.ctx.now()).await?;
+            self.insert_in(tx, &context, title, body).await?;
             return Ok(SectionWriteOutcome::Created);
         };
         if !replace {
@@ -54,16 +67,17 @@ impl ProjectSectionCatalogService {
         Ok(SectionWriteOutcome::Replaced)
     }
 
-    /// A new section goes last.
-    async fn insert_in(&self, tx: &mut Tx, project_id: Id, title: String, body: String) -> Result<project_section::Model> {
-        let existing = repo::project_section::list_of_project(tx.db(), project_id).await?;
+    /// A new section goes last in its context.
+    async fn insert_in(&self, tx: &mut Tx, context: &section_context::Model, title: String, body: String) -> Result<project_section::Model> {
         let now = self.ctx.now();
+        let project_id = context.project_id;
         let section = project_section::Model {
             id: Id::random(),
             project_id,
+            context_id: context.id,
             title,
             body_markdown: body,
-            position: existing.iter().map(|section| section.position + 1).max().unwrap_or(0),
+            position: context_rules::next_section_position(tx.db(), context.id).await?,
             created_at: now,
             updated_at: now,
         };
@@ -89,38 +103,6 @@ impl ProjectSectionCatalogService {
             }
             let section = repo::update_if_changed(tx.db(), &before, section, self.ctx.now()).await?;
             Ok::<_, RekallError>(ProjectSectionView::of(&section))
-        })
-    }
-
-    /// Positions follow `section_ids`, which has to name every section of the project once.
-    pub async fn reorder(&self, project_id: Id, command: ProjectSectionOrderCommand) -> Result<Vec<ProjectSectionView>> {
-        in_write!(&self.ctx, |tx| {
-            repo::project::require(tx.db(), project_id).await?;
-            let sections = repo::project_section::list_of_project(tx.db(), project_id).await?;
-            let wanted: Vec<Id> = command
-                .section_ids
-                .clone()
-                .unwrap_or_default()
-                .iter()
-                .map(|raw| raw.parse::<Id>().map_err(|_| RekallError::illegal(format!("'{raw}' is not a section id."))))
-                .collect::<Result<_>>()?;
-            let known: HashSet<Id> = sections.iter().map(|section| section.id).collect();
-            if wanted.len() != known.len() || wanted.iter().collect::<HashSet<_>>() != known.iter().collect::<HashSet<_>>() {
-                return Err(RekallError::illegal("An order has to name every section of the project exactly once."));
-            }
-            let now = self.ctx.now();
-            let mut ordered = Vec::with_capacity(sections.len());
-            for (position, id) in wanted.iter().enumerate() {
-                let mut section = require_by_id(&sections, *id, |section| section.id, "An order was checked against the project's sections")?;
-                if section.position != position as i32 {
-                    section.position = position as i32;
-                    section.updated_at = now;
-                    section.clone().into_active_model().reset_all().update(tx.db()).await?;
-                }
-                ordered.push(ProjectSectionView::of(&section));
-            }
-            tx.publish(SectionStreamEvent { project_id });
-            Ok::<_, RekallError>(ordered)
         })
     }
 

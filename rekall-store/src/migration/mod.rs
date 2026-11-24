@@ -67,6 +67,7 @@ mod m088_skill_arguments;
 mod m089_confluence_connection;
 mod m090_component_summary;
 mod m091_task_decision;
+mod m092_section_context;
 mod migration_support;
 mod migrator;
 

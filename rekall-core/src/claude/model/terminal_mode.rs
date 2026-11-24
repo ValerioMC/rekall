@@ -14,6 +14,7 @@ pub const REQUEST_MAX_CHARACTERS: usize = 2000;
 /// `Inventory` has it record the project's dependencies; `Assess` has it judge whether `advisory`
 /// really reaches the project, `AssessAll` every advisory not judged yet; `Autoconfigure` has it
 /// learn from the project's repository how to contribute and store that as the project's sections;
+/// `Reorganize` has it read the project's pages and regroup them in contexts by concept;
 /// `ScanComponents` has it read the project's folder and record each part of it as a component;
 /// `Merge` has it bring the project's branch into the task's branch and resolve the conflicts;
 /// `MergePullRequest` does the same for a task whose pull request conflicts with `base`, then
@@ -35,6 +36,7 @@ pub enum TerminalMode {
     Assess { advisory: String },
     AssessAll,
     Autoconfigure,
+    Reorganize,
     ScanComponents,
     Merge,
     MergePullRequest { base: String },
@@ -60,6 +62,7 @@ impl TerminalMode {
             TerminalMode::Assess { advisory } => format!("/rk {anchors} assess advisory:{advisory}"),
             TerminalMode::AssessAll => format!("/rk {anchors} assess"),
             TerminalMode::Autoconfigure => format!("/rk {anchors} autoconfigure"),
+            TerminalMode::Reorganize => format!("/rk {anchors} reorganize"),
             TerminalMode::ScanComponents => format!("/rk {anchors} components"),
             TerminalMode::Merge => format!("/rk {anchors} merge"),
             TerminalMode::MergePullRequest { base } => format!("/rk {anchors} merge pull-request base:{}", base.split_whitespace().collect::<String>()),
@@ -68,11 +71,11 @@ impl TerminalMode {
     }
 
     /// Whether the work is the project's as a whole: a diagram, its inventory, an assessment or its
-    /// configuration, the only work a terminal on a project alone has.
+    /// configuration or the grouping of its pages, the only work a terminal on a project alone has.
     pub fn works_on_a_project(&self) -> bool {
         matches!(
             self,
-            TerminalMode::Generate { .. } | TerminalMode::Explain { .. } | TerminalMode::Inventory | TerminalMode::Assess { .. } | TerminalMode::AssessAll | TerminalMode::Autoconfigure | TerminalMode::ScanComponents
+            TerminalMode::Generate { .. } | TerminalMode::Explain { .. } | TerminalMode::Inventory | TerminalMode::Assess { .. } | TerminalMode::AssessAll | TerminalMode::Autoconfigure | TerminalMode::Reorganize | TerminalMode::ScanComponents
         )
     }
 
@@ -112,6 +115,7 @@ impl std::fmt::Display for TerminalMode {
             TerminalMode::Assess { .. } => "ASSESS",
             TerminalMode::AssessAll => "ASSESS_ALL",
             TerminalMode::Autoconfigure => "AUTOCONFIGURE",
+            TerminalMode::Reorganize => "REORGANIZE",
             TerminalMode::ScanComponents => "SCAN_COMPONENTS",
             TerminalMode::Merge | TerminalMode::MergePullRequest { .. } => "MERGE",
             TerminalMode::Rewrite { style: RewriteStyle::Fix } => "REWRITE_FIX",

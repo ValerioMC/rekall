@@ -117,7 +117,7 @@ async fn a_database_written_by_v0_2_moves_onto_the_baseline_with_its_rows() {
     let database = rekall_store::open(&path).await.unwrap();
     let db = &database.conn;
 
-    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target", "074-accept-done-tasks", "075-task-manager", "076-commit-reference-step-kept", "077-foreign-key-indexes", "078-enum-and-scope-checks", "079-step-owned-task-keys", "080-task-tracker-link", "081-pull-request-flow", "082-task-pull-request", "083-pull-request-merged", "084-note-owned-by-task", "085-task-tracker-synced-content", "086-task-code", "087-commit-reference-component", "088-skill-arguments", "089-confluence-connection", "090-component-summary", "091-task-decision"]);
+    assert_eq!(applied_versions(db).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target", "074-accept-done-tasks", "075-task-manager", "076-commit-reference-step-kept", "077-foreign-key-indexes", "078-enum-and-scope-checks", "079-step-owned-task-keys", "080-task-tracker-link", "081-pull-request-flow", "082-task-pull-request", "083-pull-request-merged", "084-note-owned-by-task", "085-task-tracker-synced-content", "086-task-code", "087-commit-reference-component", "088-skill-arguments", "089-confluence-connection", "090-component-summary", "091-task-decision", "092-section-context"]);
     let task = Task::find().one(db).await.unwrap().unwrap();
     assert_eq!((task.label.as_str(), task.title.as_str()), ("report", "Report"));
     let wrapup = Wrapup::find().one(db).await.unwrap().unwrap();
@@ -137,7 +137,7 @@ async fn a_database_on_the_baseline_opens_again_unchanged() {
 
     let database = rekall_store::open(&path).await.unwrap();
 
-    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target", "074-accept-done-tasks", "075-task-manager", "076-commit-reference-step-kept", "077-foreign-key-indexes", "078-enum-and-scope-checks", "079-step-owned-task-keys", "080-task-tracker-link", "081-pull-request-flow", "082-task-pull-request", "083-pull-request-merged", "084-note-owned-by-task", "085-task-tracker-synced-content", "086-task-code", "087-commit-reference-component", "088-skill-arguments", "089-confluence-connection", "090-component-summary", "091-task-decision"]);
+    assert_eq!(applied_versions(&database.conn).await, ["000-baseline", "031-project-section", "032-project-icon-image", "033-project-component", "034-company-logo-image", "035-mermaid-diagram", "036-token-usage", "037-skill-placement", "038-skill-assignment", "039-step-flow", "040-flow-start-end", "041-token-usage-day", "042-step-max-visits", "043-diagram-walkthrough", "044-connection", "045-connection-proxy", "046-drop-task-revision", "047-vulnerability", "048-exposure-conclusion", "049-deployment-graph", "050-graph-step-place", "051-binding-label", "052-advisory-reach", "053-visit-report", "054-release-on-run", "055-epic", "056-step-session", "057-telemetry-setting", "058-run-queue-session-kind", "059-shared-connection", "060-step-snapshot", "061-done-check", "062-wrapup-version", "063-quick-task", "064-task-dependency", "065-parallel-sessions", "066-task-worktree", "067-task-deviation", "068-drop-orphan-note-links", "069-task-feedback", "070-drop-review-note", "071-feedback-passes", "072-connection-self-signed", "073-revision-target", "074-accept-done-tasks", "075-task-manager", "076-commit-reference-step-kept", "077-foreign-key-indexes", "078-enum-and-scope-checks", "079-step-owned-task-keys", "080-task-tracker-link", "081-pull-request-flow", "082-task-pull-request", "083-pull-request-merged", "084-note-owned-by-task", "085-task-tracker-synced-content", "086-task-code", "087-commit-reference-component", "088-skill-arguments", "089-confluence-connection", "090-component-summary", "091-task-decision", "092-section-context"]);
 }
 
 #[tokio::test]
@@ -655,10 +655,41 @@ async fn a_database_at_version_090_gains_the_decision_tables() {
 
     let database = rekall_store::open(&path).await.unwrap();
 
-    assert_eq!(applied_versions(&database.conn).await.last().map(String::as_str), Some("091-task-decision"));
+    assert!(applied_versions(&database.conn).await.contains(&"091-task-decision".to_string()));
     for table in ["task_decision", "task_decision_option", "task_decision_line", "task_decision_detail"] {
         assert!(table_exists(&database.conn, table).await, "{table}");
     }
+}
+
+#[tokio::test]
+async fn the_sections_a_project_already_has_move_into_one_general_context_when_092_runs() {
+    use sea_orm_migration::MigratorTrait;
+    let options = SqliteConnectOptions::new().filename(":memory:").foreign_keys(false);
+    let pool = SqlitePoolOptions::new().max_connections(1).connect_with(options).await.unwrap();
+    let db = SqlxSqliteConnector::from_sqlx_sqlite_pool(pool);
+    let before_092 = rekall_store::migration::Migrator::migrations().iter().position(|migration| migration.name() == "092-section-context").unwrap() as u32;
+    rekall_store::migration::Migrator::up(&db, Some(before_092)).await.unwrap();
+    for statement in [
+        "INSERT INTO company (id, name, created_at, updated_at) VALUES ('c1', 'Acme', 't', 't')",
+        "INSERT INTO project (id, label, title, status, icon, auto_commit, company_id, created_at, updated_at) VALUES
+            ('p1', 'vega', 'Vega', 'ACTIVE', 'folder', 0, 'c1', '2026-01-01', 't'),
+            ('p2', 'orion', 'Orion', 'ACTIVE', 'folder', 0, 'c1', '2026-01-02', 't')",
+        "INSERT INTO project_section (id, project_id, title, body_markdown, position, created_at, updated_at) VALUES
+            ('s1', 'p1', 'Deployment', '', 0, '2026-02-01', '2026-02-03'),
+            ('s2', 'p1', 'Glossary', '', 1, '2026-02-02', '2026-02-04')",
+    ] {
+        db.execute_unprepared(statement).await.unwrap();
+    }
+
+    rekall_store::migration::Migrator::up(&db, None).await.unwrap();
+
+    assert_eq!(scalar_list(&db, "SELECT project_id || ':' || title FROM section_context").await, ["p1:General"], "a project with no section gets no context");
+    assert_eq!(
+        scalar_list(&db, "SELECT CAST(COUNT(*) AS TEXT) FROM project_section s JOIN section_context c ON c.id = s.context_id AND c.project_id = s.project_id").await,
+        ["2"],
+        "every section is held by its own project's context"
+    );
+    assert_eq!(scalar_list(&db, "SELECT id FROM project_section ORDER BY position").await, ["s1", "s2"], "their order is kept");
 }
 
 async fn scalar_list(db: &impl ConnectionTrait, query: &str) -> Vec<String> {

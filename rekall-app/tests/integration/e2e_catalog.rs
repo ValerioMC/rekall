@@ -347,6 +347,7 @@ async fn the_mcp_endpoint_exposes_four_ways_to_read_and_ten_writes() {
             "rekall_read_components",
             "rekall_read_sections",
             "rekall_record_commit",
+            "rekall_reorganize_sections",
             "rekall_replan",
             "rekall_search",
             "rekall_step",

@@ -1,5 +1,6 @@
 import { componentNameKey, componentTitle, missingComponentTitle } from '@/common/markdown/component-reference'
 import { connectionReferenceLabel, connectionTitle, missingConnectionTitle } from '@/common/markdown/connection-reference'
+import { missingPageTitle, pageNamed, pageReferenceTitle, pageTitle, type ReferencePage } from '@/common/markdown/page-reference'
 import type { ReferenceIcon } from '@/common/markdown/reference-completion-icon'
 import { missingTaskTitle, taskReferenceLabel, taskTitle } from '@/common/markdown/task-reference'
 import { namesTask } from '@/features/catalog/model/task-code'
@@ -12,9 +13,10 @@ export interface ReferenceTargets {
   readonly components: readonly ProjectComponent[] | null
   readonly connections: readonly ProjectConnection[] | null
   readonly tasks: readonly Task[] | null
+  readonly pages: readonly ReferencePage[] | null
 }
 
-export const NO_REFERENCE_TARGETS: ReferenceTargets = { components: null, connections: null, tasks: null }
+export const NO_REFERENCE_TARGETS: ReferenceTargets = { components: null, connections: null, tasks: null, pages: null }
 
 export interface ReferenceChip {
   readonly text: string
@@ -32,6 +34,8 @@ export function referenceChipFor(written: string, targets: ReferenceTargets): Re
   if (connection !== null) return connectionChip(connection, targets.connections)
   const task = taskReferenceLabel(written)
   if (task !== null) return taskChip(task, targets.tasks)
+  const page = pageReferenceTitle(written)
+  if (page !== null) return pageChip(page, targets.pages)
   return componentChip(written, targets.components)
 }
 
@@ -57,4 +61,12 @@ function taskChip(label: string, tasks: readonly Task[] | null): ReferenceChip |
   return found
     ? { text: label, title: taskTitle(found), icon: 'task', missing: false }
     : { text: label, title: missingTaskTitle(label), icon: 'task', missing: true }
+}
+
+function pageChip(title: string, pages: readonly ReferencePage[] | null): ReferenceChip | null {
+  if (pages === null) return null
+  const found = pageNamed(pages, title)
+  return found
+    ? { text: title, title: pageTitle(found), icon: 'page', missing: false }
+    : { text: title, title: missingPageTitle(title), icon: 'page', missing: true }
 }

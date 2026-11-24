@@ -4,6 +4,7 @@ export type HelpToolName =
   | 'rekall_context'
   | 'rekall_search'
   | 'rekall_read_sections'
+  | 'rekall_reorganize_sections'
   | 'rekall_component'
   | 'rekall_read_components'
   | 'rekall_create_task'
@@ -77,6 +78,7 @@ export const HELP_TOOLS: Readonly<Record<HelpToolName, HelpTool>> = {
   rekall_context: { name: 'rekall_context', access: 'read', effect: 'Resolves anchors and returns the whole working context as markdown.' },
   rekall_search: { name: 'rekall_search', access: 'read', effect: 'Finds a phrase in descriptions, steps, wrapups and notes; returns anchors to load.' },
   rekall_read_sections: { name: 'rekall_read_sections', access: 'read', effect: 'Lists a project’s pages by title, or reads one whole.' },
+  rekall_reorganize_sections: { name: 'rekall_reorganize_sections', access: 'write', effect: 'Regroups a project’s pages: names every page once under the contexts it wants. Pages move; none is renamed, rewritten or deleted.' },
   rekall_component: { name: 'rekall_component', access: 'write', effect: 'Records a folder of a project as a component: a summary and a structured description; one with that name or folder is rewritten.' },
   rekall_read_components: { name: 'rekall_read_components', access: 'read', effect: 'Lists a project’s components with their summaries, or reads one whole.' },
   rekall_create_task: { name: 'rekall_create_task', access: 'write', effect: 'Creates a task or an epic in a project, with its description and up to 20 steps, as a checklist or a flow.' },
@@ -166,7 +168,8 @@ export const HELP_CONTEXTS: readonly HelpContext[] = [
       { line: '/rk task:{task} note "the export formats we settled on"', does: 'Writes a note on the task, or rewrites the one it already has on that subject.', calls: ['rekall_note'] },
       { line: '/rk task:{task} section "Deployment" "how we ship to production"', does: 'Writes a project page under that title, or rewrites the one that exists.', calls: ['rekall_project_section'] },
       { line: '/rk project:{project} components', does: 'Reads the project\'s folders and writes each part as a component: a summary and a structured description.', calls: ['rekall_component', 'rekall_read_components'] },
-      { line: '/rk project:{project} autoconfigure', does: 'Reads the repository and stores how it is built and how it takes a change, as pages.', calls: ['rekall_project_section'] }
+      { line: '/rk project:{project} autoconfigure', does: 'Reads the repository and stores how it is built and how it takes a change, as pages.', calls: ['rekall_project_section'] },
+      { line: '/rk project:{project} reorganize', does: 'Reads every page and regroups them in contexts by concept, moving pages and naming contexts without rewriting any page.', calls: ['rekall_reorganize_sections', 'rekall_read_sections'] }
     ],
     directTools: ['rekall_read_sections'],
     examples: []

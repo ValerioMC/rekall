@@ -13,8 +13,9 @@ import { mountWithHeaderChrome } from '../../support/mountWithHeaderChrome'
 import { task as workTask } from '../work/work-fixtures'
 import type { Company, Project } from '@/features/catalog/model/catalog'
 import type { ProjectSection } from '@/features/project/model/project-section'
+import type { SectionContext } from '@/features/project/model/section-context'
 import type { ProjectConnection } from '@/features/connection/model/connection'
-import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId, ProjectSectionId } from '@/model/branded'
+import type { CompanyId, ConnectionId, ProjectConnectionId, ProjectId, ProjectSectionId, SectionContextId } from '@/model/branded'
 
 vi.mock('@/features/project/api/project-sections.api')
 vi.mock('@/features/project/api/project-components.api')
@@ -47,9 +48,21 @@ const other = { ...project, id: OTHER, title: 'Atlas', label: 'atlas', anchor: '
 
 const task = workTask('t-1', { projectId: PROJECT, title: 'Build the report' })
 
+const CONTEXT = 'c-1' as SectionContextId
+
+const operations: SectionContext = {
+  id: CONTEXT,
+  projectId: PROJECT,
+  title: 'Operations',
+  position: 0,
+  createdAt: '2026-10-05T10:00:00Z',
+  updatedAt: '2026-10-05T10:00:00Z'
+}
+
 const deployment: ProjectSection = {
   id: 's-1' as ProjectSectionId,
   projectId: PROJECT,
+  contextId: CONTEXT,
   title: 'Deployment',
   bodyMarkdown: 'Blue-green.',
   position: 0,
@@ -83,6 +96,7 @@ beforeEach(() => {
   setActivePinia(pinia)
   vi.resetAllMocks()
   vi.mocked(sectionsApi.fetchProjectSections).mockResolvedValue([deployment])
+  vi.mocked(sectionsApi.fetchSectionContexts).mockResolvedValue([operations])
   vi.mocked(componentsApi.fetchProjectComponents).mockResolvedValue([])
   vi.mocked(graphsApi.fetchDeploymentGraphs).mockResolvedValue([])
   vi.mocked(connectionsApi.fetchProjectConnections).mockResolvedValue([])
@@ -197,12 +211,13 @@ describe('the project page', () => {
     vi.mocked(sectionsApi.createProjectSection).mockResolvedValue(created)
     const page = await render('pages')
 
+    await flushPromises()
     await page.find('[data-testid="rail-new-section"]').trigger('click')
-    await page.find('[data-testid="rail-new-title"]').setValue('Glossary')
-    await page.find('[data-testid="rail-new-form"]').trigger('submit')
+    await page.find('[data-testid="rail-context-page-title-c-1"]').setValue('Glossary')
+    await page.find('[data-testid="rail-context-page-form-c-1"]').trigger('submit')
     await flushPromises()
 
-    expect(sectionsApi.createProjectSection).toHaveBeenCalledWith(PROJECT, { title: 'Glossary', bodyMarkdown: '' })
+    expect(sectionsApi.createProjectSection).toHaveBeenCalledWith(PROJECT, { title: 'Glossary', bodyMarkdown: '', contextId: CONTEXT })
     expect((page.find('[data-testid="section-title"]').element as HTMLInputElement).value).toBe('Glossary')
   })
 
@@ -213,7 +228,7 @@ describe('the project page', () => {
     await page.find('[data-testid="section-delete"]').trigger('click')
     expect(page.text()).toContain('Delete Deployment?')
     expect(sectionsApi.deleteProjectSection).not.toHaveBeenCalled()
-    const confirm = page.findAll('button').find((button) => button.text() === 'Delete section')!
+    const confirm = page.findAll('button').find((button) => button.text() === 'Delete page')!
     await confirm.trigger('click')
     await flushPromises()
 
