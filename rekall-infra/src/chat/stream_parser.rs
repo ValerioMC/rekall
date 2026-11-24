@@ -43,12 +43,14 @@ impl StreamParser {
     fn read(&mut self, line: WireLine) -> Vec<ChatBody> {
         match line {
             WireLine::System(system) => self.system(&system),
-            WireLine::StreamEvent { event } => self.stream(event),
+            WireLine::StreamEvent { event, parent_tool_use_id } => self.stream(event, parent_tool_use_id),
             WireLine::Assistant { local_command_source: Some(output), local_command_run, .. } => {
                 command_output(&output, local_command_run).into_iter().collect()
             }
-            WireLine::Assistant { message, .. } => self.assistant(message),
-            WireLine::User { message, is_replay, tool_use_result } if !is_replay => tool_results(message, tool_use_result.as_ref()),
+            WireLine::Assistant { message, parent_tool_use_id, .. } => self.assistant(message, parent_tool_use_id),
+            WireLine::User { message, is_replay, tool_use_result, parent_tool_use_id } if !is_replay => {
+                tool_results(message, tool_use_result.as_ref(), parent_tool_use_id)
+            }
             WireLine::User { .. } => Vec::new(),
             WireLine::Result(result) => self.finish_turn(result),
             WireLine::ControlRequest { request_id, request } => permission_request(request_id, request).into_iter().collect(),
@@ -73,51 +75,57 @@ impl StreamParser {
         Some(started)
     }
 
-    fn stream(&mut self, event: WireStreamEvent) -> Vec<ChatBody> {
+    fn stream(&mut self, event: WireStreamEvent, parent_tool_use_id: Option<String>) -> Vec<ChatBody> {
         match event {
             WireStreamEvent::MessageStart { message } => {
                 self.streaming_message = Some(message.id);
                 Vec::new()
             }
-            WireStreamEvent::ContentBlockStart { content_block: WireBlockStart::Thinking } => self.partial_thinking(String::new()),
-            WireStreamEvent::ContentBlockDelta { delta: WireDelta::TextDelta { text } } => self.partial_text(text),
+            WireStreamEvent::ContentBlockStart { content_block: WireBlockStart::Thinking } => {
+                self.partial_thinking(String::new(), parent_tool_use_id)
+            }
+            WireStreamEvent::ContentBlockDelta { delta: WireDelta::TextDelta { text } } => self.partial_text(text, parent_tool_use_id),
             WireStreamEvent::ContentBlockDelta { delta: WireDelta::ThinkingDelta { thinking } } if !thinking.is_empty() => {
-                self.partial_thinking(thinking)
+                self.partial_thinking(thinking, parent_tool_use_id)
             }
             _ => Vec::new(),
         }
     }
 
-    fn partial_text(&self, text: String) -> Vec<ChatBody> {
+    fn partial_text(&self, text: String, parent_tool_use_id: Option<String>) -> Vec<ChatBody> {
         match &self.streaming_message {
-            Some(message_id) => vec![ChatBody::AssistantText { message_id: message_id.clone(), text, complete: false }],
+            Some(message_id) => vec![ChatBody::AssistantText { message_id: message_id.clone(), text, complete: false, parent_tool_use_id }],
             None => Vec::new(),
         }
     }
 
-    fn partial_thinking(&self, text: String) -> Vec<ChatBody> {
+    fn partial_thinking(&self, text: String, parent_tool_use_id: Option<String>) -> Vec<ChatBody> {
         match &self.streaming_message {
-            Some(message_id) => vec![ChatBody::AssistantThinking { message_id: message_id.clone(), text, complete: false }],
+            Some(message_id) => vec![ChatBody::AssistantThinking { message_id: message_id.clone(), text, complete: false, parent_tool_use_id }],
             None => Vec::new(),
         }
     }
 
-    fn assistant(&mut self, message: WireMessage) -> Vec<ChatBody> {
+    fn assistant(&mut self, message: WireMessage, parent_tool_use_id: Option<String>) -> Vec<ChatBody> {
         let message_id = message.id.clone().or_else(|| self.streaming_message.clone()).unwrap_or_default();
-        message.content.0.into_iter().filter_map(|block| self.block_event(&message_id, block)).collect()
+        message.content.0.into_iter().filter_map(|block| self.block_event(&message_id, parent_tool_use_id.as_deref(), block)).collect()
     }
 
-    fn block_event(&mut self, message_id: &str, block: WireBlock) -> Option<ChatBody> {
+    fn block_event(&mut self, message_id: &str, parent_tool_use_id: Option<&str>, block: WireBlock) -> Option<ChatBody> {
+        let parent_tool_use_id = parent_tool_use_id.map(str::to_string);
         match block {
-            WireBlock::Text { text } if !text.is_empty() => {
-                Some(ChatBody::AssistantText { message_id: message_id.to_string(), text: self.join_text(message_id, text), complete: true })
-            }
+            WireBlock::Text { text } if !text.is_empty() => Some(ChatBody::AssistantText {
+                message_id: message_id.to_string(),
+                text: self.join_text(message_id, text),
+                complete: true,
+                parent_tool_use_id,
+            }),
             WireBlock::Thinking { thinking } => {
-                Some(ChatBody::AssistantThinking { message_id: message_id.to_string(), text: thinking, complete: true })
+                Some(ChatBody::AssistantThinking { message_id: message_id.to_string(), text: thinking, complete: true, parent_tool_use_id })
             }
             WireBlock::ToolUse { id, name, input } => {
                 let input = ToolInput::of(&name, &input);
-                Some(ChatBody::ToolUse { tool_use_id: id, name, input })
+                Some(ChatBody::ToolUse { tool_use_id: id, name, input, parent_tool_use_id })
             }
             _ => None,
         }
@@ -159,7 +167,7 @@ fn outcome_of(is_error: bool, terminal_reason: Option<&str>) -> TurnOutcome {
     TurnOutcome::Completed
 }
 
-fn tool_results(message: WireMessage, reported: Option<&WireToolUseResult>) -> Vec<ChatBody> {
+fn tool_results(message: WireMessage, reported: Option<&WireToolUseResult>, parent_tool_use_id: Option<String>) -> Vec<ChatBody> {
     let results: Vec<_> = message
         .content
         .0
@@ -174,7 +182,7 @@ fn tool_results(message: WireMessage, reported: Option<&WireToolUseResult>) -> V
         .into_iter()
         .map(|(tool_use_id, content, is_error)| {
             let output = content.map(|content| content.text()).unwrap_or_default();
-            ChatBody::tool_result(&tool_use_id, is_error, &output, summary.clone())
+            ChatBody::tool_result(&tool_use_id, is_error, &output, summary.clone(), parent_tool_use_id.clone())
         })
         .collect()
 }

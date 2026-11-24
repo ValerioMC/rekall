@@ -3,7 +3,7 @@ use crate::chat::ChatEvent;
 
 #[test]
 fn a_short_output_is_kept_whole() {
-    let ChatBody::ToolResult { excerpt, truncated, is_error, .. } = ChatBody::tool_result("toolu_1", false, "done", None) else {
+    let ChatBody::ToolResult { excerpt, truncated, is_error, .. } = ChatBody::tool_result("toolu_1", false, "done", None, None) else {
         panic!("a tool result");
     };
 
@@ -16,7 +16,7 @@ fn a_short_output_is_kept_whole() {
 fn a_long_output_is_cut_at_the_limit_and_flagged() {
     let output = "é".repeat(TOOL_EXCERPT_MAX_CHARACTERS + 10);
 
-    let ChatBody::ToolResult { excerpt, truncated, .. } = ChatBody::tool_result("toolu_1", true, &output, None) else {
+    let ChatBody::ToolResult { excerpt, truncated, .. } = ChatBody::tool_result("toolu_1", true, &output, None, None) else {
         panic!("a tool result");
     };
 
@@ -26,11 +26,11 @@ fn a_long_output_is_cut_at_the_limit_and_flagged() {
 
 #[test]
 fn an_event_is_written_flat_with_its_type_and_camel_case_fields() {
-    let event = ChatEvent { seq: 7, body: ChatBody::AssistantText { message_id: "msg_1".into(), text: "hi".into(), complete: false } };
+    let event = ChatEvent { seq: 7, body: ChatBody::AssistantText { message_id: "msg_1".into(), text: "hi".into(), complete: false, parent_tool_use_id: None } };
 
     assert_eq!(
         serde_json::to_value(&event).unwrap(),
-        serde_json::json!({"seq": 7, "type": "assistantText", "messageId": "msg_1", "text": "hi", "complete": false})
+        serde_json::json!({"seq": 7, "type": "assistantText", "messageId": "msg_1", "text": "hi", "complete": false, "parentToolUseId": null})
     );
 }
 
@@ -58,4 +58,19 @@ fn a_session_start_and_a_command_output_are_written_with_camel_case_fields() {
         serde_json::json!({"type": "sessionStarted", "model": "m", "cwd": "/w", "permissionMode": "default", "version": "2"})
     );
     assert_eq!(serde_json::to_value(&output).unwrap(), serde_json::json!({"type": "commandOutput", "command": "/context", "text": "ok"}));
+}
+
+#[test]
+fn an_event_of_a_subagent_names_the_agent_call_it_belongs_to() {
+    let inner = ChatBody::ToolUse {
+        tool_use_id: "toolu_2".into(),
+        name: "Read".into(),
+        input: ToolInput::Read { file_path: "a".into() },
+        parent_tool_use_id: Some("toolu_1".into()),
+    };
+
+    assert_eq!(
+        serde_json::to_value(&inner).unwrap(),
+        serde_json::json!({"type": "toolUse", "toolUseId": "toolu_2", "name": "Read", "input": {"tool": "read", "filePath": "a"}, "parentToolUseId": "toolu_1"})
+    );
 }

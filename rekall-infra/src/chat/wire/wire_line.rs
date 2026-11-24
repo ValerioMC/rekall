@@ -9,9 +9,13 @@ pub(in crate::chat) enum WireLine {
     System(WireSystem),
     StreamEvent {
         event: WireStreamEvent,
+        #[serde(default)]
+        parent_tool_use_id: Option<String>,
     },
     Assistant {
         message: WireMessage,
+        #[serde(default)]
+        parent_tool_use_id: Option<String>,
         local_command_source: Option<String>,
         local_command_run: Option<WireLocalCommand>,
     },
@@ -21,6 +25,8 @@ pub(in crate::chat) enum WireLine {
         is_replay: bool,
         #[serde(default)]
         tool_use_result: Option<WireToolUseResult>,
+        #[serde(default)]
+        parent_tool_use_id: Option<String>,
     },
     Result(WireResult),
     ControlRequest {

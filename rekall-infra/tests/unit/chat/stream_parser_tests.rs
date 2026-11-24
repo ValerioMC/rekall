@@ -19,6 +19,7 @@ const TOOL_BASH: &str = include_str!("../../fixtures/chat/tool_bash.jsonl");
 const TOOL_BASH_FAILED: &str = include_str!("../../fixtures/chat/tool_bash_failed.jsonl");
 const TOOL_TODO_WRITE: &str = include_str!("../../fixtures/chat/tool_todo_write.jsonl");
 const TOOL_WEB_SEARCH: &str = include_str!("../../fixtures/chat/tool_web_search.jsonl");
+const SUBAGENT: &str = include_str!("../../fixtures/chat/subagent_run.jsonl");
 const LOCAL_COMMAND: &str = include_str!("../../fixtures/chat/local_command_context.jsonl");
 
 fn parse_all(fixture: &str) -> Vec<ChatBody> {
@@ -98,7 +99,7 @@ fn every_event_of_a_message_names_the_message_it_belongs_to() {
 fn a_tool_call_is_typed_and_its_result_names_the_call_it_answers() {
     let events = parse(TOOL_CALL);
 
-    let ChatBody::ToolUse { tool_use_id, name, input } = &events[0] else { panic!("the tool call comes first") };
+    let ChatBody::ToolUse { tool_use_id, name, input, .. } = &events[0] else { panic!("the tool call comes first") };
     assert_eq!(name, "Read");
     assert_eq!(*input, ToolInput::Read { file_path: "/work/project/hello.txt".into() });
     let ChatBody::ToolResult { tool_use_id: answered, is_error, excerpt, truncated, .. } = &events[1] else { panic!("its result follows") };
@@ -213,8 +214,8 @@ fn deltas_belong_to_the_message_that_started_last() {
     assert_eq!(
         events,
         vec![
-            ChatBody::AssistantText { message_id: "msg_a".into(), text: "one".into(), complete: false },
-            ChatBody::AssistantText { message_id: "msg_b".into(), text: "two".into(), complete: false },
+            ChatBody::AssistantText { message_id: "msg_a".into(), text: "one".into(), complete: false, parent_tool_use_id: None },
+            ChatBody::AssistantText { message_id: "msg_b".into(), text: "two".into(), complete: false, parent_tool_use_id: None },
         ]
     );
 }
@@ -267,7 +268,7 @@ fn a_tool_output_in_parts_is_read_as_the_text_of_its_parts() {
         "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_1", "is_error": true, "content": [{"type": "text", "text": "a"}, {"type": "image"}, {"type": "text", "text": "b"}]}]}
     })]);
 
-    assert_eq!(events, vec![ChatBody::tool_result("toolu_1", true, "a\nb", None)]);
+    assert_eq!(events, vec![ChatBody::tool_result("toolu_1", true, "a\nb", None, None)]);
 }
 
 #[test]
@@ -430,4 +431,62 @@ fn the_tools_the_terminal_draws_in_its_own_way_are_typed_and_not_other() {
 
     assert!(matches!(todo_call, ChatBody::ToolUse { input: ToolInput::Todos { ref items }, .. } if items.len() == 2));
     assert!(matches!(web_call, ChatBody::ToolUse { input: ToolInput::Web { ref target, .. }, .. } if target == "rust serde tutorial"));
+}
+
+fn parent_of(event: &ChatBody) -> Option<&str> {
+    match event {
+        ChatBody::AssistantText { parent_tool_use_id, .. }
+        | ChatBody::AssistantThinking { parent_tool_use_id, .. }
+        | ChatBody::ToolUse { parent_tool_use_id, .. }
+        | ChatBody::ToolResult { parent_tool_use_id, .. } => parent_tool_use_id.as_deref(),
+        _ => None,
+    }
+}
+
+#[test]
+fn what_a_subagent_does_names_the_agent_call_that_started_it_and_the_main_conversation_does_not() {
+    let events = parse(SUBAGENT);
+    let ChatBody::ToolUse { tool_use_id: agent_call, input: ToolInput::Agent { .. }, parent_tool_use_id: None, .. } = &events[1] else {
+        panic!("the agent call comes second, in the main conversation")
+    };
+
+    let inner: Vec<&ChatBody> = events.iter().filter(|event| parent_of(event).is_some()).collect();
+    assert_eq!(inner.len(), 2);
+    assert!(matches!(inner[0], ChatBody::ToolUse { input: ToolInput::Web { .. }, .. }));
+    assert!(matches!(inner[1], ChatBody::ToolResult { .. }));
+    assert!(inner.iter().all(|event| parent_of(event) == Some(agent_call.as_str())));
+    assert!(matches!(&events[0], ChatBody::AssistantText { parent_tool_use_id: None, .. }));
+    assert!(matches!(events.last(), Some(ChatBody::AssistantText { parent_tool_use_id: None, .. })));
+}
+
+#[test]
+fn the_agents_own_result_belongs_to_the_main_conversation() {
+    let events = parse(SUBAGENT);
+
+    let answer = events.iter().find(|event| matches!(event, ChatBody::ToolResult { parent_tool_use_id: None, .. }));
+    assert!(answer.is_some());
+}
+
+#[test]
+fn a_subagents_text_is_not_joined_to_the_text_of_the_main_message() {
+    let assistant = |id: &str, parent: Option<&str>, text: &str| {
+        json!({"type": "assistant", "parent_tool_use_id": parent, "message": {"id": id, "content": [{"type": "text", "text": text}]}})
+    };
+
+    let events = parse_lines(&[assistant("main", None, "first"), assistant("sub", Some("toolu_A"), "inner"), assistant("main", None, "second")]);
+
+    assert_eq!(completed_texts(&events), vec!["first", "inner", "first\n\nsecond"]);
+    assert_eq!(parent_of(&events[1]), Some("toolu_A"));
+}
+
+#[test]
+fn streamed_deltas_of_a_subagent_carry_its_parent() {
+    let events = parse_lines(&[
+        json!({"type": "stream_event", "parent_tool_use_id": "toolu_A", "event": {"type": "message_start", "message": {"id": "sub"}}}),
+        json!({"type": "stream_event", "parent_tool_use_id": "toolu_A", "event": {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "hi"}}}),
+        json!({"type": "stream_event", "parent_tool_use_id": null, "event": {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "yo"}}}),
+    ]);
+
+    assert_eq!(parent_of(&events[0]), Some("toolu_A"));
+    assert_eq!(parent_of(&events[1]), None);
 }

@@ -7,17 +7,18 @@ pub const TOOL_EXCERPT_MAX_CHARACTERS: usize = 4000;
 
 /// What a chat event says. A text or thinking event not yet `complete` carries only the words that
 /// arrived since the last one, to append; the `complete` one carries the whole text, which replaces
-/// what was appended.
+/// what was appended. `parent_tool_use_id` is the id of the Agent call a subagent's event belongs to,
+/// and `None` for the main conversation.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum ChatBody {
     SessionStarted { model: String, cwd: String, permission_mode: String, version: String },
     CommandOutput { command: String, text: String },
     UserMessage { text: String },
-    AssistantText { message_id: String, text: String, complete: bool },
-    AssistantThinking { message_id: String, text: String, complete: bool },
-    ToolUse { tool_use_id: String, name: String, input: ToolInput },
-    ToolResult { tool_use_id: String, is_error: bool, excerpt: String, truncated: bool, summary: Option<String> },
+    AssistantText { message_id: String, text: String, complete: bool, parent_tool_use_id: Option<String> },
+    AssistantThinking { message_id: String, text: String, complete: bool, parent_tool_use_id: Option<String> },
+    ToolUse { tool_use_id: String, name: String, input: ToolInput, parent_tool_use_id: Option<String> },
+    ToolResult { tool_use_id: String, is_error: bool, excerpt: String, truncated: bool, summary: Option<String>, parent_tool_use_id: Option<String> },
     PermissionRequested { request_id: String, tool_use_id: String, name: String, input: ToolInput },
     PermissionResolved { request_id: String, allowed: bool },
     TurnFinished { usage: TurnUsage, duration_ms: u64, outcome: TurnOutcome },
@@ -28,10 +29,10 @@ pub enum ChatBody {
 impl ChatBody {
     /// A tool's result, its output cut to [`TOOL_EXCERPT_MAX_CHARACTERS`]; `summary` is the one line
     /// of what the tool did, when `claude` reported enough to say.
-    pub fn tool_result(tool_use_id: &str, is_error: bool, output: &str, summary: Option<String>) -> Self {
+    pub fn tool_result(tool_use_id: &str, is_error: bool, output: &str, summary: Option<String>, parent_tool_use_id: Option<String>) -> Self {
         let truncated = output.chars().count() > TOOL_EXCERPT_MAX_CHARACTERS;
         let excerpt = output.chars().take(TOOL_EXCERPT_MAX_CHARACTERS).collect();
-        ChatBody::ToolResult { tool_use_id: tool_use_id.to_string(), is_error, excerpt, truncated, summary }
+        ChatBody::ToolResult { tool_use_id: tool_use_id.to_string(), is_error, excerpt, truncated, summary, parent_tool_use_id }
     }
 
     pub fn notice(kind: NoticeKind, text: impl Into<String>) -> Self {
