@@ -18,6 +18,28 @@ const ToolInputSchema: z.ZodType<ToolInput> = z.discriminatedUnion('tool', [
     pattern: z.string(),
     path: z.string().nullable()
   }),
+  z.object({
+    tool: z.literal('todos'),
+    items: z.array(
+      z.object({
+        content: z.string(),
+        status: z.enum(['pending', 'inProgress', 'completed'])
+      })
+    )
+  }),
+  z.object({
+    tool: z.literal('agent'),
+    description: z.string(),
+    subagentType: z.string().nullable(),
+    prompt: z.string()
+  }),
+  z.object({ tool: z.literal('web'), name: z.string(), target: z.string() }),
+  z.object({
+    tool: z.literal('mcp'),
+    server: z.string(),
+    toolName: z.string(),
+    text: z.string()
+  }),
   z.object({ tool: z.literal('other'), name: z.string(), text: z.string() })
 ])
 
@@ -28,28 +50,49 @@ const TurnUsageSchema = z.object({
   outputTokens: z.number()
 })
 
+const ParentToolUseIdSchema = z.string().nullable()
+
+const TurnContextSchema = z.object({ usedTokens: z.number(), windowTokens: z.number() })
+
 export const ChatEventSchema: z.ZodType<ChatEvent> = z.discriminatedUnion('type', [
+  z.object({
+    seq: z.number(),
+    type: z.literal('sessionStarted'),
+    model: z.string(),
+    cwd: z.string(),
+    permissionMode: z.string(),
+    version: z.string()
+  }),
+  z.object({
+    seq: z.number(),
+    type: z.literal('commandOutput'),
+    command: z.string(),
+    text: z.string()
+  }),
   z.object({ seq: z.number(), type: z.literal('userMessage'), text: z.string() }),
   z.object({
     seq: z.number(),
     type: z.literal('assistantText'),
     messageId: z.string(),
     text: z.string(),
-    complete: z.boolean()
+    complete: z.boolean(),
+    parentToolUseId: ParentToolUseIdSchema
   }),
   z.object({
     seq: z.number(),
     type: z.literal('assistantThinking'),
     messageId: z.string(),
     text: z.string(),
-    complete: z.boolean()
+    complete: z.boolean(),
+    parentToolUseId: ParentToolUseIdSchema
   }),
   z.object({
     seq: z.number(),
     type: z.literal('toolUse'),
     toolUseId: z.string(),
     name: z.string(),
-    input: ToolInputSchema
+    input: ToolInputSchema,
+    parentToolUseId: ParentToolUseIdSchema
   }),
   z.object({
     seq: z.number(),
@@ -57,7 +100,9 @@ export const ChatEventSchema: z.ZodType<ChatEvent> = z.discriminatedUnion('type'
     toolUseId: z.string(),
     isError: z.boolean(),
     excerpt: z.string(),
-    truncated: z.boolean()
+    truncated: z.boolean(),
+    summary: z.string().nullable(),
+    parentToolUseId: ParentToolUseIdSchema
   }),
   z.object({
     seq: z.number(),
@@ -78,7 +123,9 @@ export const ChatEventSchema: z.ZodType<ChatEvent> = z.discriminatedUnion('type'
     type: z.literal('turnFinished'),
     usage: TurnUsageSchema,
     durationMs: z.number(),
-    outcome: z.enum(['completed', 'interrupted', 'failed'])
+    outcome: z.enum(['completed', 'interrupted', 'failed']),
+    costUsd: z.number().nullable(),
+    context: TurnContextSchema.nullable()
   }),
   z.object({
     seq: z.number(),

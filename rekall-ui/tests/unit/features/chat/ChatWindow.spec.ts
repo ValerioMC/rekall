@@ -128,7 +128,9 @@ describe('ChatWindow', () => {
       type: 'turnFinished',
       usage: { inputTokens: 1, cacheCreationInputTokens: 0, cacheReadInputTokens: 0, outputTokens: 1 },
       durationMs: 10,
-      outcome: 'interrupted'
+      outcome: 'interrupted',
+      costUsd: null,
+      context: null
     })
     await flushPromises()
     expect(chat.find('[data-testid=chat-stop]').exists()).toBe(false)

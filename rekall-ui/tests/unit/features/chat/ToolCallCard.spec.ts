@@ -37,7 +37,7 @@ describe('ToolCallCard', () => {
     const card = mountCard({
       ...BASH,
       state: 'done',
-      result: { isError: false, excerpt: 'test result: ok. 12 passed', truncated: false }
+      result: { isError: false, excerpt: 'test result: ok. 12 passed', truncated: false, summary: null }
     })
 
     await card.get('button').trigger('click')
@@ -56,7 +56,7 @@ describe('ToolCallCard', () => {
           replaceAll: true
         },
         state: 'done',
-        result: { isError: false, excerpt: 'The file has been updated', truncated: false }
+        result: { isError: false, excerpt: 'The file has been updated', truncated: false, summary: null }
       })
     )
 
@@ -78,7 +78,7 @@ describe('ToolCallCard', () => {
       toolItem({
         input: { tool: 'edit', filePath: 'a.rs', oldString: 'x', newString: 'y', replaceAll: false },
         state: 'failed',
-        result: { isError: true, excerpt: 'old_string not found', truncated: false }
+        result: { isError: true, excerpt: 'old_string not found', truncated: false, summary: null }
       })
     )
 
@@ -101,7 +101,7 @@ describe('ToolCallCard', () => {
 
   it('cuts a long output to its last 40 lines, with a key for all of them and a note when Rekall cut it', async () => {
     const excerpt = Array.from({ length: 100 }, (_, index) => `out ${index + 1}`).join('\n')
-    const card = mountCard({ ...BASH, state: 'done', result: { isError: false, excerpt, truncated: true } })
+    const card = mountCard({ ...BASH, state: 'done', result: { isError: false, excerpt, truncated: true, summary: null } })
 
     await card.get('button').trigger('click')
     const output = card.get('[data-testid=tool-output]')

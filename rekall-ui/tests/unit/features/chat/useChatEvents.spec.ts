@@ -130,7 +130,7 @@ describe('useChatEvents', () => {
   it('asks a later connection only for what came after the last event it has', async () => {
     start(FIRST)
     latest().emit({ seq: 1, type: 'userMessage', text: 'go' })
-    latest().emit({ seq: 2, type: 'assistantText', messageId: 'm', text: 'Hi', complete: true })
+    latest().emit({ seq: 2, type: 'assistantText', messageId: 'm', text: 'Hi', complete: true, parentToolUseId: null })
 
     session.value = null
     await nextTick()

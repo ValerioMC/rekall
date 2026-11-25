@@ -73,7 +73,7 @@ async function showEarlier(): Promise<void> {
             :duration-ms="item.durationMs"
             :outcome="item.outcome"
           />
-          <ChatEnded v-else :exit-code="item.exitCode" :detail="item.detail" :following-next="followingNext" />
+          <ChatEnded v-else-if="item.kind === 'ended'" :exit-code="item.exitCode" :detail="item.detail" :following-next="followingNext" />
         </li>
       </ol>
     </div>

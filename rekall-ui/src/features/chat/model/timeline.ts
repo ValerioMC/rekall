@@ -1,6 +1,22 @@
-import type { NoticeKind, ToolInput, TurnOutcome, TurnUsage } from './chat-event'
+import type { NoticeKind, ToolInput, TurnContext, TurnOutcome, TurnUsage } from './chat-event'
 
 export type TurnState = 'idle' | 'working' | 'waiting'
+
+export interface SessionItem {
+  readonly kind: 'session'
+  readonly key: string
+  readonly model: string
+  readonly cwd: string
+  readonly permissionMode: string
+  readonly version: string
+}
+
+export interface CommandOutputItem {
+  readonly kind: 'command-output'
+  readonly key: string
+  readonly command: string
+  readonly text: string
+}
 
 export interface UserItem {
   readonly kind: 'user'
@@ -14,6 +30,7 @@ export interface AssistantItem {
   readonly messageId: string
   readonly text: string
   readonly complete: boolean
+  readonly parentToolUseId: string | null
 }
 
 export interface ThinkingItem {
@@ -22,12 +39,14 @@ export interface ThinkingItem {
   readonly messageId: string
   readonly text: string
   readonly complete: boolean
+  readonly parentToolUseId: string | null
 }
 
 export interface ToolResult {
   readonly isError: boolean
   readonly excerpt: string
   readonly truncated: boolean
+  readonly summary: string | null
 }
 
 /** `running` until its result arrives, then `done` or `failed`; `denied` when the person refused it. */
@@ -41,6 +60,7 @@ export interface ToolItem {
   readonly input: ToolInput
   readonly result: ToolResult | null
   readonly state: ToolState
+  readonly parentToolUseId: string | null
 }
 
 export interface NoticeItem {
@@ -56,6 +76,8 @@ export interface TurnFooterItem {
   readonly usage: TurnUsage
   readonly durationMs: number
   readonly outcome: TurnOutcome
+  readonly costUsd: number | null
+  readonly context: TurnContext | null
 }
 
 export interface EndedItem {
@@ -66,6 +88,8 @@ export interface EndedItem {
 }
 
 export type TimelineItem =
+  | SessionItem
+  | CommandOutputItem
   | UserItem
   | AssistantItem
   | ThinkingItem
@@ -88,5 +112,7 @@ export interface Timeline {
   readonly turn: TurnState
   readonly pending: PendingPermission | null
   readonly tokens: TurnUsage
+  readonly cost: number
+  readonly context: TurnContext | null
   readonly ended: boolean
 }
