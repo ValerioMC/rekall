@@ -14,16 +14,8 @@ export const TASK_STATUS_ORDER: readonly TaskStatus[] = ['IN_PROGRESS', 'TODO', 
 
 export const TASK_STATUS_COLOR: Readonly<Record<TaskStatus, string>> = {
   IN_PROGRESS: 'bg-accent',
-  TODO: 'bg-text-subtle',
+  TODO: 'bg-anchor',
   BLOCKED: 'bg-danger',
-  BACKLOG: 'bg-border-strong',
+  BACKLOG: 'bg-text-subtle',
   DONE: 'bg-safe'
-}
-
-export const TASK_STATUS_RING: Readonly<Record<TaskStatus, string>> = {
-  IN_PROGRESS: 'bg-accent/20',
-  TODO: 'bg-text-subtle/20',
-  BLOCKED: 'bg-danger/20',
-  BACKLOG: 'bg-border-strong/20',
-  DONE: 'bg-safe/20'
 }
