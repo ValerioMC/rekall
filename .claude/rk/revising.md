@@ -21,6 +21,7 @@ pass, built on top of what already exists.
      a revision changes the checklist. With no draft or open step to redesign, the reply says there is
      no plan to change.
    Work the `PLAN` entries first, then the `IMPLEMENTATION` ones.
+   Every step, note or text this pass saves on the task is laid out as `reader.md` says.
 4. Call `rekall_feedback` once with a reply for every entry of the pass, the `PLAN` ones too: one or
    two sentences of what changed and where, or why nothing did. The detail belongs in the wrapup.
    Read the answer's `Still open` list: an entry of this pass in it was forgotten, so reply to it. An

@@ -10,9 +10,11 @@ settle. It is talk and records. It changes no code, no steps, no description and
    that change the manifests, the schema or the plan, things the description assumes, steps that
    depend on an answer nobody has given. Ask one question at a time, in the terminal, in my words:
    what it is, why it matters, and the options you see with what each one causes and the one you
-   recommend.
+   recommend. The question opens with the situation the choice changes, and each option says what a
+   person would see with it, as `reader.md` says for a decision.
 3. Record each question as you ask it, with `rekall_decision` `ask`: a `key` (a lowercase slug), the
-   `question`, a `topic` that groups it, `why`, the `options`, the `step` number when it concerns one
+   `question` (in the same order: the situation first, then the choice), a `topic` that groups it,
+   `why`, the `options`, the `step` number when it concerns one
    step and not the whole task, and the `lines` of the conversation behind it. A task without steps
    takes no step number.
 4. When I answer, record it with `answer`, and the `lines` that settled it. Record only what I

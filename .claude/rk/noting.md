@@ -11,7 +11,9 @@ session just produced that I would want again.
    left, unless that exact task is already loaded in this session.
 2. Write the note from what the quoted text asks for: the output of a step, a piece of the
    description worked out, something the session found. Written to be read on its own by someone
-   who was not here, in markdown.
+   who was not here, in markdown, laid out as `reader.md` says. An analysis or a runbook opens with
+   the scenario it serves; a finding is the steps that reproduce it, then what it costs the person,
+   then the code behind it.
 3. Call `rekall_note` with those anchors, a short `title` named like a file (`export-formats.md`)
    and the whole note as `body`. If the task already carries a note this one supersedes (the same
    subject, an older version of the same results), use that note's title and pass `replace: true`,
