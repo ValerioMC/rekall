@@ -26,6 +26,7 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     include: ['tests/**/*.spec.ts'],
+    setupFiles: ['tests/unit/support/offline.setup.ts'],
     // md-editor-v3 has no `exports` map, so Node would load its CommonJS `main` and with it a
     // second @codemirror/state beside the ESM one the live preview imports. The app's bundler
     // takes the ES build; the tests take the same one.
