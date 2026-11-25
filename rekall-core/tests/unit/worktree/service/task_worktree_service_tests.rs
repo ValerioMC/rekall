@@ -156,6 +156,39 @@ async fn the_branch_is_reviewed_whether_or_not_its_worktree_is_still_there() {
     assert!(nothing.is_none());
 }
 
+async fn name_a_folder_git_does_not_list(world: &World, task_id: Id) -> PathBuf {
+    let leftover = world.root.path().join("leftover");
+    std::fs::create_dir_all(&leftover).unwrap();
+    world.service.name_on_task(task_id, Some(leftover.to_string_lossy().into_owned())).await.unwrap();
+    leftover
+}
+
+#[tokio::test]
+async fn a_folder_git_no_longer_lists_is_not_reviewed_as_a_worktree() {
+    let world = world().await;
+    let report = task_named(&world, "report").await;
+    world.service.ensure(report).await.unwrap();
+    name_a_folder_git_does_not_list(&world, report).await;
+
+    let review = world.service.review_branch(report).await.unwrap().unwrap();
+
+    assert_eq!(review.worktree_folder, None);
+}
+
+#[tokio::test]
+async fn releasing_a_folder_git_no_longer_lists_makes_the_task_forget_it_and_keeps_the_folder() {
+    let world = world().await;
+    let report = task_named(&world, "report").await;
+    world.service.ensure(report).await.unwrap();
+    let leftover = name_a_folder_git_does_not_list(&world, report).await;
+
+    let released = world.service.release(report).await.unwrap();
+
+    assert_eq!(released, Release::Removed);
+    assert!(leftover.exists());
+    assert_eq!(folder_of(&world, report).await, None);
+}
+
 #[tokio::test]
 async fn an_accepted_branch_with_commits_is_merged_into_the_project() {
     let world = world().await;

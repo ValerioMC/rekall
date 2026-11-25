@@ -92,10 +92,12 @@ impl TaskWorktreeService {
     /// with unsaved changes is left alone; the branch and its commits always stay.
     pub async fn release(&self, task_id: Id) -> Result<Release> {
         let Site { task, project_folder, .. } = self.read(task_id).await?;
-        let Some(folder) = task.worktree_folder.clone() else { return Ok(Release::NoWorktree) };
+        if task.worktree_folder.is_none() {
+            return Ok(Release::NoWorktree);
+        }
         let Some(project_folder) = project_folder else { return Ok(Release::NoWorktree) };
-        let worktree = Worktree { project_folder: PathBuf::from(project_folder), folder: PathBuf::from(&folder), branch: self.layout.branch_for(&task.label)? };
-        if worktree.folder.is_dir() {
+        if let Some(folder) = self.registered_folder(&task, Path::new(&project_folder)).await? {
+            let worktree = Worktree { project_folder: PathBuf::from(project_folder), folder, branch: self.layout.branch_for(&task.label)? };
             if self.host.status(&worktree).await?.has_unsaved_changes {
                 return Ok(Release::KeptWithChanges);
             }
@@ -144,8 +146,8 @@ impl TaskWorktreeService {
         let Site { task, project_folder, base, .. } = self.read(task_id).await?;
         let Some(project_folder) = project_folder else { return Ok(None) };
         let branch = self.layout.branch_for(&task.label)?;
-        let worktree = task.worktree_folder.as_deref().map(Path::new).filter(|folder| folder.is_dir());
-        self.host.review_branch(Path::new(&project_folder), &branch, worktree, &base).await
+        let registered = self.registered_folder(&task, Path::new(&project_folder)).await?;
+        self.host.review_branch(Path::new(&project_folder), &branch, registered.as_deref(), &base).await
     }
 
     /// After a restart: a task whose worktree folder is gone forgets it (its branch stays and the
@@ -180,6 +182,14 @@ impl TaskWorktreeService {
             let base = project.main_branch.as_deref().map(jstr::strip).filter(|branch| !branch.is_empty()).unwrap_or("HEAD").to_string();
             Ok(Site { task, project_folder, project_label: project.label, base })
         })
+    }
+
+    /// A folder git no longer lists as a worktree (its registration was pruned and the folder
+    /// stayed) is not a worktree: git cannot run in it.
+    async fn registered_folder(&self, task: &rekall_store::task::Model, project_folder: &Path) -> Result<Option<PathBuf>> {
+        let Some(folder) = task.worktree_folder.as_deref().map(PathBuf::from).filter(|folder| folder.is_dir()) else { return Ok(None) };
+        let listed = self.host.list(project_folder).await?;
+        Ok(listed.iter().any(|worktree| worktree.folder == folder).then_some(folder))
     }
 
     async fn forget_missing_folders(&self) -> Result<()> {
