@@ -25,6 +25,12 @@ const PACES: readonly { readonly value: WalkPace; readonly label: string }[] = [
 
 const KEY = 'focus-ring grid size-8 shrink-0 place-items-center rounded-card text-text-muted transition-colors hover:bg-surface-raised hover:text-text disabled:pointer-events-none disabled:opacity-40'
 
+/** Before the first beat the reader is on the scenario, which counts as no step yet. */
+function counterLabel(count: number, position: number): string {
+  if (count === 0) return '–'
+  return position < 0 ? 'Scenario' : `${position + 1} / ${count}`
+}
+
 function tickLabel(beat: WalkthroughBeat, index: number): string {
   return `Step ${index + 1}: ${beat.message.text}${beat.opens !== null ? ', has its own walkthrough' : ''}`
 }
@@ -69,7 +75,7 @@ function tickLabel(beat: WalkthroughBeat, index: number): string {
         <svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" /></svg>
       </button>
 
-      <span class="w-[4.5rem] shrink-0 text-center font-mono text-caption tabular-nums text-text-muted" data-testid="walkthrough-counter">{{ beats.length === 0 ? '–' : `${position + 1} / ${beats.length}` }}</span>
+      <span class="w-[4.5rem] shrink-0 text-center font-mono text-caption tabular-nums text-text-muted" data-testid="walkthrough-counter">{{ counterLabel(beats.length, position) }}</span>
 
       <ol class="flex h-8 min-w-0 flex-1 items-center gap-[3px] overflow-hidden px-1" aria-label="Steps">
         <li v-for="(beat, index) in beats" :key="beat.key" class="flex h-full min-w-[3px] flex-1">

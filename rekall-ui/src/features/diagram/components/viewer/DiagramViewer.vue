@@ -5,6 +5,7 @@ import GraphDrawing from '@/features/diagram/components/graph/GraphDrawing.vue'
 import NativeDrawing from '@/features/diagram/components/native/NativeDrawing.vue'
 import SequenceDrawing from '@/features/diagram/components/sequence/SequenceDrawing.vue'
 import CodeModal from '@/features/diagram/components/walkthrough/CodeModal.vue'
+import ScenarioCard from '@/features/diagram/components/walkthrough/ScenarioCard.vue'
 import WalkthroughBar from '@/features/diagram/components/walkthrough/WalkthroughBar.vue'
 import WalkthroughCard from '@/features/diagram/components/walkthrough/WalkthroughCard.vue'
 import WalkthroughPulse from '@/features/diagram/components/walkthrough/WalkthroughPulse.vue'
@@ -60,7 +61,8 @@ const { drawing, failure, loading } = useSheetDrawing(sheet)
 const links = computed(() => sheet.value?.links ?? {})
 
 const sheets = computed(() => props.diagram.sheets)
-const walk = useWalkthrough(sheets, sheetIndex, drawing)
+const scenario = computed(() => props.diagram.scenario)
+const walk = useWalkthrough(sheets, sheetIndex, drawing, scenario)
 const mode = ref<ViewMode>(props.diagram.sheets[0]?.walkthrough ? 'walkthrough' : 'diagram')
 const playable = computed(() => sheet.value?.kind === 'sequence')
 const walking = computed(() => mode.value === 'walkthrough' && playable.value)
@@ -280,6 +282,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     <div class="pointer-events-none absolute inset-x-4 top-4 flex flex-wrap items-start gap-3">
       <DiagramTitleCard
         :diagram="diagram"
+        :scenario="walking ? null : scenario"
         :siblings="siblings"
         :project-anchor="projectAnchor"
         :task-anchor="taskAnchor"
@@ -309,8 +312,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
     <div class="pointer-events-none absolute bottom-4 right-4 top-[76px] flex flex-col items-end justify-end gap-3" :inert="codeOpen || undefined">
       <Transition name="pane" mode="out-in">
+        <ScenarioCard v-if="walking && walk.onScenario.value && scenario" key="scenario" class="mb-auto min-h-0" :scenario="scenario" @start="walk.next" />
         <WalkthroughCard
-          v-if="walking && walk.beat.value"
+          v-else-if="walking && walk.beat.value"
           :key="`${sheetIndex}:${walk.beat.value.key}`"
           class="min-h-0 flex-1"
           :beat="walk.beat.value"

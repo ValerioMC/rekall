@@ -1,4 +1,4 @@
-import type { DiagramSummary } from '@/features/diagram/model/diagram'
+import type { DiagramScenario, DiagramSummary } from '@/features/diagram/model/diagram'
 import type { Project, Task } from '@/features/catalog/model/catalog'
 import type { CompanyId, DiagramId, ProjectId, TaskId } from '@/model/branded'
 
@@ -76,4 +76,10 @@ export function summary(id: string, projectId: ProjectId, taskId: TaskId | null 
     createdAt: '2026-10-01T10:00:00Z',
     updatedAt: '2026-10-01T10:00:00Z'
   }
+}
+
+export const SCENARIO: DiagramScenario = {
+  situation: 'A shopper presses Place order on the checkout page',
+  example: 'Order 42: two A-7 books',
+  outcome: 'The order is stored and the shopper sees order 42'
 }

@@ -1,14 +1,21 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import KindGlyph from '@/features/diagram/components/canvas/KindGlyph.vue'
-import type { Diagram, DiagramSummary } from '@/features/diagram/model/diagram'
+import type { Diagram, DiagramScenario, DiagramSummary } from '@/features/diagram/model/diagram'
 import type { DiagramId } from '@/model/branded'
 
 /**
  * What is open and how to leave it: back to the gallery, a switch to another diagram of the
- * same project, the question it answers and where it belongs.
+ * same project, the question it answers, the scenario it follows and where it belongs.
  */
-defineProps<{ diagram: Diagram; siblings: readonly DiagramSummary[]; projectAnchor: string | null; taskAnchor: string | null }>()
+defineProps<{
+  diagram: Diagram
+  /** Shown above the picture; none while a walkthrough opens on it in its own card. */
+  scenario: DiagramScenario | null
+  siblings: readonly DiagramSummary[]
+  projectAnchor: string | null
+  taskAnchor: string | null
+}>()
 
 const emit = defineEmits<{ back: []; open: [id: DiagramId]; remove: [] }>()
 
@@ -60,6 +67,20 @@ function onKeydown(event: KeyboardEvent): void {
       </button>
     </div>
     <p v-if="diagram.question" class="mt-1 line-clamp-2 pl-[38px] text-small leading-snug text-text-muted" :title="diagram.question">{{ diagram.question }}</p>
+    <dl v-if="scenario" class="mt-2 grid gap-1 border-l-2 border-accent pl-2.5 ml-[38px] text-small leading-snug" data-testid="diagram-scenario">
+      <div>
+        <dt class="sr-only">Scenario</dt>
+        <dd class="text-text">{{ scenario.situation }}</dd>
+      </div>
+      <div class="flex gap-1.5">
+        <dt class="shrink-0 text-text-subtle">For example</dt>
+        <dd class="min-w-0 break-words font-mono text-caption leading-snug text-text-muted">{{ scenario.example }}</dd>
+      </div>
+      <div class="flex gap-1.5">
+        <dt class="shrink-0 text-text-subtle">At the end</dt>
+        <dd class="min-w-0 text-text-muted">{{ scenario.outcome }}</dd>
+      </div>
+    </dl>
     <div v-if="projectAnchor || taskAnchor" class="mt-1.5 flex flex-wrap items-center gap-1.5 pl-[38px] text-caption">
       <span v-if="projectAnchor" class="anchor-chip px-1.5 py-0.5">{{ projectAnchor }}</span>
       <span v-if="taskAnchor" class="anchor-chip px-1.5 py-0.5">{{ taskAnchor }}</span>
