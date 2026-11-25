@@ -2,6 +2,7 @@
 
 mod support;
 
+use rekall_core::task::TaskStreamEvent;
 use rekall_store::repository as repo;
 use rekall_store::task::DESCRIPTION_MAX_CHARACTERS;
 use rekall_store::{task, TaskStepState};
@@ -38,6 +39,31 @@ async fn writing_the_text_it_already_has_reports_no_change() {
     let replaced = world.services.task_descriptions.replace(Some("vega"), "checkout", Some("The totals are wrong.")).await.unwrap();
 
     assert!(!replaced.changed);
+}
+
+#[tokio::test]
+async fn a_changed_description_is_announced_so_an_open_console_reads_the_task_again() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = described(&world, &project, "checkout", "pay thing wrong totals").await;
+    let mut events = world.services.ctx.events.subscribe();
+
+    world.services.task_descriptions.replace(Some("vega"), "checkout", Some("The totals are wrong.")).await.unwrap();
+
+    let announced = events.try_recv().unwrap();
+    assert!(announced.downcast::<TaskStreamEvent>().is_some_and(|event| (event.task_id, event.project_id) == (task.id, project.id)));
+}
+
+#[tokio::test]
+async fn an_unchanged_description_announces_nothing() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    described(&world, &project, "checkout", "The totals are wrong.").await;
+    let mut events = world.services.ctx.events.subscribe();
+
+    world.services.task_descriptions.replace(Some("vega"), "checkout", Some("The totals are wrong.")).await.unwrap();
+
+    assert!(events.try_recv().is_err());
 }
 
 #[tokio::test]
