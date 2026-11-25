@@ -14,26 +14,31 @@ so it follows the code concretely, call by call.
 1. Drop the `explain` term and the request, and call `rekall_context` with the anchors that are left.
    As in `generating.md`, you build nothing and no checklist changes.
 2. Find the entry point the request starts from: the controller handler, the command, the scheduled
-   job or the listener that is triggered first. Follow the calls from there through the layers, and
-   read every method you are going to show.
-3. Sheet 0 is the entry. It is a `sequenceDiagram` whose first message is the call into the entry
-   point, from an `actor` or the external caller, and whose participants follow the call through the
+   job or the listener that is triggered first, and what a person does to trigger it (the click, the
+   command they type). Follow the calls from there through the layers, and read every method you are
+   going to show.
+3. Write the `scenario` from that trigger, as `generating.md` says: one concrete case, with the
+   values it carries. The console opens the walkthrough on it, before message 1.
+4. Sheet 0 is the entry. It is a `sequenceDiagram` whose first message is the trigger the scenario
+   names, the call into the entry point from an `actor` or the external caller, and whose participants follow the call through the
    layers in order (controller, service, repository...). Every system outside the project's code (a
    database, an HTTP API, a queue, the filesystem) is a participant of its own, and its id goes in
    `walkthrough.external`.
-4. Each call is a message labelled with the method and its arguments (`place(order)`), linked by `#n`
+5. Each call is a message labelled with the method and its arguments (`place(order)`), linked by `#n`
    to the method's body, with a dashed reply carrying what comes back. Give each call an entry in
    `walkthrough.messages` under the same `#n`: `explain` says what the step does and why, in one or
-   two sentences drawn from the code; `input` what the method receives; `output` what it returns, or
-   the error it raises. A reply needs an entry only when it says something its call does not.
-5. A call whose own implementation is worth walking through gets a sequence sheet of its own, which
+   two sentences drawn from the code, saying what happens to the scenario's case at this call; `input`
+   what the method receives; `output` what it returns, or the error it raises. A reply needs an entry only when it says something its call does not.
+6. A call whose own implementation is worth walking through gets a sequence sheet of its own, which
    starts at that call's receiver and whose title names the call. The call's entry points at it with
    `opens`, the sheet's index in `sheets`, counted from 0. The console opens it when the reader steps
    into the call and comes back when it ends. Nest as deep as the code needs, within 8 sheets.
-6. Keep to what the code supports. `input` and `output` are values of the types the code declares: a
-   short example when the code makes it concrete (`{ sku: "A-7", qty: 2 }`), the type's shape when it
-   does not (`Order { lines: Vec<Line> }`). Never show a call, a value or a branch you did not see.
-7. Call `rekall_diagram` with the anchors, a short `title`, the request as `question` and every sheet.
+7. Keep to what the code supports. `input` and `output` carry the scenario's example values as they
+   are at that call (`{ sku: "A-7", qty: 2 }`, then `order 42`) wherever the code makes them concrete,
+   and the type's shape only where it does not (`Order { lines: Vec<Line> }`). Never show a call, a
+   value or a branch you did not see.
+8. Call `rekall_diagram` with the anchors, a short `title`, the request as `question`, the `scenario`
+   and every sheet.
    If the answer is a refusal, fix every line it lists and send every sheet again.
-8. Say in two or three lines what the walkthrough covers, how many messages and sheets it plays, and
+9. Say in two or three lines what the walkthrough covers, how many messages and sheets it plays, and
    its id. Then stop: no wrapup, no step, no commit.

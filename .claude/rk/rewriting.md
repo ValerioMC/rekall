@@ -16,6 +16,8 @@ to rewrite from, never work to do: in this mode you build nothing, answer nothin
    - The context shows a done step as its title only, and a decision `(was X)` as history: quote a done
      step by its title and do not write a replaced answer into the text.
    - Keep fenced code and `mermaid` blocks, tables, links and paths exactly as written.
+   - Order what you write as `reader.md` says: the situation the task is about before the code it
+     names. With `fix` and neither steps nor decisions, keep the person's order.
    - The context shows a reference the person wrote as `[[Name]]`, `[[task:RK-12]]` or
      `[[connection:label]]` expanded into its folder and text. Write the reference back as the person
      typed it, never the expansion.

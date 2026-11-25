@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use super::{diagram_id, sheets_argument, target_of};
+use super::{diagram_id, scenario_argument, sheets_argument, target_of};
 use crate::protocol::ToolError;
 use crate::tool::Anchor;
 use rekall_core::diagram::DiagramTarget;
@@ -62,4 +62,13 @@ fn a_diagram_reference_has_to_be_an_id() {
     let id = rekall_kernel::Id::random();
     assert_eq!(diagram_id(Some(format!(" {id} "))).unwrap(), Some(id));
     assert!(matches!(diagram_id(Some("order-flow".into())), Err(ToolError::Illegal(_))));
+}
+
+#[test]
+fn a_scenario_comes_as_an_object_or_a_string_holding_one() {
+    let scenario = json!({"situation": "You drag step 4 above step 2", "example": "RK-12", "outcome": "1, 4, 2, 3"});
+    assert_eq!(scenario_argument(Some(&scenario)).unwrap(), Some(scenario.clone()));
+    assert_eq!(scenario_argument(Some(&json!(scenario.to_string()))).unwrap(), Some(scenario));
+    assert_eq!(scenario_argument(None).unwrap(), None);
+    assert!(matches!(scenario_argument(Some(&json!("drag a step"))), Err(ToolError::Illegal(_))));
 }

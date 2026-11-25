@@ -296,6 +296,7 @@ fn installing_removes_the_old_registration_adds_it_at_user_scope_writes_the_comm
     for (name, text) in PACKAGED_MODES {
         assert_eq!(std::fs::read_to_string(h.home().join(".claude/rk").join(name)).unwrap(), text);
     }
+    assert!(h.home().join(".claude/rk/reader.md").is_file(), "the reader contract is installed beside the modes");
     assert_eq!(status.status, CONNECTED);
     assert_eq!(status.registered_url.as_deref(), Some(ENDPOINT));
 }

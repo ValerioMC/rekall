@@ -1,7 +1,7 @@
 import type { DiagramId, ProjectId, TaskId } from '@/model/branded'
 
 /**
- * A diagram as the server stores it: Mermaid sheets a session wrote, each tying the elements it
+ * A diagram as the server stores it: the scenario it follows and Mermaid sheets a session wrote, each tying the elements it
  * draws to the code that implements them. The console only ever draws it.
  */
 
@@ -77,7 +77,16 @@ export interface DiagramSummary {
   readonly updatedAt: string
 }
 
+/** The one concrete case a diagram follows: who does what and where, its values, and what they see at the end. */
+export interface DiagramScenario {
+  readonly situation: string
+  readonly example: string
+  readonly outcome: string
+}
+
 export interface Diagram extends DiagramSummary {
+  /** None on an imported diagram or one stored before scenarios existed. */
+  readonly scenario: DiagramScenario | null
   readonly sheets: readonly DiagramSheet[]
 }
 

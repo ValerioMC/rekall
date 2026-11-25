@@ -1,6 +1,7 @@
 ## Replanning
 
-Read `planning.md` too: this mode applies its rules.
+Read `planning.md` too: this mode applies its rules. Every step and note it writes is laid out as
+`reader.md` says.
 
 `/rk task:RK-12 replan` means: redesign the steps this task already has.
 `/rk task:RK-12 replan "also cover the csv export"` means the same, and the

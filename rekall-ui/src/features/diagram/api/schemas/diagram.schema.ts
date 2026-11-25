@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { asDiagramId, asProjectId, asTaskId } from '@/model/branded'
-import { DIAGRAM_KINDS, type DiagramSheet, type SourceLocation, type Walkthrough } from '@/features/diagram/model/diagram'
+import { DIAGRAM_KINDS, type DiagramScenario, type DiagramSheet, type SourceLocation, type Walkthrough } from '@/features/diagram/model/diagram'
 
 const kind = z.enum(DIAGRAM_KINDS)
 
@@ -37,6 +37,12 @@ const DiagramSheetSchema: z.ZodType<DiagramSheet, z.ZodTypeDef, unknown> = z.obj
   walkthrough: WalkthroughSchema.nullish().transform((value) => value ?? null)
 })
 
+const DiagramScenarioSchema: z.ZodType<DiagramScenario, z.ZodTypeDef, unknown> = z.object({
+  situation: z.string(),
+  example: z.string(),
+  outcome: z.string()
+})
+
 const summaryShape = {
   id: z.string().uuid().transform(asDiagramId),
   projectId: z.string().uuid().transform(asProjectId),
@@ -53,7 +59,11 @@ export const DiagramSummarySchema = z.object(summaryShape)
 
 export const DiagramSummaryListSchema = z.array(DiagramSummarySchema)
 
-export const DiagramSchema = z.object({ ...summaryShape, sheets: z.array(DiagramSheetSchema) })
+export const DiagramSchema = z.object({
+  ...summaryShape,
+  scenario: DiagramScenarioSchema.nullish().transform((value) => value ?? null),
+  sheets: z.array(DiagramSheetSchema)
+})
 
 export const SourceExcerptSchema = z.object({
   file: z.string(),

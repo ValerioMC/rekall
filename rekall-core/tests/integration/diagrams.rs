@@ -159,7 +159,20 @@ fn order_folder() -> tempfile::TempDir {
     folder
 }
 
-fn on_task(document: serde_json::Value) -> GeneratedDiagram {
+fn checkout_scenario() -> serde_json::Value {
+    json!({
+        "situation": "A shopper pays for the order in their basket at checkout",
+        "example": "Order 42, card ending 4242, 30 EUR",
+        "outcome": "The order is paid and the shopper sees the receipt"
+    })
+}
+
+fn on_task(mut document: serde_json::Value) -> GeneratedDiagram {
+    document["scenario"] = checkout_scenario();
+    unchecked_on_task(document)
+}
+
+fn unchecked_on_task(document: serde_json::Value) -> GeneratedDiagram {
     GeneratedDiagram {
         target: DiagramTarget::Task { project_label: Some("shop".into()), task_code: "orders".into() },
         diagram_id: None,
@@ -167,6 +180,32 @@ fn on_task(document: serde_json::Value) -> GeneratedDiagram {
         question: "How is an order processed?".into(),
         document: DiagramService::read_document(document).unwrap(),
     }
+}
+
+#[tokio::test]
+async fn a_generated_diagram_returns_its_scenario_in_the_view() {
+    let world = world().await;
+    let project = world.project("shop", None, false).await;
+    world.task(&project, "orders").await;
+
+    let written = world.services.diagrams.write_generated(on_task(order_flow())).await.unwrap();
+
+    let scenario = world.services.diagrams.get(written.diagram.summary.id).await.unwrap().scenario.unwrap();
+    assert_eq!(scenario.example, "Order 42, card ending 4242, 30 EUR");
+    assert_eq!(written.diagram.scenario, Some(scenario));
+}
+
+#[tokio::test]
+async fn a_generated_diagram_without_a_scenario_is_refused_and_not_stored() {
+    let world = world().await;
+    let project = world.project("shop", None, false).await;
+    world.task(&project, "orders").await;
+
+    let refused = world.services.diagrams.write_generated(unchecked_on_task(order_flow())).await.unwrap_err();
+
+    assert!(matches!(refused, RekallError::IllegalArgument(_)));
+    assert!(refused.message().contains("\nscenario: "), "{refused}");
+    assert!(world.services.diagrams.list().await.unwrap().is_empty());
 }
 
 #[tokio::test]

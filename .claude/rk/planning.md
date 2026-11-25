@@ -2,6 +2,9 @@
 
 `/rk task:RK-12 plan` means: turn the task into a checklist, ready to work.
 
+Every step and note this mode writes is read by a person without the code open: lay it out as
+`reader.md` says.
+
 1. Drop the `plan` term, and `flow` after it, and call `rekall_context` with the anchors that are left.
 2. Read what it gives you: the description says what the work is for and what it has to satisfy,
    the wrapup what already exists, the done steps what is finished. Then read the code the task
@@ -23,8 +26,11 @@
    leave the steps that finish the work without routes, and give every loop a way out. Give the
    step a loop returns to a `max_visits` (3 is a sensible start), so the flow stops instead of
    going round forever. Either way, a
-   title says what the step delivers; the detail says what to build, where, what it must satisfy
-   and how I can tell it is done, enough for a session that never saw this one to do it alone.
+   title says what the step delivers. The detail opens with a **Scenario** paragraph: who does what,
+   where, with one concrete example, and what they see today and after the step. Then the map of the
+   parts it crosses, plain words before code names, then what to build, where, what it must satisfy
+   and how I can tell it is done, enough for a session that never saw this one to do it alone. A
+   step that changes nothing a person sees names who does feel it.
    Propose only what is still missing, and nothing the description rules out.
    Cut the sessions as part of the plan, as **Splitting into sessions** says: never wait to be asked.
    Close the plan as **Testing** says.
@@ -91,12 +97,15 @@ diagram that repeats its step's sentence is noise.
   the solution has or will have. The solution is usually several layers (a table, a repository, a
   service, an endpoint, a screen): show each layer's piece, not one box for all of them.
 - **The whole solution** goes in a note on the task, written once with `rekall_note` as
-  `solution-overview.md`, when the plan has more than a handful of steps or crosses layers. The
-  details of the steps it covers name the note.
+  `solution-overview.md`, when the plan has more than a handful of steps or crosses layers. It opens
+  with the use cases the task touches, each a short scenario, and a glossary of the Rekall and domain
+  terms it uses, before any diagram. The details of the steps it covers name the note.
 - **Each step's own piece** goes in the step's `detail`, as a fenced `mermaid` block, drawn in its
   place among its neighbours: the parts that already exist and the ones other steps build, the new
   ones marked. A step in the middle of a long plan then shows what it builds and what it touches
   without sending the session to the description. A step whose piece is one function gets no block.
+- A diagram says in one line, beside it, which scenario it plays: *"The diagram plays the drag of
+  step 4 above step 2."*
 - A diagram already written in the description or in a note is the starting point: take it, correct
   what the code shows is wrong and carry on from it, rather than drawing a second one beside it.
 - The console draws a block that parses and shows an error for one that does not, so keep to plain

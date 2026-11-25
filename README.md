@@ -167,7 +167,7 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_component` | write | Record a folder of a project as a component: a name, a folder, a summary every context carries and a structured markdown description; the component with that name or folder is rewritten |
 | `rekall_read_components` | read | List a project's components with their summaries, or read one whole with `name` |
 | `rekall_search` | read | Find a phrase in descriptions, steps, wrapups and notes, optionally in one project; returns anchors and excerpts to load with `rekall_context` |
-| `rekall_diagram` | write | Store Mermaid sheets generated for a project or one of its tasks, or replace a diagram by id |
+| `rekall_diagram` | write | Store Mermaid sheets generated for a project or one of its tasks, opened by the `scenario` they follow, or replace a diagram by id |
 | `rekall_inventory` | write | Replace a project's dependency inventory whole |
 | `rekall_vulnerabilities` | read | List the advisories that reach a project, or read one whole with `advisory` |
 | `rekall_assess_vulnerability` | write | Record whether an advisory really reaches a project: `affected` or `not_affected`, with reasoning and a conclusion |
@@ -218,7 +218,7 @@ make test     # every crate's tests, then frontend lint, types and unit tests
 make lint     # clippy, as CI runs it
 ```
 
-`RUST_LOG=rekall=debug make run` turns on debug logging. The `/rk` command the app installs is `.claude/commands/rk.md`, compiled into the binary. It carries the rules every call needs; each mode (`plan`, `wrapup`, `generate`...) has its own file in `.claude/rk/`, which the command tells the session to read only when the terms ask for that mode. The frontend stack and its folders are in [docs/guide/development.md](docs/guide/development.md).
+`RUST_LOG=rekall=debug make run` turns on debug logging. The `/rk` command the app installs is `.claude/commands/rk.md`, compiled into the binary. It carries the rules every call needs; each mode (`plan`, `wrapup`, `generate`...) has its own file in `.claude/rk/`, which the command tells the session to read only when the terms ask for that mode. `.claude/rk/reader.md` is not a mode: it is the order every text saved on a task follows (the scenario first, then what changes, the parts involved, the terms, the work), which the modes that write such text point to and the MCP tools that write a task, a step, a note, a deviation or a decision repeat in short at the end of their descriptions. The frontend stack and its folders are in [docs/guide/development.md](docs/guide/development.md).
 
 [`deploy/langfuse`](deploy/langfuse/README.md) holds an optional local Langfuse stack on Docker Compose, for looking at Claude Code's LLM traces. Rekall runs without it.
 

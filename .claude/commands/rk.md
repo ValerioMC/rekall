@@ -177,9 +177,9 @@ may not do it silently.
   plainly simpler or more correct. Not for taste.
 - Record it with `rekall_deviation` on the task, for the step it refers to: its number, counted from
   1 as the checklist lists it. It is not a note: it is kept apart from the task's notes and the
-  console lists it as a deviation of that step. It says what was planned, what was built instead,
-  why, and the diagram of the piece as built. The steps still to do that this changes are named in it
-  by number.
+  console lists it as a deviation of that step. It opens with the situation where the plan and the
+  code differ, as `reader.md` says, then what was planned, what was built instead, why, and the
+  diagram of the piece as built. The steps still to do that this changes are named in it by number.
 - A step's detail is not rewritten to absorb a departure: the deviation is where the change lives.
   Recording again for the same step rewrites that deviation, so send the whole text.
 - The wrapup describes the system as it is and does not carry the difference; it can say a deviation

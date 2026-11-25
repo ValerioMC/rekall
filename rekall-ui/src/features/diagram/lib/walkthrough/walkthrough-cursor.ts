@@ -14,8 +14,16 @@ export interface WalkFrame {
 /** Never empty: every move keeps the frame the walkthrough started on. */
 export type WalkStack = readonly WalkFrame[]
 
-export function startAt(sheetIndex: number): WalkStack {
-  return [{ sheetIndex, position: 0, via: null }]
+/** Where the first frame stands while the reader reads the diagram's scenario, before its first beat. */
+export const SCENARIO_POSITION = -1
+
+export function startAt(sheetIndex: number, onScenario = false): WalkStack {
+  return [{ sheetIndex, position: onScenario ? SCENARIO_POSITION : 0, via: null }]
+}
+
+/** Only the frame the walkthrough started on opens on the scenario; a call stepped into never does. */
+export function isOnScenario(stack: WalkStack): boolean {
+  return stack.length === 1 && topOf(stack).position === SCENARIO_POSITION
 }
 
 export function topOf(stack: WalkStack): WalkFrame {
@@ -34,10 +42,11 @@ export function advance(stack: WalkStack, beatCount: number): WalkStack | null {
   return stack.length > 1 ? leave(stack, true) : null
 }
 
-/** One beat back; before the start of a stepped-into call, back to the call itself. Null at the very start. */
-export function retreat(stack: WalkStack): WalkStack | null {
+/** One beat back; before the start of a stepped-into call, back to the call itself; before the first beat, to the scenario when there is one. Null at the very start. */
+export function retreat(stack: WalkStack, withScenario = false): WalkStack | null {
   const top = topOf(stack)
-  if (top.position > 0) return replaceTop(stack, { ...top, position: top.position - 1 })
+  const first = stack.length === 1 && withScenario ? SCENARIO_POSITION : 0
+  if (top.position > first) return replaceTop(stack, { ...top, position: top.position - 1 })
   return stack.length > 1 ? leave(stack, false) : null
 }
 

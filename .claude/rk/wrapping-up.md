@@ -87,11 +87,15 @@ A line or two on each piece, what it is there for and what it decides.
   overwriting a wrapup edited by hand is announced, because only a person can read the text it
   replaced, from the Versions panel in the console.
 
+**Write it for a reader.** The whole wrapup follows `reader.md`. It opens with what a person can now
+do, in the terms of a concrete scenario, before any code name. Each piece in its table says its job in
+plain words before its name, and a Rekall term is defined where it first appears.
+
 **Shape it to be scanned.** The kind of information chooses the form:
 
 | Information | Form |
 |---|---|
-| What the task delivers and where it stands | One or two sentences, first |
+| What the task delivers, as what a person can now do, and where it stands | One or two sentences, first |
 | The pieces of the implementation | A table: the name in the code, what it is for or decides |
 | A rule | One bullet: what it decides, on what, the edges, what is refused |
 | Results of something checked or tested | A table, one row per check, its outcome and what was seen |

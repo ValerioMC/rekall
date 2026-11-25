@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { callTreeOf } from '@/features/diagram/lib/call-tree'
 import { firstBeatInto, walkthroughBeats, walkthroughSpotlight } from '@/features/diagram/lib/walkthrough/walkthrough-beats'
-import { advance, enter, leave, leaveTo, moveTo, retreat, startAt, topOf } from '@/features/diagram/lib/walkthrough/walkthrough-cursor'
+import { SCENARIO_POSITION, advance, enter, isOnScenario, leave, leaveTo, moveTo, retreat, startAt, topOf } from '@/features/diagram/lib/walkthrough/walkthrough-cursor'
 import type { MessageLine, SequenceScene, SequenceStep } from '@/features/diagram/lib/scene/sequence-scene'
 import type { Walkthrough } from '@/features/diagram/model/diagram'
 
@@ -83,5 +83,22 @@ describe('walkthrough cursor', () => {
     const deep = enter(enter(startAt(0), 1, 'a'), 2, 'b')
     expect(leaveTo(deep, 0)).toEqual(startAt(0))
     expect(leaveTo(deep, 1).map((frame) => frame.sheetIndex)).toEqual([0, 1])
+  })
+
+  it('opens on the scenario, goes on to message 1, and walks back to it', () => {
+    const opening = startAt(0, true)
+    expect(isOnScenario(opening)).toBe(true)
+    const first = advance(opening, 3)!
+    expect(topOf(first).position).toBe(0)
+    expect(isOnScenario(retreat(first, true)!)).toBe(true)
+    expect(retreat(opening, true)).toBeNull()
+    expect(retreat(first, false)).toBeNull()
+  })
+
+  it('never shows the scenario inside a call stepped into', () => {
+    const inside = enter(moveTo(startAt(0, true), 1, 5), 1, 'place(order)')
+    expect(isOnScenario(inside)).toBe(false)
+    expect(topOf(retreat(inside, true)!)).toEqual({ sheetIndex: 0, position: 1, via: null })
+    expect(topOf(moveTo(startAt(0, true), SCENARIO_POSITION, 5)).position).toBe(0)
   })
 })

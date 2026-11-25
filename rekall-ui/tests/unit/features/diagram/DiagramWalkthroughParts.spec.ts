@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick, ref, shallowRef } from 'vue'
 import ExplainCodeDialog from '@/features/diagram/components/dialogs/ExplainCodeDialog.vue'
+import DiagramTitleCard from '@/features/diagram/components/viewer/DiagramTitleCard.vue'
+import ScenarioCard from '@/features/diagram/components/walkthrough/ScenarioCard.vue'
 import ViewModeSwitch from '@/features/diagram/components/viewer/ViewModeSwitch.vue'
 import WalkthroughBar from '@/features/diagram/components/walkthrough/WalkthroughBar.vue'
 import WalkthroughCard from '@/features/diagram/components/walkthrough/WalkthroughCard.vue'
@@ -9,10 +11,10 @@ import { BEAT_MILLISECONDS, useWalkthrough } from '@/features/diagram/composable
 import { callTreeOf } from '@/features/diagram/lib/call-tree'
 import { layoutSequence } from '@/features/diagram/lib/layout/sequence-layout'
 import { walkthroughBeats } from '@/features/diagram/lib/walkthrough/walkthrough-beats'
-import { ORION, REPORT, VEGA, project, task } from './diagram.fixtures'
+import { ORION, REPORT, SCENARIO, VEGA, project, summary, task } from './diagram.fixtures'
 import type { SheetDrawing } from '@/features/diagram/lib/sheet-drawing'
 import type { SequenceScene } from '@/features/diagram/lib/scene/sequence-scene'
-import type { DiagramSheet, SourceLocation, Walkthrough } from '@/features/diagram/model/diagram'
+import type { DiagramScenario, DiagramSheet, SourceLocation, Walkthrough } from '@/features/diagram/model/diagram'
 import type { GenerationRequest } from '@/features/diagram/store/diagram.store'
 import type { CompanyId } from '@/model/branded'
 
@@ -120,6 +122,11 @@ describe('the walkthrough bar', () => {
     expect(wrapper.emitted('toggle')).toHaveLength(1)
   })
 
+  it('counts the scenario as no step yet', () => {
+    expect(bar(-1).find('[data-testid="walkthrough-counter"]').text()).toBe('Scenario')
+    expect(bar(-1).findAll('ol button').some((tick) => tick.attributes('aria-current') === 'step')).toBe(false)
+  })
+
   it('shows the calls stepped into and backs out to one of them', async () => {
     const wrapper = bar(0, ['Place an order', 'place(order)'])
     const trail = wrapper.findAll('[data-testid="walkthrough-trail"]')
@@ -144,12 +151,40 @@ describe('useWalkthrough', () => {
 
   const INNER: SequenceScene = { ...SCENE, steps: [{ type: 'message', number: 1, from: 'S', to: 'S', text: 'validate', line: 'solid', head: 'arrow' }] }
 
-  function player() {
+  function player(scenario: DiagramScenario | null = null) {
     const sheets = ref<readonly DiagramSheet[]>([sheet(WORDS, 'Place an order'), sheet(null, 'Inside place')])
     const sheetIndex = ref(0)
     const drawing = shallowRef<SheetDrawing | null>(drawn(SCENE))
-    return { sheetIndex, drawing, walk: useWalkthrough(sheets, sheetIndex, drawing) }
+    return { sheetIndex, drawing, walk: useWalkthrough(sheets, sheetIndex, drawing, ref(scenario)) }
   }
+
+  it('opens on the scenario, and Next goes to message 1', () => {
+    const { walk } = player(SCENARIO)
+    expect(walk.onScenario.value).toBe(true)
+    expect(walk.beat.value).toBeNull()
+    walk.next()
+    expect(walk.onScenario.value).toBe(false)
+    expect(walk.beat.value?.message.text).toBe('place(order)')
+    walk.previous()
+    expect(walk.onScenario.value).toBe(true)
+  })
+
+  it('starts at message 1 on a diagram without a scenario', () => {
+    const { walk } = player()
+    expect(walk.onScenario.value).toBe(false)
+    expect(walk.beat.value?.message.text).toBe('place(order)')
+  })
+
+  it('does not show the scenario again inside a call stepped into', async () => {
+    const { drawing, walk } = player(SCENARIO)
+    walk.next()
+    walk.stepInto()
+    drawing.value = drawn(INNER)
+    await nextTick()
+    walk.previous()
+    expect(walk.onScenario.value).toBe(false)
+    expect(walk.stack.value).toEqual([{ sheetIndex: 0, position: 0, via: null }])
+  })
 
   it('steps into a call by opening its sheet, and back out onto the caller', async () => {
     const { sheetIndex, drawing, walk } = player()
@@ -205,5 +240,25 @@ describe('the explain dialog', () => {
     const [[asked]] = wrapper.emitted('explain') as [[GenerationRequest]]
     expect(asked).toEqual({ projectId: VEGA, taskId: null, request: 'How an order is placed', kinds: ['sequence'], walkthrough: true })
     wrapper.unmount()
+  })
+})
+
+describe('the scenario', () => {
+  it('opens the walkthrough with what happens, an example and the end, then starts it', async () => {
+    const wrapper = mount(ScenarioCard, { props: { scenario: SCENARIO } })
+    expect(wrapper.find('[data-testid="scenario-situation"]').text()).toBe(SCENARIO.situation)
+    expect(wrapper.find('[data-testid="scenario-example"]').text()).toBe(SCENARIO.example)
+    expect(wrapper.find('[data-testid="scenario-outcome"]').text()).toBe(SCENARIO.outcome)
+    await wrapper.find('[data-testid="scenario-start"]').trigger('click')
+    expect(wrapper.emitted('start')).toHaveLength(1)
+  })
+
+  it('sits above the picture in the title card, and is absent when there is none', () => {
+    const titleCard = (scenario: DiagramScenario | null) =>
+      mount(DiagramTitleCard, {
+        props: { diagram: { ...summary('d1', VEGA), scenario, sheets: [] }, scenario, siblings: [], projectAnchor: null, taskAnchor: null }
+      })
+    expect(titleCard(SCENARIO).find('[data-testid="diagram-scenario"]').text()).toContain(SCENARIO.example)
+    expect(titleCard(null).find('[data-testid="diagram-scenario"]').exists()).toBe(false)
   })
 })

@@ -48,3 +48,21 @@ fn reading_trims_a_walkthrough_and_drops_its_blank_texts() {
     assert_eq!((message.explain.as_deref(), message.input.as_deref()), (None, Some("id")));
     assert_eq!(DocumentCodec::parse(&DocumentCodec::write(&document)).unwrap(), document);
 }
+
+#[test]
+fn a_scenario_is_trimmed_and_reads_back_the_same() {
+    let document = DocumentCodec::from_value(json!({
+        "scenario": { "situation": " You drag step 4 above step 2 ", "example": "RK-12, step 4", "outcome": "steps 1, 4, 2, 3" },
+        "sheets": [{ "mermaid": "sequenceDiagram\n  A->>B: hi" }]
+    }))
+    .unwrap();
+    assert_eq!(document.scenario.as_ref().unwrap().situation, "You drag step 4 above step 2");
+    assert_eq!(DocumentCodec::parse(&DocumentCodec::write(&document)).unwrap(), document);
+}
+
+#[test]
+fn a_document_stored_without_a_scenario_still_reads() {
+    let document = DocumentCodec::parse(r#"{"sheets":[{"mermaid":"flowchart LR\n A-->B"}]}"#).unwrap();
+    assert_eq!(document.scenario, None);
+    assert!(!DocumentCodec::write(&document).contains("scenario"));
+}
