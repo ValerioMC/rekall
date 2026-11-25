@@ -38,6 +38,7 @@ const STORE: LayeredCrate = LayeredCrate {
         ("dependency", &["task"]),
         ("deviation", &["task"]),
         ("diagram", &["catalog", "task"]),
+        ("export", &["catalog"]),
         ("feedback", &["task"]),
         ("flow", &["step", "task"]),
         ("graph", &["catalog", "flow", "step"]),
