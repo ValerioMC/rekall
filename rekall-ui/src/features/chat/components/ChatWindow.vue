@@ -66,12 +66,12 @@ const sessionSteps = computed(() =>
 const answering = computed(
   () => chat.answering || (pending.value !== null && answeredRequestId.value === pending.value.requestId)
 )
-const full = computed(() => dock.mode === 'full')
-const sized = computed(() => dock.mode === 'inline' || dock.mode === 'overlay')
+const full = computed(() => dock.placement === 'full')
+const sized = computed(() => dock.placement !== 'full')
 
 const rootClass = computed(() => {
-  if (dock.mode === 'full') return 'absolute inset-0 z-(--z-overlay)'
-  if (dock.mode === 'overlay') return 'absolute inset-y-0 right-0 z-(--z-overlay) shadow-modal'
+  if (dock.placement === 'full') return 'absolute inset-0 z-(--z-overlay)'
+  if (dock.placement === 'overlay') return 'absolute inset-y-0 right-0 z-(--z-overlay) shadow-modal'
   return 'relative shrink-0'
 })
 const rootStyle = computed(() => (sized.value ? { width: `${dock.shownWidth}px` } : undefined))
@@ -222,7 +222,7 @@ onMounted(async () => {
     :style="rootStyle"
     aria-label="Chat"
     data-testid="chat-window"
-    :data-mode="dock.mode"
+    :data-mode="dock.placement"
     @keydown="returnFocusToConsole"
   >
     <div

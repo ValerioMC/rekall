@@ -103,9 +103,17 @@ and the set alone).
   company's name, each with the project mark, the count of its open tasks and, in amber, the count
   of items waiting for review. The current project's tab has the gold rule.
 - **Level 2, `WorkingSetTaskTabs`, for the project in view:** "All tasks N" first, which is the
-  project's task list, then a tab per open task: a dot in the task's own status colour, its code, a
-  truncated title, an amber review count when work waits and a cross on hover or focus. A plus
-  goes to the task list, where another task is opened.
+  project's task list, then a tab per open task: a dot in the task's own status colour, the
+  activity mark, its code, a truncated title, the count of steps executed over the steps there are
+  (`3/7`, claimed and done both counted, drafts left out, nothing on a task with no steps; the same
+  element is filled in amber, with the waiting count in its title and accessible name, while claimed
+  steps wait for the person) and a cross on hover or focus. A plus goes to the task list, where another task is opened.
+  The activity mark (`TaskActivityMark`) is three bars, never a dot, so it is not read as a second
+  status: moving bars in bright indigo while a step is running or the task's chat turn is working;
+  still bars in indigo once a step was claimed or done, or a session is open on the task; short
+  grey bars when nothing happened. Under reduced motion the working bars sit at three heights.
+  Only the chat the window follows reports a turn, so a task whose session is elsewhere shows
+  working from a running step alone. The counter and the mark never shrink; only the title does.
 - **The set belongs to the person.** A task joins it when its page is opened and leaves it only
   through its cross. A running session, a queued run or a waiting review never adds, removes or
   orders anything. It is saved on the server (`working_set_task`, `working_set_place`,
@@ -510,6 +518,25 @@ runs on (or on the one that asked for it with no session yet), and disappears wh
 selected (`useChatWindowShown`, `chat.sessionFor`). A session on no task, such as one generating a
 diagram for a project, stays on screen. A chat opened from a button brings itself to the window
 (`useRevealOpenedChat`).
+
+`ChatDock` owns the window's motion, in the console layout and over a page alike. Hiding slides the
+window to the right edge it came from in `--motion-move`, and reopening slides it back; a hide
+reversed half-way turns back from where it is, because the state sits on the window as `data-state`
+and the motion is a CSS transition. Docked beside the note pane, the window gives its room back
+through a negative right margin, so its text does not reflow and the note pane follows it; over a
+page or expanded it translates and fades. Once shown the window stays mounted while hidden, inert and
+out of the tab order, so the draft and the scroll position survive a hide; focus moves to the note
+pane when the window hides, and the Hide key carries a chevron pointing at the edge it goes to. Under
+reduced motion it cuts. On `/console` with no terminal, the
+console waits for the slide before it leaves for the task page.
+
+While the window is hidden and the selected task has a session, `ChatReopenTag` is the way back: a
+round button at the bottom right that slides in from the edge as the window leaves. It reads the
+session's state from the hidden window's own events: moving bars (`TaskActivityMark`) while Claude
+works, a still bubble with a green dot when idle, a dashed quiet bubble when the session ended, and
+an amber pill reading "Needs your answer" with a ping ring while a permission waits. Each state has
+its own accessible name ("Open the chat, waiting for your answer"). Only the selected task's session is
+shown.
 
 An approval is never answered or expired on the user's behalf: `ChatApprovalCard` shows the call
 (with a diff for an edit) and stays until a `permissionResolved` event arrives. Whether the session is

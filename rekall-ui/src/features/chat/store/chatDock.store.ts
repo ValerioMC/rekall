@@ -2,7 +2,8 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { TaskId } from '@/model/branded'
 
-export type DockMode = 'inline' | 'overlay' | 'full' | 'hidden'
+export type DockPlacement = 'inline' | 'overlay' | 'full'
+export type DockMode = DockPlacement | 'hidden'
 
 const WIDTH_KEY = 'rekall.chat.width'
 const HIDDEN_KEY = 'rekall.chat.hidden'
@@ -41,6 +42,7 @@ function remember(key: string, value: string): void {
  * Where the chat window sits: shown or hidden, how wide, expanded or not. Width and visibility are
  * remembered per viewer. `areaWidth` is the room it docks in; on the console it docks inline while
  * the note pane keeps 360 px, and overlays it otherwise, on any other page it always overlays.
+ * `placement` is where it sits whether or not it is hidden, so a window sliding away keeps its layout.
  * `requestedFor` opens it on one task that has no session yet, for its empty state: any other task
  * leaves it closed.
  */
@@ -58,11 +60,11 @@ export const useChatDockStore = defineStore('chatDock', () => {
     return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, room))
   })
   const shownWidth = computed(() => Math.min(width.value, maxWidth.value))
-  const mode = computed<DockMode>(() => {
-    if (hidden.value) return 'hidden'
+  const placement = computed<DockPlacement>(() => {
     if (expanded.value) return 'full'
     return overlays.value ? 'overlay' : 'inline'
   })
+  const mode = computed<DockMode>(() => (hidden.value ? 'hidden' : placement.value))
 
   function setHidden(value: boolean): void {
     hidden.value = value
@@ -96,6 +98,7 @@ export const useChatDockStore = defineStore('chatDock', () => {
     requestedFor,
     shownWidth,
     maxWidth,
+    placement,
     mode,
     open,
     hide,

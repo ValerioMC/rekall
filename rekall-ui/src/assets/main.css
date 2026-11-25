@@ -1084,6 +1084,37 @@
 }
 
 /*
+ * The chat window slides to the right edge it came from. State sits on the window, so a hide
+ * reversed mid-way turns back from where it is. Docked beside the note pane it gives its room
+ * back through a negative margin, not a width: the window keeps its own width, its text never
+ * reflows, and the note pane follows it. Over a page it translates and fades. Hidden, it stays
+ * mounted (a draft and a scroll survive) and leaves the tab order once it has gone. Reduced
+ * motion cuts it: the global rule shortens the durations.
+ */
+.chat-dock {
+  transition:
+    transform var(--motion-move) cubic-bezier(0.25, 1, 0.5, 1),
+    opacity var(--motion-move) cubic-bezier(0.25, 1, 0.5, 1),
+    margin-right var(--motion-move) cubic-bezier(0.25, 1, 0.5, 1),
+    visibility 0s linear 0s;
+}
+
+.chat-dock[data-state='hidden'] {
+  visibility: hidden;
+  transition-delay: 0s, 0s, 0s, var(--motion-move);
+}
+
+.chat-dock[data-state='hidden'][data-mode='inline'] {
+  margin-right: calc(var(--chat-dock-width) * -1);
+}
+
+.chat-dock[data-state='hidden'][data-mode='overlay'],
+.chat-dock[data-state='hidden'][data-mode='full'] {
+  opacity: 0;
+  transform: translateX(100%);
+}
+
+/*
  * A `rise`d dialog or a `.pane-*` cross-fade animates its whole subtree, and on macOS that
  * repaints a scrollable descendant on every frame unless it already has its own compositing
  * layer - WebKit treats that repaint as scroll-relevant activity and flashes the descendant's

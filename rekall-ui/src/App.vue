@@ -8,6 +8,7 @@ import ReviewPage from '@/features/review/components/ReviewPage.vue'
 import TaskPage from '@/features/task/components/TaskPage.vue'
 import RunQueuePanel from '@/features/queue/components/RunQueuePanel.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
+import ChatDock from '@/features/chat/components/ChatDock.vue'
 import ChatReopenTag from '@/features/chat/components/ChatReopenTag.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useDeviationsStore } from '@/features/deviations/store/deviations.store'
@@ -28,8 +29,6 @@ import { useTaskEditor } from '@/features/catalog/composables/useTaskEditor'
 // xterm and its stylesheet are only parsed once a terminal is opened: most sessions never do,
 // and the console's first paint should not pay for them.
 const TerminalPane = defineAsyncComponent(() => import('@/features/claude/components/TerminalPane.vue'))
-// The chat window loads the same way: nothing of it is fetched before a chat session exists.
-const ChatWindow = defineAsyncComponent(() => import('@/features/chat/components/ChatWindow.vue'))
 
 const store = useConsoleStore()
 const route = useRoute()
@@ -73,11 +72,22 @@ const router = useRouter()
 /** `/console` hosts the terminal and nothing else: a task shown on any other pane is on its page. */
 const showsTerminal = computed(() => paneFocus.value === 'terminal' && selectedTask.value !== null)
 
+/** Equals `--motion-move`: the console stays until the hidden chat window has slid away. */
+const CHAT_SLIDE_MS = 220
+let leavingConsole: ReturnType<typeof setTimeout> | undefined
+
+function leaveConsole(): void {
+  void router.replace(selectedTaskId.value ? `/task/${selectedTaskId.value}` : '/projects')
+}
+
 watch(
   [() => route.name, showsTerminal, () => store.isLoading, chatWindowShown],
-  ([name, terminal, loading, chatShown]) => {
+  ([name, terminal, loading, chatShown], previous) => {
+    clearTimeout(leavingConsole)
     if (name !== 'console' || terminal || loading || chatShown) return
-    void router.replace(selectedTaskId.value ? `/task/${selectedTaskId.value}` : '/projects')
+    const chatJustHidden = previous?.[3] === true
+    if (chatJustHidden) leavingConsole = setTimeout(leaveConsole, CHAT_SLIDE_MS)
+    else leaveConsole()
   },
   { immediate: true }
 )
@@ -123,7 +133,10 @@ onMounted(() => {
   void refreshClaudeConnection()
   void codex.loadSetup().catch(() => undefined)
 })
-onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown)
+  clearTimeout(leavingConsole)
+})
 </script>
 
 <template>
@@ -139,15 +152,13 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     <div class="flex min-h-0 flex-1">
       <TaskPage v-if="onTask" />
       <ReviewPage v-else-if="onReview" />
-      <div v-else ref="noteArea" class="relative flex min-h-0 min-w-0 flex-1" data-testid="console-terminal">
+      <div v-else ref="noteArea" class="relative flex min-h-0 min-w-0 flex-1 overflow-x-clip" data-testid="console-terminal">
         <!-- A place focus is sent to (the skip link), never a control, so it draws no ring: the pane
              that appears in it is what says where you are. -->
         <div id="note" class="flex min-h-0 min-w-0 flex-1 outline-none" tabindex="-1">
           <TerminalPane v-if="showsTerminal" />
         </div>
-        <Transition name="pane">
-          <ChatWindow v-if="chatWindowShown" />
-        </Transition>
+        <ChatDock :shown="chatWindowShown" />
         <ChatReopenTag />
       </div>
     </div>

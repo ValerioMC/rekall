@@ -2,18 +2,23 @@
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import type { Project, Task } from '@/features/catalog/model/catalog'
 import { TASK_STATUS_COLOR, TASK_STATUS_LABEL } from '@/features/catalog/model/task-status'
+import TaskActivityMark from '@/features/workingset/components/TaskActivityMark.vue'
+import { TASK_ACTIVITY_LABEL, type StepTally, type TaskActivity } from '@/features/workingset/model/task-activity'
 import type { OpenPlace } from '@/features/workingset/model/working-set'
 import type { TaskId } from '@/model/branded'
 
 /**
  * Level 2 of the working-set bar, for the project in view: the project's task list first, then a
- * tab per open task. A tab's dot is the task's own status. The cross closes a task and selects
- * nothing; the plus goes to the task list, where another task is opened.
+ * tab per open task. A tab's dot is the task's own status, the bars beside it say whether a
+ * session works on it, and the count is the steps executed of the steps there are, filled in
+ * amber while claimed steps wait for the person. The cross closes a task and selects nothing; the plus goes to the task list, where another task is opened.
  */
 const props = defineProps<{
   project: Project
   tasks: readonly Task[]
   currentTaskId: TaskId | null
+  activities: ReadonlyMap<TaskId, TaskActivity>
+  tallies: ReadonlyMap<TaskId, StepTally>
   reviewCounts: ReadonlyMap<TaskId, number>
 }>()
 
@@ -25,6 +30,25 @@ function selectTask(taskId: TaskId): void {
 
 function selectList(): void {
   emit('select', { projectId: props.project.id, taskId: null })
+}
+
+function activityOf(task: Task): TaskActivity {
+  return props.activities.get(task.id) ?? 'INACTIVE'
+}
+
+function tallyText(task: Task): string | null {
+  const tally = props.tallies.get(task.id)
+  return tally && tally.total > 0 ? `${tally.executed}/${tally.total}` : null
+}
+
+function waitingCount(task: Task): number {
+  return props.reviewCounts.get(task.id) ?? 0
+}
+
+function tallyTitle(task: Task): string {
+  const tally = props.tallies.get(task.id)
+  const executed = `${tally?.executed ?? 0} of ${tally?.total ?? 0} steps executed`
+  return waitingCount(task) > 0 ? `${executed}, ${waitingCount(task)} waiting for your review` : executed
 }
 </script>
 
@@ -60,24 +84,31 @@ function selectList(): void {
         class="focus-ring relative flex min-w-0 cursor-pointer items-center gap-2 whitespace-nowrap pl-3 pr-7 transition-colors duration-(--motion-quick) hover:bg-surface hover:text-text"
         :class="currentTaskId === task.id ? 'text-text after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-accent' : 'text-text-muted'"
         :aria-selected="currentTaskId === task.id"
-        :title="`${task.code} ${task.title}`"
+        :title="`${task.code} ${task.title}, ${TASK_ACTIVITY_LABEL[activityOf(task)]}`"
         data-testid="working-set-task"
         @click="selectTask(task.id)"
       >
-        <span
-          class="size-2 shrink-0 rounded-full"
-          :class="TASK_STATUS_COLOR[task.status]"
-          role="img"
-          :aria-label="TASK_STATUS_LABEL[task.status]"
-        ></span>
+        <span class="flex shrink-0 items-center gap-1.5">
+          <span
+            class="size-2 shrink-0 rounded-full"
+            :class="TASK_STATUS_COLOR[task.status]"
+            role="img"
+            :aria-label="TASK_STATUS_LABEL[task.status]"
+          ></span>
+          <TaskActivityMark :activity="activityOf(task)" />
+        </span>
         <span class="shrink-0 font-mono text-caption text-text-subtle">{{ task.code }}</span>
         <span class="truncate">{{ task.title }}</span>
         <span
-          v-if="(reviewCounts.get(task.id) ?? 0) > 0"
-          class="shrink-0 rounded-full bg-accent px-1.5 text-caption font-medium leading-4 text-accent-ink"
-          data-testid="working-set-task-review"
+          v-if="tallyText(task)"
+          class="shrink-0 font-mono text-caption tabular-nums"
+          :class="waitingCount(task) > 0 ? 'rounded-full bg-accent px-1.5 font-medium text-accent-ink' : 'text-text-subtle'"
+          :title="tallyTitle(task)"
+          :aria-label="tallyTitle(task)"
+          :data-waiting="waitingCount(task) > 0 ? 'true' : undefined"
+          data-testid="working-set-task-tally"
         >
-          {{ reviewCounts.get(task.id) }}
+          {{ tallyText(task) }}
         </span>
       </button>
       <button
