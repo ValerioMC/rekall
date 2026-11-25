@@ -171,6 +171,15 @@
         ],
         "createdAt": "2026-11-24T19:32:44.345Z",
         "reason": "false positive: the header capsule is a fixed 36px flex box with centred text and 12px side padding, as in the other mocks (model triage, not user confirmed)"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/projects-section/index.html"
+        ],
+        "createdAt": "2026-11-25T14:15:47.000Z",
+        "reason": "false positive: the console header, its /rk location bar and the status capsule are the shared mock chrome (redesign/shared.css), vertically centred in fixed 48px, 34px and 34px rows; their children sit on the row's centre line by design (assistant triage, not user confirmed)"
       }
     ]
   }
