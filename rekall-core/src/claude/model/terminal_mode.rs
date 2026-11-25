@@ -9,7 +9,8 @@ pub const REQUEST_MAX_CHARACTERS: usize = 2000;
 /// loads the task and works it; `Plan` has the session propose the task's checklist as drafts;
 /// `PlanFlow` has it propose a flow, steps and routes, as drafts; `Replan` has it redesign the
 /// task's draft and open steps, bending them to the `message` when one is given; `Revise` has it
-/// evaluate the pending entries of the task's thread; `Refine` has it go through the task with the person and only record what is settled; `Generate` has it draw `request`
+/// evaluate the pending entries of the task's thread; `Refine` has it go through the task with the person and only record what is settled;
+/// `Discuss` has it talk the task over as the person leads, writing only what they agree and executing nothing; `Generate` has it draw `request`
 /// as Mermaid sheets of the `kinds` asked for; `Explain` has it write a walkthrough of `request`;
 /// `Inventory` has it record the project's dependencies; `Assess` has it judge whether `advisory`
 /// really reaches the project, `AssessAll` every advisory not judged yet; `Autoconfigure` has it
@@ -30,6 +31,7 @@ pub enum TerminalMode {
     Replan { message: Option<String> },
     Revise,
     Refine,
+    Discuss,
     Generate { request: String, kinds: Vec<DiagramKind> },
     Explain { request: String },
     Inventory,
@@ -54,6 +56,7 @@ impl TerminalMode {
             TerminalMode::Replan { message: Some(message) } => format!("/rk {anchors} replan \"{}\"", one_line(message)),
             TerminalMode::Revise => format!("/rk {anchors} revise"),
             TerminalMode::Refine => format!("/rk {anchors} refine"),
+            TerminalMode::Discuss => format!("/rk {anchors} discuss"),
             TerminalMode::Generate { request, kinds } => {
                 format!("/rk {anchors} generate{} \"{}\"", kinds_term(kinds), one_line(request))
             }
@@ -82,6 +85,11 @@ impl TerminalMode {
     pub fn follows_steps(&self) -> bool {
         matches!(self, TerminalMode::Work)
     }
+
+    /// Whether the session only talks the task over, so nothing is marked running for it.
+    pub fn only_discusses(&self) -> bool {
+        matches!(self, TerminalMode::Discuss)
+    }
 }
 
 /// ` kinds:sequence,state`, or nothing when the session is left to choose.
@@ -109,6 +117,7 @@ impl std::fmt::Display for TerminalMode {
             TerminalMode::Replan { .. } => "REPLAN",
             TerminalMode::Revise => "REVISE",
             TerminalMode::Refine => "REFINE",
+            TerminalMode::Discuss => "DISCUSS",
             TerminalMode::Generate { .. } => "GENERATE",
             TerminalMode::Explain { .. } => "EXPLAIN",
             TerminalMode::Inventory => "INVENTORY",

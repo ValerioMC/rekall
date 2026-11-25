@@ -640,7 +640,7 @@ async fn a_session_cannot_delete_a_step_that_is_running_claimed_or_done() {
 
     for title in ["Built", "Running one", "Waiting"] {
         let refused = world.services.steps.remove(Some("vega"), "release", Some(title)).await.unwrap_err();
-        assert!(refused.to_string().contains("deletes a draft or an open step only"), "{refused}");
+        assert!(refused.to_string().contains("changes or deletes a draft or an open step only"), "{refused}");
     }
 
     assert_eq!(world.services.steps.find_by_task(task.id).await.unwrap().len(), 5);

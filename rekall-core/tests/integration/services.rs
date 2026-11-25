@@ -1617,6 +1617,92 @@ async fn a_task_needs_a_title_and_a_project_that_exists() {
     assert!(unknown.to_string().contains("No project matches 'nowhere'"), "{unknown}");
 }
 
+// --- Steps still to do
+
+async fn a_task_with_a_step_in_every_state(world: &support::World) -> rekall_store::task::Model {
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "report-builder").await;
+    let states = [TaskStepState::Done, TaskStepState::Claimed, TaskStepState::Running, TaskStepState::Open, TaskStepState::Draft];
+    for (position, state) in states.into_iter().enumerate() {
+        world.step(&task, state.name(), position as i32, state).await;
+    }
+    task
+}
+
+async fn titles_and_details(world: &support::World, task_id: Id) -> Vec<(String, Option<String>)> {
+    let steps = world.services.steps.find_by_task(task_id).await.unwrap();
+    steps.into_iter().map(|step| (step.title, step.body_markdown)).collect()
+}
+
+#[tokio::test]
+async fn reading_the_steps_still_to_do_returns_the_draft_and_open_ones_with_their_detail_as_typed() {
+    let world = world().await;
+    let task = a_task_with_a_step_in_every_state(&world).await;
+    world.services.steps.rewrite(None, &task.code, Some("4"), None, Some("Reuse [[storage]].")).await.unwrap();
+
+    let read = world.services.steps.read_unstarted(None, &task.code).await.unwrap();
+
+    assert_eq!(read.task_anchor, task.anchor());
+    let steps: Vec<_> = read.steps.iter().map(|step| (step.position + 1, step.state, step.body_markdown.as_deref())).collect();
+    assert_eq!(steps, [(4, TaskStepState::Open, Some("Reuse [[storage]].")), (5, TaskStepState::Draft, None)]);
+}
+
+#[tokio::test]
+async fn rewriting_a_draft_or_open_step_changes_only_what_is_given_and_announces_the_checklist() {
+    let events = rekall_core::EventBus::new();
+    let database = rekall_store::open_temporary().await.unwrap();
+    let services = rekall_core::Services::new(rekall_core::Ctx::new(database.conn.clone(), events.clone()), std::sync::Arc::new(rekall_core::check::ScriptedCheckRunner::new()));
+    let world = support::World { database, services };
+    let task = a_task_with_a_step_in_every_state(&world).await;
+    let before = world.services.steps.find_by_task(task.id).await.unwrap();
+    let mut published = events.subscribe();
+
+    let open = world.services.steps.rewrite(None, &task.code, Some("OPEN"), Some("Export"), None).await.unwrap();
+    let draft = world.services.steps.rewrite(None, &task.code, Some("5"), None, Some("A download.")).await.unwrap();
+
+    assert_eq!((open.title.as_str(), open.body_markdown.as_deref(), open.state, open.position), ("Export", None, TaskStepState::Open, before[3].position));
+    assert_eq!((draft.title.as_str(), draft.body_markdown.as_deref(), draft.state, draft.position), ("DRAFT", Some("A download."), TaskStepState::Draft, before[4].position));
+    assert!(published.try_recv().is_ok(), "the console redraws");
+}
+
+#[tokio::test]
+async fn a_step_that_is_running_claimed_or_done_is_never_rewritten() {
+    let world = world().await;
+    let task = a_task_with_a_step_in_every_state(&world).await;
+    let before = titles_and_details(&world, task.id).await;
+
+    for number in ["1", "2", "3"] {
+        let refused = world.services.steps.rewrite(None, &task.code, Some(number), Some("Other"), Some("Other")).await.unwrap_err();
+        assert!(refused.to_string().contains("changes or deletes a draft or an open step only"), "{refused}");
+    }
+
+    assert_eq!(titles_and_details(&world, task.id).await, before);
+}
+
+#[tokio::test]
+async fn a_step_rewrite_with_nothing_to_write_or_another_steps_title_is_refused() {
+    let world = world().await;
+    let task = a_task_with_a_step_in_every_state(&world).await;
+    let before = titles_and_details(&world, task.id).await;
+
+    let empty = world.services.steps.rewrite(None, &task.code, Some("4"), None, None).await.unwrap_err();
+    let taken = world.services.steps.rewrite(None, &task.code, Some("4"), Some(" done "), None).await.unwrap_err();
+
+    assert!(empty.to_string().contains("a new title, a new detail or both"), "{empty}");
+    assert!(taken.to_string().contains("already has a step titled 'DONE'"), "{taken}");
+    assert_eq!(titles_and_details(&world, task.id).await, before);
+}
+
+#[tokio::test]
+async fn a_step_keeps_its_own_title_when_it_is_rewritten_under_another_case() {
+    let world = world().await;
+    let task = a_task_with_a_step_in_every_state(&world).await;
+
+    let recased = world.services.steps.rewrite(None, &task.code, Some("4"), Some("Open"), None).await.unwrap();
+
+    assert_eq!(recased.title, "Open");
+}
+
 // --- Sessions
 
 async fn claimed_step(world: &support::World, task: &rekall_store::task::Model, title: &str, position: i32) {

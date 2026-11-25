@@ -14,6 +14,8 @@ export type HelpToolName =
   | 'rekall_propose_flow'
   | 'rekall_replan'
   | 'rekall_delete_step'
+  | 'rekall_read_steps'
+  | 'rekall_edit_step'
   | 'rekall_step'
   | 'rekall_deviation'
   | 'rekall_wrapup'
@@ -88,6 +90,8 @@ export const HELP_TOOLS: Readonly<Record<HelpToolName, HelpTool>> = {
   rekall_propose_flow: { name: 'rekall_propose_flow', access: 'write', effect: 'Adds a whole flow, steps and routes, to a task that has no steps.' },
   rekall_replan: { name: 'rekall_replan', access: 'write', effect: 'Replaces a task’s draft and open steps with a new plan; running, claimed and done steps stay.' },
   rekall_delete_step: { name: 'rekall_delete_step', access: 'write', effect: 'Deletes one draft or open step; a step already started is refused.' },
+  rekall_read_steps: { name: 'rekall_read_steps', access: 'read', effect: 'Reads a task’s draft and open steps as typed: number, title, state, detail and routes.' },
+  rekall_edit_step: { name: 'rekall_edit_step', access: 'write', effect: 'Rewrites the title or detail of one draft or open step; everything else on it stays.' },
   rekall_step: { name: 'rekall_step', access: 'write', effect: 'Moves a step to running or claimed. Never done: that tick is yours.' },
   rekall_deviation: { name: 'rekall_deviation', access: 'write', effect: 'Records where the work departed from the plan, for one step.' },
   rekall_wrapup: { name: 'rekall_wrapup', access: 'write', effect: 'Replaces the task’s wrapup: what the implementation looks like now.' },
@@ -136,6 +140,7 @@ export const HELP_CONTEXTS: readonly HelpContext[] = [
       { line: '/rk task:{task} plan', does: 'Turns the task into a checklist, open and ready to work.', calls: ['rekall_propose_step'] },
       { line: '/rk task:{task} plan flow', does: 'The same, as a flow: steps joined by routes, for work whose outcome decides what is next.', calls: ['rekall_propose_flow'] },
       { line: '/rk task:{task} replan "also cover the csv export"', does: 'Redesigns the draft and open steps. The quoted text is what the plan missed.', calls: ['rekall_replan'] },
+      { line: '/rk task:{task} discuss', does: 'A talk you lead about the work still to do. What you agree is written to the task; nothing is executed.', calls: ['rekall_read_steps', 'rekall_edit_step', 'rekall_description'] },
       { line: '/rk task:{task} step:3 start', does: 'Marks step 3 running.', calls: ['rekall_step'] },
       { line: '/rk task:{task} step:3 done', does: 'Claims step 3 for your review. It does not tick it.', calls: ['rekall_step'] },
       { line: '/rk task:{task} step:3 done outcome:failed report:"job test: expected 1.2, got 1.3"', does: 'On a flow, claims the step with the route that happened and what was seen.', calls: ['rekall_step'] }

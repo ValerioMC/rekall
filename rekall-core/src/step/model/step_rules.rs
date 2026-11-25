@@ -1,6 +1,6 @@
 //! What a step's text and state have to satisfy before a service writes them.
 
-use rekall_kernel::{RekallError, Result};
+use rekall_kernel::{jstr, RekallError, Result};
 use rekall_store::task_step::{self, MAX_CHARACTERS, TITLE_MAX_CHARACTERS};
 use rekall_store::TaskStepState;
 
@@ -10,13 +10,18 @@ pub(in crate::step) fn awaits_acceptance(step: &task_step::Model) -> bool {
     step.state != TaskStepState::Draft && step.state != TaskStepState::Done
 }
 
+/// The step already carrying `title`, ignoring case and the space around it.
+pub(in crate::step) fn titled<'a>(steps: &'a [task_step::Model], title: &str) -> Option<&'a task_step::Model> {
+    steps.iter().find(|step| jstr::equals_ignore_case(jstr::strip(&step.title), title))
+}
+
 pub(in crate::step) fn require_unstarted(step: &task_step::Model) -> Result<()> {
     if step.state.unstarted() {
         return Ok(());
     }
     Err(RekallError::illegal(format!(
-        "'{}' is {}. A session deletes a draft or an open step only; a step that was started, claimed or accepted \
-         is discarded in the console. Nothing was deleted.",
+        "'{}' is {}. A session changes or deletes a draft or an open step only; a step that was started, claimed or \
+         accepted is handled in the console. Nothing was changed.",
         step.title,
         step.state.name().to_lowercase()
     )))

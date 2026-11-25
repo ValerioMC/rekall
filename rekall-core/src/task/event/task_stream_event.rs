@@ -1,8 +1,8 @@
 use rekall_kernel::Id;
 use serde::Serialize;
 
-/// Emitted when a session creates a task or files one under an epic, so an open console reads its
-/// task lists again without a reload.
+/// Emitted when a session creates a task, files one under an epic or changes its description, so an
+/// open console reads its task lists again without a reload.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskStreamEvent {

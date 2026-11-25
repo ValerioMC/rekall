@@ -18,6 +18,10 @@ function isProvider(action: RunMenuAction): action is SessionProvider {
         <path d="M2.5 4h7M2.5 8h5M2.5 12h5" />
         <path d="m10.5 8.2 3 1.8-3 1.8Z" />
       </template>
+      <template v-else-if="action === 'DISCUSS'">
+        <path d="M2.5 4.5A1.5 1.5 0 0 1 4 3h8a1.5 1.5 0 0 1 1.5 1.5v5A1.5 1.5 0 0 1 12 11H8l-3.5 2.8V11H4a1.5 1.5 0 0 1-1.5-1.5Z" />
+        <path d="M5.5 7h5" />
+      </template>
       <template v-else-if="action === 'PLAN'">
         <path d="m2.5 4 1.2 1.2L5.7 3M2.5 9l1.2 1.2L5.7 8" />
         <path d="M8 4.2h5.5M8 9.2h5.5M8 13h5.5" />

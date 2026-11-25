@@ -34,6 +34,12 @@ fn a_refine_request_goes_through_the_task_whatever_else_it_carries() {
 }
 
 #[test]
+fn a_discuss_request_talks_the_task_over_whatever_else_it_carries() {
+    assert_eq!(parsed(r#"{"mode":"DISCUSS"}"#).mode().unwrap(), TerminalMode::Discuss);
+    assert_eq!(parsed(r#"{"mode":"DISCUSS","request":"ignored"}"#).mode().unwrap(), TerminalMode::Discuss);
+}
+
+#[test]
 fn a_rewrite_request_names_its_style_whatever_else_it_carries() {
     assert_eq!(parsed(r#"{"mode":"REWRITE_FIX"}"#).mode().unwrap(), TerminalMode::Rewrite { style: RewriteStyle::Fix });
     assert_eq!(

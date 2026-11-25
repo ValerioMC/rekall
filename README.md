@@ -129,6 +129,7 @@ An anchor is `entity:value`, where the entity is `company`, `project` or `task` 
 | `/rk … plan` | Propose the task's checklist, open and ready to work, with Mermaid diagrams of the solution where they help, then stop; `plan flow` proposes a flow |
 | `/rk … replan ["what the plan missed"]` | Redesign the task's draft and open steps as new ready-to-work steps, bending them to the quoted message when there is one; running, claimed and done steps stay |
 | `/rk … refine` | Go through the task with you before it runs and record each question, answer, correction and hold with `rekall_decision`; builds nothing |
+| `/rk … discuss` | A talk you lead about the work still to do: what you agree is written to the description, decisions, notes and draft or open steps; nothing is executed |
 | `/rk … rewrite fix` / `rewrite restructure` | Replace the task's description with `rekall_description`: the same text with its wording corrected, or laid out under Goal, Problem, Solution, Implementation and Out of scope (a project page titled `Task template` replaces those headings); nothing keeps the old text, then stop |
 | `/rk … step:3 start` / `step:3 done` | Move a step to running / claimed; on a flow `done outcome:<name>` follows that route |
 | `/rk project:vega generate kinds:sequence,state "how checkout charges"` | Store a diagram answering the request, one sheet per type |
@@ -151,6 +152,8 @@ An anchor brings back the record, everything it references resolved in full with
 | `rekall_replan` | write | Replace a task's draft and open steps with a new checklist or flow in one transaction; running, claimed and done steps stay, and a refused plan deletes nothing |
 | `rekall_delete_step` | write | Delete one draft or open step; a running, claimed or done step is refused |
 | `rekall_propose_flow` | write | Add a whole flow to a task with no steps: its steps and the routes between them, open and ready to work (`draft: true` leaves them for a person to promote) |
+| `rekall_read_steps` | read | Read a task's draft and open steps as stored: number, title, state, routes and detail |
+| `rekall_edit_step` | write | Rewrite the title or detail of one draft or open step; everything else on it stays |
 | `rekall_create_task` | write | Create a task or an epic in a project with a description and up to 20 steps that start open, as a checklist or a flow with its sessions (none on an epic), optionally filed under an epic |
 | `rekall_join_epic` | write | File an existing task under an epic of its project, or move it from another epic |
 | `rekall_description` | write | Replace the description of one task with a new text, whole; the old text is not kept and no revision opens |
@@ -230,7 +233,7 @@ rekall-diagram/    the diagram format: Mermaid sheets and their code links, JSON
 rekall-core/       business logic and every port: context assembly, the step and review lines, flows (routes and visits), wrapups, notes, time entries, token usage, vulnerabilities
 rekall-console/    the services only the console calls, commands in and views out with no HTTP types: the catalog, notes, tags, connections, graphs, the folder listing, and the thin services over core's ports (terminals, run queue, backups, database folders, update check)
 rekall-http/       Axum REST API for the UI, one folder per domain: controllers, request and response shapes, and the step event stream; `shared` holds the error body, request extractors and response helpers
-rekall-mcp/        MCP server, on rekall-core and never rekall-http: four tools read, sixteen write
+rekall-mcp/        MCP server, on rekall-core and never rekall-http: six tools read, twenty-one write
 rekall-infra/      everything with a process, a file, a socket or outbound HTTP behind it, each implementing a port of rekall-core and serving no route: the in-app terminal (portable-pty), the Claude Code usage meter, the run queue's worker, the transcript reader, the editor for Claude Code's own files (`~/.claude`), the database registry, backups and restores, the restart handle, the release feed, the OS credential store and the HTTP clients
 rekall-app/        rekall-server: the local-access guard, the console bundle, the supervisor; builds the infrastructure, injects it and serves everything; `rekall-server guard` is the Claude Code hook command
 rekall-app/desktop the Tauri desktop app over the same server

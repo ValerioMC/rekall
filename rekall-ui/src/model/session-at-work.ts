@@ -8,12 +8,13 @@ import type { TaskStepId } from '@/model/branded'
  * already reports live. A step is worked while it is `RUNNING`: the server marks it when its
  * terminal opens and moves it on a claim or when the terminal ends. A stepless task follows its
  * own review line the same way. A checklist task launched as a whole is worked while one of its
- * steps runs, or while its terminal is live and a step is still open.
+ * steps runs, or while its terminal is live and a step is still open. A discussion that holds no
+ * step is talk, not work.
  */
 export function sessionAtWork(
   task: Pick<Task, 'id' | 'reviewActive' | 'reviewState'> | null,
   steps: readonly Pick<TaskStep, 'id' | 'taskId' | 'state'>[],
-  terminals: readonly Pick<Terminal, 'taskId' | 'live'>[],
+  terminals: readonly Pick<Terminal, 'taskId' | 'live' | 'mode' | 'stepId'>[],
   stepId: TaskStepId | null
 ): boolean {
   if (!task) return false
@@ -21,6 +22,8 @@ export function sessionAtWork(
   if (task.reviewActive) return task.reviewState === 'RUNNING'
   const own = steps.filter((step) => step.taskId === task.id)
   if (own.some((step) => step.state === 'RUNNING')) return true
-  const live = terminals.some((terminal) => terminal.taskId === task.id && terminal.live)
-  return live && own.some((step) => step.state === 'OPEN')
+  const working = terminals.some(
+    (terminal) => terminal.taskId === task.id && terminal.live && (terminal.mode !== 'DISCUSS' || terminal.stepId !== null)
+  )
+  return working && own.some((step) => step.state === 'OPEN')
 }

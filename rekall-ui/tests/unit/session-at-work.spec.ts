@@ -10,7 +10,8 @@ const SECOND = 's-2' as TaskStepId
 
 const task = (reviewActive: boolean, reviewState: TaskStepState = 'OPEN') => ({ id: TASK, reviewActive, reviewState })
 const step = (id: TaskStepId, state: TaskStepState, taskId: TaskId = TASK) => ({ id, taskId, state })
-const live = (taskId: TaskId = TASK) => ({ taskId, live: true })
+const live = (taskId: TaskId = TASK) => ({ taskId, live: true, mode: 'WORK' as const, stepId: null as TaskStepId | null })
+const discussion = (stepId: TaskStepId | null = null) => ({ ...live(), mode: 'DISCUSS' as const, stepId })
 
 /** When a "Run here" button counts its session as still at work, read from live server state. */
 describe('a session at work', () => {
@@ -39,7 +40,15 @@ describe('a session at work', () => {
 
     expect(sessionAtWork(task(false), steps, [live()], null)).toBe(true)
     expect(sessionAtWork(task(false), steps, [live(OTHER)], null)).toBe(false)
-    expect(sessionAtWork(task(false), steps, [{ taskId: TASK, live: false }], null)).toBe(false)
+    expect(sessionAtWork(task(false), steps, [{ ...live(), live: false }], null)).toBe(false)
+  })
+
+  it('does not count a discussion as work, so the open steps can still be run', () => {
+    expect(sessionAtWork(task(false), [step(FIRST, 'OPEN')], [discussion()], null)).toBe(false)
+  })
+
+  it('counts a discussion that a later run put on a step', () => {
+    expect(sessionAtWork(task(false), [step(FIRST, 'OPEN')], [discussion(FIRST)], null)).toBe(true)
   })
 
   it('is over for a checklist task once every step is claimed or done', () => {

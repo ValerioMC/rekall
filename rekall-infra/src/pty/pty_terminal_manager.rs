@@ -134,7 +134,9 @@ impl PtyTerminalManager {
             }
         };
 
-        self.marker.mark_running(launch.task_id, step_id).await;
+        if !mode.only_discusses() {
+            self.marker.mark_running(launch.task_id, step_id).await;
+        }
         info!(terminal_id = %id, %mode, anchors = %launch.anchors, working_dir = %launch.working_dir, "Opened terminal");
         Ok(terminal.view())
     }
@@ -270,7 +272,7 @@ impl PtyTerminalManager {
         }
         terminal.notify_ended(terminal.safe_exit_value(), reason);
         self.launcher.release(id);
-        self.marker.release_running(terminal.launch.task_id, terminal.step_id()).await;
+        self.release_work(&terminal).await;
         self.announce_ended(&terminal);
         info!(terminal_id = %id, %reason, "Closed terminal");
         Some(terminal.view())
@@ -317,7 +319,7 @@ impl PtyTerminalManager {
             let code = if terminal.alive() { 0 } else { terminal.safe_exit_value() };
             terminal.notify_ended(code, "The app was shutting down.");
             self.launcher.release(terminal.id);
-            self.marker.release_running(terminal.launch.task_id, terminal.step_id()).await;
+            self.release_work(terminal).await;
             self.announce_ended(terminal);
         }
     }
@@ -339,9 +341,18 @@ impl PtyTerminalManager {
         };
         terminal.notify_ended(code, &detail);
         self.launcher.release(id);
-        self.marker.release_running(terminal.launch.task_id, terminal.step_id()).await;
+        self.release_work(&terminal).await;
         self.announce_ended(&terminal);
         info!(terminal_id = %id, code, "Terminal exited");
+    }
+
+    /// A discussion marked nothing, so it gives nothing back, unless a later work open put it on a step.
+    async fn release_work(&self, terminal: &Terminal) {
+        let step_id = terminal.step_id();
+        if terminal.mode.only_discusses() && step_id.is_none() {
+            return;
+        }
+        self.marker.release_running(terminal.launch.task_id, step_id).await;
     }
 
     fn announce_ended(&self, terminal: &Terminal) {

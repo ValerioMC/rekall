@@ -11,6 +11,7 @@ pub enum TerminalModeName {
     Replan,
     Revise,
     Refine,
+    Discuss,
     Generate,
     Explain,
     Inventory,

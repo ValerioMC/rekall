@@ -4,22 +4,22 @@ import type { ConnectionId, ProjectId, TaskId, TaskStepId, TerminalId } from '@/
 
 /**
  * What a terminal is opened to do: `WORK` types `/rk <anchor>`, `PLAN` types `/rk <anchor> plan`,
- * `PLAN_FLOW` types `/rk <anchor> plan flow`, `REPLAN` types `/rk <anchor> replan`, `REVISE` types `/rk <anchor> revise`, `REFINE` types `/rk <anchor> refine`, `REWRITE_FIX` and `REWRITE_RESTRUCTURE` type `/rk <anchor> rewrite fix` and `... rewrite restructure`, `GENERATE` types `/rk <anchor> generate "<request>"`,
+ * `PLAN_FLOW` types `/rk <anchor> plan flow`, `REPLAN` types `/rk <anchor> replan`, `REVISE` types `/rk <anchor> revise`, `REFINE` types `/rk <anchor> refine`, `DISCUSS` types `/rk <anchor> discuss`, `REWRITE_FIX` and `REWRITE_RESTRUCTURE` type `/rk <anchor> rewrite fix` and `... rewrite restructure`, `GENERATE` types `/rk <anchor> generate "<request>"`,
  * `INVENTORY` types `/rk <anchor> inventory`, `ASSESS` types `/rk <anchor> assess advisory:<id>`,
  * `ASSESS_ALL` types `/rk <anchor> assess` to judge every advisory not assessed yet, `AUTOCONFIGURE`
  * types `/rk <anchor> autoconfigure` to learn how the project takes a contribution, `REORGANIZE` types
  * `/rk <anchor> reorganize` to regroup the project's pages by concept, `SCAN_COMPONENTS` types `/rk <anchor> components` to record its parts, `MERGE` types
  * `/rk <anchor> merge` to resolve the conflicts of an accepted task's branch.
  */
-export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'REPLAN' | 'REVISE' | 'REFINE' | 'REWRITE_FIX' | 'REWRITE_RESTRUCTURE' | 'GENERATE' | 'EXPLAIN' | 'INVENTORY' | 'ASSESS' | 'ASSESS_ALL' | 'AUTOCONFIGURE' | 'REORGANIZE' | 'SCAN_COMPONENTS' | 'MERGE'
+export type TerminalMode = 'WORK' | 'PLAN' | 'PLAN_FLOW' | 'REPLAN' | 'REVISE' | 'REFINE' | 'DISCUSS' | 'REWRITE_FIX' | 'REWRITE_RESTRUCTURE' | 'GENERATE' | 'EXPLAIN' | 'INVENTORY' | 'ASSESS' | 'ASSESS_ALL' | 'AUTOCONFIGURE' | 'REORGANIZE' | 'SCAN_COMPONENTS' | 'MERGE'
 
 /**
  * A terminal that acts on a task's plan or thread: a checklist of drafts, a flow, drafts joined by
  * their routes, a replan that swaps the task's draft and open steps for a new plan, or a revise
- * that evaluates the pending entries of its thread, or a refine that goes through the task with
- * the person and records its decisions.
+ * that evaluates the pending entries of its thread, a refine that goes through the task with
+ * the person and records its decisions, or a discussion the person leads about the work still to do.
  */
-export type PlanMode = Extract<TerminalMode, 'PLAN' | 'PLAN_FLOW' | 'REPLAN' | 'REVISE' | 'REFINE'>
+export type PlanMode = Extract<TerminalMode, 'PLAN' | 'PLAN_FLOW' | 'REPLAN' | 'REVISE' | 'REFINE' | 'DISCUSS'>
 
 /** How a rewrite treats the description: `FIX` corrects the wording, `RESTRUCTURE` lays it out under standard headings. */
 export type RewriteStyle = 'FIX' | 'RESTRUCTURE'

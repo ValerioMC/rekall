@@ -6,7 +6,7 @@ Transport: HTTP on the same process as the UI.
 claude mcp add --transport http rekall http://localhost:47355/mcp
 ```
 
-Six tools. `rekall_context` reads, taking one string:
+Twenty-seven tools: six read and twenty-one write. `rekall_context` reads, taking one string:
 
 ```json
 { "anchors": "task:VG-12" }
@@ -71,6 +71,19 @@ a title a staying step has is refused; either refusal leaves everything as it wa
 (`TaskStepService::remove`) deletes one draft or open step by number or title under the same rule, renumbers
 the rest and drops the routes that touched it.
 
+`rekall_read_steps` and `rekall_edit_step` let a session reword a step still to do. A context is not
+enough for that: it counts drafts without showing them and expands `[[...]]` references in open
+details, so a rewording taken from it would store the expansion. `TaskStepService::read_unstarted`
+answers the draft and open steps in order, each with its checklist number, title, state, routes (a
+route names its target by that number) and the detail exactly as stored. `TaskStepService::rewrite`
+changes the title, the detail or both of one of them, named by number or title; `detail` replaces the
+whole text. It leaves state, position, routes, passes, skills and checks alone, announces the
+checklist so the console redraws it, and refuses a running, claimed or done step, a call with neither
+part (a blank one counts as not given) and a title another step of the task has. It exists because
+`rekall_replan` would drop the skills, checks, routes and places of the steps it lays again. The tool
+text keeps it to `/rk … discuss` and to a person asking for an edit: a departure from the plan is
+`rekall_deviation`, never a rewritten detail.
+
 `rekall_create_task` creates a task in the project its anchor names, with an optional description and
 up to twenty steps, in one transaction. `TaskAuthoringService` in rekall-core is its only path: the
 console's `TaskService` in rekall-console stays the one that edits, reviews and deletes. The task starts
@@ -90,7 +103,7 @@ rekall-core, the one write a session makes on a task it did not just create. It 
 `require_joinable`, moves a task between epics and names the one it left, never takes a task out of an
 epic and never changes a kind, and publishes `task-created` so the console reads its lists again.
 
-`rekall_description` replaces the description of one task: the anchors and the `body`, the whole new text. `TaskDescriptionService::replace` in rekall-core writes it and nothing else on the task, a blank body or one over 100000 characters is refused, and it does not go through the console's revision tracking, so a rewrite opens no revision and nothing keeps the old text.
+`rekall_description` replaces the description of one task: the anchors and the `body`, the whole new text. `TaskDescriptionService::replace` in rekall-core writes it and nothing else on the task, a blank body or one over 100000 characters is refused, and it does not go through the console's revision tracking, so a rewrite opens no revision and nothing keeps the old text. A session calls it on `/rk … rewrite` and while discussing, when it folds what was agreed into the part about the work still to do. When the text changes it publishes `TaskStreamEvent` in the same transaction (the `task-created` frame), so an open console reads its tasks again; without that it would keep the old text and its next task update, which sends the whole task, would overwrite the session's. An unchanged text publishes nothing.
 
 `rekall_read_sections` is the read side of `rekall_project_section`: a context lists a project's
 sections by title only, so this is the only way a session reads one. `ProjectSectionService::read` lists the titles by context, or returns one

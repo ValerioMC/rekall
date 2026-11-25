@@ -26,8 +26,8 @@ import type { TaskId, TaskStepId } from '@/model/branded'
  * through the edge, `waiting` an open ring turning while the server answers, `done` the amber
  * seal stamped in as a completed step's is, `working` the running step's own seal turning until
  * the session claims the work or ends. `done` and `working` share the pressed key. Only `idle` takes a press.
- * Its arrow also plans the task: a flow only while the task has no steps, a replan only while
- * draft or open steps can be replaced.
+ * Its arrow also discusses the task, always, and plans it: a flow only while the task has no steps,
+ * a replan only while draft or open steps can be replaced.
  */
 const props = withDefaults(
   defineProps<{
@@ -92,9 +92,12 @@ const pressed = computed(() => phase.value === 'done' || phase.value === 'workin
 
 const taskSteps = computed(() => steps.value.filter((step) => step.taskId === props.taskId))
 const replaceableSteps = computed(() => taskSteps.value.filter((step) => step.state === 'DRAFT' || step.state === 'OPEN').length)
-const menuActions = computed<readonly RunMenuAction[]>(() => [
+const runActions = computed<readonly RunMenuAction[]>(() => [
   ...(ready.value && canChooseProvider.value ? SESSION_PROVIDERS : []),
-  'RUN_IN_QUEUE',
+  'RUN_IN_QUEUE'
+])
+const prepareActions = computed<readonly RunMenuAction[]>(() => [
+  'DISCUSS',
   'PLAN',
   ...(taskSteps.value.length === 0 ? (['PLAN_FLOW'] as const) : []),
   ...(replaceableSteps.value > 0 ? (['REPLAN'] as const) : [])
@@ -277,7 +280,7 @@ onBeforeUnmount(() => {
       :ready="ready"
       :pressed="pressed"
       :busy="busy"
-      :actions="menuActions"
+      :groups="[runActions, prepareActions]"
       @choose="chooseFromMenu"
     />
   </div>

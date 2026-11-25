@@ -1,4 +1,4 @@
-import { inject, provide, ref, type InjectionKey, type Ref } from 'vue'
+import { inject, provide, ref, watch, type InjectionKey, type Ref } from 'vue'
 import { useEditorMode } from '@/composables/useEditorMode'
 import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TaskStepId } from '@/model/branded'
@@ -6,7 +6,8 @@ import type { TaskStepId } from '@/model/branded'
 /**
  * The one step a checklist has open, and the title and detail being typed into it. Typing is
  * saved 700 ms after it stops; any move away from the step (another step, a state change, the
- * pane closing) writes what is pending first, so nothing typed is lost to a quick click.
+ * pane closing) writes what is pending first, so nothing typed is lost to a quick click. Text
+ * nobody has edited follows a rewording made elsewhere.
  */
 export interface StepEditor {
   readonly expandedId: Ref<TaskStepId | null>
@@ -72,6 +73,20 @@ export function provideStepEditor(wiring: StepEditorWiring): StepEditor {
   function close(): void {
     expandedId.value = null
   }
+
+  /** Edited text is left alone. Whitespace is ignored because the server strips it from what it saves. */
+  function followRewording(step: TaskStep, before: TaskStep): void {
+    if (step.title !== before.title && title.value.trim() === before.title) title.value = step.title
+    const held = before.bodyMarkdown ?? ''
+    if (step.bodyMarkdown !== before.bodyMarkdown && body.value.trim() === held.trim()) body.value = step.bodyMarkdown ?? ''
+  }
+
+  watch(
+    () => wiring.steps().find((candidate) => candidate.id === expandedId.value),
+    (step, before) => {
+      if (step && before && step.id === before.id) followRewording(step, before)
+    }
+  )
 
   const editor: StepEditor = { expandedId, mode, title, body, open, close, flush, scheduleSave }
   provide(KEY, editor)

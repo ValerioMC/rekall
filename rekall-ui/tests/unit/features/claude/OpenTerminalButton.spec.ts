@@ -284,7 +284,7 @@ describe('the Run here button', () => {
     expect(button.attributes('data-phase')).toBe('idle')
   })
 
-  it('opens a menu from the arrow with Run in queue and Plan here, each a name with no description', async () => {
+  it('opens a menu from the arrow with the ways to run and to prepare, each a name with no description', async () => {
     installBothSessionProviders()
     useCodexStore().setup = { status: 'CLI_MISSING' }
     const wrapper = mountButton()
@@ -292,9 +292,38 @@ describe('the Run here button', () => {
     await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
 
     const menu = document.body.querySelector('[data-testid="run-menu"]')
-    expect(menuLabels()).toEqual(['Run in queue', 'Plan here', 'Plan a flow'])
-    expect(menu?.querySelectorAll('[role="menuitem"] svg')).toHaveLength(3)
+    expect(menuLabels()).toEqual(['Run in queue', 'Discuss', 'Plan here', 'Plan a flow'])
+    expect(menu?.querySelectorAll('[role="menuitem"] svg')).toHaveLength(4)
     expect(wrapper.get('[data-testid="run-menu-arrow"]').attributes('aria-haspopup')).toBe('menu')
+    wrapper.unmount()
+  })
+
+  it('splits the ways to run from the ways to prepare with one separator', async () => {
+    installBothSessionProviders()
+    const wrapper = mountButton()
+
+    await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
+
+    const rows = [...document.body.querySelector('[data-testid="run-menu"]')!.children].map((row) =>
+      row.getAttribute('role') === 'separator' ? '---' : row.textContent?.trim()
+    )
+    expect(rows).toEqual(['Run with Claude Code', 'Run with Codex', 'Run in queue', '---', 'Discuss', 'Plan here', 'Plan a flow'])
+    wrapper.unmount()
+  })
+
+  it('walks the menu with the arrow keys straight over the separator', async () => {
+    const wrapper = mount(OpenTerminalButton, { props: { taskId: TASK, anchor: ANCHOR, folder: '/code/vega' }, attachTo: document.body })
+    await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
+    const menu = document.body.querySelector<HTMLElement>('[data-testid="run-menu"]')!
+    const press = (key: string): string | undefined => {
+      menu.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+      return document.activeElement?.textContent?.trim()
+    }
+
+    expect(document.activeElement?.textContent?.trim()).toBe('Run in queue')
+    expect(press('ArrowDown')).toBe('Discuss')
+    expect(press('ArrowUp')).toBe('Run in queue')
+    expect(press('ArrowUp')).toBe('Plan a flow')
     wrapper.unmount()
   })
 
@@ -485,10 +514,31 @@ describe('planning from the Run here arrow', () => {
       return labels
     }
 
-    expect(await offered([])).toEqual(['Run in queue', 'Plan here', 'Plan a flow'])
-    expect(await offered([stepOf('a', 'DONE'), stepOf('b', 'RUNNING')])).toEqual(['Run in queue', 'Plan here'])
-    expect(await offered([stepOf('a', 'DONE'), stepOf('b', 'OPEN')])).toEqual(['Run in queue', 'Plan here', 'Replan'])
-    expect(await offered([stepOf('a', 'DRAFT')])).toEqual(['Run in queue', 'Plan here', 'Replan'])
+    expect(await offered([])).toEqual(['Run in queue', 'Discuss', 'Plan here', 'Plan a flow'])
+    expect(await offered([stepOf('a', 'DONE'), stepOf('b', 'RUNNING')])).toEqual(['Run in queue', 'Discuss', 'Plan here'])
+    expect(await offered([stepOf('a', 'DONE'), stepOf('b', 'OPEN')])).toEqual(['Run in queue', 'Discuss', 'Plan here', 'Replan'])
+    expect(await offered([stepOf('a', 'DRAFT')])).toEqual(['Run in queue', 'Discuss', 'Plan here', 'Replan'])
+  })
+
+  it('opens a discussion when none is live on the task, says so, and stays on the view it is on', async () => {
+    openTerminal.mockResolvedValue({ ...terminal(), id: 'term-2' as TerminalId })
+    const openPane = vi.spyOn(useConsoleStore(), 'openTerminal')
+
+    await choose(mountPlanning(), 'discuss')
+
+    expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'DISCUSS' }))
+    expect(openPane).not.toHaveBeenCalled()
+    expect(useToastStore().toasts.map((toast) => toast.message)).toContain('Discussing. What you agree lands on the task.')
+  })
+
+  it('types the discuss line into the session live on the task', async () => {
+    sendTerminalInput.mockResolvedValue(undefined)
+    useTerminalStore().terminals = [liveTerminal()]
+
+    await choose(mountPlanning(null), 'discuss')
+
+    expect(sendTerminalInput).toHaveBeenCalledWith('term-1', `/rk ${ANCHOR} discuss\r`)
+    expect(openTerminal).not.toHaveBeenCalled()
   })
 
   it('opens a session in flow mode when Plan a flow is chosen', async () => {

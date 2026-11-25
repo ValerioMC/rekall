@@ -52,7 +52,7 @@ The in-app session is a real terminal, `C` in the console. `PtyTerminalManager` 
 folder, with `/rk` as the first line (`/rk … plan` for a terminal opened in `TerminalMode.PLAN`,
 which **Plan here** in the arrow of **Run here** asks for, and `/rk … plan flow` for `TerminalMode.PLAN_FLOW`,
 which its **Plan a flow** asks for, and `/rk … replan` for `TerminalMode.REPLAN`, which its **Replan**
-asks for after a confirmation that can carry what the plan missed, quoted after `replan`, and `/rk … revise` for `TerminalMode.REVISE`, which the description's **Run revision** asks for to have the session work one pass over the waiting revisions of the task's thread, the ones aimed at the plan included (the button starts the session first and the pass after, so a terminal that cannot open leaves the revisions waiting; the plain `replan` line is typed from the steps pane); `/rk … refine` for `TerminalMode::Refine`, which the Decisions tab's **Refine with Claude** asks for to have the session go through the task with the person and record each decision (a live session gets the line typed into it, otherwise a terminal opens on it); `/rk … rewrite fix` and `/rk … rewrite restructure` for `TerminalMode::Rewrite` (`REWRITE_FIX`, `REWRITE_RESTRUCTURE`), which have the session replace the task's description with `rekall_description`, built from the description together with the task's steps and decisions (so it also runs on a task that has them and no description); `/rk … generate` and `/rk … explain` for the Diagrams
+asks for after a confirmation that can carry what the plan missed, quoted after `replan`, and `/rk … revise` for `TerminalMode.REVISE`, which the description's **Run revision** asks for to have the session work one pass over the waiting revisions of the task's thread, the ones aimed at the plan included (the button starts the session first and the pass after, so a terminal that cannot open leaves the revisions waiting; the plain `replan` line is typed from the steps pane); `/rk … refine` for `TerminalMode::Refine`, which the Decisions tab's **Refine with Claude** asks for to have the session go through the task with the person and record each decision (a live session gets the line typed into it, otherwise a terminal opens on it); `/rk … discuss` for `TerminalMode::Discuss`, which the arrow's **Discuss** asks for to talk the task's work still to do over, the person leading and nothing executed; `/rk … rewrite fix` and `/rk … rewrite restructure` for `TerminalMode::Rewrite` (`REWRITE_FIX`, `REWRITE_RESTRUCTURE`), which have the session replace the task's description with `rekall_description`, built from the description together with the task's steps and decisions (so it also runs on a task that has them and no description); `/rk … generate` and `/rk … explain` for the Diagrams
 screen's **Generate** and **Explain code**, the only modes a terminal on a project alone takes), and pumps its raw bytes to whoever is watching. The terminal is the
 unmodified interactive `claude`: it shows its own `/context` and cost read-outs, renders its own
 permission prompts and answers them, and is the same program a hand-run session is. The chat view
@@ -155,7 +155,12 @@ a different step releases the step it was on and marks the new (see [workflow.md
 the task, never a step, and on a task that already has a terminal it types the plan line into it
 rather than spawning a second. The checklist marker is `WorkMarker` (`rekall-infra/src/session/`):
 `TaskStepService.markRunning` / `releaseRunning` for a step, `TaskReviewService.sessionRunning` for a
-stepless task, on open and on every way the terminal ends. `EndedBus` there carries the ends and
+stepless task, on open and on every way the terminal ends. A `TerminalMode::Discuss` terminal is the
+exception (`TerminalMode::only_discusses`): its open marks nothing, so no step or review line turns
+running and no snapshot is taken. Close, shutdown and exit all give work back through
+`release_work`, which does nothing for a discussion holding no step. A work open typed into a live
+discussion retargets it: the step it names is marked, and released when the terminal ends; one that
+names no step marks nothing. `EndedBus` there carries the ends and
 `spawn_idle_sweep` runs the idle sweep, both written for any kind of session manager.
 
 Nothing is persisted. There is no row behind a terminal, so `TerminalLaunchService` (in

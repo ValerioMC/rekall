@@ -1,7 +1,7 @@
 ---
 description: Load a Rekall working context by anchor, e.g. /rk task:RK-12
-argument-hint: "company:|project:|task: <label or code> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan [flow]] | [replan] | [refine] | [revise] | [rewrite fix|restructure] | [generate [kinds:sequence,state] \"what to diagram\"] | [explain \"what to walk through\"] | [inventory] | [assess [advisory:GHSA-xxxx-xxxx-xxxx]] | [components] | [autoconfigure] | [reorganize] | [merge [pull-request base:<branch>]] | [step:N start|done [outcome:<name>] [report:\"what you saw\"]]   (labels and codes, not titles)"
-allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_propose_flow, mcp__rekall__rekall_replan, mcp__rekall__rekall_feedback, mcp__rekall__rekall_description, mcp__rekall__rekall_delete_step, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note, mcp__rekall__rekall_decision, mcp__rekall__rekall_project_section, mcp__rekall__rekall_read_sections, mcp__rekall__rekall_reorganize_sections, mcp__rekall__rekall_component, mcp__rekall__rekall_read_components, mcp__rekall__rekall_search, mcp__rekall__rekall_diagram, mcp__rekall__rekall_inventory, mcp__rekall__rekall_vulnerabilities, mcp__rekall__rekall_assess_vulnerability, Read, Grep, Glob, WebFetch
+argument-hint: "company:|project:|task: <label or code> ...  [wrapup [\"how to write it\"]] | [note \"what to keep\"] | [section \"Title\" [\"what it holds\"]] | [plan [flow]] | [replan] | [refine] | [discuss] | [revise] | [rewrite fix|restructure] | [generate [kinds:sequence,state] \"what to diagram\"] | [explain \"what to walk through\"] | [inventory] | [assess [advisory:GHSA-xxxx-xxxx-xxxx]] | [components] | [autoconfigure] | [reorganize] | [merge [pull-request base:<branch>]] | [step:N start|done [outcome:<name>] [report:\"what you saw\"]]   (labels and codes, not titles)"
+allowed-tools: mcp__rekall__rekall_context, mcp__rekall__rekall_wrapup, mcp__rekall__rekall_step, mcp__rekall__rekall_propose_step, mcp__rekall__rekall_propose_flow, mcp__rekall__rekall_replan, mcp__rekall__rekall_feedback, mcp__rekall__rekall_description, mcp__rekall__rekall_delete_step, mcp__rekall__rekall_read_steps, mcp__rekall__rekall_edit_step, mcp__rekall__rekall_record_commit, mcp__rekall__rekall_note, mcp__rekall__rekall_decision, mcp__rekall__rekall_project_section, mcp__rekall__rekall_read_sections, mcp__rekall__rekall_reorganize_sections, mcp__rekall__rekall_component, mcp__rekall__rekall_read_components, mcp__rekall__rekall_search, mcp__rekall__rekall_diagram, mcp__rekall__rekall_inventory, mcp__rekall__rekall_vulnerabilities, mcp__rekall__rekall_assess_vulnerability, Read, Grep, Glob, WebFetch
 ---
 
 The arguments are:
@@ -29,6 +29,7 @@ planning or noting.
 | `plan` | `planning.md` |
 | `replan` | `replanning.md` |
 | `refine` | `refining.md` |
+| `discuss` | `discussing.md` |
 | `revise` | `revising.md` |
 | `rewrite` | `rewriting.md` |
 | `step:` with `start` or `done` | `stepping.md` |
@@ -179,8 +180,8 @@ may not do it silently.
   console lists it as a deviation of that step. It says what was planned, what was built instead,
   why, and the diagram of the piece as built. The steps still to do that this changes are named in it
   by number.
-- A step's detail cannot be edited from here, so the deviation is where the change lives. Recording
-  again for the same step rewrites that deviation, so send the whole text.
+- A step's detail is not rewritten to absorb a departure: the deviation is where the change lives.
+  Recording again for the same step rewrites that deviation, so send the whole text.
 - The wrapup describes the system as it is and does not carry the difference; it can say a deviation
   exists.
 
