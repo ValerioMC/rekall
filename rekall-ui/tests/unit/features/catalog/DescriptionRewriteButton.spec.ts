@@ -6,6 +6,8 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { Terminal } from '@/features/claude/model/terminal'
+import type { TaskStep } from '@/features/steps/model/task-step'
+import type { Decision } from '@/features/decisions/model/decision'
 import type { ProjectId, TaskId, TerminalId } from '@/model/branded'
 
 const openTerminal = vi.fn()
@@ -249,7 +251,7 @@ describe('the rewrite key of the description pane', () => {
     expect(wrapper.find('[data-testid="description-rewrite-undo"]').exists()).toBe(false)
   })
 
-  it('is disabled while the description is blank or has unsaved changes', async () => {
+  it('is disabled while there is no description, no step and no decision, or the description has unsaved changes', async () => {
     const blank = pane(null)
     expect(blank.wrapper.get('[data-testid="description-rewrite-fix"]').attributes('disabled')).toBeDefined()
     blank.wrapper.unmount()
@@ -259,5 +261,36 @@ describe('the rewrite key of the description pane', () => {
     unsaved.store.saveState = 'unsaved'
     await flushPromises()
     expect(unsaved.wrapper.get('[data-testid="description-rewrite-fix"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('is enabled on a blank description when the task has a step, and writes it from there', async () => {
+    fetchTask.mockResolvedValueOnce(task(null)).mockResolvedValue(task(POLISHED))
+    const { wrapper, store } = pane(null)
+    store.steps = [{ id: 's1', taskId: TASK } as unknown as TaskStep]
+    await flushPromises()
+    expect(wrapper.get('[data-testid="description-rewrite-fix"]').attributes('disabled')).toBeUndefined()
+
+    await pressFix(wrapper)
+    expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'REWRITE_FIX' }))
+    await advance(400)
+    expect(busy(wrapper).attributes('data-phase')).toBe('working')
+    await advance(4000)
+    expect(busy(wrapper).attributes('data-phase')).toBe('done')
+    expect(store.tasks[0]?.description).toBe(POLISHED)
+  })
+
+  it('is enabled on a blank description when the task has a decision, and Undo puts the empty text back', async () => {
+    fetchTask.mockResolvedValue(task(POLISHED))
+    const { wrapper, store, saveTaskDescription } = pane(null)
+    store.decisionsByTask = { [TASK]: { decisions: [{ id: 'd1', taskId: TASK } as unknown as Decision], sessionBlock: '' } }
+    await flushPromises()
+    expect(wrapper.get('[data-testid="description-rewrite-fix"]').attributes('disabled')).toBeUndefined()
+
+    await pressFix(wrapper)
+    await advance(400 + 2100 + 1300)
+    await wrapper.get('[data-testid="description-rewrite-undo"]').trigger('click')
+    await flushPromises()
+
+    expect(saveTaskDescription).toHaveBeenCalledWith(TASK, '')
   })
 })
