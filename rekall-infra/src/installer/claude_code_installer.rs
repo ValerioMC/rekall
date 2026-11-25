@@ -24,9 +24,10 @@ const MODES_DIRECTORY: &str = "rk";
 /// The slash command this build ships: the repository's own `.claude/commands/rk.md`.
 pub const PACKAGED_COMMAND: &str = include_str!("../../../.claude/commands/rk.md");
 /// The mode files `rk.md` sends a session to, from the repository's `.claude/rk/`, as name and text.
-pub const PACKAGED_MODES: [(&str, &str); 17] = [
+pub const PACKAGED_MODES: [(&str, &str); 18] = [
     ("assessing.md", include_str!("../../../.claude/rk/assessing.md")),
     ("autoconfiguring.md", include_str!("../../../.claude/rk/autoconfiguring.md")),
+    ("discussing.md", include_str!("../../../.claude/rk/discussing.md")),
     ("explaining.md", include_str!("../../../.claude/rk/explaining.md")),
     ("generating.md", include_str!("../../../.claude/rk/generating.md")),
     ("inventorying.md", include_str!("../../../.claude/rk/inventorying.md")),
