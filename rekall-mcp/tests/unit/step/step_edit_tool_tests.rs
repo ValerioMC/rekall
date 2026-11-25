@@ -1,10 +1,7 @@
 use rekall_core::step::TaskStepState;
 
 use super::report;
-
-#[path = "step_view_fixture.rs"]
-mod step_view_fixture;
-use step_view_fixture::step;
+use crate::step::step_view_fixture::step;
 
 #[test]
 fn the_answer_names_the_step_by_its_number_and_the_title_it_reads_now() {

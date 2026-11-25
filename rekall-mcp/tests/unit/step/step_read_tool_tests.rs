@@ -2,10 +2,7 @@ use rekall_core::step::{StepLinkView, TaskStepState, TaskStepView, UnstartedStep
 use rekall_kernel::Id;
 
 use super::report;
-
-#[path = "step_view_fixture.rs"]
-mod step_view_fixture;
-use step_view_fixture::step;
+use crate::step::step_view_fixture::step;
 
 fn route(from: &TaskStepView, outcome: &str, to: Option<&TaskStepView>) -> StepLinkView {
     StepLinkView { id: Id::random(), from_step_id: from.id, to_step_id: to.map(|step| step.id), outcome: outcome.into(), position: 0 }

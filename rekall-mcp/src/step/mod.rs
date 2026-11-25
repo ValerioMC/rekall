@@ -5,6 +5,9 @@ mod step_edit_tool;
 mod step_proposal_tool;
 mod step_read_tool;
 mod step_state_tool;
+#[cfg(test)]
+#[path = "../../tests/unit/step/step_view_fixture.rs"]
+mod step_view_fixture;
 
 pub use step_deletion_tool::StepDeletionTool;
 pub use step_edit_tool::StepEditTool;
