@@ -7,3 +7,7 @@ edition.workspace = true
 [dependencies]
 pulldown-cmark.workspace = true
 thiserror.workspace = true
+docx-rs.workspace = true
+
+[dev-dependencies]
+zip.workspace = true

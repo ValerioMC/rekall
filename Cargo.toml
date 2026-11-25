@@ -68,6 +68,8 @@ uuid = { version = "1", features = ["v4", "serde"] }
 regex = "1"
 thiserror = "2"
 pulldown-cmark = { version = "0.13", default-features = false }
+# 0.4.22 needs zip 8, which needs Rust 1.88; the workspace builds on 1.85.
+docx-rs = { version = "=0.4.20", default-features = false }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }

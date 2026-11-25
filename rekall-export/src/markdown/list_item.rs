@@ -6,3 +6,10 @@ pub struct ListItem {
     pub checked: Option<bool>,
     pub blocks: Vec<Block>,
 }
+
+impl ListItem {
+    /// The text a writer prints before a task-list item, which neither body font has a glyph for.
+    pub fn task_marker(&self) -> Option<&'static str> {
+        self.checked.map(|checked| if checked { "[x] " } else { "[ ] " })
+    }
+}

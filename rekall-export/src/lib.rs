@@ -4,12 +4,16 @@
 //! and the images of their diagrams, and returns bytes. `markdown` reads a part into the blocks both
 //! writers draw, `style` holds the look they share.
 
+pub mod docx;
 pub mod document;
+pub mod image;
 pub mod markdown;
 pub mod style;
 
 mod export_error;
 
+pub use docx::DocxWriter;
+pub use image::PngSize;
 pub use document::{DiagramImage, ExportDocument, ExportPart};
 pub use export_error::ExportError;
 pub use markdown::{Block, InlineRun, ListItem, MarkdownBlocks};
