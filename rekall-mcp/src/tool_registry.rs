@@ -16,7 +16,7 @@ use crate::inventory::InventoryTool;
 use crate::note::NoteTool;
 use crate::search::SearchTool;
 use crate::section::{ProjectSectionTool, SectionReadTool, SectionReorganizeTool};
-use crate::step::{StepDeletionTool, StepProposalTool, StepStateTool};
+use crate::step::{StepDeletionTool, StepEditTool, StepProposalTool, StepReadTool, StepStateTool};
 use crate::task::{EpicMembershipTool, TaskCreationTool, TaskDescriptionTool};
 use crate::vulnerability::{AssessmentTool, VulnerabilityReadTool};
 use crate::wrapup::WrapupTool;
@@ -37,6 +37,8 @@ pub fn all(services: &Services) -> Vec<Arc<dyn McpTool>> {
         Arc::new(FlowProposalTool::new(services.flow_proposals.clone())),
         Arc::new(ReplanTool::new(services.flow_proposals.clone())),
         Arc::new(StepDeletionTool::new(services.steps.clone())),
+        Arc::new(StepReadTool::new(services.steps.clone())),
+        Arc::new(StepEditTool::new(services.steps.clone())),
         Arc::new(StepStateTool::new(services.check_execution.clone(), services.auto_commit.clone(), services.step_snapshots.clone(), services.steps.clone(), services.flow.clone())),
         Arc::new(WrapupTool::new(services.check_execution.clone(), services.auto_commit.clone(), services.wrapups.clone())),
         Arc::new(DiagramTool::new(services.diagrams.clone())),

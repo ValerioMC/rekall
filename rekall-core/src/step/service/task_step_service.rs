@@ -1,12 +1,12 @@
-use rekall_kernel::{jstr, Id, RekallError, Result};
+use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::task_step;
 use rekall_store::TaskStepState;
 use rekall_store::repository as repo;
 use rekall_store::task;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
-use crate::step::model::step_rules::{apply_draft, awaits_acceptance, require_unstarted, validated_body, validated_title};
-use crate::step::{NewStep, Staging, StepEdit, StepFlowRows, StepStreamEvent, TaskStepView};
+use crate::step::model::step_rules::{apply_draft, awaits_acceptance, require_unstarted, titled, validated_body, validated_title};
+use crate::step::{NewStep, Staging, StepEdit, StepFlowRows, StepStreamEvent, TaskStepView, UnstartedStepsView};
 use crate::timeentry::TimeEntryService;
 use crate::{in_read, in_write, load, Ctx, Tx};
 
@@ -88,10 +88,7 @@ impl TaskStepService {
             let task = load::resolve_task(tx.db(), project_label, task_label).await?;
             let wanted = validated_title(step.title)?;
             let siblings = load::steps_of(tx.db(), task.id).await?;
-            if let Some(existing) = siblings
-                .iter()
-                .find(|step| jstr::equals_ignore_case(jstr::strip(&step.title), &wanted))
-            {
+            if let Some(existing) = titled(&siblings, &wanted) {
                 return Err(RekallError::illegal(format!(
                     "This task already has a step titled '{}' ({}). Nothing was added.",
                     existing.title,
@@ -138,6 +135,57 @@ impl TaskStepService {
         let mut step = before.clone();
         step.mark_state(TaskStepState::Open);
         repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await
+    }
+
+    /// The task's draft and open steps as stored: what a session may still reword.
+    pub async fn read_unstarted(&self, project_label: Option<&str>, task_label: &str) -> Result<UnstartedStepsView> {
+        in_read!(&self.ctx, |tx| {
+            let task = load::resolve_task(tx.db(), project_label, task_label).await?;
+            let checklist = self.find_by_task_in(&mut tx, task.id).await?;
+            Ok::<_, RekallError>(UnstartedStepsView::of(task.anchor(), checklist))
+        })
+    }
+
+    /// A session's rewording of one draft or open step. A part not given stays, and so does
+    /// everything else on the step.
+    pub async fn rewrite(
+        &self,
+        project_label: Option<&str>,
+        task_label: &str,
+        step_ref: Option<&str>,
+        title: Option<&str>,
+        detail: Option<&str>,
+    ) -> Result<TaskStepView> {
+        if title.is_none() && detail.is_none() {
+            return Err(RekallError::illegal("Give a new title, a new detail or both. Nothing was changed."));
+        }
+        in_write!(&self.ctx, |tx| {
+            let task = load::resolve_task(tx.db(), project_label, task_label).await?;
+            let before = load::resolve_step(tx.db(), task.id, step_ref).await?;
+            require_unstarted(&before)?;
+            let mut step = before.clone();
+            if title.is_some() {
+                step.title = self.free_title_in(&tx, &before, title).await?;
+            }
+            if detail.is_some() {
+                step.body_markdown = validated_body(detail)?;
+            }
+            let saved = repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await?;
+            let view = self.view_in(&tx, &saved).await?;
+            self.publish_in(&mut tx, task.id).await?;
+            Ok(view)
+        })
+    }
+
+    /// The new title of `step`, refused when another step of its task carries it.
+    async fn free_title_in(&self, tx: &Tx, step: &task_step::Model, title: Option<&str>) -> Result<String> {
+        let wanted = validated_title(title)?;
+        let mut siblings = load::steps_of(tx.db(), step.task_id).await?;
+        siblings.retain(|sibling| sibling.id != step.id);
+        match titled(&siblings, &wanted) {
+            Some(taken) => Err(RekallError::illegal(format!("This task already has a step titled '{}'. Nothing was changed.", taken.title))),
+            None => Ok(wanted),
+        }
     }
 
     /// A console edit. Ticking a claimed step done accepts the claim, which also stops the task's

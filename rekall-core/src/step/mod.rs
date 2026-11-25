@@ -16,6 +16,7 @@ pub use model::step_flow_rows::StepFlowRows;
 pub use view::step_link_view::StepLinkView;
 pub use event::step_stream_event::StepStreamEvent;
 pub use view::step_visit_view::StepVisitView;
+pub use view::unstarted_steps_view::UnstartedStepsView;
 pub use service::step_binding_service::StepBindingService;
 pub use service::task_step_service::{TaskStepService, PROPOSED_DRAFTS_MAX};
 pub use view::task_step_view::{flow_entry, TaskStepView};

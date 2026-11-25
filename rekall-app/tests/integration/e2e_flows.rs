@@ -251,7 +251,7 @@ async fn a_session_deletes_a_draft_and_is_refused_a_running_step() {
     let refused = app.call_tool("rekall_delete_step", json!({ "anchors": TASK, "step": "1" })).await;
 
     assert_contains!(deleted, "Step \"Old draft\" deleted. The task holds 1 step now.");
-    assert_contains!(refused, "'Started' is running", "Nothing was deleted");
+    assert_contains!(refused, "'Started' is running", "Nothing was changed");
     assert_eq!(app.get(&format!("/api/tasks/{task_id}/steps")).await.list().len(), 1);
 }
 
