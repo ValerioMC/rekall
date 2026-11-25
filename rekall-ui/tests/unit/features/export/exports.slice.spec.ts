@@ -1,11 +1,11 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { deleteExport, fetchExports } from '@/features/export/api/project-export.api'
+import { clearExports, deleteExport, fetchExports } from '@/features/export/api/project-export.api'
 import { useConsoleStore } from '@/stores/console.store'
 import { asProjectExportId } from '@/model/branded'
 import { entryOf } from './export-fixtures'
 
-vi.mock('@/features/export/api/project-export.api', () => ({ fetchExports: vi.fn(), deleteExport: vi.fn() }))
+vi.mock('@/features/export/api/project-export.api', () => ({ fetchExports: vi.fn(), deleteExport: vi.fn(), clearExports: vi.fn() }))
 
 const OLDER = entryOf({ id: asProjectExportId('e0000000-0000-4000-8000-000000000002'), summary: 'Older' })
 
@@ -14,6 +14,7 @@ describe('the exports slice', () => {
     setActivePinia(createPinia())
     vi.mocked(fetchExports).mockReset()
     vi.mocked(deleteExport).mockReset()
+    vi.mocked(clearExports).mockReset()
   })
 
   it('loads the entries and says when', async () => {
@@ -55,5 +56,18 @@ describe('the exports slice', () => {
     await expect(store.removeExport(entryOf().id)).rejects.toThrow('refused')
 
     expect(store.exportEntries).toHaveLength(1)
+  })
+
+  it('reads the list again after a clear, since the server decides what it reached', async () => {
+    vi.mocked(clearExports).mockResolvedValue(1)
+    vi.mocked(fetchExports).mockResolvedValue([OLDER])
+    const store = useConsoleStore()
+    store.addExport(entryOf())
+
+    const deleted = await store.clearExports({ status: 'FAILED' })
+
+    expect(deleted).toBe(1)
+    expect(clearExports).toHaveBeenCalledWith({ status: 'FAILED' })
+    expect(store.exportEntries).toEqual([OLDER])
   })
 })

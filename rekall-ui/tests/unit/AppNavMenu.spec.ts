@@ -56,6 +56,13 @@ describe('the screen menu', () => {
     expect(document.activeElement?.textContent).toContain('Calendar')
   })
 
+  it('lists Exports under the Library and names it when its screen is on display', async () => {
+    const { wrapper } = await mountMenu('/exports')
+
+    expect(wrapper.get('[data-testid="nav-menu-label"]').text()).toBe('Exports')
+    expect(NAV_GROUPS.find((group) => group.label === 'Library')?.screens.map((screen) => screen.to)).toEqual(['/diagrams', '/exports', '/claude'])
+  })
+
   it('closes on Escape and gives the focus back to its key', async () => {
     const { wrapper } = await mountMenu('/')
     await wrapper.get('[data-testid="nav-menu-trigger"]').trigger('click')

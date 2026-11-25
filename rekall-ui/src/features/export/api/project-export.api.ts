@@ -1,8 +1,8 @@
 import { apiClient, request } from '../../../api/client'
 import { env } from '@/common/config/env'
 import { toBase64 } from '@/features/export/lib/base64'
-import { ProjectExportListSchema, ProjectExportSchema } from './schemas/project-export.schema'
-import type { ProjectExportEntry, ProjectExportRequest } from '@/features/export/model/project-export'
+import { ProjectExportClearedSchema, ProjectExportListSchema, ProjectExportSchema } from './schemas/project-export.schema'
+import type { ProjectExportClear, ProjectExportEntry, ProjectExportRequest } from '@/features/export/model/project-export'
 import type { ProjectExportId, ProjectId } from '@/model/branded'
 
 /** Posted once and never retried: a retry after a server failure would record the failure again. */
@@ -23,6 +23,15 @@ export async function fetchExports(): Promise<ProjectExportEntry[]> {
 
 export async function deleteExport(id: ProjectExportId): Promise<void> {
   await request(() => apiClient(`/api/exports/${id}`, { method: 'DELETE' }))
+}
+
+/** Deletes every export the filter names and answers how many went. */
+export async function clearExports(clear: ProjectExportClear): Promise<number> {
+  const query: Record<string, string> = {}
+  if (clear.companyId) query.companyId = clear.companyId
+  if (clear.projectId) query.projectId = clear.projectId
+  if (clear.status) query.status = clear.status.toLowerCase()
+  return request(async () => ProjectExportClearedSchema.parse(await apiClient('/api/exports', { method: 'DELETE', query })).deleted)
 }
 
 export function exportFileUrl(id: ProjectExportId): string {

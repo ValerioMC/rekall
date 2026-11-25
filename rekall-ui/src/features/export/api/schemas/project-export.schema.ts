@@ -21,3 +21,5 @@ export const ProjectExportSchema = z.object({
 })
 
 export const ProjectExportListSchema = z.array(ProjectExportSchema)
+
+export const ProjectExportClearedSchema = z.object({ deleted: z.number().int() })

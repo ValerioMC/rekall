@@ -26,6 +26,13 @@ export interface ProjectExportEntry {
   readonly createdAt: string
 }
 
+/** Which exports a bulk delete reaches: a company's, a project's, those with a status; every field given narrows it. */
+export interface ProjectExportClear {
+  readonly companyId?: CompanyId
+  readonly projectId?: ProjectId
+  readonly status?: ExportStatus
+}
+
 /** What is ticked in the dialog: the blueprint, and the pages and components by id. */
 export interface ExportSelection {
   readonly blueprint: boolean

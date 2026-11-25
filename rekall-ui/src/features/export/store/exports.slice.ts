@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
-import { deleteExport, fetchExports } from '@/features/export/api/project-export.api'
-import type { ProjectExportEntry } from '@/features/export/model/project-export'
+import { clearExports as apiClearExports, deleteExport, fetchExports } from '@/features/export/api/project-export.api'
+import type { ProjectExportClear, ProjectExportEntry } from '@/features/export/model/project-export'
 import type { ProjectExportId } from '@/model/branded'
 import { upsertById } from '../../../stores/console/rows'
 
@@ -24,5 +24,12 @@ export function useProjectExports() {
     exportEntries.value = exportEntries.value.filter((entry) => entry.id !== id)
   }
 
-  return { exportEntries, exportsLoadedAt, exportsLoaded, loadExports, addExport, removeExport }
+  /** The server decides what a clear reaches, so the list is read again rather than guessed. */
+  async function clearExports(clear: ProjectExportClear): Promise<number> {
+    const deleted = await apiClearExports(clear)
+    await loadExports()
+    return deleted
+  }
+
+  return { exportEntries, exportsLoadedAt, exportsLoaded, loadExports, addExport, removeExport, clearExports }
 }

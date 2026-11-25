@@ -4,15 +4,23 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import LibrarySubNav from '@/features/diagram/components/LibrarySubNav.vue'
 
 describe('the Library sub-navigation', () => {
-  it('links the diagrams and the Claude files and marks the one on screen', () => {
+  it('links the diagrams, the exports and the Claude files and marks the one on screen', () => {
     const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:p(.*)*', component: { render: () => null } }] })
     const wrapper = mount(LibrarySubNav, { props: { active: 'diagrams' }, global: { plugins: [router] } })
     const tabs = wrapper.findAll('[role="tab"]')
 
     expect(tabs.map((tab) => [tab.text(), tab.attributes('href')])).toEqual([
       ['Diagrams', '/diagrams'],
+      ['Exports', '/exports'],
       ['Claude files', '/claude']
     ])
-    expect(tabs.map((tab) => tab.attributes('aria-selected'))).toEqual(['true', 'false'])
+    expect(tabs.map((tab) => tab.attributes('aria-selected'))).toEqual(['true', 'false', 'false'])
+  })
+
+  it('shows how many exports there are once that is known', () => {
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:p(.*)*', component: { render: () => null } }] })
+    const wrapper = mount(LibrarySubNav, { props: { active: 'exports', exportsCount: 14 }, global: { plugins: [router] } })
+
+    expect(wrapper.get('[data-testid="sub-nav-exports"]').text()).toBe('Exports 14')
   })
 })

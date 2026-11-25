@@ -45,6 +45,11 @@ export const router = createRouter({
       component: () => import('@/features/diagram/components/DiagramsPage.vue')
     },
     {
+      path: '/exports',
+      name: 'exports',
+      component: () => import('@/features/export/components/ExportsPage.vue')
+    },
+    {
       path: '/security',
       name: 'security',
       component: () => import('@/features/vulnerability/components/SecurityPage.vue')
