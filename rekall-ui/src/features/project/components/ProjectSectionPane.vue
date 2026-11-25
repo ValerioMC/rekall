@@ -3,6 +3,7 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
+import ExportAction from '@/features/export/components/ExportAction.vue'
 import ProjectReadingColumn from '@/features/project/components/ProjectReadingColumn.vue'
 import TaskWidthMenu from '@/features/task/components/TaskWidthMenu.vue'
 import { usePreferencesStore } from '@/features/settings/store/preferences.store'
@@ -16,6 +17,7 @@ import { useEditorMode } from '@/composables/useEditorMode'
 import { useProjectSectionsStore } from '@/features/project/store/projectSections.store'
 import { jumpToHeading } from '@/features/project/lib/heading-jump'
 import { outlineOf } from '@/features/project/lib/markdown-outline'
+import type { ExportSelection } from '@/features/export/model/project-export'
 import type { ReferencePage } from '@/common/markdown/page-reference'
 import type { Direction } from '@/features/project/lib/section-order'
 import type { ProjectSection } from '@/features/project/model/project-section'
@@ -68,7 +70,22 @@ function schedule(): void {
   timer = setTimeout(() => void save(), SAVE_DELAY_MS)
 }
 
-async function save(): Promise<void> {
+let writing: Promise<void> | null = null
+
+function save(): Promise<void> {
+  const started = write().finally(() => (writing = null))
+  writing = started
+  return started
+}
+
+async function settle(): Promise<void> {
+  if (timer) await save()
+  else await writing
+}
+
+const thisPage = computed<ExportSelection>(() => ({ blueprint: false, sectionIds: [props.section.id], componentIds: [] }))
+
+async function write(): Promise<void> {
   if (timer) clearTimeout(timer)
   timer = null
   saveState.value = 'saving'
@@ -108,71 +125,78 @@ onUnmounted(() => {
 <template>
   <ProjectPaneFrame :label="section.title" testid="section-pane">
     <template #header>
-      <div class="flex flex-wrap items-center gap-3 px-5 py-3">
-        <div class="min-w-0 flex-1">
-          <label class="sr-only" :for="`section-title-${section.id}`">Section title</label>
-          <input
-            :id="`section-title-${section.id}`"
-            v-model="titleDraft"
-            maxlength="200"
-            autocomplete="off"
-            class="focus-ring w-full truncate rounded-key border-0 bg-transparent px-1 py-0.5 -mx-1 text-title font-semibold tracking-[-0.01em] text-text hover:bg-surface-raised focus:bg-surface-raised"
-            data-testid="section-title"
-            @input="schedule"
-            @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
-          />
-          <p class="mt-0.5 text-small text-text-subtle">
+      <div class="px-5 py-3">
+        <div class="flex items-center gap-3">
+          <div class="min-w-0 flex-1">
+            <label class="sr-only" :for="`section-title-${section.id}`">Section title</label>
+            <input
+              :id="`section-title-${section.id}`"
+              v-model="titleDraft"
+              maxlength="200"
+              autocomplete="off"
+              class="focus-ring w-full truncate rounded-key border-0 bg-transparent px-1 py-0.5 -mx-1 text-title font-semibold tracking-[-0.01em] text-text hover:bg-surface-raised focus:bg-surface-raised"
+              data-testid="section-title"
+              @input="schedule"
+              @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
+            />
+          </div>
+          <div class="flex shrink-0 items-center gap-2">
+            <ExportAction :project-id="section.projectId" :selection="thisPage" :settle="settle" />
+            <TaskWidthMenu v-model="preferences.taskWidth" />
+            <AppModeToggle v-model="mode" testid-prefix="section-mode" />
+          </div>
+        </div>
+        <div class="mt-0.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <p class="text-small text-text-subtle">
             Edited {{ relativeTime(section.updatedAt) }}
             <span class="px-1 text-border-strong" aria-hidden="true">/</span>
             <span :class="saveState === 'unsaved' ? 'text-warn' : ''" role="status" data-testid="section-save-state">{{ saveLabel }}</span>
           </p>
+          <div class="flex flex-wrap items-center gap-1">
+            <ProjectSectionContextChip
+              :contexts="contexts"
+              :sections="sections"
+              :current-id="section.contextId"
+              @move="emit('moveToContext', $event)"
+              @create-context="emit('createContext', $event)"
+            />
+            <AppButton variant="quiet" size="sm" title="Replace the text with a markdown file" data-testid="section-replace" @click="emit('replace')">
+              <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M7 9V2M4.5 4.3 7 1.8l2.5 2.5M2 8.8v1.7a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V8.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              Replace from file
+            </AppButton>
+            <AppButton
+              variant="quiet"
+              size="icon"
+              class="disabled:opacity-30"
+              :disabled="!canMoveUp"
+              aria-label="Move page up in its context"
+              title="Move up"
+              data-testid="section-move-up"
+              @click="emit('move', 'up')"
+            >
+              <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M3.5 8.5L7 5l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </AppButton>
+            <AppButton
+              variant="quiet"
+              size="icon"
+              class="disabled:opacity-30"
+              :disabled="!canMoveDown"
+              aria-label="Move page down in its context"
+              title="Move down"
+              data-testid="section-move-down"
+              @click="emit('move', 'down')"
+            >
+              <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M3.5 5.5L7 9l3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </AppButton>
+            <AppButton variant="danger-quiet" size="sm" data-testid="section-delete" @click="emit('delete')">Delete</AppButton>
+          </div>
         </div>
-        <ProjectSectionContextChip
-          :contexts="contexts"
-          :sections="sections"
-          :current-id="section.contextId"
-          @move="emit('moveToContext', $event)"
-          @create-context="emit('createContext', $event)"
-        />
-        <AppButton variant="quiet" size="sm" title="Replace the text with a markdown file" data-testid="section-replace" @click="emit('replace')">
-          <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <path d="M7 9V2M4.5 4.3 7 1.8l2.5 2.5M2 8.8v1.7a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V8.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-          Replace from file
-        </AppButton>
-        <div class="flex items-center gap-0.5">
-          <AppButton
-            variant="quiet"
-            size="icon"
-            class="disabled:opacity-30"
-            :disabled="!canMoveUp"
-            aria-label="Move page up in its context"
-            title="Move up"
-            data-testid="section-move-up"
-            @click="emit('move', 'up')"
-          >
-            <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M3.5 8.5L7 5l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </AppButton>
-          <AppButton
-            variant="quiet"
-            size="icon"
-            class="disabled:opacity-30"
-            :disabled="!canMoveDown"
-            aria-label="Move page down in its context"
-            title="Move down"
-            data-testid="section-move-down"
-            @click="emit('move', 'down')"
-          >
-            <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M3.5 5.5L7 9l3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </AppButton>
-          <AppButton variant="danger-quiet" size="sm" data-testid="section-delete" @click="emit('delete')">Delete</AppButton>
-        </div>
-        <TaskWidthMenu v-model="preferences.taskWidth" />
-        <AppModeToggle v-model="mode" testid-prefix="section-mode" />
       </div>
       <ProjectSectionGauge :characters="bodyDraft.length" />
     </template>
