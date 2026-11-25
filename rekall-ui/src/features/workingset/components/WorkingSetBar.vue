@@ -7,8 +7,13 @@ import WorkingSetTaskTabs from '@/features/workingset/components/WorkingSetTaskT
 import { useWorkingSetKeys } from '@/features/workingset/composables/useWorkingSetKeys'
 import { useWorkingSetNavigation } from '@/features/workingset/composables/useWorkingSetNavigation'
 import { reviewCountsByTask } from '@/features/workingset/lib/review-counts'
+import { stepTally, taskActivity } from '@/features/workingset/lib/task-activity'
 import { useWorkingSetStore } from '@/features/workingset/store/workingSet.store'
+import { useChatStore } from '@/features/chat/store/chat.store'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import type { StepTally, TaskActivity } from '@/features/workingset/model/task-activity'
 import { useConsoleStore } from '@/stores/console.store'
+import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TaskId } from '@/model/branded'
 
 /**
@@ -18,16 +23,34 @@ import type { TaskId } from '@/model/branded'
  */
 const route = useRoute()
 const workingSet = useWorkingSetStore()
-const { reviewQueue } = storeToRefs(useConsoleStore())
+const { reviewQueue, steps } = storeToRefs(useConsoleStore())
+const chat = useChatStore()
+const terminals = useTerminalStore()
 const { taskInView, projectIdInView, placeToVisit, visit } = useWorkingSetNavigation()
 
 const reviewCounts = computed(() => reviewCountsByTask(reviewQueue.value))
 const groupInView = computed(() =>
   workingSet.groups.flatMap((company) => company.projects).find((group) => group.project.id === projectIdInView.value) ?? null
 )
+const tasksInView = computed(() => groupInView.value?.tasks ?? [])
+const activities = computed(() => new Map<TaskId, TaskActivity>(tasksInView.value.map((task) => [task.id, activityOf(task.id)])))
+const tallies = computed(() => new Map<TaskId, StepTally>(tasksInView.value.map((task) => [task.id, stepTally(stepsOf(task.id))])))
 const shown = computed(() => (route.name === 'task' || route.name === 'project-detail') && workingSet.groups.length > 0)
 
 useWorkingSetKeys()
+
+function stepsOf(taskId: TaskId): TaskStep[] {
+  return steps.value.filter((step) => step.taskId === taskId)
+}
+
+function activityOf(taskId: TaskId): TaskActivity {
+  const chatSession = chat.chatForTask(taskId)
+  return taskActivity({
+    steps: stepsOf(taskId),
+    turn: chatSession ? chat.timelineOf(chatSession.id).turn : null,
+    hasLiveSession: terminals.terminalForTask(taskId) !== null
+  })
+}
 
 async function close(taskId: TaskId): Promise<void> {
   const wasInView = taskInView.value?.id === taskId
@@ -49,7 +72,8 @@ async function close(taskId: TaskId): Promise<void> {
       :project="groupInView.project"
       :tasks="groupInView.tasks"
       :current-task-id="taskInView?.id ?? null"
-      :review-counts="reviewCounts"
+      :activities="activities"
+      :tallies="tallies"
       @select="visit"
       @close="close"
     />
