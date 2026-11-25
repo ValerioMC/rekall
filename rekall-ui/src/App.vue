@@ -19,6 +19,7 @@ import { useChatWindowShown } from '@/features/chat/composables/useChatWindowSho
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { useQueueSessionSync } from '@/features/queue/composables/useQueueSessionSync'
 import { useModalGate } from '@/composables/useModalGate'
+import { useContextFillStream } from '@/features/context-fill/composables/useContextFillStream'
 import { useStepStream } from '@/features/steps/composables/useStepStream'
 import { useClaimNotifications } from '@/composables/useClaimNotifications'
 import { useConsoleLocation } from '@/composables/useConsoleLocation'
@@ -57,6 +58,8 @@ useStepStream(
   (taskId) => void store.loadFeedback(taskId).catch(() => undefined),
   (taskId) => void store.loadDecisions(taskId).catch(() => undefined)
 )
+
+useContextFillStream((event) => store.applyContextFillEvent(event))
 
 useQueueSessionSync()
 useClaimNotifications(reviewQueue, isLoading)

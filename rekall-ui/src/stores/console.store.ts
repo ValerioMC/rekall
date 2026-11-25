@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { createConsoleState } from './console/console-state'
+import { useContextFills } from '../features/context-fill/store/contextFill.slice'
 import { useCommitReferences } from '../features/commits/store/useCommitReferences'
 import { useCompanyWrites } from '../features/catalog/store/useCompanyWrites'
 import { useTaskDecisions } from '../features/decisions/store/decisions.slice'
@@ -47,6 +48,7 @@ export const useConsoleStore = defineStore('console', () => {
   const wrapups = useWrapupWrites(state, refreshes, timers)
   const feedback = useFeedbackThread(state, refreshes)
   const decisions = useTaskDecisions(state)
+  const contextFills = useContextFills(state)
   const commitReferences = useCommitReferences(state)
   const skills = useSkillAssignments(state)
   const jiraImport = useJiraImport(state, refreshes)
@@ -84,6 +86,7 @@ export const useConsoleStore = defineStore('console', () => {
     ...wrapups,
     ...feedback,
     ...decisions,
+    ...contextFills,
     ...commitReferences,
     ...skills,
     ...jiraImport,

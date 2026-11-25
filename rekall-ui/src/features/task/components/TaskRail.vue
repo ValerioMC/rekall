@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import CommitReferenceRail from '@/features/commits/components/CommitReferenceRail.vue'
 import TaskLabelsStrip from '@/features/catalog/components/TaskLabelsStrip.vue'
+import ContextFillBadge from '@/features/context-fill/components/ContextFillBadge.vue'
 import ContextSizeGroup from '@/features/context/components/ContextSizeGroup.vue'
 import TaskRailGlyph, { type TaskRailGlyphName } from '@/features/task/components/TaskRailGlyph.vue'
 import TaskRailGroup from '@/features/task/components/TaskRailGroup.vue'
@@ -29,13 +30,22 @@ const FOLDED_GROUPS: readonly { readonly glyph: TaskRailGlyphName; readonly labe
 
 const preferences = usePreferencesStore()
 const branches = useTaskBranchStore()
-const { selectedTaskCommitReferences } = storeToRefs(useConsoleStore())
+const consoleStore = useConsoleStore()
+const { selectedTaskCommitReferences } = storeToRefs(consoleStore)
 
 const task = computed(() => props.row.task)
 const collapsed = computed(() => (props.onPlan ? preferences.planRailCollapsed : preferences.taskRailCollapsed))
 const signature = computed(() => `${task.value.stepsDone}:${task.value.reviewState}:${task.value.updatedAt}`)
+const fillSubject = computed(() => ({ taskId: task.value.id, stepId: null }))
+const showsFill = computed(() => consoleStore.contextFillOf(fillSubject.value) !== null)
 const commitCount = computed(() => selectedTaskCommitReferences.value.length)
 const showsGit = computed(() => commitCount.value > 0 || branches.of(task.value.id) !== null)
+
+watch(
+  () => task.value.id,
+  (id) => void consoleStore.loadContextFills(id).catch(() => undefined),
+  { immediate: true }
+)
 
 function toggle(): void {
   if (props.onPlan) preferences.planRailCollapsed = !preferences.planRailCollapsed
@@ -92,6 +102,12 @@ function toggle(): void {
       </TaskRailGroup>
       <TaskRailGroup label="Context" glyph="context">
         <ContextSizeGroup :task="task" />
+      </TaskRailGroup>
+      <TaskRailGroup v-show="showsFill" label="Window" glyph="context">
+        <div class="flex items-center justify-between gap-2">
+          <ContextFillBadge :subject="fillSubject" />
+          <span class="text-caption text-text-subtle">last chat turn</span>
+        </div>
       </TaskRailGroup>
       <TaskRailGroup v-show="showsGit" label="Git" glyph="git">
         <template #aside>{{ commitCount || '' }}</template>
