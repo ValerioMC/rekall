@@ -3,9 +3,11 @@ import { computed, ref } from 'vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
+import ChatSessionReadout from './ChatSessionReadout.vue'
 import TerminalConnectionChips from '@/features/connection/components/TerminalConnectionChips.vue'
 import { stepChip } from '@/features/chat/lib/step-chip'
 import type { ChatStatus } from '@/features/chat/lib/chat-status'
+import type { TurnContext } from '@/features/chat/model/chat-event'
 import type { TaskStep } from '@/features/steps/model/task-step'
 import type { Terminal } from '@/features/claude/model/terminal'
 import type { TaskId, TerminalId } from '@/model/branded'
@@ -20,6 +22,8 @@ const props = defineProps<{
   others: readonly Terminal[]
   steps: readonly TaskStep[]
   expanded: boolean
+  context: TurnContext | null
+  cost: number
 }>()
 
 const emit = defineEmits<{
@@ -167,6 +171,7 @@ function onSwitcherKeydown(event: KeyboardEvent): void {
         {{ session.skipPermissions ? 'permissions skipped' : 'permissions on' }}
       </AppBadge>
       <TerminalConnectionChips :terminal-id="session.id" :project-id="session.projectId" :connections="session.connections" />
+      <ChatSessionReadout class="ml-auto" :context="context" :cost="cost" />
     </div>
 
     <AppConfirm

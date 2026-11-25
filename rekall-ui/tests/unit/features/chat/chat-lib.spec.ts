@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { contextPercent } from '@/features/chat/lib/context-readout'
+import { formatCost } from '@/features/chat/lib/format-cost'
 import { mcpArguments } from '@/features/chat/lib/mcp-arguments'
 import { describePermission } from '@/features/chat/lib/describe-permission'
 import { describeTool } from '@/features/chat/lib/describe-tool'
@@ -138,5 +140,22 @@ describe('mcpArguments', () => {
     expect(mcpArguments('plain words')).toEqual([{ key: '', value: 'plain words' }])
     expect(mcpArguments('[1,2]')).toEqual([{ key: '', value: '[1,2]' }])
     expect(mcpArguments('')).toEqual([])
+  })
+})
+
+describe('formatCost', () => {
+  it('keeps four decimals below ten cents and two from ten cents up', () => {
+    expect(formatCost(0.0123)).toBe('$0.0123')
+    expect(formatCost(0)).toBe('$0.0000')
+    expect(formatCost(0.1)).toBe('$0.10')
+    expect(formatCost(1.234)).toBe('$1.23')
+  })
+})
+
+describe('contextPercent', () => {
+  it('rounds to a whole percent, caps at 100 and is 0 for an unknown window', () => {
+    expect(contextPercent({ usedTokens: 1234, windowTokens: 200000 })).toBe(1)
+    expect(contextPercent({ usedTokens: 300000, windowTokens: 200000 })).toBe(100)
+    expect(contextPercent({ usedTokens: 10, windowTokens: 0 })).toBe(0)
   })
 })

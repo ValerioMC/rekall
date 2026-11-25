@@ -40,7 +40,7 @@ const ROWS: Rows = {
   notice: { component: ChatNotice, props: (item) => ({ kind: item.noticeKind, text: item.text }) },
   'turn-footer': {
     component: ChatTurnFooter,
-    props: (item) => ({ usage: item.usage, durationMs: item.durationMs, outcome: item.outcome })
+    props: (item) => ({ usage: item.usage, durationMs: item.durationMs, outcome: item.outcome, costUsd: item.costUsd })
   },
   ended: {
     component: ChatEnded,
