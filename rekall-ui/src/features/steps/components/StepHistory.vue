@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { relativeTime } from '@/common/format/relative-time'
 import { historyOf, type StepEventKind } from '@/features/steps/lib/step-history'
+import { STEP_STATE_DOT } from '@/features/steps/model/step-state-colour'
 import type { TaskStep } from '@/features/steps/model/task-step'
 
 /** What happened to the step and when, as a short ledger; every step has at least its creation. */
@@ -10,11 +11,11 @@ const props = defineProps<{ step: TaskStep }>()
 const events = computed(() => historyOf(props.step))
 
 const DOT: Readonly<Record<StepEventKind, string>> = {
-  created: 'bg-border-strong',
+  created: STEP_STATE_DOT.OPEN,
   'sent-back': 'bg-warn',
-  running: 'bg-session',
-  claimed: 'bg-session',
-  done: 'bg-safe'
+  running: STEP_STATE_DOT.RUNNING,
+  claimed: STEP_STATE_DOT.CLAIMED,
+  done: STEP_STATE_DOT.DONE
 }
 </script>
 

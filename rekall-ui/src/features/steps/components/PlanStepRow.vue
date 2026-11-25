@@ -7,6 +7,7 @@ import StepSeal from '@/features/steps/components/StepSeal.vue'
 import StepThread from '@/features/steps/components/StepThread.vue'
 import { relativeTime } from '@/common/format/relative-time'
 import type { StepPlaces } from '@/features/steps/lib/step-places'
+import { standingTextClass } from '@/features/steps/model/step-state-colour'
 import type { TaskStep } from '@/features/steps/model/task-step'
 
 /**
@@ -186,7 +187,7 @@ function endDrag(): void {
       <span class="flex items-center gap-2.5 text-caption">
         <span
           class="min-w-0 flex-1 truncate"
-          :class="step.state === 'CLAIMED' ? 'font-medium text-session-strong' : step.state === 'RUNNING' ? 'text-session-strong' : 'text-text-subtle'"
+          :class="standingTextClass(step.state)"
           data-testid="plan-step-standing"
         >
           {{ standing }}
