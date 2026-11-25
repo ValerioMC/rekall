@@ -18,7 +18,7 @@ const RESTRUCTURE_OPTIONS: readonly SplitButtonOption<RewriteStyle>[] = [
   {
     id: 'RESTRUCTURE',
     label: 'Restructure',
-    hint: "Lay the same content out under Goal, Problem, Solution and so on, or under the project's Task template page"
+    hint: "Lay the content, with the task's steps and decisions, out under Goal, Problem, Solution and so on, or under the project's Task template page"
   }
 ]
 
@@ -28,7 +28,7 @@ const { phase, blocker, undoable, start, undo } = useDescriptionRewrite(
   () => props.folder
 )
 
-const hint = computed(() => blocker.value ?? 'A session corrects the grammar, spelling and wording and keeps everything else')
+const hint = computed(() => blocker.value ?? 'A session rewrites the description from its wording, steps and decisions, and writes a brief one when there is none')
 const busy = computed(() => phase.value !== 'idle')
 const caption = computed(() => (phase.value === 'launching' ? 'Starting' : phase.value === 'working' ? 'Rewriting' : 'Rewritten'))
 </script>

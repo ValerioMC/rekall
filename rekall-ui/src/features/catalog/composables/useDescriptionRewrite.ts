@@ -20,7 +20,9 @@ const MODE_OF_STYLE: Record<RewriteStyle, RewriteMode> = { FIX: 'REWRITE_FIX', R
 
 /**
  * Rewrite one task's description through a session: the `rewrite` line is typed into a live
- * session of the task, or a terminal is opened on it. A session that cannot start leaves the
+ * session of the task, or a terminal is opened on it. The session writes from the description, the
+ * steps and the decisions of the task, so a task with steps or decisions and no description can be
+ * rewritten too: a brief description is written from them. A session that cannot start leaves the
  * description untouched, and one opened for the rewrite is closed once the text is in so the task
  * is released; a session that was already live is left to its owner. The server does not announce the write, so the task is read again until
  * its description changes or its session ends. The text it replaced is held in memory only, for
@@ -40,6 +42,8 @@ export function useDescriptionRewrite(taskId: () => TaskId, anchor: () => string
   let disposed = false
 
   const description = computed(() => store.tasks.find((task) => task.id === taskId())?.description ?? null)
+  const hasSteps = computed(() => store.steps.some((step) => step.taskId === taskId()))
+  const hasDecisions = computed(() => (store.decisionsByTask[taskId()]?.decisions.length ?? 0) > 0)
   const ready = computed(() => Boolean(terminals.terminalForTask(taskId())) || Boolean(folder()))
   const phase = computed<RewritePhase>(() => {
     if (launching.value) return 'launching'
@@ -47,7 +51,7 @@ export function useDescriptionRewrite(taskId: () => TaskId, anchor: () => string
     return finished.value ? 'done' : 'idle'
   })
   const blocker = computed<string | null>(() => {
-    if (!description.value?.trim()) return 'Write a description first'
+    if (!description.value?.trim() && !hasSteps.value && !hasDecisions.value) return 'Write a description first'
     if (store.saveState !== 'saved') return 'Wait for the description to be saved'
     return null
   })
@@ -76,7 +80,7 @@ export function useDescriptionRewrite(taskId: () => TaskId, anchor: () => string
       await pause(POLL_MS)
       if (disposed) return null
       const fresh = await store.reloadTask(taskId())
-      if (fresh.description !== before) return fresh.description
+      if ((fresh.description ?? '') !== before) return fresh.description
       if (!terminals.terminalForTask(taskId())) return null
     }
     return null
@@ -109,8 +113,8 @@ export function useDescriptionRewrite(taskId: () => TaskId, anchor: () => string
   }
 
   async function start(style: RewriteStyle): Promise<void> {
-    const before = description.value
-    if (phase.value !== 'idle' || blocker.value !== null || before === null) return
+    const before = description.value ?? ''
+    if (phase.value !== 'idle' || blocker.value !== null) return
     if (!ready.value) {
       toast.notifyError(new Error(MISSING_FOLDER_HINT))
       return

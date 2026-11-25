@@ -1,17 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { COMPOSITION_SEGMENTS } from '@/features/catalog/lib/composition-segments'
 import type { ProjectComposition } from '@/features/catalog/lib/project-composition'
 
 const props = defineProps<{ composition: ProjectComposition }>()
 
-const SEGMENTS = [
-  { key: 'filed', label: 'filed', tube: 'var(--color-safe)' },
-  { key: 'review', label: 'to review', tube: 'var(--color-accent)' },
-  { key: 'active', label: 'in progress', tube: 'var(--color-session)' },
-  { key: 'todo', label: 'to do', tube: 'var(--color-border-strong)' }
-] as const
-
-const shown = computed(() => SEGMENTS.filter((segment) => props.composition[segment.key] > 0))
+const shown = computed(() => COMPOSITION_SEGMENTS.filter((segment) => props.composition[segment.key] > 0))
 const summary = computed(
   () => shown.value.map((segment) => `${props.composition[segment.key]} ${segment.label}`).join(', ') || 'No tasks'
 )

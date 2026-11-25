@@ -31,4 +31,24 @@ describe('the Projects sub-navigation', () => {
     expect(tabs.map((tab) => tab.attributes('href'))).toEqual(['/projects', '/companies', '/connections'])
     expect(tabs[1]!.attributes('aria-selected')).toBe('true')
   })
+
+  it('holds the screen\'s own search at the right end of the row', async () => {
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:p(.*)*', component: { render: () => null } }] })
+    const wrapper = mount(ProjectsSubNav, {
+      props: { active: 'projects' },
+      slots: { default: '<input data-testid="screen-search" />' },
+      global: { plugins: [router] }
+    })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="sub-nav"] [data-testid="screen-search"]').exists()).toBe(true)
+  })
+
+  it('sits in the page column every screen of the section shares', async () => {
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:p(.*)*', component: { render: () => null } }] })
+    const wrapper = mount(ProjectsSubNav, { props: { active: 'connections' }, global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.classes()).toContain('page-column')
+  })
 })

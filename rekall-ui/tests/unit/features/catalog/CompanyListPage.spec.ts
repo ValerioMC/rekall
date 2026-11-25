@@ -7,8 +7,9 @@ import * as connectionsApi from '@/features/connection/api/connections.api'
 import { aConnection } from '../../support/connectionFixture'
 import { useConsoleStore } from '@/stores/console.store'
 import { mountWithHeaderChrome } from '../../support/mountWithHeaderChrome'
+import { project, task } from '../project/project-task-fixtures'
 import type { Company } from '@/features/catalog/model/catalog'
-import type { CompanyId } from '@/model/branded'
+import type { CompanyId, ProjectId } from '@/model/branded'
 
 vi.mock('@/features/connection/api/connections.api')
 
@@ -77,5 +78,28 @@ describe('the company list', () => {
     const page = await render(null)
 
     expect(page.get('[data-testid="company-connections"]').text()).toBe('No connections')
+  })
+
+  it('lists the selected company\'s projects as ledger rows that open the project and cannot be deleted from here', async () => {
+    const page = await render(null)
+    useConsoleStore().projects = [project('vega', 'Vega', { companyId: COMPANY })]
+    await flushPromises()
+
+    expect(page.get('[data-testid="company-detail"]').text()).toContain('Vega')
+    expect(page.find('[data-testid="delete-project"]').exists()).toBe(false)
+    await page.get('[data-testid="project-card"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/projects/vega')
+  })
+
+  it('says how many tasks of the company wait for review', async () => {
+    const page = await render(null)
+    const store = useConsoleStore()
+    store.projects = [project('vega', 'Vega', { companyId: COMPANY, taskCount: 1 })]
+    store.tasks = [task('t-1', { projectId: 'vega' as ProjectId, reviewActive: true, reviewState: 'CLAIMED' })]
+    await flushPromises()
+
+    expect(page.get('[data-testid="company-needs"]').text()).toBe('1 to review')
   })
 })

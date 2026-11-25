@@ -1,0 +1,493 @@
+<!doctype html>
+<!--
+  Projects section redesign (RV-196). Target for the three steps that port it.
+  Screens: Projects (/projects), Companies (/companies), Connections (shell only).
+  Open with #screen=projects|companies|connections &state=... &w=wide|narrow.
+
+  Choices
+  - The shell is one row for all three screens: the sub-navigation on the left, the screen's own
+    search on the right, one hairline under both. Today the sub-navigation, a gap and a search row
+    stack as three bands. Connections has no search, so its right side stays empty.
+  - Projects is one ledger, not a grid of equal cards: a single bordered table with a column head,
+    a band per company and a 64px row per project. A row answers, left to right: which project,
+    where its work stands (composition bar, task count, what waits for review in amber, what is in
+    progress in indigo with the pulse), what it cost in tokens, its status, when it last moved.
+  - The status segments, the pinned company chip and the count sit on one line under the shell. The
+    chip is neutral with the company mark: cyan stays for anchors only, which the old chip broke.
+  - Companies keeps list and detail, because it is a lookup, but the list shows each company's
+    composition and review count so the next company to open is visible without opening it, and the
+    detail reuses the project row of the Projects ledger instead of drawing a second one. The
+    composition bar gets its legend there. Connections is one bordered row with the count.
+  - Kept: the project hue (a hairline on the row), ProjectMark and CompanyMark, the composition bar,
+    the status pill, the token count, the running pulse, delete on hover or focus.
+  - No new tokens, filters or actions. Archived is listed only under its own segment.
+  - Narrow (container under 780px): the row folds into title and status over the work line;
+    Companies stacks and its list becomes a strip.
+  Detector triage lives in .impeccable/config.json with a stated reason.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projects section</title>
+<link rel="stylesheet" href="../redesign/shared.css">
+<style>
+  :root {
+    --identity-1: #6c91da; --identity-2: #7f7fe3; --identity-3: #9a78e0;
+    --identity-4: #b66cda; --identity-5: #da6cda; --identity-6: #da6cb6;
+    --band: #11151d; --well: #0a0d13;
+  }
+  body { overflow: hidden; }
+  a { color: inherit; text-decoration: none; }
+  .app { display: flex; flex-direction: column; height: 100vh; }
+
+  .mockbar { flex: none; min-height: 34px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px 16px; background: var(--well); border-bottom: 1px solid var(--border); font-size: var(--t-caption); color: var(--subtle); }
+  .mockbar b { color: var(--muted); font-weight: 500; margin: 0 6px 0 10px; }
+  .mockbar b:first-child { margin-left: 0; }
+  .mockbar button { height: 22px; padding: 0 9px; border-radius: var(--r-key); color: var(--muted); }
+  .mockbar button:hover { background: var(--raised); color: var(--text); }
+  .mockbar button[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }
+
+  .frame { flex: 1; min-height: 0; width: 100%; margin: 0 auto; display: flex; flex-direction: column; container-type: inline-size; container-name: frame; border-inline: 1px solid transparent; }
+  .frame.narrow { max-width: 720px; border-inline-color: var(--border); }
+
+  /* console header, one 48px row */
+  .top { flex: none; }
+  .top .title { display: flex; align-items: center; gap: 12px; margin-left: 8px; font-size: var(--t-title); font-weight: 600; letter-spacing: -0.01em; }
+  .top .title::before { content: ""; width: 1px; height: 20px; background: var(--border-strong); }
+  .top .title i { width: 3px; height: 12px; border-radius: 9999px; background: var(--accent); }
+  .top .title span { display: flex; align-items: center; gap: 8px; }
+  @container frame (max-width: 900px) {
+    .top { grid-template-columns: 1fr auto; }
+    .top .locbar, .top .navtab:not(.on) { display: none; }
+    .status-cap > span:not(.amber) { display: none; }
+  }
+
+  .page { flex: 1; min-height: 0; overflow-y: auto; }
+  .col { max-width: 1320px; margin: 0 auto; padding: 0 32px 48px; }
+  @container frame (max-width: 780px) { .col { padding: 0 16px 40px; } }
+
+  /* shell: sub-navigation left, the screen's search right */
+  .shell { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--border); margin-top: 16px; }
+  .subnav { display: flex; gap: 22px; }
+  .subnav a { position: relative; display: flex; align-items: center; gap: 6px; height: 40px; color: var(--muted); font-size: var(--t-body); }
+  .subnav a:hover { color: var(--text); }
+  .subnav a[aria-current="page"] { color: var(--text); }
+  .subnav a[aria-current="page"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: var(--r-key); background: var(--accent); }
+  .subnav .c { font: 400 var(--t-micro) var(--font-mono); color: var(--subtle); font-variant-numeric: tabular-nums; }
+  .search { position: relative; width: 280px; margin-bottom: 4px; }
+  .search input { width: 100%; height: 32px; padding: 0 12px 0 32px; border: 1px solid var(--border-field); border-radius: var(--r-control); background: var(--canvas); color: var(--text); font: 400 var(--t-body) var(--font-sans); }
+  .search input::placeholder { color: var(--subtle); }
+  .search svg { position: absolute; left: 10px; top: 9px; width: 14px; height: 14px; color: var(--subtle); }
+  @container frame (max-width: 780px) {
+    .shell { flex-direction: column; align-items: stretch; gap: 0; border-bottom: 0; }
+    .subnav { border-bottom: 1px solid var(--border); }
+    .search { width: 100%; margin: 12px 0 0; }
+  }
+
+  /* toolbar (Projects) */
+  .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 16px 0 12px; }
+  .seg { display: flex; gap: 2px; padding: 2px; border-radius: var(--r-control); background: var(--canvas); border: 1px solid var(--border); }
+  .seg button { height: 26px; padding: 0 10px; display: flex; align-items: center; gap: 6px; border-radius: var(--r-key); font-size: var(--t-small); font-weight: 500; color: var(--muted); }
+  .seg button:hover { color: var(--text); }
+  .seg button[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }
+  .seg .n { font: 400 var(--t-micro) var(--font-mono); color: var(--subtle); font-variant-numeric: tabular-nums; }
+  .pin { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px 0 4px; border: 1px solid var(--border-strong); border-radius: var(--r-control); background: var(--raised); font-size: var(--t-small); color: var(--text); }
+  .pin:hover { background: var(--hover); }
+  .pin svg { width: 12px; height: 12px; color: var(--subtle); }
+  .total { margin-left: auto; font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); font-variant-numeric: tabular-nums; }
+  .total b { font-weight: 400; color: var(--muted); }
+
+  .cmark { flex: none; display: grid; place-items: center; width: var(--s, 20px); height: var(--s, 20px); border-radius: 16%; background: var(--soft); color: var(--hue); font-weight: 600; font-size: calc(var(--s, 20px) * .5); line-height: 1; }
+
+  /* the ledger */
+  .ledger { border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); overflow: hidden; }
+  .cols, .prow { display: grid; align-items: center; column-gap: 20px; grid-template-columns: minmax(220px, 1.3fr) minmax(220px, 1fr) 72px 84px 72px 28px; padding: 0 16px; }
+  .cols { height: 32px; border-bottom: 1px solid var(--border); font-size: var(--t-caption); font-weight: 500; color: var(--subtle); }
+  .cols .r, .prow .r { text-align: right; justify-self: end; }
+  .band { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 16px; background: var(--band); border-bottom: 1px solid var(--border); }
+  .ledger .band:not(:first-of-type) { border-top: 1px solid var(--border); }
+  .band .nm { font-size: var(--t-body); font-weight: 600; }
+  .band .ct { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+
+  .prow { position: relative; min-height: 64px; padding-block: 10px; border-bottom: 1px solid var(--border); transition: background .14s; }
+  .prow:last-child { border-bottom: 0; }
+  .prow:hover, .prow:focus-within { background: var(--raised); }
+  .prow::before { content: ""; position: absolute; top: -1px; left: 16px; right: 16px; height: 1px; background: linear-gradient(90deg, transparent, var(--hue), transparent); opacity: .5; }
+  .prow:hover::before { opacity: .9; }
+  .prow .stretch { position: absolute; inset: 0; z-index: 1; border-radius: 0; }
+  .prow .who { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .pmark { flex: none; width: 36px; height: 36px; border-radius: 8px; display: grid; place-items: center; background: var(--soft); color: var(--hue); box-shadow: inset 0 0 0 1px var(--line); }
+  .pmark svg { width: 18px; height: 18px; }
+  .who .t { min-width: 0; display: grid; gap: 4px; justify-items: start; }
+  .who .t b { max-width: 100%; font-size: var(--t-body); font-weight: 600; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .who .anchor { font-size: var(--t-micro); padding: 0 6px; }
+  .work { display: grid; gap: 7px; min-width: 0; }
+  .trough { display: flex; gap: 2px; height: 6px; padding: 1px; border-radius: 9999px; background: var(--well); box-shadow: inset 0 2px 4px rgb(0 0 0 / .5), 0 1px 0 rgb(255 255 255 / .035); overflow: hidden; }
+  .trough i { min-width: 3px; height: 100%; border-radius: 9999px; flex-basis: 0; }
+  .trough i.filed { background: var(--safe); }
+  .trough i.review { background: var(--accent); }
+  .trough i.active { background: var(--session); }
+  .trough i.todo { background: var(--border-strong); }
+  .trough.none { opacity: .6; }
+  .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: var(--t-caption); color: var(--subtle); font-variant-numeric: tabular-nums; }
+  .legend .rv { color: var(--accent); font-weight: 500; }
+  .legend .run { display: inline-flex; align-items: center; gap: 6px; color: var(--session-strong, #b4b9ff); }
+  .orb { position: relative; width: 6px; height: 6px; border-radius: 50%; background: var(--session); }
+  .orb::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 1px solid var(--session); opacity: 0; animation: ping 1.8s var(--ease) infinite; }
+  @keyframes ping { 0% { transform: scale(.5); opacity: .8; } 100% { transform: scale(1.4); opacity: 0; } }
+  .tok { display: inline-flex; align-items: center; gap: 4px; font: 400 var(--t-micro) var(--font-mono); font-variant-numeric: tabular-nums; color: var(--muted); }
+  .tok svg { width: 8px; height: 8px; color: var(--hue); }
+  .tok.zero { color: var(--subtle); }
+  .upd { font-size: var(--t-caption); color: var(--subtle); white-space: nowrap; transition: opacity .14s; }
+  .prow:hover .upd { opacity: 0; }
+  .pdel { position: relative; z-index: 2; width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--r-key); color: var(--subtle); opacity: 0; }
+  .pdel svg { width: 14px; height: 14px; }
+  .prow:hover .pdel, .pdel:focus-visible { opacity: 1; }
+  .pdel:hover { background: var(--hover); color: var(--danger); }
+  .updwrap { position: relative; display: grid; justify-items: end; }
+
+  @container frame (max-width: 780px) {
+    .cols { display: none; }
+    .prow { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "who stat" "work work" "tok upd"; row-gap: 8px; padding-block: 12px; }
+    .prow .who { grid-area: who; } .prow .work { grid-area: work; }
+    .prow .stat { grid-area: stat; } .prow .tok { grid-area: tok; justify-self: start; }
+    .prow .updwrap { grid-area: upd; }
+    .prow .pdel { display: none; }
+    .prow:hover .upd { opacity: 1; }
+  }
+
+  /* companies */
+  .split { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 24px; padding-top: 20px; align-items: start; }
+  .rail { display: grid; gap: 4px; }
+  .rail .item { position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr); column-gap: 12px; row-gap: 8px; align-items: center; padding: 12px; border-radius: var(--r-control); width: 100%; }
+  .rail .item:hover { background: var(--raised); }
+  .rail .item[aria-current="true"] { background: var(--accent-soft); box-shadow: inset 0 0 0 1px #eaa43c33; }
+  .rail .nm { display: block; font-size: var(--t-body); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rail .sub { display: flex; align-items: center; gap: 0; white-space: nowrap; font-size: var(--t-caption); color: var(--subtle); }
+  .rail .sub .rv { margin-left: auto; color: var(--accent); font-weight: 500; }
+  .rail .trough { grid-column: 2; height: 4px; padding: 0; box-shadow: none; }
+  .detail { border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); overflow: hidden; }
+  .dhead { display: flex; align-items: flex-start; gap: 16px; padding: 24px 24px 20px; }
+  .dhead .tx { flex: 1; min-width: 0; }
+  .dhead h2 { font-size: var(--t-heading); font-weight: 500; letter-spacing: -0.015em; }
+  .dhead p { margin-top: 4px; max-width: 70ch; color: var(--muted); font-size: var(--t-body); line-height: 1.5; }
+  .dhead .when { margin-top: 6px; font-size: var(--t-caption); color: var(--subtle); }
+  .dhead .acts { display: flex; gap: 4px; }
+  .btn.danger-quiet { background: transparent; border-color: transparent; color: var(--muted); }
+  .btn.danger-quiet:hover { background: #fb71851a; color: var(--danger); }
+  .dwork { display: grid; gap: 10px; padding: 0 24px 20px; }
+  .dwork .trough { height: 8px; }
+  .dwork .legend { gap: 6px 20px; font-size: var(--t-small); }
+  .dwork .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dwork .legend b { font-weight: 500; color: var(--text); }
+  .dwork .legend i { width: 8px; height: 8px; border-radius: var(--r-key); }
+  .dwork .legend .rv b { color: var(--accent); }
+  .dconn { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 24px 24px; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--r-control); background: var(--canvas); font-size: var(--t-small); color: var(--muted); }
+  .dconn a { display: inline-flex; align-items: center; gap: 4px; color: var(--text); font-weight: 500; }
+  .dconn a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .dconn a.none { color: var(--subtle); font-weight: 400; }
+  .dconn svg { width: 12px; height: 12px; }
+  .dproj-h { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px 0 24px; border-top: 1px solid var(--border); background: var(--band); }
+  .dproj-h h3 { font-size: var(--t-body); font-weight: 600; }
+  .dproj-h .ct { font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .dproj-h .btn { margin-left: auto; }
+  .dproj .prow { grid-template-columns: minmax(200px, 1.2fr) minmax(180px, 1fr) 72px 84px 72px 28px; padding-inline: 24px; }
+  .dproj .prow::before { left: 24px; right: 24px; }
+  .dempty { padding: 28px 24px; text-align: center; font-size: var(--t-small); color: var(--subtle); border-top: 1px solid var(--border); }
+  @container frame (max-width: 1100px) {
+    .dproj .prow { grid-template-columns: minmax(180px, 1.2fr) minmax(160px, 1fr) 84px 28px; }
+    .dproj .prow .tok, .dproj .prow .updwrap { display: none; }
+  }
+  @container frame (max-width: 900px) {
+    .split { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+    .rail { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+    .rail .item { flex: none; width: 230px; border: 1px solid var(--border); background: var(--surface); }
+    .rail .item[aria-current="true"] { background: var(--accent-soft); border-color: #eaa43c33; }
+    .rail .tasks { display: none; }
+  }
+  @container frame (max-width: 780px) {
+    .dproj .prow { grid-template-columns: minmax(0, 1fr) auto; padding-inline: 16px; }
+    .dproj .prow .tok, .dproj .prow .updwrap { display: grid; }
+    .dproj .prow .tok { display: inline-flex; }
+    .dhead { padding: 20px 16px 16px; gap: 12px; }
+    .dhead .when { display: none; }
+    .dwork { padding: 0 16px 16px; }
+    .dconn { margin: 0 16px 20px; flex-wrap: wrap; }
+    .dproj-h { padding-inline: 16px; }
+  }
+
+  /* connections: only the shell is redesigned */
+  .conn { margin-top: 20px; }
+  .conn .prow { grid-template-columns: minmax(200px, 1.2fr) 140px minmax(160px, 1fr) 28px; }
+  .conn .cols { grid-template-columns: minmax(200px, 1.2fr) 140px minmax(160px, 1fr) 28px; }
+  .kind { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border: 1px solid var(--border); border-radius: 9999px; font-size: var(--t-caption); font-weight: 500; color: var(--muted); }
+  .note { margin-top: 12px; font-size: var(--t-caption); color: var(--subtle); }
+
+  /* states */
+  .empty { margin-top: 20px; display: grid; justify-items: center; gap: 8px; padding: 56px 24px; border: 1px dashed var(--border-strong); border-radius: var(--r-card); text-align: center; }
+  .empty h3 { font-size: var(--t-title); font-weight: 600; }
+  .empty p { max-width: 52ch; color: var(--muted); font-size: var(--t-body); }
+  .empty .btn { margin-top: 8px; }
+  .skeleton { border-radius: var(--r-control); background: linear-gradient(90deg, var(--raised), var(--hover), var(--raised)); background-size: 200% 100%; animation: sheen 1.4s linear infinite; }
+  @keyframes sheen { to { background-position: -200% 0; } }
+  .sk-wrap { margin-top: 20px; display: grid; gap: 8px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="mockbar" id="mockbar"></div>
+  <div class="frame" id="frame">
+    <div class="top">
+      <div class="top-l">
+        <span class="logo"></span>
+        <a class="tab navtab">Tasks</a>
+        <a class="tab navtab on">Projects</a>
+        <a class="tab navtab">Time</a>
+        <a class="tab navtab">Library</a>
+        <span class="title" id="pagetitle"><span><i></i>Projects</span></span>
+      </div>
+      <div class="locbar"><span>/rk</span><span class="chip">project:chassis</span><kbd>⌘K</kbd></div>
+      <div class="top-r">
+        <span id="action"></span>
+        <span class="status-cap"><span>12.4M tokens</span><span>1 session</span><span class="amber"><b>9</b> to review</span></span>
+      </div>
+    </div>
+    <div class="page"><div class="col" id="screen"></div></div>
+  </div>
+</div>
+
+<script>
+const GLYPH = {
+  hex: 'M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z',
+  layers: 'M12 3 3 8l9 5 9-5-9-5zM3 13l9 5 9-5',
+  grid: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
+  wave: 'M3 12h4l3-7 4 14 3-7h4',
+  chip: 'M7 7h10v10H7zM9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4',
+  branch: 'M6 4v10M6 14a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM18 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM18 10c0 4-6 3-12 4'
+}
+const GLYPH_KEYS = Object.keys(GLYPH)
+
+const COMPANIES = [
+  { id: 'acme', name: 'Acme Robotics', hue: 1, about: 'Industrial automation and warehouse robotics.', when: '2 hours ago', conns: ['GitHub', 'Kubernetes'] },
+  { id: 'globex', name: 'Globex Analytics', hue: 3, about: 'A data platform for retail demand forecasting.', when: '5 hours ago', conns: ['GitLab', 'Grafana'] },
+  { id: 'initech', name: 'Initech Labs', hue: 2, about: 'Developer tooling and internal platform engineering.', when: '12 minutes ago', conns: ['Jira'] },
+  { id: 'umbrella', name: 'Umbrella Systems', hue: 5, about: 'Healthcare records and compliance software.', when: '3 days ago', conns: [] },
+  { id: 'soylent', name: 'Soylent Digital', hue: 6, about: '', when: '2 weeks ago', conns: [] }
+]
+
+// composition: filed, review, active, todo
+const PROJECTS = [
+  { co: 'acme', label: 'chassis', title: 'Chassis', st: 'ACTIVE', c: [6, 3, 2, 3], tok: '412k', upd: '2h ago', hue: 1, g: 0 },
+  { co: 'acme', label: 'navigation', title: 'Navigation stack', st: 'ACTIVE', c: [4, 0, 1, 4], tok: '188k', upd: '1d ago', hue: 4, g: 3 },
+  { co: 'acme', label: 'vision-pipeline', title: 'Vision pipeline', st: 'ACTIVE', c: [2, 2, 0, 7], tok: '96k', upd: '3d ago', hue: 6, g: 4 },
+  { co: 'acme', label: 'fleet-ops', title: 'Fleet operations', st: 'DONE', c: [8, 0, 0, 0], tok: '241k', upd: '3w ago', hue: 2, g: 2 },
+  { co: 'globex', label: 'ingestion', title: 'Ingestion', st: 'ACTIVE', c: [5, 1, 1, 5], tok: '304k', upd: '5h ago', hue: 3, g: 1 },
+  { co: 'globex', label: 'warehouse', title: 'Warehouse', st: 'ACTIVE', c: [1, 0, 0, 5], tok: '12k', upd: '2d ago', hue: 5, g: 2 },
+  { co: 'globex', label: 'dashboards', title: 'Dashboards', st: 'ACTIVE', c: [0, 0, 0, 0], tok: '0', upd: '4d ago', hue: 1, g: 3 },
+  { co: 'globex', label: 'ml-models', title: 'Demand forecasting models', st: 'ARCHIVED', c: [10, 0, 0, 0], tok: '520k', upd: '2mo ago', hue: 4, g: 5 },
+  { co: 'initech', label: 'ci-pipeline', title: 'CI pipeline', st: 'ACTIVE', c: [9, 0, 3, 5], tok: '610k', upd: '12m ago', hue: 2, g: 5 },
+  { co: 'initech', label: 'auth-service', title: 'Authentication service', st: 'ACTIVE', c: [3, 1, 0, 3], tok: '87k', upd: '6h ago', hue: 6, g: 4 },
+  { co: 'initech', label: 'design-system', title: 'Design system', st: 'DONE', c: [13, 0, 0, 0], tok: '1.2M', upd: '2w ago', hue: 3, g: 2 },
+  { co: 'initech', label: 'observability', title: 'Observability', st: 'ARCHIVED', c: [7, 0, 0, 0], tok: '143k', upd: '3mo ago', hue: 5, g: 3 },
+  { co: 'umbrella', label: 'patient-portal', title: 'Patient portal', st: 'ACTIVE', c: [4, 2, 0, 4], tok: '233k', upd: '3d ago', hue: 5, g: 1 },
+  { co: 'umbrella', label: 'billing', title: 'Billing', st: 'ACTIVE', c: [1, 0, 0, 4], tok: '41k', upd: '1w ago', hue: 1, g: 0 }
+]
+
+const STATUS_LABEL = { ACTIVE: 'Active', DONE: 'Done', ARCHIVED: 'Archived' }
+const STATUS_PILL = { ACTIVE: 'prog', DONE: 'done', ARCHIVED: 'filed' }
+
+const view = { screen: 'projects', state: 'default', w: 'wide', status: 'ALL', company: 'acme' }
+const params = new URLSearchParams(location.hash.slice(1))
+for (const key of Object.keys(view)) if (params.get(key)) view[key] = params.get(key)
+if (view.state === 'archived') view.status = 'ARCHIVED'
+
+const sum = (c) => c.reduce((a, b) => a + b, 0)
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`
+const coOf = (id) => COMPANIES.find((c) => c.id === id)
+const hueVars = (n) => `--hue:var(--identity-${n});--soft:color-mix(in srgb,var(--identity-${n}) 10%,transparent);--line:color-mix(in srgb,var(--identity-${n}) 25%,transparent)`
+const svg = (d, extra = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}><path d="${d}"/></svg>`
+
+function companyMark(co, size = 20) {
+  return `<span class="cmark" style="${hueVars(co.hue)};--s:${size}px" aria-hidden="true">${co.name[0]}</span>`
+}
+
+function bar(c, cls = '') {
+  const names = ['filed', 'review', 'active', 'todo']
+  const parts = names.map((n, i) => (c[i] > 0 ? `<i class="${n}" style="flex-grow:${c[i]}"></i>` : '')).join('')
+  return `<div class="trough ${sum(c) ? '' : 'none'} ${cls}" role="img" aria-label="${sum(c) ? '' : 'No tasks'}">${parts}</div>`
+}
+
+function legend(c) {
+  const total = sum(c)
+  if (!total) return '<span>No tasks</span>'
+  return `<span>${plural(total, 'task')}</span>` +
+    (c[1] ? `<span class="rv" data-testid="project-needs">${c[1]} to review</span>` : '') +
+    (c[2] ? `<span class="run"><i class="orb"></i>${c[2]} in progress</span>` : '')
+}
+
+function projectRow(p) {
+  const total = sum(p.c)
+  const glyph = GLYPH[GLYPH_KEYS[p.g]]
+  return `<div class="prow" style="${hueVars(p.hue)}">
+    <a class="stretch focus" href="#" aria-label="Open ${p.title}"></a>
+    <div class="who">
+      <span class="pmark">${svg(glyph)}</span>
+      <span class="t"><b>${p.title}</b><span class="anchor">project:${p.label}</span></span>
+    </div>
+    <div class="work">${bar(p.c)}<div class="legend">${legend(p.c)}</div></div>
+    <span class="tok r ${p.tok === '0' ? 'zero' : ''}">${svg('M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z')}${p.tok}</span>
+    <span class="stat r"><span class="pill ${STATUS_PILL[p.st]}">${STATUS_LABEL[p.st]}</span></span>
+    <span class="updwrap"><span class="upd">${p.upd}</span></span>
+    <button class="pdel" aria-label="Delete ${p.title}">${svg('M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0-.6 12.4a2 2 0 0 1-2 1.6H9.6a2 2 0 0 1-2-1.6L7 7')}</button>
+  </div>`
+}
+
+function shell(active, searchPlaceholder) {
+  const nProjects = PROJECTS.filter((p) => p.st !== 'ARCHIVED').length
+  const items = [['projects', 'Projects', nProjects], ['companies', 'Companies', COMPANIES.length], ['connections', 'Connections', 4]]
+  const search = searchPlaceholder
+    ? `<label class="search">${svg('M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4')}<input type="search" placeholder="${searchPlaceholder}" aria-label="${searchPlaceholder}"></label>`
+    : ''
+  return `<div class="shell"><nav class="subnav" aria-label="Projects section">${items.map(([id, label, n]) =>
+    `<a href="#screen=${id}" ${id === active ? 'aria-current="page"' : ''}>${label}<span class="c">${n}</span></a>`).join('')}</nav>${search}</div>`
+}
+
+function emptyState(title, text, button) {
+  return `<div class="empty"><h3>${title}</h3><p>${text}</p>${button ? `<button class="btn">${button}</button>` : ''}</div>`
+}
+
+function skeleton(rows, h) {
+  return `<div class="sk-wrap" aria-hidden="true">${Array.from({ length: rows }, () => `<div class="skeleton" style="height:${h}px"></div>`).join('')}</div>`
+}
+
+function statusCounts(inScope) {
+  const counts = { ALL: inScope.filter((p) => p.st !== 'ARCHIVED').length }
+  for (const s of Object.keys(STATUS_LABEL)) counts[s] = inScope.filter((p) => p.st === s).length
+  return counts
+}
+
+function projectsScreen() {
+  const pinned = view.state === 'pinned' ? view.company : null
+  const needle = view.state === 'nomatch' ? 'zzzq' : ''
+  const inScope = PROJECTS.filter((p) => (!pinned || p.co === pinned) && (!needle || p.title.toLowerCase().includes(needle)))
+  const shown = inScope.filter((p) => (view.status === 'ALL' ? p.st !== 'ARCHIVED' : p.st === view.status))
+  const counts = statusCounts(inScope)
+  const waiting = shown.reduce((a, p) => a + p.c[1], 0)
+  const seg = [['ALL', 'All'], ...Object.entries(STATUS_LABEL)].map(([v, l]) =>
+    `<button aria-pressed="${view.status === v}" data-status="${v}">${l}<span class="n">${counts[v]}</span></button>`).join('')
+  const chip = pinned
+    ? `<button class="pin">${companyMark(coOf(pinned), 18)}${coOf(pinned).name}${svg('M6 6l12 12M18 6 6 18')}</button>`
+    : ''
+  const tools = `<div class="tools"><div class="seg" role="group" aria-label="Status">${seg}</div>${chip}
+    <span class="total"><b>${shown.length}</b> project${shown.length === 1 ? '' : 's'}${waiting ? ` · <b>${waiting}</b> to review` : ''}</span></div>`
+
+  let body
+  if (view.state === 'loading') body = skeleton(6, 64)
+  else if (view.state === 'empty') body = emptyState('Nothing here yet', "A project belongs to a company, and there isn't one yet. Start on the Companies tab.", 'Go to companies')
+  else if (!shown.length) body = emptyState('No project matches', 'Try a different search, or clear the status filter.')
+  else {
+    const groups = COMPANIES.map((co) => ({ co, rows: shown.filter((p) => p.co === co.id) })).filter((g) => g.rows.length)
+    body = `<div class="ledger"><div class="cols"><span>Project</span><span>Work</span><span class="r">Tokens</span><span class="r">Status</span><span class="r">Updated</span><span></span></div>${groups.map((g) =>
+      `<div class="band">${companyMark(g.co)}<span class="nm">${g.co.name}</span><span class="ct">${plural(g.rows.length, 'project')}</span></div>${g.rows.map(projectRow).join('')}`).join('')}</div>`
+  }
+  return shell('projects', 'Find a project') + tools + body
+}
+
+function legendFull(c) {
+  const items = [['filed', 'var(--safe)', 'filed'], ['review', 'var(--accent)', 'to review'], ['active', 'var(--session)', 'in progress'], ['todo', 'var(--border-strong)', 'to do']]
+  return items.map(([k, color, label], i) => (c[i] ? `<span class="${k === 'review' ? 'rv' : ''}"><i style="background:${color}"></i><b>${c[i]}</b> ${label}</span>` : '')).join('')
+}
+
+function companyComposition(co) {
+  const c = [0, 0, 0, 0]
+  for (const p of PROJECTS.filter((x) => x.co === co.id)) p.c.forEach((n, i) => (c[i] += n))
+  return c
+}
+
+function companiesScreen() {
+  const search = view.state === 'nomatch' ? 'zzzq' : ''
+  if (view.state === 'loading') return shell('companies', 'Find a company') + skeleton(5, 64)
+  if (view.state === 'empty') return shell('companies', 'Find a company') + emptyState('No company yet', 'A company is the outermost record: it holds the projects, and those hold the work.', '+ New company')
+  if (search) return shell('companies', 'Find a company') + emptyState('No company matches', 'Try a different search.')
+
+  const selected = coOf(view.company) ?? COMPANIES[0]
+  const rail = COMPANIES.map((co) => {
+    const c = companyComposition(co)
+    const projects = PROJECTS.filter((p) => p.co === co.id)
+    return `<button class="item" data-company="${co.id}" aria-current="${co.id === selected.id}" data-testid="company-card">
+      ${companyMark(co, 32)}
+      <span><span class="nm">${co.name}</span><span class="sub">${plural(projects.length, 'project')}<span class="tasks"> · ${plural(sum(c), 'task')}</span>${c[1] ? `<span class="rv">${c[1]} to review</span>` : ''}</span></span>
+      ${bar(c)}</button>`
+  }).join('')
+
+  const projects = PROJECTS.filter((p) => p.co === selected.id)
+  const c = companyComposition(selected)
+  const connLabel = selected.conns.length ? plural(selected.conns.length, 'connection') : 'No connections'
+  const detail = `<section class="detail" aria-label="${selected.name}" data-testid="company-detail">
+    <header class="dhead">
+      ${companyMark(selected, 48)}
+      <div class="tx"><h2>${selected.name}</h2>${selected.about ? `<p>${selected.about}</p>` : ''}<p class="when">Updated ${selected.when}</p></div>
+      <div class="acts"><button class="btn quiet">Edit</button><button class="btn danger-quiet">Delete</button></div>
+    </header>
+    <div class="dwork">${bar(c)}<div class="legend">${sum(c) ? legendFull(c) : '<span>No tasks</span>'}</div></div>
+    <div class="dconn"><span>Connections shared with this company</span><a class="${selected.conns.length ? '' : 'none'}" href="#screen=connections">${connLabel}${svg('M9 6l6 6-6 6')}</a></div>
+    <div class="dproj-h"><h3>Projects</h3><span class="ct">${projects.length}</span><button class="btn sm">+ New project</button></div>
+    <div class="dproj">${projects.length ? projects.map(projectRow).join('') : '<p class="dempty">No project yet. A project holds this company’s work.</p>'}</div>
+  </section>`
+  return shell('companies', 'Find a company') + `<div class="split"><nav class="rail" aria-label="Companies">${rail}</nav>${detail}</div>`
+}
+
+function connectionsScreen() {
+  const rows = [
+    ['gitub', 'GitHub', 'acme'], ['cluster-prod', 'Kubernetes', 'acme'], ['gitlab-main', 'GitLab', 'globex'], ['metrics', 'Grafana', 'globex']
+  ].map(([name, kind, co]) => `<div class="prow" style="${hueVars(coOf(co).hue)}">
+      <div class="who"><span class="t"><b>${name}</b></span></div><span><span class="kind">${kind}</span></span>
+      <span class="who">${companyMark(coOf(co))}<span>${coOf(co).name}</span></span><span></span></div>`).join('')
+  return shell('connections', '') + `<div class="ledger conn"><div class="cols"><span>Connection</span><span>Kind</span><span>Shared with</span><span></span></div>${rows}</div>
+    <p class="note">Mock of the shell only: the Connections list and detail are not redesigned.</p>`
+}
+
+function render() {
+  document.getElementById('frame').classList.toggle('narrow', view.w === 'narrow')
+  const titles = { projects: 'Projects', companies: 'Companies', connections: 'Connections' }
+  document.getElementById('pagetitle').innerHTML = `<span><i></i>${titles[view.screen]}</span>`
+  const actions = {
+    projects: '<button class="btn primary">+ New project</button>',
+    companies: '<button class="btn primary">+ New company</button>',
+    connections: '<button class="btn primary">+ New connection</button>'
+  }
+  document.getElementById('action').innerHTML = actions[view.screen]
+  const screens = { projects: projectsScreen, companies: companiesScreen, connections: connectionsScreen }
+  document.getElementById('screen').innerHTML = screens[view.screen]()
+  renderBar()
+}
+
+function renderBar() {
+  const group = (label, key, options) => `<b>${label}</b>` + options.map(([v, l]) => `<button data-set="${key}" data-value="${v}" aria-pressed="${view[key] === v}">${l}</button>`).join('')
+  document.getElementById('mockbar').innerHTML =
+    group('Screen', 'screen', [['projects', 'Projects'], ['companies', 'Companies'], ['connections', 'Connections']]) +
+    group('State', 'state', [['default', 'Default'], ['archived', 'Archived'], ['pinned', 'Company pinned'], ['nomatch', 'No match'], ['empty', 'Empty'], ['loading', 'Loading']]) +
+    group('Width', 'w', [['wide', 'Desktop'], ['narrow', 'Narrow']])
+}
+
+document.addEventListener('click', (event) => {
+  const set = event.target.closest('[data-set]')
+  if (set) {
+    view[set.dataset.set] = set.dataset.value
+    if (set.dataset.set === 'state') view.status = set.dataset.value === 'archived' ? 'ARCHIVED' : 'ALL'
+    if (set.dataset.set === 'screen' && view.state !== 'default') view.state = 'default'
+    return render()
+  }
+  const status = event.target.closest('[data-status]')
+  if (status) { view.status = status.dataset.status; view.state = view.state === 'archived' ? 'default' : view.state; return render() }
+  const company = event.target.closest('[data-company]')
+  if (company) { view.company = company.dataset.company; return render() }
+  const link = event.target.closest('.subnav a')
+  if (link) { event.preventDefault(); view.screen = new URL(link.href).hash.split('=')[1]; view.state = 'default'; view.status = 'ALL'; render() }
+  if (event.target.closest('.stretch, .pdel, .pin')) event.preventDefault()
+})
+render()
+</script>
+</body>
+</html>
