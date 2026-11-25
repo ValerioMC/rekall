@@ -1,18 +1,15 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import ChatEnded from './ChatEnded.vue'
-import ChatMessage from './ChatMessage.vue'
-import ChatNotice from './ChatNotice.vue'
-import ChatThinking from './ChatThinking.vue'
-import ChatTurnFooter from './ChatTurnFooter.vue'
-import ToolCallCard from './ToolCallCard.vue'
+import ChatTimelineRows from './ChatTimelineRows.vue'
+import { groupByParent } from '@/features/chat/lib/group-by-parent'
 import { useStickToBottom } from '@/features/chat/composables/useStickToBottom'
 import type { TimelineItem } from '@/features/chat/model/timeline'
 
 /**
- * The conversation as a scrolling log. Only the last 150 items are mounted, and earlier ones
- * come back 150 at a time. It follows new content while the reader is at the bottom and lets go
- * the moment they scroll up.
+ * The conversation as a scrolling log. Only the last 150 items of the conversation are mounted,
+ * and earlier ones come back 150 at a time; a subagent's items are drawn inside its Agent card and
+ * do not count. It follows new content while the reader is at the bottom and lets go the moment
+ * they scroll up.
  */
 const props = withDefaults(defineProps<{ items: readonly TimelineItem[]; followingNext?: boolean }>(), {
   followingNext: false
@@ -25,8 +22,9 @@ const mounted = ref(WINDOW_ITEMS)
 
 const { stuck, unseen, onScroll, jumpToLatest } = useStickToBottom(scroller, () => props.items)
 
-const hidden = computed(() => Math.max(0, props.items.length - mounted.value))
-const visible = computed(() => props.items.slice(Math.max(0, props.items.length - mounted.value)))
+const grouped = computed(() => groupByParent(props.items))
+const hidden = computed(() => Math.max(0, grouped.value.top.length - mounted.value))
+const visible = computed(() => grouped.value.top.slice(hidden.value))
 const earlierCount = computed(() => Math.min(WINDOW_ITEMS, hidden.value))
 
 async function showEarlier(): Promise<void> {
@@ -61,20 +59,7 @@ async function showEarlier(): Promise<void> {
             Show {{ earlierCount }} earlier {{ earlierCount === 1 ? 'item' : 'items' }}
           </button>
         </li>
-        <li v-for="item in visible" :key="item.key">
-          <ChatMessage v-if="item.kind === 'user'" role="user" :text="item.text" :complete="true" />
-          <ChatMessage v-else-if="item.kind === 'assistant'" role="assistant" :text="item.text" :complete="item.complete" />
-          <ChatThinking v-else-if="item.kind === 'thinking'" :text="item.text" :complete="item.complete" />
-          <ToolCallCard v-else-if="item.kind === 'tool'" :call="item" />
-          <ChatNotice v-else-if="item.kind === 'notice'" :kind="item.noticeKind" :text="item.text" />
-          <ChatTurnFooter
-            v-else-if="item.kind === 'turn-footer'"
-            :usage="item.usage"
-            :duration-ms="item.durationMs"
-            :outcome="item.outcome"
-          />
-          <ChatEnded v-else-if="item.kind === 'ended'" :exit-code="item.exitCode" :detail="item.detail" :following-next="followingNext" />
-        </li>
+        <ChatTimelineRows :items="visible" :inner="grouped.inner" :following-next="followingNext" />
       </ol>
     </div>
 

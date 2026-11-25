@@ -162,7 +162,9 @@ describe('ToolCallCard', () => {
 
   it('keeps every other call closed', () => {
     const web = mountCard(toolItem({ input: { tool: 'web', name: 'WebFetch', target: 'https://example.com/a' } }))
-    const agent = mountCard(toolItem({ input: { tool: 'agent', description: 'Find it', subagentType: null, prompt: 'p' } }))
+    const agent = mountCard(
+      toolItem({ input: { tool: 'agent', description: 'Find it', subagentType: null, prompt: 'p' }, state: 'done' })
+    )
 
     expect(web.get('button').attributes('aria-expanded')).toBe('false')
     expect(agent.get('button').attributes('aria-expanded')).toBe('false')
@@ -191,5 +193,27 @@ describe('ToolCallCard', () => {
     expect(arguments_.findAll('dt').map((key) => key.text())).toEqual(['anchors', 'limit'])
     expect(arguments_.findAll('dd').map((value) => value.text())).toEqual(['task:RK-1', '3'])
     expect(arguments_.text()).not.toContain('{')
+  })
+
+  it('opens an Agent while it runs and folds it when its result arrives, whatever it was before', async () => {
+    const agent = toolItem({ input: { tool: 'agent', description: 'Find it', subagentType: null, prompt: 'p' } })
+    const card = mountCard(agent)
+    expect(card.get('button').attributes('aria-expanded')).toBe('true')
+
+    await card.setProps({ call: { ...agent, state: 'done', result: { isError: false, excerpt: 'found', truncated: false, summary: null } } })
+
+    expect(card.get('button').attributes('aria-expanded')).toBe('false')
+  })
+
+  it('counts the calls of a subagent while it is folded', async () => {
+    const agent = toolItem({
+      input: { tool: 'agent', description: 'Find it', subagentType: null, prompt: 'p' },
+      state: 'done'
+    })
+    const card = mount(ToolCallCard, { props: { call: agent, innerCalls: 3 } })
+
+    expect(card.get('[data-testid=tool-inner-count]').text()).toBe('3 calls')
+    await card.get('button').trigger('click')
+    expect(card.find('[data-testid=tool-inner-count]').exists()).toBe(false)
   })
 })

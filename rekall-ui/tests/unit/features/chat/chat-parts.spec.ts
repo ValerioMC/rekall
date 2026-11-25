@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
+import ChatCommandOutput from '@/features/chat/components/ChatCommandOutput.vue'
+import ChatSessionStart from '@/features/chat/components/ChatSessionStart.vue'
 import ChatNotice from '@/features/chat/components/ChatNotice.vue'
 import ChatThinking from '@/features/chat/components/ChatThinking.vue'
 import ChatTurnFooter from '@/features/chat/components/ChatTurnFooter.vue'
@@ -52,5 +54,24 @@ describe('ChatNotice', () => {
 
     expect(notice.attributes('role')).toBe('status')
     expect(notice.text()).toBe('Context compacted')
+  })
+})
+
+describe('ChatSessionStart', () => {
+  it('says the model, where it runs and how it asks for leave, in one row', () => {
+    const row = mount(ChatSessionStart, { props: { model: 'claude-opus', cwd: '/code/vega', permissionMode: 'plan' } })
+
+    expect(row.text()).toBe('claude-opus·/code/vega·plan permissions')
+    expect(row.attributes('role')).toBeUndefined()
+  })
+})
+
+describe('ChatCommandOutput', () => {
+  it('labels the output with its command and keeps its line breaks', () => {
+    const output = mount(ChatCommandOutput, { props: { command: '/context', text: 'Context Usage\n  10% used' } })
+
+    expect(output.get('h3').text()).toBe('/context')
+    expect(output.get('pre').text()).toBe('Context Usage\n  10% used')
+    expect(output.get('pre').classes()).toContain('whitespace-pre')
   })
 })

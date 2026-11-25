@@ -115,8 +115,19 @@ its result is not summarised yet. The text, thinking, tool call and tool result 
 the `Agent` call that started it (`None` in the main conversation), so the window can draw them under that call. A turn's `context` is a `ContextFill` (`used_tokens`, `window_tokens`): the input, cache-read and cache-creation tokens of the
 last entry of `usage.iterations`, which is the turn's last API call, over the `contextWindow` of the model in `modelUsage` that
 wrote most (`turn_context.rs`). `result.usage` as a whole sums every call of the turn and is not used for it. Both `cost_usd`
-and `context` are `None` when the line carries none (a local command, an older `claude`). `EventJournal`
+and `context` are `None` when the line carries none (a local command, an older `claude`). When a turn finishes with a
+`context`, `ChatSessionManager` records it through `ContextFillService` for the session's task and its current step (the
+step `retarget` moved it to); a session on a project alone records nothing, and a failure is logged and the turn goes on.
+`GET /api/context-fill?taskId=` returns the stored fills of a task and the console's event stream carries them as a
+`context-fill` frame. `EventJournal`
 numbers and keeps them, which is what lets a reader that reconnects resume from `Last-Event-ID`.
+The console folds these events in `rekall-ui/src/features/chat/lib/timeline.ts` into items: a subagent's items keep their place in
+the list and carry their `parentToolUseId`, and `lib/group-by-parent.ts` then splits them from the conversation, so the 150-item
+window of `ChatTimeline` counts the conversation only and an Agent card (`ToolCallCard`) draws its own items through the same row
+lookup (`components/timeline-rows.ts`). A todo card starts open and an Agent card is open while it runs and folds when its result
+arrives; every other card starts closed. The `session` item is `ChatSessionStart` and the `command-output` item is
+`ChatCommandOutput`, which keeps its line breaks.
+
 `ChatSessionManager` owns the processes, the journal and the idle sweep; it talks to the rest of
 the application through two ports, `ChatPipe` (what a client does to a session: attach a listener, send a
 message, interrupt, answer a permission) and `ChatListener` (what the session reports to it: an event, the end).

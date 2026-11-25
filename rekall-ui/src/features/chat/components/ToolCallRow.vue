@@ -6,7 +6,9 @@ import { describeTool } from '@/features/chat/lib/describe-tool'
 import type { ToolItem } from '@/features/chat/model/timeline'
 
 /** The one-line face of a tool call: what it is, what it was pointed at, and what it did. */
-const props = defineProps<{ call: ToolItem; open: boolean; controls: string }>()
+const props = withDefaults(defineProps<{ call: ToolItem; open: boolean; controls: string; innerCalls?: number }>(), {
+  innerCalls: 0
+})
 
 defineEmits<{ toggle: [] }>()
 
@@ -25,6 +27,9 @@ const summary = computed(() => props.call.result?.summary ?? null)
     <ToolGlyph class="text-text-muted" :icon="description.icon" />
     <span class="shrink-0 text-small font-semibold text-text">{{ description.name }}</span>
     <span class="min-w-0 flex-1 truncate font-mono text-small text-text-muted">{{ description.target }}</span>
+    <span v-if="!open && innerCalls > 0" class="shrink-0 text-caption text-text-subtle" data-testid="tool-inner-count"
+      >{{ innerCalls }} {{ innerCalls === 1 ? 'call' : 'calls' }}</span
+    >
     <span
       v-if="summary"
       class="max-w-[40%] shrink-0 truncate text-caption"
