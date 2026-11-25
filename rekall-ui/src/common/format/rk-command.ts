@@ -49,6 +49,12 @@ export function rkRefineCommand(anchor: string): string {
   return base ? `${base} refine` : ''
 }
 
+/** The discussing line: the person leads a talk about the work still to do, and nothing is executed. */
+export function rkDiscussCommand(anchor: string): string {
+  const base = rkCommand(anchor)
+  return base ? `${base} discuss` : ''
+}
+
 /**
  * The rewriting line: the session corrects the wording of the task's description (`FIX`) or lays it
  * out under standard headings (`RESTRUCTURE`), and stores the result as the new description.

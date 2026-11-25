@@ -1,6 +1,7 @@
 import { nextTick, onUnmounted, ref, type Ref } from 'vue'
 
 const EDGE = 8
+const GAP = 4
 
 export interface AnchoredMenu {
   open: Ref<boolean>
@@ -13,8 +14,9 @@ export interface AnchoredMenu {
 
 /**
  * The behaviour of a menu that hangs under a key: placed against the key's right edge inside the
- * viewport, closed by an outside press, Escape or Tab, and walked with the arrow keys. The caller
- * renders the menu with `role="menuitem"` buttons and binds `menu`, `placement` and `handleKeydown`.
+ * viewport, above the key when only that side has room, closed by an outside press, Escape or
+ * Tab, and walked with the arrow keys. The caller renders the menu with `role="menuitem"` buttons
+ * and binds `menu`, `placement` and `handleKeydown`.
  */
 export function useAnchoredMenu(anchorElement: () => HTMLElement | null, width: number): AnchoredMenu {
   const open = ref(false)
@@ -25,7 +27,15 @@ export function useAnchoredMenu(anchorElement: () => HTMLElement | null, width: 
     const box = anchorElement()?.getBoundingClientRect()
     if (!box) return
     const left = Math.max(EDGE, Math.min(box.right - width, window.innerWidth - width - EDGE))
-    placement.value = { left: `${left}px`, top: `${box.bottom + 4}px`, width: `${width}px` }
+    placement.value = { left: `${left}px`, ...verticalPlacement(box), width: `${width}px` }
+  }
+
+  function verticalPlacement(box: DOMRect): Record<string, string> {
+    const height = menu.value?.offsetHeight ?? 0
+    const fitsBelow = box.bottom + GAP + height <= window.innerHeight - EDGE
+    const fitsAbove = box.top - GAP - height >= EDGE
+    if (!fitsBelow && fitsAbove) return { bottom: `${window.innerHeight - box.top + GAP}px` }
+    return { top: `${box.bottom + GAP}px` }
   }
 
   function menuItems(): HTMLElement[] {
@@ -50,6 +60,7 @@ export function useAnchoredMenu(anchorElement: () => HTMLElement | null, width: 
     open.value = true
     document.addEventListener('pointerdown', closeOnOutside, true)
     await nextTick()
+    place()
     menuItems()[0]?.focus()
   }
 

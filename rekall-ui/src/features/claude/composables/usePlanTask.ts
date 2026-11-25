@@ -15,7 +15,7 @@ export interface PlanTask {
 }
 
 /**
- * Has a session plan a task: the line is typed into the one live on the task, or a terminal is
+ * Has a session plan or discuss a task: the line is typed into the one live on the task, or a terminal is
  * opened that starts on it. A replan deletes steps, so it waits for `confirmReplan`, which also
  * carries what the plan missed.
  */
@@ -73,6 +73,7 @@ export function usePlanTask(
   function startedMessage(mode: PlanMode): string {
     if (mode === 'REPLAN') return 'Replanning. The new steps land here.'
     if (mode === 'REFINE') return 'Refining. Its decisions land here.'
+    if (mode === 'DISCUSS') return 'Discussing. What you agree lands on the task.'
     return 'Planning. Its proposals land here.'
   }
 

@@ -6,10 +6,10 @@ import { RUN_WITH_PROVIDER_LABEL } from '@/features/claude/model/session-provide
 import type { RunMenuAction } from '@/features/claude/model/runMenu'
 
 /**
- * The narrow key joined to the right of Run here. Its menu offers the ways to run beyond starting
- * a terminal now, and the ways to plan; it takes the main key's look through `ready` and `pressed`, and no press while `busy`.
+ * The narrow key joined to the right of Run here. A separator splits its menu's groups: ways to run
+ * the work, then ways to prepare it. It takes the main key's look through `ready` and `pressed`, and no press while `busy`.
  */
-defineProps<{ ready: boolean; pressed: boolean; busy: boolean; actions: readonly RunMenuAction[] }>()
+defineProps<{ ready: boolean; pressed: boolean; busy: boolean; groups: readonly (readonly RunMenuAction[])[] }>()
 
 const emit = defineEmits<{ choose: [action: RunMenuAction] }>()
 
@@ -19,6 +19,7 @@ const ENTRIES: Record<RunMenuAction, { label: string; testid: string }> = {
   CLAUDE: { label: RUN_WITH_PROVIDER_LABEL.CLAUDE, testid: 'run-with-CLAUDE' },
   CODEX: { label: RUN_WITH_PROVIDER_LABEL.CODEX, testid: 'run-with-CODEX' },
   RUN_IN_QUEUE: { label: 'Run in queue', testid: 'run-in-queue' },
+  DISCUSS: { label: 'Discuss', testid: 'discuss' },
   PLAN: { label: 'Plan here', testid: 'plan-here' },
   PLAN_FLOW: { label: 'Plan a flow', testid: 'plan-flow' },
   REPLAN: { label: 'Replan', testid: 'replan' }
@@ -83,18 +84,21 @@ function choose(action: RunMenuAction): void {
       data-testid="run-menu"
       @keydown="handleKeydown"
     >
-      <button
-        v-for="action in actions"
-        :key="action"
-        type="button"
-        role="menuitem"
-        class="focus-ring flex w-full cursor-pointer items-center justify-between gap-3 rounded-control px-2.5 py-2 text-left transition-colors hover:bg-surface"
-        :data-testid="ENTRIES[action].testid"
-        @click="choose(action)"
-      >
-        <span class="text-small font-medium text-text">{{ ENTRIES[action].label }}</span>
-        <RunMenuGlyph :action="action" />
-      </button>
+      <template v-for="(group, index) in groups" :key="index">
+        <div v-if="index > 0" class="mx-1 my-1 h-px bg-border" role="separator" />
+        <button
+          v-for="action in group"
+          :key="action"
+          type="button"
+          role="menuitem"
+          class="focus-ring flex w-full cursor-pointer items-center justify-between gap-3 rounded-control px-2.5 py-2 text-left transition-colors hover:bg-surface"
+          :data-testid="ENTRIES[action].testid"
+          @click="choose(action)"
+        >
+          <span class="text-small font-medium text-text">{{ ENTRIES[action].label }}</span>
+          <RunMenuGlyph :action="action" />
+        </button>
+      </template>
     </div>
   </Teleport>
 </template>
