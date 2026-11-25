@@ -195,8 +195,12 @@ and project) with the task's actions at its right (Log commit, Open in terminal 
 Run here, each offered once), and the title alone beneath. The tab strip is Description, Plan,
 Changes, Wrapup, Notes, Time and Deviations, with counts where a count means something (steps,
 logged commits, notes, deviations) and an amber one on Plan while a step waits for review; at its
-right is the width key. The **Run here** menu offers both providers for a single run when both
-CLIs are installed.
+right is the width key. The **Run here** menu (`RunMenuArrow`) is two groups split by a separator:
+running (both providers for a single run when both CLIs are installed, then Run in queue) and
+preparing (Discuss, Plan here, Plan a flow, Replan; Discuss is offered whatever steps the task has).
+The arrow keys walk the menu items only, so they pass over the separator, and a menu with no room
+under its key, as in a step's dock, opens above it (`useAnchoredMenu`). A discussion holding no step
+does not turn the key to Working (`sessionAtWork`).
 Beside every tab sits the properties bar (`TaskRail`), 272px wide, folding to an icon bar that the
 browser remembers. Plan keeps its own choice and starts folded, so the steps and the step being read
 have the width; the other tabs start open. Open, it holds: the status pill that changes the status and the copyable `/rk` anchor on top,
