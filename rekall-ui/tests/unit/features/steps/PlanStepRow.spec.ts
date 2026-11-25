@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import PlanStepRow from '@/features/steps/components/PlanStepRow.vue'
 import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TaskId, TaskStepId } from '@/model/branded'
@@ -31,6 +32,8 @@ const places = { canMoveUp: true, canMoveDown: true, sessions: [], aloneBeforeSe
 const rowProps = { number: 2, selected: false, isNext: false, allDone: false, endsSession: false, droppable: false, dropEdge: null, dragging: false, places }
 const open: TaskStep = { ...step, state: 'OPEN', done: false, doneAt: null }
 const claimed: TaskStep = { ...step, state: 'CLAIMED', done: false, doneAt: null, claimedAt: new Date(Date.now() - 14 * 60_000).toISOString() }
+
+beforeEach(() => setActivePinia(createPinia()))
 
 describe('PlanStepRow', () => {
   it('anchors the seal hit area to the seal so it cannot cover the rest of the plan', () => {

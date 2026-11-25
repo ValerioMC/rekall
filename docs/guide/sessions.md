@@ -79,7 +79,7 @@ A session can also be shown as a chat. It is the same `claude`, started without 
 - **When it ends.** If the `claude` process dies the window says so with its exit code, and the step it held is released. Closing the app releases every marker; nothing is persisted.
 - **What the terminal still does that chat does not.** `/clear` is not offered in the window, and the screens Claude Code draws in its own interface exist only in the terminal. A chat session counts toward the same session cap as terminals.
 
-Each finished turn leaves the share of the context window its last call held, for the task and for the step it ran on. `GET /api/context-fill?taskId=` returns them, and the console's event stream carries a task's fills as a `context-fill` frame after every turn.
+Each finished turn leaves the share of the context window its last call held, for the task and for the step it ran on. `GET /api/context-fill?taskId=` returns them, and the console's event stream carries a task's fills as a `context-fill` frame after every turn. The console shows the last one as a badge with the percent, on the task's properties bar and on the step the turn ran on: grey below 60 %, yellow from 60 and red from 85, with the tokens over the window in its tooltip. The chat header also shows the live session's fill and its total cost, and each turn's footer its cost.
 
 Tokens are counted from the transcripts either way, and the token chip counts a chat session's work. Whether chat spends more or fewer tokens than a terminal has not been measured; `scripts/session_shape.py` compares them by session type, and a first run on a very small sample, with no cold turn on either side, says nothing about cache expiry (see [claude-and-tokens](../design/claude-and-tokens.md)).
 
