@@ -43,6 +43,19 @@ fn a_refine_terminal_asks_the_session_to_go_through_the_task_and_follows_no_step
 }
 
 #[test]
+fn a_discuss_terminal_asks_the_session_to_discuss_the_task_and_follows_no_step() {
+    assert_eq!(TerminalMode::Discuss.first_line(ANCHORS), "/rk task:REPORT-BUILDER discuss");
+    assert!(!TerminalMode::Discuss.follows_steps() && !TerminalMode::Discuss.works_on_a_project());
+    assert_eq!(TerminalMode::Discuss.to_string(), "DISCUSS");
+}
+
+#[test]
+fn only_a_discuss_terminal_only_discusses() {
+    assert!(TerminalMode::Discuss.only_discusses());
+    assert!([TerminalMode::Work, TerminalMode::Plan, TerminalMode::Refine, TerminalMode::Revise].iter().all(|mode| !mode.only_discusses()));
+}
+
+#[test]
 fn a_rewrite_terminal_names_the_style_and_follows_no_step() {
     let fix = TerminalMode::Rewrite { style: RewriteStyle::Fix };
     let restructure = TerminalMode::Rewrite { style: RewriteStyle::Restructure };

@@ -109,6 +109,109 @@ async fn a_plan_terminal_opens_on_the_task_with_the_plan_line_and_a_plan_on_a_li
     terminals.close(working.id, "done").await;
 }
 
+async fn running_thread_entry(world: &support::World, task: &rekall_store::task::Model) {
+    use rekall_store::{task_feedback, FeedbackKind};
+    use sea_orm::{ActiveModelTrait, IntoActiveModel};
+    let now = rekall_kernel::Instant::now();
+    let mut entry = task_feedback::Model::new(task.id, 1, FeedbackKind::Implementation, "before".into(), "fix it".into(), now);
+    entry.take(1, now);
+    entry.into_active_model().insert(world.db()).await.unwrap();
+}
+
+async fn thread_entry_state(world: &support::World, task: &rekall_store::task::Model) -> rekall_store::FeedbackState {
+    rekall_store::repository::task_feedback::find_by_seq(world.db(), task.id, 1).await.unwrap().unwrap().state
+}
+
+async fn review_state(world: &support::World, task: &rekall_store::task::Model) -> TaskStepState {
+    rekall_store::repository::task::find_by_id(world.db(), task.id).await.unwrap().unwrap().review_state
+}
+
+#[tokio::test]
+async fn a_discuss_terminal_on_a_task_with_no_checklist_marks_nothing_running_and_takes_no_snapshot() {
+    use sea_orm::{ActiveModelTrait, IntoActiveModel, Set};
+    let world = world().await;
+    let folder = world.folder.path();
+    git_in(folder, &["init", "-q", "-b", "main"]);
+    let mut project = world.project("alpha", Some(folder)).await.into_active_model();
+    project.auto_commit = Set(true);
+    let project = project.update(world.db()).await.unwrap();
+    let task = world.task(&project, "one").await;
+    let terminals = world.terminals(8);
+
+    let view = terminals.open(TerminalOpening { mode: TerminalMode::Discuss, ..opening_on(TerminalTarget::Task(task.id)) }).await.unwrap();
+
+    let recorder = Arc::new(Recorder::default());
+    terminals.attach(view.id, recorder.clone()).unwrap();
+    eventually("the discuss line", || async { recorder.text().contains("ARGS:/rk task:AL-1 discuss") }).await;
+    assert_eq!(review_state(&world, &task).await, TaskStepState::Open);
+    let snapshot = rekall_store::repository::step_snapshot::find(world.db(), task.id, None).await.unwrap();
+    assert!(snapshot.is_none());
+    terminals.close(view.id, "done").await;
+}
+
+#[tokio::test]
+async fn a_discuss_terminal_releases_nothing_however_it_ends() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let closed = world.task(&project, "one").await;
+    let exited = world.task(&project, "two").await;
+    let shut_down = world.task(&project, "three").await;
+    let terminals = world.terminals(8);
+    let mut ended = terminals.subscribe_ended();
+    let mut views = Vec::new();
+    for task in [&closed, &exited, &shut_down] {
+        running_thread_entry(&world, task).await;
+        let opening = TerminalOpening { mode: TerminalMode::Discuss, ..opening_on(TerminalTarget::Task(task.id)) };
+        views.push(terminals.open(opening).await.unwrap());
+    }
+
+    terminals.close(views[0].id, "done").await;
+    terminals.write(views[1].id, b"exit\n").unwrap();
+    for _ in 0..2 {
+        tokio::time::timeout(std::time::Duration::from_secs(5), ended.recv()).await.unwrap().unwrap();
+    }
+    terminals.shutdown().await;
+
+    for task in [&closed, &exited, &shut_down] {
+        assert_eq!(thread_entry_state(&world, task).await, rekall_store::FeedbackState::Running, "{}", task.label);
+    }
+}
+
+#[tokio::test]
+async fn a_discuss_terminal_put_on_a_step_by_a_work_open_releases_it_when_it_ends() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Open).await;
+    let terminals = world.terminals(8);
+    let discussion = terminals.open(TerminalOpening { mode: TerminalMode::Discuss, ..opening_on(TerminalTarget::Task(task.id)) }).await.unwrap();
+
+    let working = terminals.open(TerminalOpening { step_id: Some(step.id), ..opening_on(TerminalTarget::Task(task.id)) }).await.unwrap();
+    assert_eq!((working.id, world.step_state(&task, &step).await), (discussion.id, TaskStepState::Running));
+    terminals.close(discussion.id, "done").await;
+
+    assert_eq!(world.step_state(&task, &step).await, TaskStepState::Open);
+}
+
+#[tokio::test]
+async fn a_discuss_open_on_a_task_with_a_live_session_is_typed_into_it_and_keeps_its_step_running() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Open).await;
+    let terminals = world.terminals(8);
+    let working = terminals.open(TerminalOpening { step_id: Some(step.id), ..opening_on(TerminalTarget::Task(task.id)) }).await.unwrap();
+    let recorder = Arc::new(Recorder::default());
+    terminals.attach(working.id, recorder.clone()).unwrap();
+
+    let discussion = terminals.open(TerminalOpening { mode: TerminalMode::Discuss, ..opening_on(TerminalTarget::Task(task.id)) }).await.unwrap();
+
+    assert_eq!((discussion.id, discussion.step_id), (working.id, Some(step.id)));
+    eventually("the typed discuss line", || async { recorder.text().contains("GOT:/rk task:AL-1 discuss") }).await;
+    assert_eq!(world.step_state(&task, &step).await, TaskStepState::Running);
+    terminals.close(working.id, "done").await;
+}
+
 #[tokio::test]
 async fn a_generate_terminal_on_a_project_alone_carries_no_task_and_marks_nothing_running() {
     let world = world().await;
