@@ -11,9 +11,10 @@ const TASKS = [task('t1', 'vega'), task('t2', 'vega')]
 function tabs(
   currentTaskId: TaskId | null = null,
   activities: ReadonlyMap<TaskId, TaskActivity> = new Map(),
-  tallies: ReadonlyMap<TaskId, StepTally> = new Map()
+  tallies: ReadonlyMap<TaskId, StepTally> = new Map(),
+  reviewCounts: ReadonlyMap<TaskId, number> = new Map()
 ) {
-  return mount(WorkingSetTaskTabs, { props: { project: VEGA, tasks: TASKS, currentTaskId, activities, tallies } })
+  return mount(WorkingSetTaskTabs, { props: { project: VEGA, tasks: TASKS, currentTaskId, activities, tallies, reviewCounts } })
 }
 
 describe('the task tab row', () => {
@@ -50,6 +51,24 @@ describe('the task tab row', () => {
     expect(tallies.map((tally) => tally.text())).toEqual(['3/7'])
     expect(tallies[0]?.attributes('title')).toBe('3 of 7 steps executed')
     expect(row.find('[data-testid="working-set-task-review"]').exists()).toBe(false)
+    expect(tallies[0]?.attributes('data-waiting')).toBeUndefined()
+    expect(tallies[0]?.classes()).not.toContain('bg-accent')
+  })
+
+  it('fills the counter in amber and says so while claimed steps wait for review', () => {
+    const row = tabs(
+      null,
+      new Map(),
+      new Map<TaskId, StepTally>([['t1' as TaskId, { executed: 3, total: 7 }]]),
+      new Map<TaskId, number>([['t1' as TaskId, 2]])
+    )
+    const tally = row.get('[data-testid="working-set-task-tally"]')
+
+    expect(tally.attributes('data-waiting')).toBe('true')
+    expect(tally.classes()).toContain('bg-accent')
+    expect(tally.text()).toBe('3/7')
+    expect(tally.attributes('title')).toBe('3 of 7 steps executed, 2 waiting for your review')
+    expect(tally.attributes('aria-label')).toBe('3 of 7 steps executed, 2 waiting for your review')
   })
 
   it('selects a task or the task list when a tab is pressed', async () => {

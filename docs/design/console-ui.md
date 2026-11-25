@@ -105,8 +105,9 @@ and the set alone).
 - **Level 2, `WorkingSetTaskTabs`, for the project in view:** "All tasks N" first, which is the
   project's task list, then a tab per open task: a dot in the task's own status colour, the
   activity mark, its code, a truncated title, the count of steps executed over the steps there are
-  (`3/7`, claimed and done both counted, drafts left out, nothing on a task with no steps) and a
-  cross on hover or focus. A plus goes to the task list, where another task is opened.
+  (`3/7`, claimed and done both counted, drafts left out, nothing on a task with no steps; the same
+  element is filled in amber, with the waiting count in its title and accessible name, while claimed
+  steps wait for the person) and a cross on hover or focus. A plus goes to the task list, where another task is opened.
   The activity mark (`TaskActivityMark`) is three bars, never a dot, so it is not read as a second
   status: moving bars in bright indigo while a step is running or the task's chat turn is working;
   still bars in indigo once a step was claimed or done, or a session is open on the task; short

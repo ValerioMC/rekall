@@ -10,8 +10,8 @@ import type { TaskId } from '@/model/branded'
 /**
  * Level 2 of the working-set bar, for the project in view: the project's task list first, then a
  * tab per open task. A tab's dot is the task's own status, the bars beside it say whether a
- * session works on it, and the count is the steps executed of the steps there are. The cross
- * closes a task and selects nothing; the plus goes to the task list, where another task is opened.
+ * session works on it, and the count is the steps executed of the steps there are, filled in
+ * amber while claimed steps wait for the person. The cross closes a task and selects nothing; the plus goes to the task list, where another task is opened.
  */
 const props = defineProps<{
   project: Project
@@ -19,6 +19,7 @@ const props = defineProps<{
   currentTaskId: TaskId | null
   activities: ReadonlyMap<TaskId, TaskActivity>
   tallies: ReadonlyMap<TaskId, StepTally>
+  reviewCounts: ReadonlyMap<TaskId, number>
 }>()
 
 const emit = defineEmits<{ select: [place: OpenPlace]; close: [taskId: TaskId] }>()
@@ -40,9 +41,14 @@ function tallyText(task: Task): string | null {
   return tally && tally.total > 0 ? `${tally.executed}/${tally.total}` : null
 }
 
+function waitingCount(task: Task): number {
+  return props.reviewCounts.get(task.id) ?? 0
+}
+
 function tallyTitle(task: Task): string {
   const tally = props.tallies.get(task.id)
-  return `${tally?.executed ?? 0} of ${tally?.total ?? 0} steps executed`
+  const executed = `${tally?.executed ?? 0} of ${tally?.total ?? 0} steps executed`
+  return waitingCount(task) > 0 ? `${executed}, ${waitingCount(task)} waiting for your review` : executed
 }
 </script>
 
@@ -95,8 +101,11 @@ function tallyTitle(task: Task): string {
         <span class="truncate">{{ task.title }}</span>
         <span
           v-if="tallyText(task)"
-          class="shrink-0 font-mono text-caption tabular-nums text-text-subtle"
+          class="shrink-0 font-mono text-caption tabular-nums"
+          :class="waitingCount(task) > 0 ? 'rounded-full bg-accent px-1.5 font-medium text-accent-ink' : 'text-text-subtle'"
           :title="tallyTitle(task)"
+          :aria-label="tallyTitle(task)"
+          :data-waiting="waitingCount(task) > 0 ? 'true' : undefined"
           data-testid="working-set-task-tally"
         >
           {{ tallyText(task) }}

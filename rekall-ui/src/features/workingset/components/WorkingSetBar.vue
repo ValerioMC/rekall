@@ -74,6 +74,7 @@ async function close(taskId: TaskId): Promise<void> {
       :current-task-id="taskInView?.id ?? null"
       :activities="activities"
       :tallies="tallies"
+      :review-counts="reviewCounts"
       @select="visit"
       @close="close"
     />
