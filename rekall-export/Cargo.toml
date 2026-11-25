@@ -1,0 +1,9 @@
+[package]
+name = "rekall-export"
+description = "A project's pages as a PDF or Word file: the document model, the markdown it is read from and the two writers"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+pulldown-cmark.workspace = true
+thiserror.workspace = true

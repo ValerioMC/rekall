@@ -13,6 +13,7 @@ resolver = "2"
 members = [
     "rekall-kernel",
     "rekall-diagram",
+    "rekall-export",
     "rekall-store",
     "rekall-core",
     "rekall-console",
@@ -25,6 +26,7 @@ members = [
 default-members = [
     "rekall-kernel",
     "rekall-diagram",
+    "rekall-export",
     "rekall-store",
     "rekall-core",
     "rekall-console",
@@ -43,6 +45,7 @@ rust-version = "1.85"
 [workspace.dependencies]
 rekall-kernel = { path = "rekall-kernel" }
 rekall-diagram = { path = "rekall-diagram" }
+rekall-export = { path = "rekall-export" }
 rekall-store = { path = "rekall-store" }
 rekall-core = { path = "rekall-core" }
 rekall-console = { path = "rekall-console" }
@@ -64,6 +67,7 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 uuid = { version = "1", features = ["v4", "serde"] }
 regex = "1"
 thiserror = "2"
+pulldown-cmark = { version = "0.13", default-features = false }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
