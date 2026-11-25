@@ -122,4 +122,74 @@ describe('ToolCallCard', () => {
 
     expect(card.get('[data-testid=tool-call-body]').text()).toContain('https://example.com')
   })
+
+  it('says what the call did after what it was pointed at, without opening it', () => {
+    const card = mountCard({
+      ...BASH,
+      state: 'failed',
+      result: { isError: true, excerpt: 'boom', truncated: false, summary: 'exit code 1' }
+    })
+
+    expect(card.get('[data-testid=tool-summary]').text()).toBe('exit code 1')
+    expect(card.find('[data-testid=tool-call-body]').exists()).toBe(false)
+  })
+
+  it('shows no summary when the result has none', () => {
+    const card = mountCard({ ...BASH, state: 'done', result: { isError: false, excerpt: 'ok', truncated: false, summary: null } })
+
+    expect(card.find('[data-testid=tool-summary]').exists()).toBe(false)
+  })
+
+  it('reads a todo list open, in progress first, a glyph for each status', () => {
+    const card = mountCard(
+      toolItem({
+        input: {
+          tool: 'todos',
+          items: [
+            { content: 'write tests', status: 'pending' },
+            { content: 'build parser', status: 'completed' },
+            { content: 'wire route', status: 'inProgress' }
+          ]
+        }
+      })
+    )
+
+    expect(card.get('button').attributes('aria-expanded')).toBe('true')
+    const rows = card.findAll('[data-testid=tool-todos] li')
+    expect(rows.map((row) => row.text())).toEqual(['In progresswire route', 'Pendingwrite tests', 'Completedbuild parser'])
+    expect(card.text()).toContain('1 of 3 done')
+  })
+
+  it('keeps every other call closed', () => {
+    const web = mountCard(toolItem({ input: { tool: 'web', name: 'WebFetch', target: 'https://example.com/a' } }))
+    const agent = mountCard(toolItem({ input: { tool: 'agent', description: 'Find it', subagentType: null, prompt: 'p' } }))
+
+    expect(web.get('button').attributes('aria-expanded')).toBe('false')
+    expect(agent.get('button').attributes('aria-expanded')).toBe('false')
+  })
+
+  it('shows a web call as its host in the row and its whole address in the body', async () => {
+    const card = mountCard(toolItem({ input: { tool: 'web', name: 'WebFetch', target: 'https://example.com/docs/a' } }))
+
+    expect(card.text()).toContain('example.com')
+    await card.get('button').trigger('click')
+
+    expect(card.get('[data-testid=tool-web-target]').text()).toBe('https://example.com/docs/a')
+  })
+
+  it('names an mcp call by server and tool and reads its arguments as lines', async () => {
+    const card = mountCard(
+      toolItem({
+        input: { tool: 'mcp', server: 'rekall', toolName: 'rekall_context', text: JSON.stringify({ anchors: 'task:RK-1', limit: 3 }, null, 2) }
+      })
+    )
+
+    expect(card.text()).toContain('rekall · rekall_context')
+    await card.get('button').trigger('click')
+
+    const arguments_ = card.get('[data-testid=tool-arguments]')
+    expect(arguments_.findAll('dt').map((key) => key.text())).toEqual(['anchors', 'limit'])
+    expect(arguments_.findAll('dd').map((value) => value.text())).toEqual(['task:RK-1', '3'])
+    expect(arguments_.text()).not.toContain('{')
+  })
 })

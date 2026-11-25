@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { mcpArguments } from '@/features/chat/lib/mcp-arguments'
 import { describePermission } from '@/features/chat/lib/describe-permission'
 import { describeTool } from '@/features/chat/lib/describe-tool'
 import { splitLines } from '@/features/chat/lib/lines'
@@ -121,5 +122,21 @@ describe('describePermission for the new tools', () => {
     expect(describePermission({ tool: 'mcp', server: 'rekall', toolName: 'rekall_note', text: '' })).toBe(
       'Claude wants to use rekall_note of rekall'
     )
+  })
+})
+
+describe('mcpArguments', () => {
+  it('reads a JSON object as key and value lines, text as it is and objects compact', () => {
+    expect(mcpArguments(JSON.stringify({ a: 'x', b: 2, c: { d: 1 } }))).toEqual([
+      { key: 'a', value: 'x' },
+      { key: 'b', value: '2' },
+      { key: 'c', value: '{"d":1}' }
+    ])
+  })
+
+  it('keeps text that is not an object as one line with no key, and has none for no text', () => {
+    expect(mcpArguments('plain words')).toEqual([{ key: '', value: 'plain words' }])
+    expect(mcpArguments('[1,2]')).toEqual([{ key: '', value: '[1,2]' }])
+    expect(mcpArguments('')).toEqual([])
   })
 })
