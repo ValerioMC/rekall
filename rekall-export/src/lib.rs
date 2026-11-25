@@ -8,6 +8,7 @@ pub mod docx;
 pub mod document;
 pub mod image;
 pub mod markdown;
+pub mod pdf;
 pub mod style;
 
 mod export_error;
@@ -16,5 +17,6 @@ pub use docx::DocxWriter;
 pub use image::PngSize;
 pub use document::{DiagramImage, ExportDocument, ExportPart};
 pub use export_error::ExportError;
+pub use pdf::PdfWriter;
 pub use markdown::{Block, InlineRun, ListItem, MarkdownBlocks};
 pub use style::{DocumentStyle, Rgb};
