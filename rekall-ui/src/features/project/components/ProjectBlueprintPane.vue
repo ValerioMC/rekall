@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onUnmounted, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
+import ExportAction from '@/features/export/components/ExportAction.vue'
 import ProjectPaneFrame from '@/features/project/components/ProjectPaneFrame.vue'
 import ProjectReadingColumn from '@/features/project/components/ProjectReadingColumn.vue'
 import TaskWidthMenu from '@/features/task/components/TaskWidthMenu.vue'
@@ -9,6 +10,7 @@ import { usePreferencesStore } from '@/features/settings/store/preferences.store
 import { identityHue } from '@/common/identity'
 import { useConsoleStore } from '@/stores/console.store'
 import { useEditorMode } from '@/composables/useEditorMode'
+import type { ExportSelection } from '@/features/export/model/project-export'
 import type { Project } from '@/features/catalog/model/catalog'
 
 const SAVE_DELAY_MS = 700
@@ -29,12 +31,19 @@ function schedule(): void {
   }, SAVE_DELAY_MS)
 }
 
-function flush(): void {
+async function settle(): Promise<void> {
   if (!timer) return
   clearTimeout(timer)
   timer = null
-  void store.saveProjectBlueprint(props.project.id, draft.value)
+  await store.saveProjectBlueprint(props.project.id, draft.value)
 }
+
+function flush(): void {
+  void settle()
+}
+
+const blueprintOnly: ExportSelection = { blueprint: true, sectionIds: [], componentIds: [] }
+const emptyReason = computed(() => (draft.value.trim() === '' ? 'The blueprint is empty.' : null))
 
 watch(
   () => props.project.id,
@@ -57,15 +66,18 @@ onUnmounted(flush)
         :style="{ '--texture-tint': identityHue(project.id).base }"
         aria-hidden="true"
       />
-      <div class="relative flex items-center gap-3 px-5 py-3">
-        <div class="min-w-0 flex-1">
-          <h2 class="text-title font-semibold tracking-[-0.01em] text-text">Blueprint</h2>
-          <p class="mt-0.5 truncate text-small text-text-subtle">
-            What <code class="text-anchor/80">/rk {{ project.anchor }}</code> hands to Claude
-          </p>
+      <div class="relative px-5 py-3">
+        <div class="flex items-center gap-3">
+          <h2 class="min-w-0 flex-1 truncate text-title font-semibold tracking-[-0.01em] text-text">Blueprint</h2>
+          <div class="flex shrink-0 items-center gap-2">
+            <ExportAction :project-id="project.id" :selection="blueprintOnly" :empty-reason="emptyReason" :settle="settle" />
+            <TaskWidthMenu v-model="preferences.taskWidth" />
+            <AppModeToggle v-model="mode" testid-prefix="blueprint-mode" />
+          </div>
         </div>
-        <TaskWidthMenu v-model="preferences.taskWidth" />
-        <AppModeToggle v-model="mode" testid-prefix="blueprint-mode" />
+        <p class="mt-0.5 truncate text-small text-text-subtle">
+          What <code class="text-anchor/80">/rk {{ project.anchor }}</code> hands to Claude
+        </p>
       </div>
     </template>
     <template #default="{ editorHeight }">

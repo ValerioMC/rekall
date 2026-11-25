@@ -3,6 +3,7 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppMarkdownEditor from '@/components/ui/AppMarkdownEditor.vue'
 import AppModeToggle from '@/components/ui/AppModeToggle.vue'
+import ExportAction from '@/features/export/components/ExportAction.vue'
 import FolderPickerButton from '@/features/project/components/FolderPickerButton.vue'
 import ProjectComponentOutline from '@/features/project/components/ProjectComponentOutline.vue'
 import ProjectPaneFrame from '@/features/project/components/ProjectPaneFrame.vue'
@@ -16,6 +17,7 @@ import { relativeToRoot } from '@/features/project/lib/component-tree'
 import { jumpToHeading } from '@/features/project/lib/heading-jump'
 import { outlineOf } from '@/features/project/lib/markdown-outline'
 import { useProjectComponentsStore } from '@/features/project/store/projectComponents.store'
+import type { ExportSelection } from '@/features/export/model/project-export'
 import type { Direction } from '@/features/project/lib/section-order'
 import type { ProjectComponent } from '@/features/project/model/project-component'
 
@@ -67,7 +69,22 @@ function schedule(): void {
   timer = setTimeout(() => void save(), SAVE_DELAY_MS)
 }
 
-async function save(): Promise<void> {
+let writing: Promise<void> | null = null
+
+function save(): Promise<void> {
+  const started = write().finally(() => (writing = null))
+  writing = started
+  return started
+}
+
+async function settle(): Promise<void> {
+  if (timer) await save()
+  else await writing
+}
+
+const thisComponent = computed<ExportSelection>(() => ({ blueprint: false, sectionIds: [], componentIds: [props.component.id] }))
+
+async function write(): Promise<void> {
   if (timer) clearTimeout(timer)
   timer = null
   saveState.value = 'saving'
@@ -114,77 +131,85 @@ onUnmounted(() => {
 <template>
   <ProjectPaneFrame :label="component.name" testid="component-pane">
     <template #header>
-      <div class="flex flex-wrap items-start gap-3 px-5 py-3">
-        <div class="min-w-0 flex-1">
-          <label class="sr-only" :for="`component-name-${component.id}`">Component name</label>
-          <input
-            :id="`component-name-${component.id}`"
-            v-model="nameDraft"
-            maxlength="200"
-            autocomplete="off"
-            spellcheck="false"
-            class="focus-ring -mx-1 w-full truncate rounded-key border-0 bg-transparent px-1 py-0.5 text-heading font-medium tracking-[-0.01em] text-text hover:bg-surface-raised focus:bg-surface-raised"
-            data-testid="component-name"
-            @input="schedule"
-            @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
-          />
-          <div v-if="mode === 'write'" class="mt-1.5 flex items-center gap-1.5">
-            <label class="sr-only" :for="`component-folder-${component.id}`">Component folder</label>
+      <div class="px-5 py-3">
+        <div class="flex items-center gap-3">
+          <div class="min-w-0 flex-1">
+            <label class="sr-only" :for="`component-name-${component.id}`">Component name</label>
             <input
-              :id="`component-folder-${component.id}`"
-              v-model="folderDraft"
-              class="field text-text h-8 min-w-0 flex-1 rounded-control px-2 font-mono text-caption"
-              maxlength="1000"
+              :id="`component-name-${component.id}`"
+              v-model="nameDraft"
+              maxlength="200"
               autocomplete="off"
               spellcheck="false"
-              placeholder="/path/to/the/component"
-              data-testid="component-folder"
+              class="focus-ring -mx-1 w-full truncate rounded-key border-0 bg-transparent px-1 py-0.5 text-heading font-medium tracking-[-0.01em] text-text hover:bg-surface-raised focus:bg-surface-raised"
+              data-testid="component-name"
               @input="schedule"
+              @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
             />
-            <FolderPickerButton :root="repoFolder" :current="folderDraft" data-testid="component-browse" @pick="folderChosen" />
           </div>
-          <p v-else class="mt-0.5 truncate font-mono text-caption text-text-muted" :title="component.folder" data-testid="component-folder-line">
-            {{ shownFolder }}
-          </p>
-          <p class="mt-1 text-small text-text-subtle">
+          <div class="flex shrink-0 items-center gap-2">
+            <ExportAction :project-id="component.projectId" :selection="thisComponent" :settle="settle" />
+            <TaskWidthMenu v-model="preferences.taskWidth" />
+            <AppModeToggle v-model="mode" testid-prefix="component-mode" />
+          </div>
+        </div>
+        <div v-if="mode === 'write'" class="mt-1.5 flex items-center gap-1.5">
+          <label class="sr-only" :for="`component-folder-${component.id}`">Component folder</label>
+          <input
+            :id="`component-folder-${component.id}`"
+            v-model="folderDraft"
+            class="field text-text h-8 min-w-0 flex-1 rounded-control px-2 font-mono text-caption"
+            maxlength="1000"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="/path/to/the/component"
+            data-testid="component-folder"
+            @input="schedule"
+          />
+          <FolderPickerButton :root="repoFolder" :current="folderDraft" data-testid="component-browse" @pick="folderChosen" />
+        </div>
+        <div class="mt-0.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <p class="min-w-0 truncate text-small text-text-subtle">
+            <template v-if="mode !== 'write'">
+              <span class="font-mono text-caption text-text-muted" :title="component.folder" data-testid="component-folder-line">{{ shownFolder }}</span>
+              <span class="px-1 text-border-strong" aria-hidden="true">·</span>
+            </template>
             Edited {{ relativeTime(component.updatedAt) }}
             <span class="px-1 text-border-strong" aria-hidden="true">/</span>
             <span :class="saveState === 'unsaved' ? 'text-warn' : ''" role="status" data-testid="component-save-state">{{ saveLabel }}</span>
           </p>
+          <div class="flex items-center gap-1">
+            <AppButton
+              variant="quiet"
+              size="icon"
+              class="disabled:opacity-30"
+              :disabled="!canMoveUp"
+              aria-label="Move component up"
+              title="Move up"
+              data-testid="component-up"
+              @click="emit('move', 'up')"
+            >
+              <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M3.5 8.5L7 5l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </AppButton>
+            <AppButton
+              variant="quiet"
+              size="icon"
+              class="disabled:opacity-30"
+              :disabled="!canMoveDown"
+              aria-label="Move component down"
+              title="Move down"
+              data-testid="component-down"
+              @click="emit('move', 'down')"
+            >
+              <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M3.5 5.5L7 9l3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </AppButton>
+            <AppButton variant="danger-quiet" size="sm" data-testid="component-delete" @click="emit('delete')">Delete</AppButton>
+          </div>
         </div>
-        <div class="flex items-center gap-0.5">
-          <AppButton
-            variant="quiet"
-            size="icon"
-            class="disabled:opacity-30"
-            :disabled="!canMoveUp"
-            aria-label="Move component up"
-            title="Move up"
-            data-testid="component-up"
-            @click="emit('move', 'up')"
-          >
-            <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M3.5 8.5L7 5l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </AppButton>
-          <AppButton
-            variant="quiet"
-            size="icon"
-            class="disabled:opacity-30"
-            :disabled="!canMoveDown"
-            aria-label="Move component down"
-            title="Move down"
-            data-testid="component-down"
-            @click="emit('move', 'down')"
-          >
-            <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M3.5 5.5L7 9l3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </AppButton>
-          <AppButton variant="danger-quiet" size="sm" data-testid="component-delete" @click="emit('delete')">Delete</AppButton>
-        </div>
-        <TaskWidthMenu v-model="preferences.taskWidth" />
-        <AppModeToggle v-model="mode" testid-prefix="component-mode" />
       </div>
     </template>
 

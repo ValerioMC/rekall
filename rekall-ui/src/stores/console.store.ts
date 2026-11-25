@@ -5,6 +5,7 @@ import { useCommitReferences } from '../features/commits/store/useCommitReferenc
 import { useCompanyWrites } from '../features/catalog/store/useCompanyWrites'
 import { useTaskDecisions } from '../features/decisions/store/decisions.slice'
 import { useFeedbackThread } from '../features/feedback/store/feedback.slice'
+import { useProjectExports } from '../features/export/store/exports.slice'
 import { useGraphAttach } from '../features/graph/store/useGraphAttach'
 import { useConsoleNavigation } from './console/useConsoleNavigation'
 import { useConsoleRefreshes } from './console/useConsoleRefreshes'
@@ -48,6 +49,7 @@ export const useConsoleStore = defineStore('console', () => {
   const wrapups = useWrapupWrites(state, refreshes, timers)
   const feedback = useFeedbackThread(state, refreshes)
   const decisions = useTaskDecisions(state)
+  const projectExports = useProjectExports()
   const contextFills = useContextFills(state)
   const commitReferences = useCommitReferences(state)
   const skills = useSkillAssignments(state)
@@ -85,6 +87,7 @@ export const useConsoleStore = defineStore('console', () => {
     ...graphAttach,
     ...wrapups,
     ...feedback,
+    ...projectExports,
     ...decisions,
     ...contextFills,
     ...commitReferences,

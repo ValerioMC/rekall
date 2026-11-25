@@ -62,6 +62,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     label: 'Library',
     screens: [
       { to: '/diagrams', label: 'Diagrams', hint: 'Generated diagrams', routes: ['diagrams'] },
+      { to: '/exports', label: 'Exports', hint: 'PDF and Word files you exported', routes: ['exports'] },
       { to: '/claude', label: 'Claude files', hint: 'Instructions, memories and skills', routes: ['claude'] }
     ]
   },

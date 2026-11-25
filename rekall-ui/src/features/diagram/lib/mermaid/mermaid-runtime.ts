@@ -1,4 +1,5 @@
 import type { Mermaid, MermaidConfig } from 'mermaid'
+import { paperTokenReader, type DiagramPalette } from '../diagram-palette'
 import { nativeThemeVariables } from './native-theme'
 
 /**
@@ -6,6 +7,8 @@ import { nativeThemeVariables } from './native-theme'
  * Mermaid's own model, which the scene readers translate, and drawing the types it has no
  * components for.
  */
+
+const PIE_SLICES = 8
 
 let loading: Promise<Mermaid> | null = null
 
@@ -26,9 +29,9 @@ export async function parseMermaid(source: string): Promise<{ readonly type: str
 let renders = 0
 
 /** Mermaid's own SVG for `source`, sanitised by Mermaid at its default security level. */
-export async function renderMermaid(source: string): Promise<string> {
+export async function renderMermaid(source: string, palette: DiagramPalette = 'console'): Promise<string> {
   renders += 1
-  const { svg } = await (await mermaid()).render(`rk-diagram-sheet-${renders}`, themed(source))
+  const { svg } = await (await mermaid()).render(`rk-diagram-sheet-${renders}`, themed(source, palette))
   return svg
 }
 
@@ -39,9 +42,25 @@ export function consoleMermaidConfig(): MermaidConfig {
   return { startOnLoad: false, theme: 'base', themeVariables }
 }
 
+/** Mermaid's settings for the paper palette. Labels are plain SVG text: a foreignObject would taint the canvas the export draws on. */
+export function paperMermaidConfig(): MermaidConfig {
+  const themeVariables = { ...nativeThemeVariables(paperTokenReader, false), ...pieSlices() }
+  return { theme: 'base', themeVariables, htmlLabels: false, flowchart: { htmlLabels: false } }
+}
+
 /** Front matter has to stay first, so a sheet that carries its own keeps its own config. */
-function themed(source: string): string {
+function themed(source: string, palette: DiagramPalette): string {
   if (source.trimStart().startsWith('---')) return source
+  return `%%{init: ${JSON.stringify(initOf(palette))}}%%\n${source}`
+}
+
+function pieSlices(): Record<string, string> {
+  const scale = nativeThemeVariables(paperTokenReader, false)
+  return Object.fromEntries(Array.from({ length: PIE_SLICES }, (_, index) => [`pie${index + 1}`, String(scale[`cScale${index}`])]))
+}
+
+function initOf(palette: DiagramPalette): MermaidConfig {
+  if (palette === 'paper') return paperMermaidConfig()
   const { theme, themeVariables } = consoleMermaidConfig()
-  return `%%{init: ${JSON.stringify({ theme, themeVariables })}}%%\n${source}`
+  return { theme, themeVariables }
 }

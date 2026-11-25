@@ -42,6 +42,7 @@ loaded in one call, including its notes.
 | D6 | Modular monolith, single process, embedded database | Single user, localhost. The application has to be reachable with one command or it will not get used. Localhost is enforced, not assumed: `LocalAccessFilter` refuses a peer that is not loopback, a `Host` that is not this machine and an `Origin` from another site, since nothing here authenticates and the API can open a terminal. |
 | D7 | What a record is called and what an anchor resolves are two columns | One column serving both jobs would mean a rename breaks anchors written down elsewhere, and makes every name a compromise between readable and typeable. `label` is a slug and is the identity; `title` is prose and is free. See §4. |
 | D8 | A task carries one wrapup, and it is a state and not a log | The thing that costs a session its first twenty minutes is reconstructing what the code already does. A note cannot answer that: notes accumulate, and the reader has to synthesise the current state out of them. A wrapup is that synthesis, written once and overwritten thereafter. Its own table, because notes accumulate on a task by construction and "one answer per task" has to be a constraint rather than a convention. See §4.1. |
+| D9 | An export's diagrams are drawn by the console and sent with the request, and its file is stored and downloaded by link | The server has no browser, and the console already draws Mermaid: it draws each fence again on a light palette (`diagram-palette.ts`), takes a PNG and posts `{ source, png }` pairs beside the choice, so `rekall-export` only places pictures it is handed and a fence with none becomes an error paragraph, never a failed export. A finished file is stored in `project_export_file` and the person downloads it from `GET /api/exports/{id}/file`, a plain attachment link, as the desktop shell already saves a backup, so the console handles no blob and an export can be fetched again until it is deleted. |
 
 Non-goals: multi-user, authentication, remote deployment, vector search.
 
@@ -54,6 +55,7 @@ rekall/
   rekall-kernel/     RekallError, Id, Instant, the string helpers and logged best-effort cleanup: the vocabulary every layer shares
   rekall-store/      one folder per domain: SeaORM entities with their state rules and the queries over them; the SQLite connection and migrations
   rekall-diagram/    the diagram format: Mermaid sheets, code links, JSON form, validation; depends on nothing of Rekall's
+  rekall-export/     a project's pages as a PDF or Word file: the document model, the markdown it is read from and the two writers (`DocxWriter`, `PdfWriter`); depends on nothing of Rekall's
   rekall-core/       the services the MCP tools may use and every port, one folder per domain: context assembly, the step and review lines, flows, wrapups, notes, time entries, token usage, vulnerabilities
   rekall-console/    the services only the console calls, one folder per domain: commands in, views out, no HTTP types
   rekall-http/       Axum REST routes for the UI, one folder per domain: controllers, request and response shapes and routes; `shared` holds the error body, request extractors and response helpers
@@ -77,6 +79,9 @@ folder per crate. The chain:
    serves HTTP, and `rekall-http` never sees it.
 4. `rekall-app` sees everything: it builds the `rekall-infra` implementations, hands them to
    `rekall-http` in `ApiPorts`, and mounts both routers.
+5. `rekall-diagram` and `rekall-export` depend on no Rekall crate. `rekall-export` takes markdown parts and
+   the pictures of their diagrams and returns the bytes of a PDF or Word file; `rekall-console` calls it and
+   nothing below `rekall-console` does.
 
 `rekall-mcp` lists `rekall-kernel` and `rekall-core` and no other Rekall crate: no entity,
 repository, console service or route is in its reach, and the few `rekall-store` enums its tools
@@ -113,6 +118,7 @@ is found by opening one folder per crate:
 | `check` | the commands a person sets to pass before a claim is accepted, for a whole project or one step, and what each run found; the console writes them, no session can |
 | `decision` | what a person and a session settle about a task before it runs, one record per question: a key, its options, the answer (a changed answer keeps the one it replaced), details added later, the conversation lines behind it, optionally one step; `DecisionService` in `rekall-core` is what every writer calls (a session through `rekall_decision` in `rekall-mcp`, a person editing, adding or removing one by hand through `TaskDecisionService` in `rekall-console`, whose records the context marks as edited by you), the context carries the records in a `<decisions>` block and the task's decisions come before each step's |
 | `deviation` | where a task's work departed from its plan, one record per task and step and apart from its notes: a session writes it (`rekall_deviation`, in `rekall-core` and `rekall-mcp`), the console only reads it, and the context carries it in a `<deviations>` block |
+| `export` | a project's exports as one PDF or Word file: the row that records each (`project_export`, done or failed with the kind of error) and the file's bytes in a table of its own (`project_export_file`), kept until deleted; `ProjectExportService` (`rekall-console`) writes one with `DocxWriter` or `PdfWriter` from `rekall-export`, records a failed write as a `FAILED` row with its kind (`RENDER` or `STORAGE`) and refuses an invalid request without recording it, lists, serves the file, deletes one and clears a company's, a project's or the failed ones |
 | `feedback` | a task's revisions of its description: the text before and after a saved change, aimed at the work (`IMPLEMENTATION`) or at the plan (`PLAN`, the default on a task with steps), each `PENDING` while it waits, `RUNNING` once Run revision took it into a numbered pass, `APPLIED` when a session replies; a session answers open revisions with `FeedbackService::reply` (`rekall-core`), which also gives unanswered running ones back when its session ends, and the context carries the thread in a `<thread>` block; the console's `FeedbackService` (`rekall-console`) records every saved change of an evaluated task's description as a revision, points a waiting one at the work or the plan with `PATCH /api/feedback/{id}`, starts a pass with `POST /api/tasks/{id}/feedback/passes` (refused while a pass runs) and discards a waiting one; a revision is never typed apart from the description |
 | `dependency` | a task that waits for another task of its project to be accepted: the pair, the cycle rule, and what a task still waits for as the run queue and the context read it; the console writes the pairs, no session can |
 | `connection` | the GitLab instances, GitHub servers, Kubernetes clusters, Jira sites, Confluence sites and Grafana instances projects reach, the companies each is shared with, the projects that bind each, the log of every credential a terminal asked for, the Jira issues a project imports as tasks, the Confluence space a project's description, blueprint and sections are filled from (`ConfluenceSpaces`, the port, `ConfluenceSpaceService` in `rekall-console`, which groups the pages by concept in `confluence_grouping_rules`), the Jira project, Confluence space or GitLab group or project a binding's target is checked against and suggested from (`ConnectionTargetService`, and `GitlabTargetService` over the `GitlabNamespaces` port, implemented by `HttpGitlabNamespaces` in `rekall-infra/src/tracker/`), the task manager a project writes its tasks to (`TaskTracker`, the port, and `TaskTrackerService` in `rekall-core`), and the pull request or merge request of a task's branch on that task manager (`PullRequestHost`, the port, with `GithubPullRequestHost`, `GitlabPullRequestHost` and `ConnectionPullRequestHost`, which picks one by the connection's kind, in `rekall-infra/src/tracker/`) |
@@ -160,9 +166,10 @@ from its table:
 |---|---|
 | `rekall-kernel` | nothing |
 | `rekall-diagram` | nothing |
+| `rekall-export` | nothing |
 | `rekall-store` | `rekall-kernel` |
 | `rekall-core` | `rekall-diagram`, `rekall-kernel`, `rekall-store` |
-| `rekall-console` | `rekall-core`, `rekall-kernel`, `rekall-store` |
+| `rekall-console` | `rekall-core`, `rekall-export`, `rekall-kernel`, `rekall-store` |
 | `rekall-http` | `rekall-console`, `rekall-core`, `rekall-diagram`, `rekall-kernel`, `rekall-store` |
 | `rekall-mcp` | `rekall-core`, `rekall-kernel` |
 | `rekall-infra` | `rekall-core`, `rekall-diagram`, `rekall-kernel`, `rekall-store` |
@@ -193,6 +200,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `dependency` | `task` | `claude` | `queue`, `task` | nothing | - |
 | `deviation` | `task` | `step`, `task` | `task` | nothing | nothing |
 | `diagram` | `catalog`, `task` | `catalog`, `task` | nothing | nothing | nothing |
+| `export` | `catalog` | - | `catalog`, `component`, `section` | nothing | - |
 | `feedback` | `task` | `task` | `step`, `task`, `wrapup` | nothing | nothing |
 | `filesystem` | - | - | nothing | nothing | - |
 | `flow` | `step`, `task` | `step` | - | `step` | `step` |
@@ -241,7 +249,7 @@ A new feature is a folder first. What it is decides which kind:
 | It is | Where it goes | Examples |
 |---|---|---|
 | Rekall's data and the rules on it | a domain folder in each layer crate it needs: the entities and queries in `rekall-store`, the rules a session may use in `rekall-core`, the console's writes in `rekall-console`, the routes in `rekall-http`, the tools in `rekall-mcp` | `note`, `step`, `wrapup` |
-| Something that knows nothing of Rekall | a crate of its own, depending on no Rekall crate | `rekall-diagram` |
+| Something that knows nothing of Rekall | a crate of its own, depending on no Rekall crate | `rekall-diagram`, `rekall-export` |
 | A capability that touches the machine: a process, a file, a socket, outbound HTTP | a port: the trait in a `rekall-core` domain, a thin service over it in `rekall-console`, the implementation in a `rekall-infra` folder, injected by `rekall-app` through `ApiPorts` | the terminals and chat sessions, the backups, the database registry, the release feed, the OS credential store |
 
 - **A rule that needs only data never goes in `rekall-infra`.** One that reads the database is a
@@ -350,6 +358,8 @@ Project ──< VulnerabilityExposure >── SecurityAdvisory
 | `commit_reference` | through its task | `task_id`, `step_id` (set null when the step is deleted, so the commit stays on its task; migration `076-commit-reference-step-kept`), `commit_hash`, `comment`, `diff`, `in_context`; indexed by task and by step; deleted with its task |
 | `wrapup` | through its task | `task_id` unique, `body_markdown`, `written_by` |
 | `project_component` | through its project | `project_id`, `name`, `folder`, `description`, `position` |
+| `project_export` | through its project | `project_id`, `format` (`PDF`, `DOCX`), `status` (`DONE`, `FAILED`), `summary` (what was exported, in a line), `file_name`, `size_bytes`, `diagrams_missing` (the diagrams the file holds an error paragraph for), `failure_kind` (`RENDER`, `STORAGE`) and `failure_message` (set exactly when it failed), `created_at`; migration `m095_project_export`; deleted with its project |
+| `project_export_file` | through its export | `export_id` (the key), `bytes`; a table of its own so a listing never reads a file; deleted with its export |
 | `done_check` | through its project | `project_id`, `step_id` (null: the check runs for every step of the project), `label`, `command`, `folder` (relative to the project folder, null for the folder itself), `timeout_seconds` (1 to 3600), `position` within its scope (the project's checks, or one step's); deleted with its project or step (migration `061-done-check`; not `check`, a SQL keyword). Written by the console only |
 | `done_check_result` | through its check | `check_id`, `task_id`, `step_id` (null for a task with no steps), `passed`, `exit_code` (null when it timed out), `output_tail`, `ran_at`, `duration_ms`; deleted with its check, task or step. Written by `CheckExecutionService` in `rekall-core`, one row per run, the failing run included |
 | `deployment_graph` | through its project | `project_id`, `title` (unique per project, ignoring case), `description`, `release_default` (laid on every task the console runs; at most one per project); deleted with its project |
@@ -473,6 +483,26 @@ nothing about them reaches the MCP write path: the toggle is a hint to the reade
 
 The step line, the flow with its routes and visits, the deployment graphs and the epics are
 designed in [design/workflow.md](design/workflow.md), under the same numbers.
+
+### 4.6 Exports
+
+A project's blueprint, ticked pages and ticked components become one PDF or Word file (`rekall-export`): the
+blueprint first, then pages by context and position, then components by position, each opening with its
+title as a level-1 heading and the headings inside it moved one level down. `ProjectExportService` writes
+the file in `spawn_blocking`, stores it with its row, and on a failed write or insert records a `FAILED` row with
+its kind and returns an error whose message names the kind; a request refused as invalid (nothing ticked, a blank
+blueprint alone, an item of another project) is not recorded. Diagrams are decision D9.
+
+| Route | Does |
+|---|---|
+| `POST /api/projects/{id}/exports` | Makes an export from `format` (`pdf`, `docx`), `blueprint`, `sectionIds`, `componentIds` and `diagrams` (`source` and base64 `png`); answers `201` with the entry. A 64 MB body limit on this route only |
+| `GET /api/exports` | Every export, newest first, with its project and company |
+| `GET /api/exports/{id}/file` | The bytes as an attachment with the format's content type; a failed or unknown export is `404` |
+| `DELETE /api/exports/{id}` | Deletes the export and its file, `204` |
+| `DELETE /api/exports?companyId&projectId&status` | Deletes every export the filters name, answers `{ "deleted": n }` |
+
+The console lists them on `/exports`, a Library screen, grouped by company then project; filters and search run
+over the loaded list and have no route.
 
 ---
 

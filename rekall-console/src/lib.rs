@@ -14,6 +14,7 @@ pub mod decision;
 pub mod dependency;
 pub mod deviation;
 pub mod diagram;
+pub mod export;
 pub mod feedback;
 pub mod filesystem;
 pub mod graph;

@@ -70,6 +70,7 @@ mod m091_task_decision;
 mod m092_section_context;
 mod m093_working_set;
 mod m094_context_fill;
+mod m095_project_export;
 mod migration_support;
 mod migrator;
 
