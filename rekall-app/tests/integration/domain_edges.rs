@@ -124,6 +124,7 @@ const CONSOLE: LayeredCrate = LayeredCrate {
         ("dependency", &["queue", "task"]),
         ("deviation", &["task"]),
         ("diagram", &[]),
+        ("export", &["catalog", "component", "section"]),
         ("feedback", &["step", "task", "wrapup"]),
         ("filesystem", &[]),
         ("graph", &["catalog", "flow", "step", "task"]),

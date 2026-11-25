@@ -36,6 +36,8 @@ pub enum InternalFailure {
     Encoding,
     /// A stored value no longer parses, such as a diagram's graph.
     CorruptData,
+    /// A document could not be written or kept as an export file.
+    Export,
 }
 
 impl InternalFailure {
@@ -47,6 +49,7 @@ impl InternalFailure {
             Self::Background => "Background job",
             Self::Encoding => "Encoding",
             Self::CorruptData => "Corrupt data",
+            Self::Export => "Export",
         }
     }
 }

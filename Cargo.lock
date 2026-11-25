@@ -4556,6 +4556,7 @@ dependencies = [
  "futures",
  "image",
  "rekall-core",
+ "rekall-export",
  "rekall-kernel",
  "rekall-store",
  "sea-orm",

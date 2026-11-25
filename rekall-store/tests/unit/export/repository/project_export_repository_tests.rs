@@ -134,3 +134,39 @@ async fn an_unknown_export_is_not_found() {
 
     assert!(refusal.message().contains("Export"));
 }
+
+#[tokio::test]
+async fn deleting_matching_exports_keeps_the_others() {
+    let database = crate::open_temporary().await.unwrap();
+    let db = &database.conn;
+    let vega = a_project(db, "Acme", "vega").await;
+    let orion = a_project(db, "Globex", "orion").await;
+    let kept = done_export(vega.id, Instant::now());
+    insert_done(db, kept.clone(), vec![1]).await.unwrap();
+    insert_failed(db, failed_export(vega.id, Instant::now())).await.unwrap();
+    insert_done(db, done_export(orion.id, Instant::now()), vec![2]).await.unwrap();
+    insert_failed(db, failed_export(orion.id, Instant::now())).await.unwrap();
+
+    assert_eq!(delete_matching(db, None, None, Some(ExportStatus::Failed)).await.unwrap(), 2);
+    assert_eq!(delete_matching(db, None, Some(vega.id), None).await.unwrap(), 1);
+    assert_eq!(delete_matching(db, Some(orion.company_id), None, None).await.unwrap(), 1);
+
+    assert!(Entity::find().all(db).await.unwrap().is_empty());
+    assert!(project_export_file::Entity::find().all(db).await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn deleting_by_company_and_status_takes_only_what_matches_both() {
+    let database = crate::open_temporary().await.unwrap();
+    let db = &database.conn;
+    let vega = a_project(db, "Acme", "vega").await;
+    let orion = a_project(db, "Globex", "orion").await;
+    insert_done(db, done_export(vega.id, Instant::now()), vec![1]).await.unwrap();
+    insert_failed(db, failed_export(vega.id, Instant::now())).await.unwrap();
+    insert_failed(db, failed_export(orion.id, Instant::now())).await.unwrap();
+
+    let deleted = delete_matching(db, Some(vega.company_id), None, Some(ExportStatus::Failed)).await.unwrap();
+
+    assert_eq!(deleted, 1);
+    assert_eq!(Entity::find().all(db).await.unwrap().len(), 2);
+}

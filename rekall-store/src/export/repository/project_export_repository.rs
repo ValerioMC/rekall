@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use rekall_kernel::{Id, RekallError};
-use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, IntoActiveModel, QueryFilter, QueryOrder};
+use sea_orm::{ActiveModelTrait, ColumnTrait, Condition, ConnectionTrait, EntityTrait, IntoActiveModel, QueryFilter, QueryOrder};
 
 use crate::export::ProjectExportListing;
 use crate::project_export::{Column, Entity, Model};
@@ -50,6 +50,23 @@ pub async fn file_of(db: &impl ConnectionTrait, id: Id) -> Result<Option<Vec<u8>
 pub async fn delete(db: &impl ConnectionTrait, id: Id) -> Result<(), RekallError> {
     Entity::delete_many().filter(Column::Id.eq(id)).exec(db).await?;
     Ok(())
+}
+
+/// Deletes every export that matches all the criteria given, with its file, and counts them.
+/// A criterion left out matches everything; the caller refuses a call that gives none.
+pub async fn delete_matching(db: &impl ConnectionTrait, company_id: Option<Id>, project_id: Option<Id>, status: Option<ExportStatus>) -> Result<u64, RekallError> {
+    let mut condition = Condition::all();
+    if let Some(project_id) = project_id {
+        condition = condition.add(Column::ProjectId.eq(project_id));
+    }
+    if let Some(status) = status {
+        condition = condition.add(Column::Status.eq(status));
+    }
+    if let Some(company_id) = company_id {
+        let project_ids: Vec<Id> = project::Entity::find().filter(project::Column::CompanyId.eq(company_id)).all(db).await?.into_iter().map(|project| project.id).collect();
+        condition = condition.add(Column::ProjectId.is_in(project_ids));
+    }
+    Ok(Entity::delete_many().filter(condition).exec(db).await?.rows_affected)
 }
 
 fn refuse_other_status(export: &Model, expected: ExportStatus) -> Result<(), RekallError> {

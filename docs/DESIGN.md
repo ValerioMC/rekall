@@ -113,7 +113,7 @@ is found by opening one folder per crate:
 | `check` | the commands a person sets to pass before a claim is accepted, for a whole project or one step, and what each run found; the console writes them, no session can |
 | `decision` | what a person and a session settle about a task before it runs, one record per question: a key, its options, the answer (a changed answer keeps the one it replaced), details added later, the conversation lines behind it, optionally one step; `DecisionService` in `rekall-core` is what every writer calls (a session through `rekall_decision` in `rekall-mcp`, a person editing, adding or removing one by hand through `TaskDecisionService` in `rekall-console`, whose records the context marks as edited by you), the context carries the records in a `<decisions>` block and the task's decisions come before each step's |
 | `deviation` | where a task's work departed from its plan, one record per task and step and apart from its notes: a session writes it (`rekall_deviation`, in `rekall-core` and `rekall-mcp`), the console only reads it, and the context carries it in a `<deviations>` block |
-| `export` | a project's exports as one PDF or Word file: the row that records each (`project_export`, done or failed with the kind of error) and the file's bytes in a table of its own (`project_export_file`), kept until deleted; the store holds the data, the console service, routes and page follow |
+| `export` | a project's exports as one PDF or Word file: the row that records each (`project_export`, done or failed with the kind of error) and the file's bytes in a table of its own (`project_export_file`), kept until deleted; `ProjectExportService` (`rekall-console`) writes one with `DocxWriter` or `PdfWriter` from `rekall-export`, records a failed write as a `FAILED` row with its kind (`RENDER` or `STORAGE`) and refuses an invalid request without recording it, lists, serves the file, deletes one and clears a company's, a project's or the failed ones |
 | `feedback` | a task's revisions of its description: the text before and after a saved change, aimed at the work (`IMPLEMENTATION`) or at the plan (`PLAN`, the default on a task with steps), each `PENDING` while it waits, `RUNNING` once Run revision took it into a numbered pass, `APPLIED` when a session replies; a session answers open revisions with `FeedbackService::reply` (`rekall-core`), which also gives unanswered running ones back when its session ends, and the context carries the thread in a `<thread>` block; the console's `FeedbackService` (`rekall-console`) records every saved change of an evaluated task's description as a revision, points a waiting one at the work or the plan with `PATCH /api/feedback/{id}`, starts a pass with `POST /api/tasks/{id}/feedback/passes` (refused while a pass runs) and discards a waiting one; a revision is never typed apart from the description |
 | `dependency` | a task that waits for another task of its project to be accepted: the pair, the cycle rule, and what a task still waits for as the run queue and the context read it; the console writes the pairs, no session can |
 | `connection` | the GitLab instances, GitHub servers, Kubernetes clusters, Jira sites, Confluence sites and Grafana instances projects reach, the companies each is shared with, the projects that bind each, the log of every credential a terminal asked for, the Jira issues a project imports as tasks, the Confluence space a project's description, blueprint and sections are filled from (`ConfluenceSpaces`, the port, `ConfluenceSpaceService` in `rekall-console`, which groups the pages by concept in `confluence_grouping_rules`), the Jira project, Confluence space or GitLab group or project a binding's target is checked against and suggested from (`ConnectionTargetService`, and `GitlabTargetService` over the `GitlabNamespaces` port, implemented by `HttpGitlabNamespaces` in `rekall-infra/src/tracker/`), the task manager a project writes its tasks to (`TaskTracker`, the port, and `TaskTrackerService` in `rekall-core`), and the pull request or merge request of a task's branch on that task manager (`PullRequestHost`, the port, with `GithubPullRequestHost`, `GitlabPullRequestHost` and `ConnectionPullRequestHost`, which picks one by the connection's kind, in `rekall-infra/src/tracker/`) |
@@ -161,9 +161,10 @@ from its table:
 |---|---|
 | `rekall-kernel` | nothing |
 | `rekall-diagram` | nothing |
+| `rekall-export` | nothing |
 | `rekall-store` | `rekall-kernel` |
 | `rekall-core` | `rekall-diagram`, `rekall-kernel`, `rekall-store` |
-| `rekall-console` | `rekall-core`, `rekall-kernel`, `rekall-store` |
+| `rekall-console` | `rekall-core`, `rekall-export`, `rekall-kernel`, `rekall-store` |
 | `rekall-http` | `rekall-console`, `rekall-core`, `rekall-diagram`, `rekall-kernel`, `rekall-store` |
 | `rekall-mcp` | `rekall-core`, `rekall-kernel` |
 | `rekall-infra` | `rekall-core`, `rekall-diagram`, `rekall-kernel`, `rekall-store` |
@@ -194,7 +195,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `dependency` | `task` | `claude` | `queue`, `task` | nothing | - |
 | `deviation` | `task` | `step`, `task` | `task` | nothing | nothing |
 | `diagram` | `catalog`, `task` | `catalog`, `task` | nothing | nothing | nothing |
-| `export` | `catalog` | - | - | - | - |
+| `export` | `catalog` | - | `catalog`, `component`, `section` | - | - |
 | `feedback` | `task` | `task` | `step`, `task`, `wrapup` | nothing | nothing |
 | `filesystem` | - | - | nothing | nothing | - |
 | `flow` | `step`, `task` | `step` | - | `step` | `step` |
