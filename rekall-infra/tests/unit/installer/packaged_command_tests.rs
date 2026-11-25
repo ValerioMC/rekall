@@ -21,6 +21,9 @@ const MODE_HEADINGS: [&str; 15] = [
     "Wrapping up",
 ];
 
+/// Packaged beside the modes and named by no row of the table: the mode files point to it.
+const FILE_THE_MODES_SHARE: &str = "reader.md";
+
 fn files_named_in_the_mode_table() -> Vec<String> {
     PACKAGED_COMMAND
         .lines()
@@ -33,8 +36,8 @@ fn files_named_in_the_mode_table() -> Vec<String> {
 #[test]
 fn every_file_the_mode_table_names_is_packaged() {
     let named = files_named_in_the_mode_table();
-    assert_eq!(named.len(), PACKAGED_MODES.len());
-    for file in named {
+    assert_eq!(named.len() + 1, PACKAGED_MODES.len());
+    for file in named.iter().map(String::as_str).chain([FILE_THE_MODES_SHARE]) {
         assert!(PACKAGED_MODES.iter().any(|(name, _)| *name == file), "{file} is named in rk.md and not packaged");
     }
 }
