@@ -525,8 +525,17 @@ and the motion is a CSS transition. Docked beside the note pane, the window give
 through a negative right margin, so its text does not reflow and the note pane follows it; over a
 page or expanded it translates and fades. Once shown the window stays mounted while hidden, inert and
 out of the tab order, so the draft and the scroll position survive a hide; focus moves to the note
-pane when the window hides. Under reduced motion it cuts. On `/console` with no terminal, the
+pane when the window hides, and the Hide key carries a chevron pointing at the edge it goes to. Under
+reduced motion it cuts. On `/console` with no terminal, the
 console waits for the slide before it leaves for the task page.
+
+While the window is hidden and the selected task has a session, `ChatReopenTag` is the way back: a
+round button at the bottom right that slides in from the edge as the window leaves. It reads the
+session's state from the hidden window's own events: moving bars (`TaskActivityMark`) while Claude
+works, a still bubble with a green dot when idle, a dashed quiet bubble when the session ended, and
+an amber pill reading "Needs your answer" with a ping ring while a permission waits. Each state has
+its own accessible name ("Open the chat, waiting for your answer"). Only the selected task's session is
+shown.
 
 An approval is never answered or expired on the user's behalf: `ChatApprovalCard` shows the call
 (with a diff for an edit) and stays until a `permissionResolved` event arrives. Whether the session is

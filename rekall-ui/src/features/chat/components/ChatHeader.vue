@@ -156,7 +156,12 @@ function onSwitcherKeydown(event: KeyboardEvent): void {
         <AppButton variant="quiet" size="sm" data-testid="chat-expand" @click="emit('toggle-expand')">
           {{ expanded ? 'Restore' : 'Expand' }}
         </AppButton>
-        <AppButton variant="quiet" size="sm" data-testid="chat-hide" @click="emit('hide')">Hide</AppButton>
+        <AppButton variant="quiet" size="sm" data-testid="chat-hide" @click="emit('hide')">
+          Hide
+          <svg class="size-3 shrink-0" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path d="M2.5 2.5 6 6l-3.5 3.5M6.5 2.5 10 6 6.5 9.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </AppButton>
         <AppButton variant="danger" size="sm" data-testid="chat-stop-session" @click="confirmingStop = true">
           Stop session
         </AppButton>
