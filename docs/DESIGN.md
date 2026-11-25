@@ -195,7 +195,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `dependency` | `task` | `claude` | `queue`, `task` | nothing | - |
 | `deviation` | `task` | `step`, `task` | `task` | nothing | nothing |
 | `diagram` | `catalog`, `task` | `catalog`, `task` | nothing | nothing | nothing |
-| `export` | `catalog` | - | `catalog`, `component`, `section` | - | - |
+| `export` | `catalog` | - | `catalog`, `component`, `section` | nothing | - |
 | `feedback` | `task` | `task` | `step`, `task`, `wrapup` | nothing | nothing |
 | `filesystem` | - | - | nothing | nothing | - |
 | `flow` | `step`, `task` | `step` | - | `step` | `step` |

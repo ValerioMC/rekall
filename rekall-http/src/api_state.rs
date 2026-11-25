@@ -20,7 +20,7 @@ use rekall_core::queue::RunQueueService;
 use rekall_core::skill::SkillGroupService;
 use rekall_core::Services;
 
-use rekall_console::{adherence, backup, catalog, chat, check, claude, component, connection, decision, dependency, deviation, diagram, feedback, filesystem, graph, guard, note, queue, quick, section, settings, skill, tag, terminal, version, vulnerability, workingset, worktree};
+use rekall_console::{adherence, backup, catalog, chat, check, claude, component, connection, decision, dependency, deviation, diagram, export, feedback, filesystem, graph, guard, note, queue, quick, section, settings, skill, tag, terminal, version, vulnerability, workingset, worktree};
 
 use crate::{ApiPorts, StepEventStream};
 
@@ -63,6 +63,7 @@ pub struct ApiState {
     pub section_contexts: section::SectionContextService,
     pub section_layout: section::SectionLayoutService,
     pub component_catalog: component::ProjectComponentCatalogService,
+    pub exports: export::ProjectExportService,
     pub checks: check::CheckService,
     pub task_dependencies: dependency::TaskDependencyService,
     pub task_decisions: decision::TaskDecisionService,
@@ -203,6 +204,7 @@ impl ApiState {
             section_contexts: section::SectionContextService::new(ctx.clone()),
             section_layout: section::SectionLayoutService::new(ctx.clone()),
             component_catalog,
+            exports: export::ProjectExportService::new(ctx.clone()),
             checks: check::CheckService::new(ctx.clone()),
             task_dependencies: dependency::TaskDependencyService::new(ctx.clone(), RunQueueService::new(ctx.clone())),
             task_decisions: decision::TaskDecisionService::new(ctx.clone()),

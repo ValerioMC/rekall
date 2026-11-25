@@ -81,6 +81,10 @@ name = "e2e_connections"
 path = "tests/integration/e2e_connections.rs"
 
 [[test]]
+name = "e2e_export"
+path = "tests/integration/e2e_export.rs"
+
+[[test]]
 name = "e2e_graphs"
 path = "tests/integration/e2e_graphs.rs"
 
