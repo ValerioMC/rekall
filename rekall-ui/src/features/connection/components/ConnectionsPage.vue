@@ -167,11 +167,11 @@ async function backToList(): Promise<void> {
       </template>
     </AppCatalogHeader>
 
-    <div class="page-column shrink-0 pt-4"><ProjectsSubNav active="connections" /></div>
+    <ProjectsSubNav active="connections" />
 
     <p class="sr-only" role="status" aria-live="polite" data-testid="connections-live">{{ announcement }}</p>
 
-    <div class="page-column flex min-h-0 flex-1 flex-col pb-6 pt-6">
+    <div class="page-column flex min-h-0 flex-1 flex-col pb-6 pt-5">
       <RouterLink
         v-if="returnTo && backLabel"
         :to="returnTo"

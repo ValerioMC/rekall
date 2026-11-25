@@ -363,9 +363,11 @@ open, and are listed in Settings under Keyboard.
 ## The other sections
 
 **Projects.** Projects, Companies and Connections share one sub-navigation with counts
-(`ProjectsSubNav`). The list is a card per project under its company, with the identity mark, anchor,
-status pill, a composition bar (filed, to review, in progress, to do: `lib/project-composition.ts`)
-and counts. The project page opens with a scope bar and a header that is the same on every working
+(`ProjectsSubNav`). The list is one ledger: a band per company and a row per project (`ProjectRow`) with the identity mark, anchor,
+a composition bar (filed, to review, in progress, to do: `lib/project-composition.ts`), what waits for review, tokens,
+the status pill and when it last moved, under a column head and a toolbar of status segments (`ProjectListToolbar`).
+A row folds below 52rem of its container. `ProjectsSubNav` also holds the page column all three screens sit in, and
+the screen's own search at its right end. The project page opens with a scope bar and a header that is the same on every working
 screen, the `/rk` search and the status capsule (`ConsoleHeader`). The title is the project switcher
 (`ScopeSwitcher`): a search field, the **pinned** projects (`pinnedProjects.store`, three at most, a star on every
 row), the projects opened last that are not pinned (`recentProjects.store`, five kept in `localStorage`, three
@@ -378,9 +380,9 @@ On a project page a choice goes to that project on the tab already open. What ea
 is the page's; the switcher only hands back a `ScopeTarget`. The project page is a route per tab (`/projects/:id/:tab`): Tasks (the ledger
 narrowed to the project through `projectTasks.focusProject`), Blueprint, Pages, Components, Diagrams,
 Deployment, Connections and Settings; Blueprint and Deployment keep what the old page held beyond
-the mockup's six. Companies is a list with a detail pane (`/companies/:id`); Connections are grouped
-by kind with Check and the credential reveal. The company is named beside a project on the cards'
-group, the project page, a company's detail and the ⌘K palette.
+the mockup's six. Companies is a list (`CompanyRailItem`: size, composition bar, reviews waiting) with a detail pane (`/companies/:id`, `CompanyDetail`: composition with its legend, connections, the company's projects as `ProjectRow`s); Connections are grouped
+by kind with Check and the credential reveal. The company is named beside a project on the ledger's
+company band, the project page, a company's detail and the ⌘K palette.
 
 **Time** has the Report and the Calendar behind one sub-navigation; the grouping stays
 `common/report/time-report.ts`. **Library** has Diagrams (a gallery grouped by project, and the

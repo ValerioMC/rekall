@@ -43,4 +43,12 @@ describe('the Projects sub-navigation', () => {
 
     expect(wrapper.find('[data-testid="sub-nav"] [data-testid="screen-search"]').exists()).toBe(true)
   })
+
+  it('sits in the page column every screen of the section shares', async () => {
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:p(.*)*', component: { render: () => null } }] })
+    const wrapper = mount(ProjectsSubNav, { props: { active: 'connections' }, global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.classes()).toContain('page-column')
+  })
 })

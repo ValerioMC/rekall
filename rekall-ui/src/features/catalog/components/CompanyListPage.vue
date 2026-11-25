@@ -130,13 +130,11 @@ async function confirmDelete(): Promise<void> {
       </template>
     </AppCatalogHeader>
 
-    <div class="page-column pt-4">
-      <ProjectsSubNav active="companies">
-        <div class="w-70 max-w-full">
-          <AppInput v-model="search" type="search" placeholder="Find a company" />
-        </div>
-      </ProjectsSubNav>
-    </div>
+    <ProjectsSubNav active="companies">
+      <div class="w-70 max-w-full">
+        <AppInput v-model="search" type="search" placeholder="Find a company" />
+      </div>
+    </ProjectsSubNav>
 
     <div class="page-column @container py-5">
       <div v-if="store.isLoading" class="flex flex-col gap-2" aria-hidden="true">
