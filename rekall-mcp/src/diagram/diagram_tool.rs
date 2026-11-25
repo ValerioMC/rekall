@@ -42,6 +42,10 @@ impl McpTool for DiagramTool {
             )
             .required_string("title", "What the diagram shows, short, under 200 characters.")
             .required_string("question", "The request the diagram answers, in the words it was asked.")
+            .required_object(
+                "scenario",
+                "The one concrete case the diagram follows, read before any sheet: `{\"situation\":\"In the Plan tab of RK-12 you drag step 4 above step 2\",\"example\":\"step 4 moves to position 2 and stops opening a session\",\"outcome\":\"the checklist reads 1, 4, 2, 3\"}`.",
+            )
             .required_object_array(
                 "sheets",
                 "One to eight sheets: `[{\"title\":\"Checkout\",\"mermaid\":\"sequenceDiagram\\n…\",\"links\":{\"S\":[{\"file\":\"src/order.rs\",\"startLine\":10,\"endLine\":80}]}}]`.",
@@ -56,13 +60,16 @@ impl McpTool for DiagramTool {
     async fn execute(&self, arguments: Option<&Value>) -> Result<String, ToolError> {
         let args = Arguments::of(arguments);
         let target = target_of(&Anchor::parse_all(Some(&args.required_string("anchors")?))?)?;
-        let document = json!({ "sheets": sheets_argument(args.value("sheets"))? });
+        let mut document = json!({ "sheets": sheets_argument(args.value("sheets"))? });
+        if let Some(scenario) = scenario_argument(args.value("scenario"))? {
+            document["scenario"] = scenario;
+        }
         let generated = GeneratedDiagram {
             target,
             diagram_id: diagram_id(args.optional_string("diagram"))?,
             title: args.required_string("title")?,
             question: args.required_string("question")?,
-            document: DiagramService::read_document(document).map_err(|e| told(e, ""))?,
+            document: DiagramService::read_generated_document(document).map_err(|e| told(e, ""))?,
         };
         let written = self.diagrams.write_generated(generated).await.map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
         Ok(written_report(&written))
@@ -92,6 +99,17 @@ fn sheets_argument(argument: Option<&Value>) -> Result<Value, ToolError> {
         Some(Value::String(text)) => serde_json::from_str(text)
             .map_err(|error| ToolError::Illegal(format!("'sheets' is a string that is not a JSON array: {error}"))),
         Some(sheets) => Ok(sheets.clone()),
+    }
+}
+
+/// The scenario as an object, or as a string holding one; left out, the document is refused for it.
+fn scenario_argument(argument: Option<&Value>) -> Result<Option<Value>, ToolError> {
+    match argument {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(text)) => serde_json::from_str(text)
+            .map(Some)
+            .map_err(|error| ToolError::Illegal(format!("'scenario' is a string that is not a JSON object: {error}"))),
+        Some(scenario) => Ok(Some(scenario.clone())),
     }
 }
 

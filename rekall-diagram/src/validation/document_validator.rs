@@ -1,4 +1,4 @@
-use crate::document::{DiagramDocument, DiagramKind, DiagramSheet, SourceLocation, Walkthrough, WalkthroughMessage};
+use crate::document::{DiagramDocument, DiagramKind, DiagramSheet, Scenario, SourceLocation, Walkthrough, WalkthroughMessage};
 use crate::mermaid::{ElementKey, MermaidText};
 
 use super::{DocumentViolation, DocumentViolations};
@@ -10,10 +10,12 @@ const MAX_LINKS_PER_SHEET: usize = 400;
 const MAX_SOURCES_PER_LINK: usize = 8;
 const MAX_EXPLAIN_CHARACTERS: usize = 1_000;
 const MAX_VALUE_CHARACTERS: usize = 2_000;
+const MAX_SCENARIO_FIELD_CHARACTERS: usize = 1_000;
 
 /// Checks a parsed document against what the console relies on: every sheet declares a Mermaid
 /// type, every link names something its sheet draws and a sane span of code, and a walkthrough
-/// speaks of messages its sequence sends and opens only other sequence sheets.
+/// speaks of messages its sequence sends and opens only other sequence sheets. A scenario, when
+/// there is one, fills its three fields.
 pub struct DocumentValidator {
     violations: Vec<DocumentViolation>,
 }
@@ -25,7 +27,24 @@ impl DocumentValidator {
         DocumentViolations::into_result(validator.violations)
     }
 
+    /// The rules of `validate`, and a scenario: a diagram a session writes opens on the case it follows.
+    pub fn validate_generated(document: &DiagramDocument) -> Result<(), DocumentViolations> {
+        let mut validator = Self { violations: Vec::new() };
+        if document.scenario.is_none() {
+            validator.refuse(
+                "scenario",
+                "a diagram opens on its scenario: `situation` (who does what, where), `example` (the concrete values) \
+                 and `outcome` (what they see or get at the end)",
+            );
+        }
+        validator.check(document);
+        DocumentViolations::into_result(validator.violations)
+    }
+
     fn check(&mut self, document: &DiagramDocument) {
+        if let Some(scenario) = &document.scenario {
+            self.check_scenario(scenario);
+        }
         if document.sheets.is_empty() {
             self.refuse("sheets", "a diagram needs at least one sheet");
         }
@@ -39,6 +58,16 @@ impl DocumentValidator {
             if let Some(walkthrough) = &sheet.walkthrough {
                 self.check_walkthrough(&format!("{at}.walkthrough"), index, sheet, walkthrough, &kinds);
             }
+        }
+    }
+
+    fn check_scenario(&mut self, scenario: &Scenario) {
+        for (field, text) in scenario.fields() {
+            let path = format!("scenario.{field}");
+            if text.trim().is_empty() {
+                self.refuse(&path, "must not be blank");
+            }
+            self.check_length(&path, text, MAX_SCENARIO_FIELD_CHARACTERS);
         }
     }
 

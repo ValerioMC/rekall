@@ -33,6 +33,14 @@ impl DiagramService {
         Ok(document)
     }
 
+    /// Reads a document a session sent, held to the rules of `read_document` and to carrying a
+    /// scenario, every reason in one refusal.
+    pub fn read_generated_document(value: serde_json::Value) -> Result<DiagramDocument> {
+        let document = DocumentCodec::from_value(value).map_err(|error| RekallError::illegal(error.to_string()))?;
+        DocumentValidator::validate_generated(&document).map_err(|violations| RekallError::illegal(violations.to_string()))?;
+        Ok(document)
+    }
+
     pub async fn list(&self) -> Result<Vec<DiagramSummaryView>> {
         in_read!(&self.ctx, |tx| {
             let rows = repo::diagram::list_summaries_newest_first(tx.db()).await?;
@@ -72,8 +80,10 @@ impl DiagramService {
     }
 
     /// A session's diagram, stored on the project its anchors name, with the task as its origin
-    /// when they name one, after every cited span is held against the project folder.
+    /// when they name one, after its scenario is checked and every cited span is held against the
+    /// project folder.
     pub async fn write_generated(&self, generated: GeneratedDiagram) -> Result<GeneratedDiagramView> {
+        DocumentValidator::validate_generated(&generated.document).map_err(|violations| RekallError::illegal(violations.to_string()))?;
         let (project, task) = in_read!(&self.ctx, |tx| resolve_target(tx.db(), &generated.target).await)?;
         let folder = project.repo_folder.as_deref().filter(|folder| !jstr::is_blank(folder)).map(|folder| PathBuf::from(jstr::strip(folder)));
         if let Some(folder) = folder.clone() {
@@ -139,7 +149,7 @@ fn view_of(row: &diagram::Model, document: &DiagramDocument) -> Result<DiagramVi
         .iter()
         .map(|sheet| DiagramSheetView::of(sheet).ok_or_else(|| corrupt(row, "a sheet declares no known Mermaid type")))
         .collect::<Result<Vec<_>>>()?;
-    Ok(DiagramView { summary: DiagramSummaryView::of(row)?, sheets })
+    Ok(DiagramView { summary: DiagramSummaryView::of(row)?, scenario: document.scenario.clone(), sheets })
 }
 
 /// A stored document passed validation on the way in; failing to read one back is corruption.

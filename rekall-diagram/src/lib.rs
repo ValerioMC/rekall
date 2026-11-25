@@ -10,7 +10,7 @@ pub mod format;
 pub mod mermaid;
 pub mod validation;
 
-pub use document::{DiagramDocument, DiagramKind, DiagramSheet, SourceLocation, Walkthrough, WalkthroughMessage};
+pub use document::{DiagramDocument, DiagramKind, DiagramSheet, Scenario, SourceLocation, Walkthrough, WalkthroughMessage};
 pub use format::{DocumentCodec, DocumentFormatError};
 pub use mermaid::{ElementKey, MermaidText};
 pub use validation::{DocumentValidator, DocumentViolation, DocumentViolations};

@@ -1,7 +1,8 @@
 # Diagrams
 
-The format a session uses to answer a question about what a piece of software does. A diagram is
-one or more **Mermaid** sheets, and each sheet can tie the elements it draws to the code that
+The format a session uses to answer a question about what a piece of software does. A diagram opens
+on a **scenario**, the one concrete case it follows, and holds one or more **Mermaid** sheets; each
+sheet can tie the elements it draws to the code that
 implements them. Rekall stores the document as it arrives and draws it with its own code. A session
 never produces HTML, SVG, Vue or styling, only this document.
 
@@ -13,6 +14,11 @@ marked as guidance.
 
 ```json
 {
+  "scenario": {
+    "situation": "A shopper presses Pay on the checkout page of the web shop",
+    "example": "Order 42, card ending 4242, 30 EUR",
+    "outcome": "The order is paid and the shopper sees receipt R-42"
+  },
   "sheets": [
     {
       "title": "Checkout",
@@ -32,10 +38,35 @@ marked as guidance.
 
 | Field | Required | Meaning |
 |---|---|---|
+| `scenario` | yes, from a session | The case the diagram follows. See Scenario |
+| `sheets` | yes | The sheets, each as below |
+
+A sheet:
+
+| Field | Required | Meaning |
+|---|---|---|
 | `mermaid` | yes | The Mermaid source, at most 100 000 characters. Its first line declares the type |
 | `title` | no | The sheet's tab label, at most 120 characters. Without one the tab shows the type |
 | `links` | no | Which elements open which code. See Links |
 | `walkthrough` | no | On a sequence only: how the console plays it step by step. See Walkthroughs |
+
+## Scenario
+
+The reader meets the scenario before any sheet, so they know what situation the picture is about
+before the first box: who does what, where, with which values, and what they see at the end.
+
+| Field | Meaning |
+|---|---|
+| `situation` | Who does what and where: the screen, the command or the job that starts it |
+| `example` | The concrete values of this case: the record, the input, the ids |
+| `outcome` | What the person sees or gets at the end |
+
+- Each field is required in a scenario, not blank, and at most 1 000 characters
+  (`scenario.example: must not be blank`).
+- A diagram a session writes through `rekall_diagram` has to carry one, static sheets included: a
+  document without it is refused at `scenario`.
+- A diagram imported in the console (a pasted Mermaid sheet) needs none, and one stored before
+  scenarios existed still opens without one.
 
 ## Types
 
@@ -115,8 +146,8 @@ played; a walkthrough is what gives the steps their words.
   "walkthrough": {
     "external": ["U", "DB"],
     "messages": {
-      "#1": { "explain": "The handler validates the body before anything is stored.", "input": "{ \"sku\": \"A-7\", \"qty\": 2 }" },
-      "#2": { "explain": "The service owns the transaction.", "input": "Order { lines: [..] }", "output": "Order with its id", "opens": 1 }
+      "#1": { "explain": "The shopper's Place order button posts the basket; the handler validates the body before anything is stored.", "input": "{ \"sku\": \"A-7\", \"qty\": 2 }" },
+      "#2": { "explain": "The service owns the transaction.", "input": "Order { lines: [A-7 x 2] }", "output": "Order 42", "opens": 1 }
     }
   }
 }
@@ -136,11 +167,17 @@ A message entry holds at least one of:
 | `output` | What comes back, or the error raised, at most 2 000 characters |
 | `opens` | The index in `sheets` (counted from 0, as `sheets[n]` in a refusal) of another sequence sheet that walks through this call. Never the sheet itself |
 
-The playing order is the messages' order. The first sheet is where a walkthrough starts, and its
-first message is the entry point: the call into a controller, a command or a triggered job.
+The playing order is the messages' order. The console opens a walkthrough on the diagram's
+scenario, then the first sheet's first message: the entry point, the call into a controller, a
+command or a triggered job that the scenario's `situation` names. `input` and `output` carry the
+scenario's example values, not a type's shape: above, a scenario of *a shopper places an order for two
+A-7* gives `qty: 2` going in and order 42 coming back.
 
 ## Writing a good diagram (guidance)
 
+- Write the scenario first, from the code's real entry point: the screen, command or job that starts
+  what the question asks about. The first sheet's first message is that trigger, and the messages
+  carry the example's values (`order 42`, `qty: 2`) wherever the code makes them concrete.
 - Answer the question that was asked, with one sheet for each type requested. About 6 to 12
   participants or 10 to 40 nodes reads well on a screen.
 - In a sequence, participants are the components that talk: a type, a module, a service, an

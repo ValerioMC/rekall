@@ -692,7 +692,13 @@ async fn a_session_stores_a_generated_diagram_through_mcp_only_when_its_spans_ar
         ])
     };
     let arguments = |anchors: &str, sheets: serde_json::Value| {
-        json!({ "anchors": anchors, "title": "Orders", "question": "How is an order processed?", "sheets": sheets })
+        json!({
+            "anchors": anchors,
+            "title": "Orders",
+            "question": "How is an order processed?",
+            "scenario": { "situation": "A shopper places an order", "example": "Order 42", "outcome": "The order is validated" },
+            "sheets": sheets
+        })
     };
 
     let refused = app.call_tool("rekall_diagram", arguments("project:shop task:orders", sheets(90))).await;
@@ -733,6 +739,11 @@ async fn a_session_stores_a_walkthrough_through_mcp_which_the_console_reads_back
             "anchors": "project:shop",
             "title": "Place an order",
             "question": "What happens when an order is placed?",
+            "scenario": {
+                "situation": "A shopper presses Place order on the checkout page",
+                "example": "Order 42, two books",
+                "outcome": "The order is stored and the shopper sees order 42"
+            },
             "sheets": [
                 {
                     "mermaid": entry,
@@ -759,6 +770,12 @@ async fn a_session_stores_a_walkthrough_through_mcp_which_the_console_reads_back
     assert_eq!(read["sheets"][0]["walkthrough"]["external"], json!(["DB"]));
     assert_eq!(read["sheets"][0]["walkthrough"]["messages"]["#1"]["opens"], json!(1));
     assert_eq!(read["sheets"][1]["walkthrough"], json!(null));
+    assert_eq!(read["scenario"]["example"], json!("Order 42, two books"));
+
+    let mut unexplained = walkthrough(1);
+    unexplained.as_object_mut().unwrap().remove("scenario");
+    let refused = app.call_tool("rekall_diagram", unexplained).await;
+    assert!(refused.contains("scenario: a diagram opens on its scenario"), "{refused}");
 }
 
 struct FixedFeed(Release);

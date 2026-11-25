@@ -17,24 +17,29 @@ anchor either.
    is relative to it. Do not ask me where the project is, which files to read, which functions
    matter or where to save: search, read, follow calls and references until you can answer the
    request, and read only what it needs.
-3. Write one sheet per type in `kinds:`. Without `kinds:`, choose what answers the request: a
+3. Write the `scenario` first, as `reader.md` says for a diagram: from the code's real entry point
+   (the screen, command or job that starts what the request asks about), `situation` is who does
+   what and where, `example` the concrete values of one case, `outcome` what they see or get at
+   the end. The sheets follow that case. Read the code before you write it: a screen or a value you
+   did not see is not in it.
+4. Write one sheet per type in `kinds:`. Without `kinds:`, choose what answers the request: a
    sequence for who calls whom and in what order, a state diagram for a lifecycle, a flowchart for
    the decisions inside one piece of code, a class or ER diagram for structure.
-4. Describe the behaviour, not the file layout. In a sequence the participants are the components
+5. Describe the behaviour, not the file layout. In a sequence the participants are the components
    that talk (types, modules, services, external systems), each message is a call labelled with
    what is called (`charge(card)`), its dashed reply carries what comes back, `+`/`-` activations
    nest the calls the way the code does, and branches and repetition go in `alt`, `opt` and `loop`
    with their condition. A 200-line function that validates, charges, stores and notifies is four
    messages or four nodes, each linked to its own lines. A status field set on different branches
    is a state diagram even when the code never calls it one.
-5. Keep to what the code supports. Link every participant, message, node, state, class or entity
+6. Keep to what the code supports. Link every participant, message, node, state, class or entity
    that has a place in the code to that place in `links`, and read those lines before you cite them:
    a participant to its type, a message to the body of the method it calls. Never draw a call, a
    transition or a write you did not see.
-6. Call `rekall_diagram` with the anchors, a short `title`, the request as `question` and every
-   sheet. Its description carries the full format: follow it, and answer the request rather than the
+7. Call `rekall_diagram` with the anchors, a short `title`, the request as `question`, the
+   `scenario` and every sheet. Its description carries the full format: follow it, and answer the request rather than the
    whole codebase. If the answer is a refusal, fix every line it lists and send every sheet again.
-7. Say in two or three lines what the diagram shows, how many elements are linked to code, and its
+8. Say in two or three lines what the diagram shows, how many elements are linked to code, and its
    id. Then stop: no wrapup, no step, no commit. A diagram is not the task's work.
 
 The sheets are the whole output. Never HTML, SVG, Vue or styling, and no rendition of the diagram in

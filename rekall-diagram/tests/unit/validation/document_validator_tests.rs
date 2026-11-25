@@ -158,3 +158,36 @@ fn walkthrough_texts_have_a_ceiling() {
         vec![r##"sheets[0].walkthrough.messages["#1"].explain"##, r##"sheets[0].walkthrough.messages["#1"].output"##]
     );
 }
+
+fn with_scenario(scenario: Value) -> DiagramDocument {
+    DocumentCodec::from_value(json!({ "scenario": scenario, "sheets": [{ "mermaid": CHECKOUT }] })).unwrap()
+}
+
+const DRAG_STEP: &str = "In the Plan tab of RK-12 you drag step 4 above step 2";
+
+#[test]
+fn a_session_diagram_without_a_scenario_is_refused_static_or_walked() {
+    let static_sheet = document(json!([{ "mermaid": "flowchart LR\n A-->B" }]));
+    let walked = document(json!([{ "mermaid": CHECKOUT, "walkthrough": { "messages": { "#1": { "explain": "places it" } } } }]));
+    assert_eq!(paths(DocumentValidator::validate_generated(&static_sheet)), vec!["scenario"]);
+    assert_eq!(paths(DocumentValidator::validate_generated(&walked)), vec!["scenario"]);
+}
+
+#[test]
+fn an_imported_diagram_without_a_scenario_passes() {
+    assert_eq!(DocumentValidator::validate(&document(json!([{ "mermaid": CHECKOUT }]))), Ok(()));
+}
+
+#[test]
+fn a_scenario_fills_its_three_fields() {
+    let complete = with_scenario(json!({ "situation": DRAG_STEP, "example": "step 4 moves to position 2", "outcome": "steps 1, 4, 2, 3" }));
+    assert_eq!(DocumentValidator::validate_generated(&complete), Ok(()));
+    let blank = with_scenario(json!({ "situation": DRAG_STEP, "example": "  ", "outcome": "" }));
+    assert_eq!(paths(DocumentValidator::validate_generated(&blank)), vec!["scenario.example", "scenario.outcome"]);
+}
+
+#[test]
+fn a_scenario_field_has_a_ceiling() {
+    let long = with_scenario(json!({ "situation": "s".repeat(1_001), "example": "e", "outcome": "o" }));
+    assert_eq!(paths(DocumentValidator::validate(&long)), vec!["scenario.situation"]);
+}

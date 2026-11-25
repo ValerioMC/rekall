@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
-use crate::document::{DiagramDocument, DiagramSheet, Walkthrough, WalkthroughMessage};
+use crate::document::{DiagramDocument, DiagramSheet, Scenario, Walkthrough, WalkthroughMessage};
 
 use super::DocumentFormatError;
 
-/// Reads and writes the JSON form. Reading also normalises: titles, keys and walkthrough texts are
-/// trimmed, a blank one is none, and the Mermaid loses the blank lines around it.
+/// Reads and writes the JSON form. Reading also normalises: titles, keys, scenario and walkthrough
+/// texts are trimmed, a blank one is none, and the Mermaid loses the blank lines around it.
 pub struct DocumentCodec;
 
 impl DocumentCodec {
@@ -25,7 +25,18 @@ impl DocumentCodec {
     }
 
     fn normalise(document: DiagramDocument) -> DiagramDocument {
-        DiagramDocument { sheets: document.sheets.into_iter().map(Self::normalise_sheet).collect() }
+        DiagramDocument {
+            scenario: document.scenario.map(Self::normalise_scenario),
+            sheets: document.sheets.into_iter().map(Self::normalise_sheet).collect(),
+        }
+    }
+
+    fn normalise_scenario(scenario: Scenario) -> Scenario {
+        Scenario {
+            situation: scenario.situation.trim().to_string(),
+            example: scenario.example.trim().to_string(),
+            outcome: scenario.outcome.trim().to_string(),
+        }
     }
 
     fn normalise_sheet(sheet: DiagramSheet) -> DiagramSheet {
