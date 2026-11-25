@@ -831,6 +831,23 @@
   }
 }
 
+/*
+ * A project's row and the column head above it share one grid so they line up. Inside a container
+ * narrower than 46rem the row folds: title and status on top, the work line under, tokens and time last.
+ */
+@utility project-row-columns {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.3fr) minmax(220px, 1fr) 72px 84px 72px 28px;
+  align-items: center;
+  column-gap: 20px;
+  padding-inline: 16px;
+
+  @container (max-width: 46rem) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 8px;
+  }
+}
+
 @utility filed-row {
   opacity: 0.55;
   transition: opacity var(--motion-quick) ease;

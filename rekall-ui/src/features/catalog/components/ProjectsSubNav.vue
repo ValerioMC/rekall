@@ -8,7 +8,7 @@ import { PROJECTS_SECTIONS } from '@/features/catalog/model/projects-section'
 import type { ProjectsSection } from '@/features/catalog/model/projects-section'
 import { useConsoleStore } from '@/stores/console.store'
 
-/** The three screens of the Projects section as sub-navigation, each with how many it holds. */
+/** The three screens of the Projects section as sub-navigation, each with how many it holds. Its slot is the screen's own search, at the right end of the row. */
 const props = defineProps<{ active: ProjectsSection }>()
 
 const store = useConsoleStore()
@@ -36,5 +36,9 @@ function countOf(id: ProjectsSection): { count?: number } {
 </script>
 
 <template>
-  <SubNav :model-value="active" :items="items" label="Projects section" />
+  <SubNav :model-value="active" :items="items" label="Projects section">
+    <template v-if="$slots.default" #trailing>
+      <slot />
+    </template>
+  </SubNav>
 </template>

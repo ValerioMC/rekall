@@ -4,27 +4,23 @@ import { useRoute, useRouter } from 'vue-router'
 import ProjectsSubNav from '@/features/catalog/components/ProjectsSubNav.vue'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
 import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
-import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppInput from '@/components/ui/AppInput.vue'
-import SegmentedControl, { type SegmentOption } from '@/components/ui/SegmentedControl.vue'
 import CompanyMark from '@/components/ui/CompanyMark.vue'
-import ProjectMark from '@/components/ui/ProjectMark.vue'
-import TokenCount from '@/components/ui/TokenCount.vue'
-import ProjectCompositionBar from '@/features/catalog/components/ProjectCompositionBar.vue'
-import CloseGlyph from '@/components/ui/CloseGlyph.vue'
+import ProjectLedgerHead from '@/features/catalog/components/ProjectLedgerHead.vue'
+import ProjectListToolbar from '@/features/catalog/components/ProjectListToolbar.vue'
+import ProjectRow from '@/features/catalog/components/ProjectRow.vue'
+import type { SegmentOption } from '@/components/ui/SegmentedControl.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { relativeTime } from '@/common/format/relative-time'
 import { useConsoleStore } from '@/stores/console.store'
 import { projectComposition, reviewWaiting } from '@/features/catalog/lib/project-composition'
 import { taskRows } from '@/features/task/lib/task-rows'
 import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 import { projectDraft } from '@/features/catalog/model/record-draft'
-import { identityHue } from '@/common/identity'
 import { PROJECT_STATUSES, PROJECT_STATUS_LABEL } from '@/features/catalog/model/project-status'
-import type { ProjectStatus } from '@/features/catalog/model/project-status'
+import type { ProjectStatus, ProjectStatusChoice } from '@/features/catalog/model/project-status'
 import type { RecordDraft } from '@/features/catalog/model/record-draft'
 import type { Project } from '@/features/catalog/model/catalog'
 import type { CompanyId, ProjectId } from '@/model/branded'
@@ -35,9 +31,7 @@ const router = useRouter()
 const { run } = useAsyncAction()
 
 const search = ref('')
-type StatusChoice = ProjectStatus | 'ALL'
-
-const statusChoice = ref<StatusChoice>('ALL')
+const statusChoice = ref<ProjectStatusChoice>('ALL')
 const statusFilter = computed(() => (statusChoice.value === 'ALL' ? null : statusChoice.value))
 const companyFilter = ref<CompanyId | null>((route.query.company as CompanyId) ?? null)
 
@@ -73,7 +67,7 @@ const statusCounts = computed(() => {
   return counts
 })
 
-const statusOptions = computed<readonly SegmentOption<StatusChoice>[]>(() => [
+const statusOptions = computed<readonly SegmentOption<ProjectStatusChoice>[]>(() => [
   { value: 'ALL', label: 'All', count: statusCounts.value.get(null) ?? 0 },
   ...PROJECT_STATUSES.map((status) => ({
     value: status,
@@ -92,6 +86,13 @@ const groups = computed(() =>
 )
 
 const totalMatching = computed(() => groups.value.reduce((sum, group) => sum + group.projects.length, 0))
+
+const reviewingTotal = computed(() =>
+  groups.value.reduce(
+    (sum, group) => sum + group.projects.reduce((inGroup, project) => inGroup + reviewWaiting(rowsOf(project.id)), 0),
+    0
+  )
+)
 
 const targetCompany = computed(() => {
   if (companyFilter.value) return store.companies.find((c) => c.id === companyFilter.value) ?? null
@@ -155,35 +156,26 @@ async function confirmDelete(): Promise<void> {
     </AppCatalogHeader>
 
     <div class="page-column pt-4">
-      <ProjectsSubNav active="projects" />
-    </div>
-
-    <div class="page-column py-6">
-      <div class="mb-5 flex flex-wrap items-center gap-2.5">
-        <div class="w-full max-w-[320px]">
+      <ProjectsSubNav active="projects">
+        <div class="w-70 max-w-full">
           <AppInput v-model="search" type="search" placeholder="Find a project" />
         </div>
-        <SegmentedControl v-model="statusChoice" :options="statusOptions" label="Status" />
+      </ProjectsSubNav>
+    </div>
 
-        <button
-          v-if="companyFilter"
-          class="anchor-chip focus-ring ml-1 flex items-center gap-1.5 px-2.5 py-1 text-caption"
-          @click="clearCompanyFilter"
-        >
-          <span>{{ targetCompany?.name ?? 'one company' }}</span>
-          <CloseGlyph small />
-        </button>
+    <div class="page-column @container flex flex-col gap-3 py-4">
+      <ProjectListToolbar
+        v-model="statusChoice"
+        :options="statusOptions"
+        :company="targetCompany"
+        :company-pinned="companyFilter !== null"
+        :total="totalMatching"
+        :reviewing="reviewingTotal"
+        @clear-company="clearCompanyFilter"
+      />
 
-        <span class="ml-auto font-mono text-caption text-text-subtle">
-          {{ totalMatching }} project{{ totalMatching === 1 ? '' : 's' }}
-        </span>
-      </div>
-
-      <div v-if="store.isLoading" class="flex flex-col gap-6" aria-hidden="true">
-        <div v-for="group in 2" :key="group" class="flex flex-col gap-2">
-          <div class="skeleton h-3 w-32" />
-          <div v-for="row in 3" :key="row" class="skeleton h-[60px] rounded-control" />
-        </div>
+      <div v-if="store.isLoading" class="flex flex-col gap-2" aria-hidden="true">
+        <div v-for="row in 6" :key="row" class="skeleton h-16 rounded-control" />
       </div>
 
       <AppEmptyState
@@ -202,9 +194,10 @@ async function confirmDelete(): Promise<void> {
         description="Try a different search, or clear the status filter."
       />
 
-      <div v-else class="flex flex-col gap-7">
-        <section v-for="group in groups" :key="group.company.id">
-          <h2 class="mb-2 flex items-center gap-2 eyebrow text-caption">
+      <div v-else class="overflow-hidden rounded-card border border-border bg-surface">
+        <ProjectLedgerHead />
+        <section v-for="group in groups" :key="group.company.id" class="border-t border-border first:border-t-0">
+          <h2 class="flex h-10 items-center gap-2.5 bg-canvas/50 px-4 text-body font-semibold text-text">
             <CompanyMark
               :company-id="group.company.id"
               :name="group.company.name"
@@ -212,79 +205,20 @@ async function confirmDelete(): Promise<void> {
               :size="20"
             />
             {{ group.company.name }}
+            <span class="font-mono text-caption font-normal text-text-subtle">
+              {{ group.projects.length }} project{{ group.projects.length === 1 ? '' : 's' }}
+            </span>
           </h2>
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            <div
-              v-for="project in group.projects"
-              :key="project.id"
-              class="group/card relative flex flex-col gap-3 rounded-card border border-border bg-surface p-4 transition-all duration-(--motion-quick) hover:-translate-y-0.5 hover:border-border-strong hover:bg-surface-raised hover:shadow-lift"
-            >
-              <!-- The project's own hue along the top edge, the same line its pane header
-                   carries in the console, so a card is recognisable before it is read. -->
-              <span
-                class="pointer-events-none absolute inset-x-4 top-0 h-px opacity-70 transition-opacity group-hover/card:opacity-100"
-                :style="{ background: `linear-gradient(90deg, transparent, ${identityHue(project.id).base}, transparent)` }"
-                aria-hidden="true"
-              />
-              <button
-                data-testid="project-card"
-                class="focus-ring absolute inset-0 rounded-card"
-                :aria-label="`Open ${project.title}`"
-                @click="open(project)"
-              />
-
-              <div class="pointer-events-none flex items-center justify-between gap-2">
-                <TokenCount :totals="tokenUsage.ofProject(project.id, store.tasks)" :hue-of="project.id" />
-                <AppBadge
-                  class="shrink-0"
-                  :tone="project.status === 'ACTIVE' ? 'accent' : project.status === 'DONE' ? 'safe' : 'neutral'"
-                >
-                  {{ PROJECT_STATUS_LABEL[project.status] }}
-                </AppBadge>
-              </div>
-
-              <div class="pointer-events-none flex min-w-0 items-start gap-3">
-                <ProjectMark :project-id="project.id" :icon="project.icon" :image-version="project.iconImageVersion" :size="36" />
-                <div class="min-w-0">
-                  <p class="line-clamp-2 text-body font-semibold leading-snug text-text">{{ project.title }}</p>
-                  <span class="anchor-chip mt-1.5 inline-block px-1.5 py-px text-micro">{{ project.anchor }}</span>
-                </div>
-              </div>
-
-              <ProjectCompositionBar class="pointer-events-none" :composition="projectComposition(rowsOf(project.id))" />
-
-              <div class="pointer-events-none mt-auto flex items-center justify-between text-caption text-text-subtle">
-                <span>
-                  {{ project.taskCount }} task{{ project.taskCount === 1 ? '' : 's' }}
-                  <template v-if="reviewWaiting(rowsOf(project.id)) > 0">
-                    · <span class="text-accent" data-testid="project-needs">{{ reviewWaiting(rowsOf(project.id)) }} to review</span>
-                  </template>
-                </span>
-                <!-- Steps aside for the delete control under the pointer, rather than the card
-                     keeping an empty row at its foot for a control that is hidden at rest. -->
-                <span class="transition-opacity duration-(--motion-quick) group-hover/card:opacity-0 group-focus-within/card:opacity-0">
-                  {{ relativeTime(project.updatedAt) }}
-                </span>
-              </div>
-
-              <button
-                class="focus-ring pointer-events-auto absolute bottom-2.5 right-2.5 z-10 grid size-7 place-items-center rounded-key text-text-subtle opacity-0 transition hover:bg-surface-hover hover:text-danger focus-visible:opacity-100 group-hover/card:opacity-100"
-                :aria-label="`Delete ${project.title}`"
-                data-testid="delete-project"
-                @click.stop="deleting = project"
-              >
-                <svg class="size-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path
-                    d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0-.6 12.4a2 2 0 0 1-2 1.6H9.6a2 2 0 0 1-2-1.6L7 7"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
+          <ProjectRow
+            v-for="project in group.projects"
+            :key="project.id"
+            :project="project"
+            :composition="projectComposition(rowsOf(project.id))"
+            :reviewing="reviewWaiting(rowsOf(project.id))"
+            :tokens="tokenUsage.ofProject(project.id, store.tasks)"
+            @open="open(project)"
+            @delete="deleting = project"
+          />
         </section>
       </div>
     </div>
