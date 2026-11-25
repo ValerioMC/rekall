@@ -1,4 +1,5 @@
 import { callTreeOf, type CallNode } from './call-tree'
+import type { DiagramPalette } from './diagram-palette'
 import { layoutGraph, type GraphLayout } from './layout/graph-layout'
 import { layoutSequence, type SequenceLayout } from './layout/sequence-layout'
 import { renderMermaid } from './mermaid/mermaid-runtime'
@@ -16,7 +17,7 @@ export type SheetDrawing =
   | { readonly drawing: 'graph'; readonly scene: GraphScene; readonly layout: GraphLayout; readonly bounds: Box }
   | { readonly drawing: 'native'; readonly svg: string; readonly bounds: Box }
 
-export async function drawSheet(sheet: DiagramSheet): Promise<SheetDrawing> {
+export async function drawSheet(sheet: DiagramSheet, palette: DiagramPalette = 'console'): Promise<SheetDrawing> {
   const read = await readSheet(sheet)
   switch (read.drawing) {
     case 'sequence': {
@@ -28,18 +29,18 @@ export async function drawSheet(sheet: DiagramSheet): Promise<SheetDrawing> {
       return { drawing: 'graph', scene: read.scene, layout, bounds: layout.bounds }
     }
     case 'native':
-      return drawNative(sheet.mermaid)
+      return drawNative(sheet.mermaid, palette)
   }
 }
 
-/** A bare Mermaid source drawn the way a sheet of its kind is. */
-export async function drawSource(source: string): Promise<SheetDrawing> {
+/** A bare Mermaid source drawn the way a sheet of its kind is. The palette decides the colours of Mermaid's own drawings. */
+export async function drawSource(source: string, palette: DiagramPalette = 'console'): Promise<SheetDrawing> {
   const kind = drawnKindOf(source)
-  if (!kind) return drawNative(source)
-  return drawSheet({ kind, title: null, mermaid: source, links: {}, walkthrough: null })
+  if (!kind) return drawNative(source, palette)
+  return drawSheet({ kind, title: null, mermaid: source, links: {}, walkthrough: null }, palette)
 }
 
-async function drawNative(source: string): Promise<SheetDrawing> {
-  const placed = placeNativeSvg(await renderMermaid(source))
+async function drawNative(source: string, palette: DiagramPalette): Promise<SheetDrawing> {
+  const placed = placeNativeSvg(await renderMermaid(source, palette))
   return { drawing: 'native', svg: placed.markup, bounds: placed.bounds }
 }

@@ -19,12 +19,12 @@ const SCALE_TOKENS = [
 /** How much of a kind tint a filled shape takes over the raised surface: enough to tell them apart, dark enough for light text. */
 const TINT_SHARE = 0.38
 
-export function nativeThemeVariables(read: TokenReader): Record<string, string | boolean> {
+export function nativeThemeVariables(read: TokenReader, darkMode = true): Record<string, string | boolean> {
   const canvas = hex(read('--color-canvas'))
   const surface = hex(read('--color-surface-raised'))
   const text = hex(read('--color-text'))
   const subtle = hex(read('--color-text-subtle'))
-  const variables: Record<string, string | boolean> = { darkMode: true, background: 'transparent', fontFamily: read('--font-sans') || 'sans-serif' }
+  const variables: Record<string, string | boolean> = { darkMode, background: 'transparent', fontFamily: read('--font-sans') || 'sans-serif' }
   if (surface) Object.assign(variables, { primaryColor: surface, secondaryColor: surface, tertiaryColor: canvas ?? surface, mainBkg: surface })
   if (text) Object.assign(variables, { primaryTextColor: text, textColor: text, titleColor: text })
   if (subtle) Object.assign(variables, { lineColor: subtle, primaryBorderColor: subtle })
