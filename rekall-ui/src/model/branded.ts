@@ -16,6 +16,7 @@ export type DiagramId = Brand<string, 'DiagramId'>
 export type ProjectSectionId = Brand<string, 'ProjectSectionId'>
 export type SectionContextId = Brand<string, 'SectionContextId'>
 export type ProjectComponentId = Brand<string, 'ProjectComponentId'>
+export type ProjectExportId = Brand<string, 'ProjectExportId'>
 export type ConnectionId = Brand<string, 'ConnectionId'>
 export type ProjectConnectionId = Brand<string, 'ProjectConnectionId'>
 export type AdvisoryId = Brand<string, 'AdvisoryId'>
@@ -43,6 +44,7 @@ export const asTagId = (value: string): TagId => value as TagId
 export const asDiagramId = (value: string): DiagramId => value as DiagramId
 export const asProjectSectionId = (value: string): ProjectSectionId => value as ProjectSectionId
 export const asSectionContextId = (value: string): SectionContextId => value as SectionContextId
+export const asProjectExportId = (value: string): ProjectExportId => value as ProjectExportId
 export const asProjectComponentId = (value: string): ProjectComponentId => value as ProjectComponentId
 export const asConnectionId = (value: string): ConnectionId => value as ConnectionId
 export const asProjectConnectionId = (value: string): ProjectConnectionId => value as ProjectConnectionId
