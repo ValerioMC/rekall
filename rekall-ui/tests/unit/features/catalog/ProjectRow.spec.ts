@@ -48,4 +48,12 @@ describe('a project row', () => {
     expect(row.emitted('open')).toHaveLength(1)
     expect(row.emitted('delete')).toHaveLength(1)
   })
+
+  it('has no delete key where the row is not deletable', () => {
+    const row = mount(ProjectRow, {
+      props: { project: project('vega', 'Vega'), composition: QUIET, reviewing: 0, tokens: NO_TOKENS, deletable: false }
+    })
+
+    expect(row.find('[data-testid="delete-project"]').exists()).toBe(false)
+  })
 })

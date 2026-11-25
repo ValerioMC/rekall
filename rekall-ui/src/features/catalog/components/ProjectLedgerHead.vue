@@ -17,7 +17,7 @@ const COLUMNS: readonly LedgerColumn[] = [
 
 <template>
   <div
-    class="project-row-columns h-8 border-b border-border text-caption font-medium text-text-subtle @max-[46rem]:hidden"
+    class="project-row-columns h-8 border-b border-border text-caption font-medium text-text-subtle @max-[52rem]:hidden"
     aria-hidden="true"
   >
     <span v-for="column in COLUMNS" :key="column.label" :class="column.alignEnd ? 'justify-self-end' : ''">

@@ -15,12 +15,16 @@ import type { TokenTotals } from '@/features/tokens/model/token-usage'
  * One project in the ledger: who it is, where its work stands, what it cost and when it last moved.
  * The whole row opens the project; only the delete key sits above that.
  */
-const props = defineProps<{
-  project: Project
-  composition: ProjectComposition
-  reviewing: number
-  tokens: TokenTotals
-}>()
+const props = withDefaults(
+  defineProps<{
+    project: Project
+    composition: ProjectComposition
+    reviewing: number
+    tokens: TokenTotals
+    deletable?: boolean
+  }>(),
+  { deletable: true }
+)
 
 const emit = defineEmits<{ open: []; delete: [] }>()
 
@@ -56,7 +60,7 @@ const taskLabel = computed(() => {
       </div>
     </div>
 
-    <div class="pointer-events-none grid min-w-0 gap-1.5 @max-[46rem]:col-span-2 @max-[46rem]:row-start-2">
+    <div class="pointer-events-none grid min-w-0 gap-1.5 @max-[52rem]:col-span-2 @max-[52rem]:row-start-2">
       <ProjectCompositionBar :composition="composition" />
       <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption tabular-nums text-text-subtle">
         <span>{{ taskLabel }}</span>
@@ -69,27 +73,28 @@ const taskLabel = computed(() => {
     </div>
 
     <TokenCount
-      class="pointer-events-none justify-self-end @max-[46rem]:row-start-3 @max-[46rem]:justify-self-start"
+      class="pointer-events-none justify-self-end @max-[52rem]:row-start-3 @max-[52rem]:justify-self-start"
       :totals="tokens"
       :hue-of="project.id"
     />
 
     <StatusPill
-      class="pointer-events-none justify-self-end @max-[46rem]:col-start-2 @max-[46rem]:row-start-1"
+      class="pointer-events-none justify-self-end @max-[52rem]:col-start-2 @max-[52rem]:row-start-1"
       :tone="PROJECT_STATUS_TONE[project.status]"
     >
       {{ PROJECT_STATUS_LABEL[project.status] }}
     </StatusPill>
 
     <span
-      class="pointer-events-none justify-self-end whitespace-nowrap text-caption text-text-subtle @max-[46rem]:col-start-2 @max-[46rem]:row-start-3"
+      class="pointer-events-none justify-self-end whitespace-nowrap text-caption text-text-subtle @max-[52rem]:col-start-2 @max-[52rem]:row-start-3"
     >
       {{ relativeTime(project.updatedAt) }}
     </span>
 
     <button
+      v-if="deletable"
       type="button"
-      class="focus-ring relative z-10 grid size-7 place-items-center rounded-key text-text-subtle opacity-0 transition hover:bg-surface-hover hover:text-danger focus-visible:opacity-100 group-hover/row:opacity-100 @max-[46rem]:hidden"
+      class="focus-ring relative z-10 grid size-7 place-items-center rounded-key text-text-subtle opacity-0 transition hover:bg-surface-hover hover:text-danger focus-visible:opacity-100 group-hover/row:opacity-100 @max-[52rem]:hidden"
       :aria-label="`Delete ${project.title}`"
       data-testid="delete-project"
       @click.stop="emit('delete')"

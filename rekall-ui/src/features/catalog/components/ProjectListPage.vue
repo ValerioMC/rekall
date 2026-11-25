@@ -15,20 +15,20 @@ import ProjectRow from '@/features/catalog/components/ProjectRow.vue'
 import type { SegmentOption } from '@/components/ui/SegmentedControl.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useConsoleStore } from '@/stores/console.store'
+import { useProjectWork } from '@/features/catalog/composables/useProjectWork'
 import { projectComposition, reviewWaiting } from '@/features/catalog/lib/project-composition'
-import { taskRows } from '@/features/task/lib/task-rows'
-import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 import { projectDraft } from '@/features/catalog/model/record-draft'
 import { PROJECT_STATUSES, PROJECT_STATUS_LABEL } from '@/features/catalog/model/project-status'
 import type { ProjectStatus, ProjectStatusChoice } from '@/features/catalog/model/project-status'
 import type { RecordDraft } from '@/features/catalog/model/record-draft'
 import type { Project } from '@/features/catalog/model/catalog'
-import type { CompanyId, ProjectId } from '@/model/branded'
+import type { CompanyId } from '@/model/branded'
 
 const store = useConsoleStore()
 const route = useRoute()
 const router = useRouter()
 const { run } = useAsyncAction()
+const { rowsOf, tokensOf } = useProjectWork()
 
 const search = ref('')
 const statusChoice = ref<ProjectStatusChoice>('ALL')
@@ -117,20 +117,6 @@ function blastOf(project: Project): string {
   return `${count} task${count === 1 ? '' : 's'} · every note left on nothing`
 }
 
-const rowsByProject = computed(() => {
-  const byProject = new Map<ProjectId, ReturnType<typeof taskRows>>()
-  for (const row of taskRows(store.tasks, store.steps, () => 0)) {
-    byProject.set(row.task.projectId, [...(byProject.get(row.task.projectId) ?? []), row])
-  }
-  return byProject
-})
-
-function rowsOf(projectId: ProjectId) {
-  return rowsByProject.value.get(projectId) ?? []
-}
-
-const tokenUsage = useTokenUsageStore()
-
 async function confirmDelete(): Promise<void> {
   const project = deleting.value
   if (!project) return
@@ -215,7 +201,7 @@ async function confirmDelete(): Promise<void> {
             :project="project"
             :composition="projectComposition(rowsOf(project.id))"
             :reviewing="reviewWaiting(rowsOf(project.id))"
-            :tokens="tokenUsage.ofProject(project.id, store.tasks)"
+            :tokens="tokensOf(project.id)"
             @open="open(project)"
             @delete="deleting = project"
           />
