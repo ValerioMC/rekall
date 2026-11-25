@@ -1,6 +1,16 @@
-import type { ToolInput } from '../model/chat-event'
+import type { TodoItem, ToolInput } from '../model/chat-event'
 
-export type ToolIcon = 'terminal' | 'pencil' | 'file-plus' | 'file' | 'search' | 'tool'
+export type ToolIcon =
+  | 'terminal'
+  | 'pencil'
+  | 'file-plus'
+  | 'file'
+  | 'search'
+  | 'checklist'
+  | 'agent'
+  | 'web'
+  | 'plug'
+  | 'tool'
 
 export interface ToolDescription {
   readonly name: string
@@ -24,6 +34,18 @@ export function describeTool(input: ToolInput): ToolDescription {
       return { name: 'Read', target: trimPathStart(input.filePath), icon: 'file' }
     case 'search':
       return { name: input.name, target: searchTarget(input.pattern, input.path), icon: 'search' }
+    case 'todos':
+      return { name: 'Todos', target: todosProgress(input.items), icon: 'checklist' }
+    case 'agent':
+      return { name: 'Agent', target: cut(firstLine(input.description), TEXT_LIMIT), icon: 'agent' }
+    case 'web':
+      return { name: input.name, target: webTarget(input.target), icon: 'web' }
+    case 'mcp':
+      return {
+        name: `${input.server} · ${input.toolName}`,
+        target: cut(firstLine(input.text), TEXT_LIMIT),
+        icon: 'plug'
+      }
     case 'other':
       return { name: input.name, target: cut(firstLine(input.text), TEXT_LIMIT), icon: 'tool' }
   }
@@ -43,4 +65,17 @@ function trimPathStart(path: string): string {
 
 function searchTarget(pattern: string, path: string | null): string {
   return path ? `${pattern} in ${trimPathStart(path)}` : pattern
+}
+
+function todosProgress(items: readonly TodoItem[]): string {
+  const done = items.filter((item) => item.status === 'completed').length
+  return `${done} of ${items.length} done`
+}
+
+function webTarget(target: string): string {
+  try {
+    return new URL(target).host
+  } catch {
+    return cut(target, TEXT_LIMIT)
+  }
 }

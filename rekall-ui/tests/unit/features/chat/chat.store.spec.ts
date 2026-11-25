@@ -69,7 +69,7 @@ describe('the chat store', () => {
 
     store.ingest(CHAT, { seq: 1, type: 'userMessage', text: 'go' })
     store.ingest('chat-2' as TerminalId, { seq: 1, type: 'userMessage', text: 'other' })
-    store.ingest(CHAT, { seq: 2, type: 'assistantText', messageId: 'm1', text: 'Hi', complete: true })
+    store.ingest(CHAT, { seq: 2, type: 'assistantText', messageId: 'm1', text: 'Hi', complete: true, parentToolUseId: null })
 
     expect(store.timelineOf(CHAT).items).toHaveLength(2)
     expect(store.timelineOf('chat-2' as TerminalId).items).toHaveLength(1)

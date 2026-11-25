@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ChatTimeline from '@/features/chat/components/ChatTimeline.vue'
-import type { TimelineItem } from '@/features/chat/model/timeline'
-import { MarkdownStub, userItem } from './support'
+import type { TimelineItem, ToolItem } from '@/features/chat/model/timeline'
+import { MarkdownStub, toolItem, userItem } from './support'
 
 function items(count: number, from = 1): TimelineItem[] {
   return Array.from({ length: count }, (_, index) => userItem(from + index))
@@ -110,5 +110,66 @@ describe('ChatTimeline', () => {
     expect(done.text()).toContain('Start a new one with Run here')
     waiting.unmount()
     done.unmount()
+  })
+
+  function agentCall(over: Partial<ToolItem> = {}): ToolItem {
+    return toolItem({
+      key: 'tool-agent-1',
+      toolUseId: 'agent-1',
+      input: { tool: 'agent', description: 'Find the parser', subagentType: null, prompt: 'go' },
+      ...over
+    })
+  }
+
+  function innerRead(index: number): ToolItem {
+    return toolItem({
+      key: `tool-inner-${index}`,
+      toolUseId: `inner-${index}`,
+      input: { tool: 'read', filePath: `src/file-${index}.rs` },
+      state: 'done',
+      parentToolUseId: 'agent-1'
+    })
+  }
+
+  it('draws a subagent\'s items inside its Agent card, not in the conversation', () => {
+    const timeline = mountTimeline([agentCall(), innerRead(1), innerRead(2), userItem(1)])
+
+    const inner = timeline.get('[data-testid=agent-inner]')
+    expect(inner.findAll('[data-testid=tool-call-card]')).toHaveLength(2)
+    expect(inner.text()).toContain('src/file-1.rs')
+    expect(timeline.findAll('[data-testid=tool-call-card]')).toHaveLength(3)
+    expect(timeline.get('ol').element.children).toHaveLength(2)
+    timeline.unmount()
+  })
+
+  it('keeps an item whose parent is not an Agent call in the conversation', () => {
+    const orphan = toolItem({ key: 'tool-x', toolUseId: 'x', input: { tool: 'read', filePath: 'a.rs' }, parentToolUseId: 'ghost' })
+
+    const timeline = mountTimeline([orphan])
+
+    expect(timeline.find('[data-testid=agent-inner]').exists()).toBe(false)
+    expect(timeline.findAll('[data-testid=tool-call-card]')).toHaveLength(1)
+    timeline.unmount()
+  })
+
+  it('counts the window over the conversation, never over what a subagent did', () => {
+    const subagent = Array.from({ length: 200 }, (_, index) => innerRead(index))
+
+    const timeline = mountTimeline([agentCall(), ...subagent, ...items(100)])
+
+    expect(timeline.find('[data-testid=chat-show-earlier]').exists()).toBe(false)
+    expect(timeline.findAll('[data-testid=agent-inner] [data-testid=tool-call-card]')).toHaveLength(200)
+    timeline.unmount()
+  })
+
+  it('shows the session row and the output of a command in place', () => {
+    const timeline = mountTimeline([
+      { kind: 'session', key: 'session-1', model: 'claude-opus', cwd: '/code/vega', permissionMode: 'default', version: '2.1.331' },
+      { kind: 'command-output', key: 'command-2', command: '/context', text: 'Context Usage\n10%' }
+    ])
+
+    expect(timeline.get('[data-testid=chat-session-start]').text()).toContain('/code/vega')
+    expect(timeline.get('[data-testid=chat-command-output]').text()).toContain('/context')
+    timeline.unmount()
   })
 })

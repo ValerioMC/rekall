@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import ContextFillBadge from '@/features/context-fill/components/ContextFillBadge.vue'
 import PlanStepMenu from '@/features/steps/components/PlanStepMenu.vue'
 import StepPassBars from '@/features/steps/components/StepPassBars.vue'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
@@ -190,6 +191,7 @@ function endDrag(): void {
         >
           {{ standing }}
         </span>
+        <ContextFillBadge :subject="{ taskId: step.taskId, stepId: step.id }" />
         <StepPassBars :step="step" />
       </span>
     </span>

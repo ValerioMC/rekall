@@ -17,6 +17,7 @@ export function toolItem(over: Partial<ToolItem> & { input: ToolInput }): ToolIt
     name: 'Tool',
     result: null,
     state: 'running',
+    parentToolUseId: null,
     ...over
   }
 }

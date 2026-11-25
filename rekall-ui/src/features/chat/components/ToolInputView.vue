@@ -2,7 +2,9 @@
 import { onUnmounted, ref } from 'vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import CopyGlyph from '@/components/ui/CopyGlyph.vue'
+import ToolArguments from './ToolArguments.vue'
 import ToolDiff from './ToolDiff.vue'
+import ToolTodoList from './ToolTodoList.vue'
 import { diffLines, writeLines } from '@/features/chat/lib/tool-diff'
 import type { ToolInput } from '@/features/chat/model/chat-event'
 
@@ -59,6 +61,25 @@ onUnmounted(() => {
     <span class="min-w-0 truncate font-mono text-small text-text">{{ input.filePath }}</span>
     <ToolDiff :lines="writeLines(input.content)" :limit="lineLimit" />
   </template>
+
+  <ToolTodoList v-else-if="input.tool === 'todos'" :items="input.items" />
+
+  <template v-else-if="input.tool === 'agent'">
+    <div class="flex items-center gap-2">
+      <span class="min-w-0 truncate text-small text-text">{{ input.description }}</span>
+      <AppBadge v-if="input.subagentType" tone="neutral">{{ input.subagentType }}</AppBadge>
+    </div>
+    <pre
+      class="rounded-control border border-border bg-(--color-well-top) px-2 py-1.5 font-mono text-small whitespace-pre-wrap break-words text-text-muted"
+      >{{ input.prompt }}</pre
+    >
+  </template>
+
+  <p v-else-if="input.tool === 'web'" class="min-w-0 break-all font-mono text-small text-text" data-testid="tool-web-target">
+    {{ input.target }}
+  </p>
+
+  <ToolArguments v-else-if="input.tool === 'mcp'" :text="input.text" />
 
   <pre
     v-else-if="input.tool === 'other'"

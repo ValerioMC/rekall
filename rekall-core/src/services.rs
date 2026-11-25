@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{check, claude, commit, component, context, decision, deviation, diagram, feedback, flow, inventory, note, review, search, section, step, task, timeentry, token, vulnerability, wrapup, Ctx};
+use crate::{check, claude, commit, component, context, context_fill, decision, deviation, diagram, feedback, flow, inventory, note, review, search, section, step, task, timeentry, token, vulnerability, wrapup, Ctx};
 
 /// Every service, built once over one context: what a controller or a tool is handed.
 #[derive(Clone)]
@@ -27,6 +27,7 @@ pub struct Services {
     pub components: component::ProjectComponentService,
     pub time_entries: timeentry::TimeEntryService,
     pub token_usage: token::TokenUsageService,
+    pub context_fills: context_fill::ContextFillService,
     pub context: context::ContextService,
     pub renderer: context::ContextRenderer,
     pub context_size: context::ContextSizeService,
@@ -89,6 +90,7 @@ impl Services {
             task_work: claude::TaskWorkService::new(ctx.clone()),
             terminal_launch: claude::TerminalLaunchService::new(ctx.clone()),
             token_usage: token::TokenUsageService::new(ctx.clone()),
+            context_fills: context_fill::ContextFillService::new(ctx.clone()),
             inventory_recording: vulnerability::InventoryRecordingService::new(ctx.clone(), inventory.clone(), exposures.clone()),
             advisories: vulnerability::SecurityAdvisoryService::new(ctx.clone()),
             inventory,

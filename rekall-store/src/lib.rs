@@ -26,6 +26,7 @@ pub mod check;
 pub mod commit;
 pub mod component;
 pub mod connection;
+pub mod context_fill;
 pub mod decision;
 pub mod dependency;
 pub mod deviation;
@@ -84,6 +85,7 @@ pub mod prelude {
     pub use super::commit_reference::{Entity as CommitReference, Model as CommitReferenceModel};
     pub use super::company::{Entity as Company, Model as CompanyModel};
     pub use super::connection_access::{Entity as ConnectionAccess, Model as ConnectionAccessModel};
+    pub use super::context_fill::{Entity as ContextFill, Model as ContextFillModel};
     pub use super::connection_company::{Entity as ConnectionCompany, Model as ConnectionCompanyModel};
     pub use super::company_logo_image::{Entity as CompanyLogoImage, Model as CompanyLogoImageModel};
     pub use super::done_check::{Entity as DoneCheck, Model as DoneCheckModel};

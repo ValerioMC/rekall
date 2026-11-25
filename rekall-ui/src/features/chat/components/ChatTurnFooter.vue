@@ -2,10 +2,14 @@
 import { computed } from 'vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import { formatTokens } from '@/common/format/token-count'
+import { formatCost } from '@/features/chat/lib/format-cost'
 import type { TurnOutcome, TurnUsage } from '@/features/chat/model/chat-event'
 
 /** What a turn cost, on one line after its last item. */
-const props = defineProps<{ usage: TurnUsage; durationMs: number; outcome: TurnOutcome }>()
+const props = withDefaults(
+  defineProps<{ usage: TurnUsage; durationMs: number; outcome: TurnOutcome; costUsd?: number | null }>(),
+  { costUsd: null }
+)
 
 const OUTCOME_LABELS: Readonly<Record<Exclude<TurnOutcome, 'completed'>, string>> = {
   interrupted: 'stopped',
@@ -18,6 +22,7 @@ const figures = computed(() =>
     `cache read ${formatTokens(props.usage.cacheReadInputTokens)}`,
     `cache write ${formatTokens(props.usage.cacheCreationInputTokens)}`,
     `out ${formatTokens(props.usage.outputTokens)}`,
+    ...(props.costUsd === null ? [] : [formatCost(props.costUsd)]),
     `${(props.durationMs / 1000).toFixed(1)} s`
   ].join(' · ')
 )

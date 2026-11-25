@@ -9,6 +9,8 @@ mod chat_session;
 mod chat_session_manager;
 mod event_journal;
 mod stream_parser;
+mod turn_context;
+mod tool_summary;
 mod wire;
 
 pub use chat_command::chat_command;

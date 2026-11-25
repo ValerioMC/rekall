@@ -43,7 +43,8 @@ describe('the chat api', () => {
         type: 'toolUse',
         toolUseId: 'u1',
         name: 'Edit',
-        input: { tool: 'edit', filePath: 'a.rs', oldString: 'x', newString: 'y', replaceAll: false }
+        input: { tool: 'edit', filePath: 'a.rs', oldString: 'x', newString: 'y', replaceAll: false },
+        parentToolUseId: null
       })
     )
     const finished = parseChatEvent(
@@ -52,12 +53,90 @@ describe('the chat api', () => {
         type: 'turnFinished',
         usage: { inputTokens: 1, cacheCreationInputTokens: 2, cacheReadInputTokens: 3, outputTokens: 4 },
         durationMs: 900,
-        outcome: 'completed'
+        outcome: 'completed',
+        costUsd: null,
+        context: null
       })
     )
 
     expect(edit).toMatchObject({ seq: 3, type: 'toolUse', input: { tool: 'edit', filePath: 'a.rs' } })
     expect(finished).toMatchObject({ type: 'turnFinished', outcome: 'completed' })
+  })
+
+  it('reads each event the terminal parity adds', () => {
+    const parse = (event: object) => parseChatEvent(JSON.stringify(event))
+    const context = { usedTokens: 42000, windowTokens: 200000 }
+
+    expect(
+      parse({ seq: 1, type: 'sessionStarted', model: 'claude-opus', cwd: '/code', permissionMode: 'default', version: '2.1.331' })
+    ).toMatchObject({ type: 'sessionStarted', permissionMode: 'default' })
+    expect(parse({ seq: 2, type: 'commandOutput', command: '/context', text: 'Context Usage' })).toMatchObject({
+      type: 'commandOutput',
+      command: '/context'
+    })
+    expect(
+      parse({
+        seq: 3,
+        type: 'toolUse',
+        toolUseId: 'u1',
+        name: 'TodoWrite',
+        input: { tool: 'todos', items: [{ content: 'a', status: 'inProgress' }] },
+        parentToolUseId: null
+      })
+    ).toMatchObject({ input: { tool: 'todos', items: [{ status: 'inProgress' }] } })
+    expect(
+      parse({
+        seq: 4,
+        type: 'toolUse',
+        toolUseId: 'u2',
+        name: 'Agent',
+        input: { tool: 'agent', description: 'd', subagentType: null, prompt: 'p' },
+        parentToolUseId: null
+      })
+    ).toMatchObject({ input: { tool: 'agent' } })
+    expect(
+      parse({
+        seq: 5,
+        type: 'toolUse',
+        toolUseId: 'u3',
+        name: 'WebSearch',
+        input: { tool: 'web', name: 'WebSearch', target: 'q' },
+        parentToolUseId: 'u2'
+      })
+    ).toMatchObject({ input: { tool: 'web' }, parentToolUseId: 'u2' })
+    expect(
+      parse({
+        seq: 6,
+        type: 'toolUse',
+        toolUseId: 'u4',
+        name: 'mcp__rekall__rekall_context',
+        input: { tool: 'mcp', server: 'rekall', toolName: 'rekall_context', text: '{}' },
+        parentToolUseId: null
+      })
+    ).toMatchObject({ input: { tool: 'mcp', toolName: 'rekall_context' } })
+    expect(
+      parse({
+        seq: 7,
+        type: 'toolResult',
+        toolUseId: 'u1',
+        isError: false,
+        excerpt: '',
+        truncated: false,
+        summary: 'Read 120 lines',
+        parentToolUseId: null
+      })
+    ).toMatchObject({ summary: 'Read 120 lines' })
+    expect(
+      parse({
+        seq: 8,
+        type: 'turnFinished',
+        usage: { inputTokens: 1, cacheCreationInputTokens: 2, cacheReadInputTokens: 3, outputTokens: 4 },
+        durationMs: 900,
+        outcome: 'completed',
+        costUsd: 0.0123,
+        context
+      })
+    ).toMatchObject({ costUsd: 0.0123, context })
   })
 
   it('skips an event of a type it does not know, and one that is not JSON', () => {

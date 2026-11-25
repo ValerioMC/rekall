@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { emptyTimeline, foldEvent } from '@/features/chat/lib/timeline'
 import type { ChatBody, ChatEvent, ToolInput } from '@/features/chat/model/chat-event'
-import type { AssistantItem, Timeline, ToolItem } from '@/features/chat/model/timeline'
+import type { AssistantItem, CommandOutputItem, SessionItem, Timeline, ToolItem } from '@/features/chat/model/timeline'
 
 const USAGE = { inputTokens: 10, cacheCreationInputTokens: 20, cacheReadInputTokens: 30, outputTokens: 40 }
 const BASH: ToolInput = { tool: 'bash', command: 'ls', description: null }
@@ -14,8 +14,39 @@ function fold(...bodies: ChatBody[]): Timeline {
   return events(...bodies).reduce(foldEvent, emptyTimeline())
 }
 
-function text(messageId: string, words: string, complete = false): ChatBody {
-  return { type: 'assistantText', messageId, text: words, complete }
+function text(messageId: string, words: string, complete = false, parentToolUseId: string | null = null): ChatBody {
+  return { type: 'assistantText', messageId, text: words, complete, parentToolUseId }
+}
+
+function toolUse(toolUseId: string, input: ToolInput = BASH, parentToolUseId: string | null = null): ChatBody {
+  return { type: 'toolUse', toolUseId, name: 'Tool', input, parentToolUseId }
+}
+
+function toolResult(
+  toolUseId: string,
+  over: { isError?: boolean; excerpt?: string; summary?: string | null } = {}
+): ChatBody {
+  return {
+    type: 'toolResult',
+    toolUseId,
+    isError: over.isError ?? false,
+    excerpt: over.excerpt ?? '',
+    truncated: false,
+    summary: over.summary ?? null,
+    parentToolUseId: null
+  }
+}
+
+function turnFinished(over: Partial<Extract<ChatBody, { type: 'turnFinished' }>> = {}): ChatBody {
+  return {
+    type: 'turnFinished',
+    usage: USAGE,
+    durationMs: 1,
+    outcome: 'completed',
+    costUsd: null,
+    context: null,
+    ...over
+  }
 }
 
 describe('the chat timeline reducer', () => {
@@ -45,9 +76,9 @@ describe('the chat timeline reducer', () => {
 
   it('keeps the thinking and the text of one message apart', () => {
     const timeline = fold(
-      { type: 'assistantThinking', messageId: 'm1', text: 'hm', complete: false },
+      { type: 'assistantThinking', messageId: 'm1', text: 'hm', complete: false, parentToolUseId: null },
       text('m1', 'Answer', true),
-      { type: 'assistantThinking', messageId: 'm1', text: 'mm', complete: false }
+      { type: 'assistantThinking', messageId: 'm1', text: 'mm', complete: false, parentToolUseId: null }
     )
 
     expect(timeline.items.map((item) => item.kind)).toEqual(['thinking', 'assistant'])
@@ -56,21 +87,21 @@ describe('the chat timeline reducer', () => {
 
   it('pairs a tool call with its result', () => {
     const timeline = fold(
-      { type: 'toolUse', toolUseId: 'u1', name: 'Bash', input: BASH },
-      { type: 'toolResult', toolUseId: 'u1', isError: false, excerpt: 'a.txt', truncated: false }
+      toolUse('u1'),
+      toolResult('u1', { excerpt: 'a.txt' })
     )
 
     const tool = timeline.items[0] as ToolItem
     expect(timeline.items).toHaveLength(1)
     expect(tool.state).toBe('done')
-    expect(tool.result).toEqual({ isError: false, excerpt: 'a.txt', truncated: false })
+    expect(tool.result).toEqual({ isError: false, excerpt: 'a.txt', truncated: false, summary: null })
   })
 
   it('marks a tool running until its result and failed when the result is an error', () => {
-    const running = fold({ type: 'toolUse', toolUseId: 'u1', name: 'Bash', input: BASH })
+    const running = fold(toolUse('u1'))
     const failed = fold(
-      { type: 'toolUse', toolUseId: 'u1', name: 'Bash', input: BASH },
-      { type: 'toolResult', toolUseId: 'u1', isError: true, excerpt: 'boom', truncated: false }
+      toolUse('u1'),
+      toolResult('u1', { isError: true, excerpt: 'boom' })
     )
 
     expect((running.items[0] as ToolItem).state).toBe('running')
@@ -78,7 +109,7 @@ describe('the chat timeline reducer', () => {
   })
 
   it('ignores a result whose call it never saw', () => {
-    const timeline = fold({ type: 'toolResult', toolUseId: 'ghost', isError: false, excerpt: '', truncated: false })
+    const timeline = fold(toolResult('ghost'))
 
     expect(timeline.items).toEqual([])
   })
@@ -86,12 +117,12 @@ describe('the chat timeline reducer', () => {
   it('tracks the single pending permission and the waiting state until it is resolved', () => {
     const waiting = fold(
       { type: 'userMessage', text: 'go' },
-      { type: 'toolUse', toolUseId: 'u1', name: 'Bash', input: BASH },
+      toolUse('u1'),
       { type: 'permissionRequested', requestId: 'r1', toolUseId: 'u1', name: 'Bash', input: BASH }
     )
     const answered = fold(
       { type: 'userMessage', text: 'go' },
-      { type: 'toolUse', toolUseId: 'u1', name: 'Bash', input: BASH },
+      toolUse('u1'),
       { type: 'permissionRequested', requestId: 'r1', toolUseId: 'u1', name: 'Bash', input: BASH },
       { type: 'permissionResolved', requestId: 'r1', allowed: true }
     )
@@ -105,10 +136,10 @@ describe('the chat timeline reducer', () => {
 
   it('shows a refused call as denied even though its result is an error', () => {
     const timeline = fold(
-      { type: 'toolUse', toolUseId: 'u1', name: 'Bash', input: BASH },
+      toolUse('u1'),
       { type: 'permissionRequested', requestId: 'r1', toolUseId: 'u1', name: 'Bash', input: BASH },
       { type: 'permissionResolved', requestId: 'r1', allowed: false },
-      { type: 'toolResult', toolUseId: 'u1', isError: true, excerpt: 'denied', truncated: false }
+      toolResult('u1', { isError: true, excerpt: 'denied' })
     )
 
     expect((timeline.items[0] as ToolItem).state).toBe('denied')
@@ -127,9 +158,9 @@ describe('the chat timeline reducer', () => {
   it('totals the tokens of finished turns and goes idle with a footer', () => {
     const timeline = fold(
       { type: 'userMessage', text: 'one' },
-      { type: 'turnFinished', usage: USAGE, durationMs: 1200, outcome: 'completed' },
+      turnFinished({ durationMs: 1200 }),
       { type: 'userMessage', text: 'two' },
-      { type: 'turnFinished', usage: USAGE, durationMs: 800, outcome: 'interrupted' }
+      turnFinished({ durationMs: 800, outcome: 'interrupted' })
     )
 
     expect(timeline.tokens).toEqual({
@@ -169,7 +200,7 @@ describe('the chat timeline reducer', () => {
     const replay = events(
       { type: 'userMessage', text: 'go' },
       text('m1', 'Hi', true),
-      { type: 'turnFinished', usage: USAGE, durationMs: 1, outcome: 'completed' }
+      turnFinished()
     )
     const once = replay.reduce(foldEvent, emptyTimeline())
     const twice = replay.reduce(foldEvent, once)
@@ -192,7 +223,7 @@ describe('the chat timeline reducer', () => {
     const before = fold({ type: 'userMessage', text: 'go' })
     const snapshot = JSON.stringify(before)
 
-    foldEvent(before, { seq: 2, type: 'assistantText', messageId: 'm', text: 'x', complete: false })
+    foldEvent(before, { seq: 2, ...text('m', 'x') } as ChatEvent)
 
     expect(JSON.stringify(before)).toBe(snapshot)
   })
@@ -200,8 +231,8 @@ describe('the chat timeline reducer', () => {
   it('folds 5,000 events quickly', () => {
     const bodies: ChatBody[] = []
     for (let index = 0; index < 1250; index += 1) {
-      bodies.push({ type: 'toolUse', toolUseId: `u${index}`, name: 'Bash', input: BASH })
-      bodies.push({ type: 'toolResult', toolUseId: `u${index}`, isError: false, excerpt: 'ok', truncated: false })
+      bodies.push(toolUse(`u${index}`))
+      bodies.push(toolResult(`u${index}`, { excerpt: 'ok' }))
       bodies.push(text(`m${index}`, 'partial '))
       bodies.push(text(`m${index}`, 'partial text', true))
     }
@@ -214,5 +245,72 @@ describe('the chat timeline reducer', () => {
     expect(timeline.items).toHaveLength(2500)
     expect(timeline.lastSeq).toBe(5000)
     expect(elapsed).toBeLessThan(1000)
+  })
+
+  it('shows the session header and the output of a local command in place', () => {
+    const timeline = fold(
+      { type: 'sessionStarted', model: 'claude-opus', cwd: '/code/vega', permissionMode: 'default', version: '2.1.331' },
+      { type: 'commandOutput', command: '/context', text: 'Context Usage\n10%' }
+    )
+
+    expect(timeline.items[0]).toEqual<SessionItem>({
+      kind: 'session',
+      key: 'session-1',
+      model: 'claude-opus',
+      cwd: '/code/vega',
+      permissionMode: 'default',
+      version: '2.1.331'
+    })
+    expect(timeline.items[1]).toEqual<CommandOutputItem>({
+      kind: 'command-output',
+      key: 'command-2',
+      command: '/context',
+      text: 'Context Usage\n10%'
+    })
+    expect(timeline.turn).toBe('idle')
+  })
+
+  it('puts the summary of a result on its tool', () => {
+    const timeline = fold(toolUse('u1'), toolResult('u1', { summary: 'exit code 1', isError: true }))
+
+    expect((timeline.items[0] as ToolItem).result?.summary).toBe('exit code 1')
+  })
+
+  it('keeps the items of a subagent in order, each carrying the Agent call it belongs to', () => {
+    const agent: ToolInput = { tool: 'agent', description: 'Find it', subagentType: null, prompt: 'go' }
+
+    const timeline = fold(
+      toolUse('agent-1', agent),
+      text('m1', 'inner', true, 'agent-1'),
+      toolUse('u2', BASH, 'agent-1'),
+      text('m2', 'outer', true)
+    )
+
+    expect(timeline.items.map((item) => item.key)).toEqual(['tool-agent-1', 'assistant-m1', 'tool-u2', 'assistant-m2'])
+    expect(timeline.items.map((item) => (item as { parentToolUseId: string | null }).parentToolUseId)).toEqual([
+      null,
+      'agent-1',
+      'agent-1',
+      null
+    ])
+  })
+
+  it('adds the cost of each turn to a total and keeps the latest context fill', () => {
+    const first = { usedTokens: 1000, windowTokens: 200000 }
+    const second = { usedTokens: 3000, windowTokens: 200000 }
+
+    const timeline = fold(
+      turnFinished({ costUsd: 0.25, context: first }),
+      turnFinished({ costUsd: 0.5, context: second }),
+      turnFinished({ costUsd: null, context: null })
+    )
+
+    expect(timeline.cost).toBeCloseTo(0.75)
+    expect(timeline.context).toEqual(second)
+    expect(timeline.items.filter((item) => item.kind === 'turn-footer')[0]).toMatchObject({ costUsd: 0.25, context: first })
+  })
+
+  it('has no cost and no context before a turn finishes', () => {
+    expect(emptyTimeline()).toMatchObject({ cost: 0, context: null })
   })
 })

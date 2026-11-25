@@ -83,7 +83,7 @@ fn a_session_the_host_still_lists_but_the_pipe_lost_is_a_conflict() {
 fn attaching_hands_back_only_the_events_after_the_one_asked_for() {
     let world = world();
     world.pipe.emit(world.chat, ChatBody::UserMessage { text: "one".into() }).unwrap();
-    world.pipe.emit(world.chat, ChatBody::ToolUse { tool_use_id: "t".into(), name: "Bash".into(), input: ToolInput::Other { name: "Bash".into(), text: "ls".into() } }).unwrap();
+    world.pipe.emit(world.chat, ChatBody::ToolUse { tool_use_id: "t".into(), name: "Bash".into(), input: ToolInput::Other { name: "Bash".into(), text: "ls".into() }, parent_tool_use_id: None }).unwrap();
     let listener = Arc::new(RecordingChatListener::new());
 
     let attachment = world.service.attach(world.chat, listener.clone(), 1).unwrap();

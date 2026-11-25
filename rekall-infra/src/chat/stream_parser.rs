@@ -3,18 +3,24 @@ use std::collections::HashMap;
 use rekall_core::chat::{ChatBody, NoticeKind, ToolInput, TurnOutcome, TurnUsage};
 use tracing::warn;
 
-use super::wire::{WireBlock, WireBlockStart, WireControlRequest, WireDelta, WireLine, WireMessage, WireResult, WireStreamEvent, WireSystem};
+use super::tool_summary::summarise;
+use super::turn_context::context_of;
+use super::wire::{WireBlock, WireBlockStart, WireControlRequest, WireDelta, WireLine, WireLocalCommand, WireMessage, WireResult, WireStreamEvent, WireSystem, WireToolUseResult};
 
 const LOGGED_LINE_CHARACTERS: usize = 200;
 const ABORTED_PREFIX: &str = "aborted";
+const INIT_SUBTYPE: &str = "init";
+const COMMAND_OUTPUT_TAGS: [&str; 2] = ["local-command-stdout", "local-command-stderr"];
 
 /// Reads the stdout of a headless `claude`, one line at a time, into the events the window follows.
 /// A message's text arrives as deltas while it streams and whole when its block ends; the parser
-/// keeps which message the deltas belong to and joins the blocks of one message.
+/// keeps which message the deltas belong to and joins the blocks of one message. `claude` repeats
+/// `init` on every turn, so the session is announced again only when it changed.
 #[derive(Default)]
 pub struct StreamParser {
     streaming_message: Option<String>,
     texts: HashMap<String, String>,
+    announced_session: Option<ChatBody>,
 }
 
 impl StreamParser {
@@ -37,10 +43,15 @@ impl StreamParser {
 
     fn read(&mut self, line: WireLine) -> Vec<ChatBody> {
         match line {
-            WireLine::System(system) => system_notice(&system).into_iter().collect(),
-            WireLine::StreamEvent { event } => self.stream(event),
-            WireLine::Assistant { message } => self.assistant(message),
-            WireLine::User { message, is_replay } if !is_replay => tool_results(message),
+            WireLine::System(system) => self.system(&system),
+            WireLine::StreamEvent { event, parent_tool_use_id } => self.stream(event, parent_tool_use_id),
+            WireLine::Assistant { local_command_source: Some(output), local_command_run, .. } => {
+                command_output(&output, local_command_run).into_iter().collect()
+            }
+            WireLine::Assistant { message, parent_tool_use_id, .. } => self.assistant(message, parent_tool_use_id),
+            WireLine::User { message, is_replay, tool_use_result, parent_tool_use_id } if !is_replay => {
+                tool_results(message, tool_use_result.as_ref(), parent_tool_use_id)
+            }
             WireLine::User { .. } => Vec::new(),
             WireLine::Result(result) => self.finish_turn(result),
             WireLine::ControlRequest { request_id, request } => permission_request(request_id, request).into_iter().collect(),
@@ -49,51 +60,73 @@ impl StreamParser {
         }
     }
 
-    fn stream(&mut self, event: WireStreamEvent) -> Vec<ChatBody> {
+    fn system(&mut self, system: &WireSystem) -> Vec<ChatBody> {
+        if system.subtype == INIT_SUBTYPE {
+            return self.announce_session(system).into_iter().collect();
+        }
+        system_notice(system).into_iter().collect()
+    }
+
+    fn announce_session(&mut self, system: &WireSystem) -> Option<ChatBody> {
+        let started = session_started(system)?;
+        if self.announced_session.as_ref() == Some(&started) {
+            return None;
+        }
+        self.announced_session = Some(started.clone());
+        Some(started)
+    }
+
+    fn stream(&mut self, event: WireStreamEvent, parent_tool_use_id: Option<String>) -> Vec<ChatBody> {
         match event {
             WireStreamEvent::MessageStart { message } => {
                 self.streaming_message = Some(message.id);
                 Vec::new()
             }
-            WireStreamEvent::ContentBlockStart { content_block: WireBlockStart::Thinking } => self.partial_thinking(String::new()),
-            WireStreamEvent::ContentBlockDelta { delta: WireDelta::TextDelta { text } } => self.partial_text(text),
+            WireStreamEvent::ContentBlockStart { content_block: WireBlockStart::Thinking } => {
+                self.partial_thinking(String::new(), parent_tool_use_id)
+            }
+            WireStreamEvent::ContentBlockDelta { delta: WireDelta::TextDelta { text } } => self.partial_text(text, parent_tool_use_id),
             WireStreamEvent::ContentBlockDelta { delta: WireDelta::ThinkingDelta { thinking } } if !thinking.is_empty() => {
-                self.partial_thinking(thinking)
+                self.partial_thinking(thinking, parent_tool_use_id)
             }
             _ => Vec::new(),
         }
     }
 
-    fn partial_text(&self, text: String) -> Vec<ChatBody> {
+    fn partial_text(&self, text: String, parent_tool_use_id: Option<String>) -> Vec<ChatBody> {
         match &self.streaming_message {
-            Some(message_id) => vec![ChatBody::AssistantText { message_id: message_id.clone(), text, complete: false }],
+            Some(message_id) => vec![ChatBody::AssistantText { message_id: message_id.clone(), text, complete: false, parent_tool_use_id }],
             None => Vec::new(),
         }
     }
 
-    fn partial_thinking(&self, text: String) -> Vec<ChatBody> {
+    fn partial_thinking(&self, text: String, parent_tool_use_id: Option<String>) -> Vec<ChatBody> {
         match &self.streaming_message {
-            Some(message_id) => vec![ChatBody::AssistantThinking { message_id: message_id.clone(), text, complete: false }],
+            Some(message_id) => vec![ChatBody::AssistantThinking { message_id: message_id.clone(), text, complete: false, parent_tool_use_id }],
             None => Vec::new(),
         }
     }
 
-    fn assistant(&mut self, message: WireMessage) -> Vec<ChatBody> {
+    fn assistant(&mut self, message: WireMessage, parent_tool_use_id: Option<String>) -> Vec<ChatBody> {
         let message_id = message.id.clone().or_else(|| self.streaming_message.clone()).unwrap_or_default();
-        message.content.0.into_iter().filter_map(|block| self.block_event(&message_id, block)).collect()
+        message.content.0.into_iter().filter_map(|block| self.block_event(&message_id, parent_tool_use_id.as_deref(), block)).collect()
     }
 
-    fn block_event(&mut self, message_id: &str, block: WireBlock) -> Option<ChatBody> {
+    fn block_event(&mut self, message_id: &str, parent_tool_use_id: Option<&str>, block: WireBlock) -> Option<ChatBody> {
+        let parent_tool_use_id = parent_tool_use_id.map(str::to_string);
         match block {
-            WireBlock::Text { text } if !text.is_empty() => {
-                Some(ChatBody::AssistantText { message_id: message_id.to_string(), text: self.join_text(message_id, text), complete: true })
-            }
+            WireBlock::Text { text } if !text.is_empty() => Some(ChatBody::AssistantText {
+                message_id: message_id.to_string(),
+                text: self.join_text(message_id, text),
+                complete: true,
+                parent_tool_use_id,
+            }),
             WireBlock::Thinking { thinking } => {
-                Some(ChatBody::AssistantThinking { message_id: message_id.to_string(), text: thinking, complete: true })
+                Some(ChatBody::AssistantThinking { message_id: message_id.to_string(), text: thinking, complete: true, parent_tool_use_id })
             }
             WireBlock::ToolUse { id, name, input } => {
                 let input = ToolInput::of(&name, &input);
-                Some(ChatBody::ToolUse { tool_use_id: id, name, input })
+                Some(ChatBody::ToolUse { tool_use_id: id, name, input, parent_tool_use_id })
             }
             _ => None,
         }
@@ -111,6 +144,7 @@ impl StreamParser {
     fn finish_turn(&mut self, result: WireResult) -> Vec<ChatBody> {
         self.streaming_message = None;
         self.texts.clear();
+        let context = context_of(&result);
         let usage = result.usage.unwrap_or_default();
         vec![ChatBody::TurnFinished {
             usage: TurnUsage {
@@ -121,6 +155,8 @@ impl StreamParser {
             },
             duration_ms: result.duration_ms.unwrap_or_default(),
             outcome: outcome_of(result.is_error, result.terminal_reason.as_deref()),
+            cost_usd: result.total_cost_usd,
+            context,
         }]
     }
 }
@@ -135,17 +171,22 @@ fn outcome_of(is_error: bool, terminal_reason: Option<&str>) -> TurnOutcome {
     TurnOutcome::Completed
 }
 
-fn tool_results(message: WireMessage) -> Vec<ChatBody> {
-    message
+fn tool_results(message: WireMessage, reported: Option<&WireToolUseResult>, parent_tool_use_id: Option<String>) -> Vec<ChatBody> {
+    let results: Vec<_> = message
         .content
         .0
         .into_iter()
         .filter_map(|block| match block {
-            WireBlock::ToolResult { tool_use_id, content, is_error } => {
-                let output = content.map(|content| content.text()).unwrap_or_default();
-                Some(ChatBody::tool_result(&tool_use_id, is_error, &output))
-            }
+            WireBlock::ToolResult { tool_use_id, content, is_error } => Some((tool_use_id, content, is_error)),
             _ => None,
+        })
+        .collect();
+    let summary = if results.len() == 1 { reported.and_then(summarise) } else { None };
+    results
+        .into_iter()
+        .map(|(tool_use_id, content, is_error)| {
+            let output = content.map(|content| content.text()).unwrap_or_default();
+            ChatBody::tool_result(&tool_use_id, is_error, &output, summary.clone(), parent_tool_use_id.clone())
         })
         .collect()
 }
@@ -173,6 +214,39 @@ fn system_notice(system: &WireSystem) -> Option<ChatBody> {
         }
         "compact_boundary" => Some(ChatBody::notice(NoticeKind::Compaction, "The conversation was compacted.")),
         _ => None,
+    }
+}
+
+fn session_started(system: &WireSystem) -> Option<ChatBody> {
+    Some(ChatBody::SessionStarted {
+        model: system.model.clone()?,
+        cwd: system.cwd.clone()?,
+        permission_mode: system.permission_mode.clone()?,
+        version: system.claude_code_version.clone()?,
+    })
+}
+
+fn command_output(source: &str, run: Option<WireLocalCommand>) -> Option<ChatBody> {
+    let text = untag_command_output(source);
+    if text.is_empty() {
+        return None;
+    }
+    Some(ChatBody::CommandOutput { command: command_label(run), text: text.to_string() })
+}
+
+fn untag_command_output(source: &str) -> &str {
+    let source = source.trim();
+    COMMAND_OUTPUT_TAGS
+        .iter()
+        .find_map(|tag| source.strip_prefix(&format!("<{tag}>"))?.strip_suffix(&format!("</{tag}>")))
+        .unwrap_or(source)
+        .trim()
+}
+
+fn command_label(run: Option<WireLocalCommand>) -> String {
+    match run {
+        Some(run) => format!("/{} {}", run.command, run.args).trim().to_string(),
+        None => String::new(),
     }
 }
 

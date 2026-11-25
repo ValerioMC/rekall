@@ -1,4 +1,4 @@
-use rekall_core::chat::TOOL_EXCERPT_MAX_CHARACTERS;
+use rekall_core::chat::{ContextFill, TOOL_EXCERPT_MAX_CHARACTERS};
 use serde_json::json;
 
 use super::*;
@@ -10,10 +10,26 @@ const PERMISSION_ALLOW: &str = include_str!("../../fixtures/chat/permission_requ
 const PERMISSION_DENY: &str = include_str!("../../fixtures/chat/permission_request_deny.jsonl");
 const INTERRUPTED: &str = include_str!("../../fixtures/chat/interrupted_turn.jsonl");
 const ERROR_RETRY: &str = include_str!("../../fixtures/chat/error_retry.jsonl");
+const TOOL_READ: &str = include_str!("../../fixtures/chat/tool_read.jsonl");
+const TOOL_WRITE: &str = include_str!("../../fixtures/chat/tool_write.jsonl");
+const TOOL_EDIT: &str = include_str!("../../fixtures/chat/tool_edit.jsonl");
+const TOOL_GREP: &str = include_str!("../../fixtures/chat/tool_grep.jsonl");
+const TOOL_GLOB: &str = include_str!("../../fixtures/chat/tool_glob.jsonl");
+const TOOL_BASH: &str = include_str!("../../fixtures/chat/tool_bash.jsonl");
+const TOOL_BASH_FAILED: &str = include_str!("../../fixtures/chat/tool_bash_failed.jsonl");
+const TOOL_TODO_WRITE: &str = include_str!("../../fixtures/chat/tool_todo_write.jsonl");
+const TOOL_WEB_SEARCH: &str = include_str!("../../fixtures/chat/tool_web_search.jsonl");
+const SUBAGENT: &str = include_str!("../../fixtures/chat/subagent_run.jsonl");
+const MULTI_CALL_TURN: &str = include_str!("../../fixtures/chat/multi_call_turn.jsonl");
+const LOCAL_COMMAND: &str = include_str!("../../fixtures/chat/local_command_context.jsonl");
 
-fn parse(fixture: &str) -> Vec<ChatBody> {
+fn parse_all(fixture: &str) -> Vec<ChatBody> {
     let mut parser = StreamParser::new();
     fixture.lines().flat_map(|line| parser.parse_line(line)).collect()
+}
+
+fn parse(fixture: &str) -> Vec<ChatBody> {
+    parse_all(fixture).into_iter().filter(|event| !matches!(event, ChatBody::SessionStarted { .. })).collect()
 }
 
 fn parse_lines(lines: &[serde_json::Value]) -> Vec<ChatBody> {
@@ -84,10 +100,10 @@ fn every_event_of_a_message_names_the_message_it_belongs_to() {
 fn a_tool_call_is_typed_and_its_result_names_the_call_it_answers() {
     let events = parse(TOOL_CALL);
 
-    let ChatBody::ToolUse { tool_use_id, name, input } = &events[0] else { panic!("the tool call comes first") };
+    let ChatBody::ToolUse { tool_use_id, name, input, .. } = &events[0] else { panic!("the tool call comes first") };
     assert_eq!(name, "Read");
     assert_eq!(*input, ToolInput::Read { file_path: "/work/project/hello.txt".into() });
-    let ChatBody::ToolResult { tool_use_id: answered, is_error, excerpt, truncated } = &events[1] else { panic!("its result follows") };
+    let ChatBody::ToolResult { tool_use_id: answered, is_error, excerpt, truncated, .. } = &events[1] else { panic!("its result follows") };
     assert_eq!(answered, tool_use_id);
     assert!(!is_error);
     assert_eq!(excerpt, "1\thello spike\n2\t");
@@ -199,8 +215,8 @@ fn deltas_belong_to_the_message_that_started_last() {
     assert_eq!(
         events,
         vec![
-            ChatBody::AssistantText { message_id: "msg_a".into(), text: "one".into(), complete: false },
-            ChatBody::AssistantText { message_id: "msg_b".into(), text: "two".into(), complete: false },
+            ChatBody::AssistantText { message_id: "msg_a".into(), text: "one".into(), complete: false, parent_tool_use_id: None },
+            ChatBody::AssistantText { message_id: "msg_b".into(), text: "two".into(), complete: false, parent_tool_use_id: None },
         ]
     );
 }
@@ -253,7 +269,7 @@ fn a_tool_output_in_parts_is_read_as_the_text_of_its_parts() {
         "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_1", "is_error": true, "content": [{"type": "text", "text": "a"}, {"type": "image"}, {"type": "text", "text": "b"}]}]}
     })]);
 
-    assert_eq!(events, vec![ChatBody::tool_result("toolu_1", true, "a\nb")]);
+    assert_eq!(events, vec![ChatBody::tool_result("toolu_1", true, "a\nb", None, None)]);
 }
 
 #[test]
@@ -295,4 +311,240 @@ fn a_control_request_other_than_a_permission_prompt_is_ignored() {
     let events = parse_lines(&[json!({"type": "control_request", "request_id": "r", "request": {"subtype": "hook_callback"}})]);
 
     assert!(events.is_empty());
+}
+
+#[test]
+fn the_init_line_announces_the_session_with_its_model_directory_mode_and_version() {
+    let events = parse_all(PLAIN_REPLY);
+
+    assert_eq!(
+        events[0],
+        ChatBody::SessionStarted {
+            model: "claude-haiku-5-5".into(),
+            cwd: "/work/project".into(),
+            permission_mode: "default".into(),
+            version: "2.1.314".into(),
+        }
+    );
+}
+
+#[test]
+fn an_init_repeated_on_every_turn_announces_the_session_once() {
+    let events = parse_all(PLAIN_REPLY);
+
+    let announcements = events.iter().filter(|event| matches!(event, ChatBody::SessionStarted { .. })).count();
+    assert_eq!(announcements, 1);
+}
+
+#[test]
+fn an_init_that_changed_the_model_announces_the_session_again() {
+    let init = |model: &str| json!({"type": "system", "subtype": "init", "model": model, "cwd": "/w", "permissionMode": "default", "claude_code_version": "2"});
+
+    let events = parse_lines(&[init("a"), init("a"), init("b")]);
+
+    assert_eq!(events.len(), 2);
+}
+
+#[test]
+fn a_local_command_prints_its_output_as_one_event_without_the_tags_and_no_assistant_text() {
+    let events = parse(LOCAL_COMMAND);
+
+    let outputs: Vec<&ChatBody> = events.iter().filter(|event| matches!(event, ChatBody::CommandOutput { .. })).collect();
+    assert_eq!(outputs.len(), 1);
+    let ChatBody::CommandOutput { command, text } = outputs[0] else { panic!("a command output") };
+    assert_eq!(command, "/context");
+    assert!(text.starts_with("## Context Usage"));
+    assert!(!text.contains("local-command-stdout"));
+    assert!(completed_texts(&events).is_empty());
+}
+
+#[test]
+fn a_local_command_with_no_output_produces_nothing() {
+    let events = parse_lines(&[json!({
+        "type": "assistant",
+        "message": {"id": "m", "content": [{"type": "text", "text": ""}]},
+        "local_command_source": "<local-command-stdout></local-command-stdout>",
+        "local_command_run": {"command": "compact", "args": ""}
+    })]);
+
+    assert!(events.is_empty());
+}
+
+fn tool_summary(fixture: &str) -> Option<String> {
+    parse(fixture).into_iter().find_map(|event| match event {
+        ChatBody::ToolResult { summary, .. } => Some(summary),
+        _ => None,
+    })?
+}
+
+#[test]
+fn each_tool_result_says_in_one_line_what_the_tool_did() {
+    assert_eq!(tool_summary(TOOL_READ).as_deref(), Some("Read 4 lines"));
+    assert_eq!(tool_summary(TOOL_WRITE).as_deref(), Some("Added 3 lines, removed 0"));
+    assert_eq!(tool_summary(TOOL_EDIT).as_deref(), Some("Added 1 line, removed 1"));
+    assert_eq!(tool_summary(TOOL_GREP).as_deref(), Some("1 match"));
+    assert_eq!(tool_summary(TOOL_GLOB).as_deref(), Some("1 file"));
+    assert_eq!(tool_summary(TOOL_BASH).as_deref(), Some("exit code 0"));
+}
+
+#[test]
+fn a_failed_command_says_its_exit_code() {
+    assert_eq!(tool_summary(TOOL_BASH_FAILED).as_deref(), Some("exit code 3"));
+}
+
+#[test]
+fn an_interrupted_command_says_so() {
+    let events = parse_lines(&[json!({
+        "type": "user",
+        "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t", "content": "partial"}]},
+        "tool_use_result": {"stdout": "partial", "stderr": "", "interrupted": true, "isImage": false, "noOutputExpected": false}
+    })]);
+
+    assert!(matches!(&events[0], ChatBody::ToolResult { summary: Some(summary), .. } if summary == "interrupted"));
+}
+
+#[test]
+fn a_result_of_a_shape_nobody_summarises_or_with_no_report_has_no_summary() {
+    assert_eq!(tool_summary(TOOL_TODO_WRITE), None);
+    assert_eq!(tool_summary(TOOL_WEB_SEARCH), None);
+    let events = parse_lines(&[json!({"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t", "content": "x"}]}})]);
+    assert!(matches!(&events[0], ChatBody::ToolResult { summary: None, .. }));
+}
+
+#[test]
+fn a_report_shared_by_several_results_is_not_taken_for_any_of_them() {
+    let events = parse_lines(&[json!({
+        "type": "user",
+        "message": {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": "a", "content": "x"},
+            {"type": "tool_result", "tool_use_id": "b", "content": "y"}
+        ]},
+        "tool_use_result": {"file": {"numLines": 3}}
+    })]);
+
+    assert!(events.iter().all(|event| matches!(event, ChatBody::ToolResult { summary: None, .. })));
+}
+
+#[test]
+fn the_tools_the_terminal_draws_in_its_own_way_are_typed_and_not_other() {
+    let todo_call = parse(TOOL_TODO_WRITE).into_iter().find(|event| matches!(event, ChatBody::ToolUse { .. })).expect("the call");
+    let web_call = parse(TOOL_WEB_SEARCH).into_iter().find(|event| matches!(event, ChatBody::ToolUse { .. })).expect("the call");
+
+    assert!(matches!(todo_call, ChatBody::ToolUse { input: ToolInput::Todos { ref items }, .. } if items.len() == 2));
+    assert!(matches!(web_call, ChatBody::ToolUse { input: ToolInput::Web { ref target, .. }, .. } if target == "rust serde tutorial"));
+}
+
+fn parent_of(event: &ChatBody) -> Option<&str> {
+    match event {
+        ChatBody::AssistantText { parent_tool_use_id, .. }
+        | ChatBody::AssistantThinking { parent_tool_use_id, .. }
+        | ChatBody::ToolUse { parent_tool_use_id, .. }
+        | ChatBody::ToolResult { parent_tool_use_id, .. } => parent_tool_use_id.as_deref(),
+        _ => None,
+    }
+}
+
+#[test]
+fn what_a_subagent_does_names_the_agent_call_that_started_it_and_the_main_conversation_does_not() {
+    let events = parse(SUBAGENT);
+    let ChatBody::ToolUse { tool_use_id: agent_call, input: ToolInput::Agent { .. }, parent_tool_use_id: None, .. } = &events[1] else {
+        panic!("the agent call comes second, in the main conversation")
+    };
+
+    let inner: Vec<&ChatBody> = events.iter().filter(|event| parent_of(event).is_some()).collect();
+    assert_eq!(inner.len(), 2);
+    assert!(matches!(inner[0], ChatBody::ToolUse { input: ToolInput::Web { .. }, .. }));
+    assert!(matches!(inner[1], ChatBody::ToolResult { .. }));
+    assert!(inner.iter().all(|event| parent_of(event) == Some(agent_call.as_str())));
+    assert!(matches!(&events[0], ChatBody::AssistantText { parent_tool_use_id: None, .. }));
+    assert!(matches!(events.last(), Some(ChatBody::AssistantText { parent_tool_use_id: None, .. })));
+}
+
+#[test]
+fn the_agents_own_result_belongs_to_the_main_conversation() {
+    let events = parse(SUBAGENT);
+
+    let answer = events.iter().find(|event| matches!(event, ChatBody::ToolResult { parent_tool_use_id: None, .. }));
+    assert!(answer.is_some());
+}
+
+#[test]
+fn a_subagents_text_is_not_joined_to_the_text_of_the_main_message() {
+    let assistant = |id: &str, parent: Option<&str>, text: &str| {
+        json!({"type": "assistant", "parent_tool_use_id": parent, "message": {"id": id, "content": [{"type": "text", "text": text}]}})
+    };
+
+    let events = parse_lines(&[assistant("main", None, "first"), assistant("sub", Some("toolu_A"), "inner"), assistant("main", None, "second")]);
+
+    assert_eq!(completed_texts(&events), vec!["first", "inner", "first\n\nsecond"]);
+    assert_eq!(parent_of(&events[1]), Some("toolu_A"));
+}
+
+#[test]
+fn streamed_deltas_of_a_subagent_carry_its_parent() {
+    let events = parse_lines(&[
+        json!({"type": "stream_event", "parent_tool_use_id": "toolu_A", "event": {"type": "message_start", "message": {"id": "sub"}}}),
+        json!({"type": "stream_event", "parent_tool_use_id": "toolu_A", "event": {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "hi"}}}),
+        json!({"type": "stream_event", "parent_tool_use_id": null, "event": {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "yo"}}}),
+    ]);
+
+    assert_eq!(parent_of(&events[0]), Some("toolu_A"));
+    assert_eq!(parent_of(&events[1]), None);
+}
+
+fn finished_turn(events: &[ChatBody]) -> (Option<f64>, Option<ContextFill>) {
+    events
+        .iter()
+        .find_map(|event| match event {
+            ChatBody::TurnFinished { cost_usd, context, .. } => Some((*cost_usd, *context)),
+            _ => None,
+        })
+        .expect("a finished turn")
+}
+
+#[test]
+fn a_turn_of_many_calls_reports_its_cost_and_what_its_last_call_held() {
+    let (cost, context) = finished_turn(&parse(MULTI_CALL_TURN));
+
+    assert!((cost.expect("a cost") - 0.01015964).abs() < 1e-9);
+    assert_eq!(context, Some(ContextFill { used_tokens: 2 + 37_070 + 937, window_tokens: 1_000_000 }));
+}
+
+#[test]
+fn a_result_without_a_cost_or_iterations_has_neither() {
+    let events = parse_lines(&[
+        json!({"type": "result", "subtype": "success", "is_error": false, "usage": {"input_tokens": 1}}),
+        json!({"type": "result", "subtype": "success", "is_error": false, "usage": {"iterations": []}, "modelUsage": {}}),
+        json!({"type": "result", "subtype": "success", "is_error": false, "usage": {"iterations": null}}),
+    ]);
+
+    for event in &events {
+        assert!(matches!(event, ChatBody::TurnFinished { cost_usd: None, context: None, .. }));
+    }
+    assert_eq!(events.len(), 3);
+}
+
+#[test]
+fn the_window_is_the_one_of_the_model_that_wrote_most() {
+    let events = parse_lines(&[json!({
+        "type": "result", "subtype": "success", "is_error": false, "total_cost_usd": 0.5,
+        "usage": {"iterations": [{"input_tokens": 10, "cache_read_input_tokens": 20, "cache_creation_input_tokens": 30}]},
+        "modelUsage": {
+            "small-model": {"outputTokens": 5, "contextWindow": 200_000},
+            "main-model": {"outputTokens": 900, "contextWindow": 1_000_000}
+        }
+    })]);
+
+    assert_eq!(finished_turn(&events).1, Some(ContextFill { used_tokens: 60, window_tokens: 1_000_000 }));
+}
+
+#[test]
+fn a_model_that_names_no_window_leaves_the_fill_unknown() {
+    let events = parse_lines(&[json!({
+        "type": "result", "subtype": "success", "is_error": false,
+        "usage": {"iterations": [{"input_tokens": 10}]},
+        "modelUsage": {"m": {"outputTokens": 5}}
+    })]);
+
+    assert_eq!(finished_turn(&events).1, None);
 }

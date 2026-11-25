@@ -16,6 +16,14 @@ export function describePermission(input: ToolInput): string {
       return input.path
         ? `Claude wants to search for ${input.pattern} in ${input.path}`
         : `Claude wants to search for ${input.pattern}`
+    case 'todos':
+      return 'Claude wants to update its todo list'
+    case 'agent':
+      return `Claude wants to start an agent: ${input.description}`
+    case 'web':
+      return `Claude wants to use ${input.name} on ${input.target}`
+    case 'mcp':
+      return `Claude wants to use ${input.toolName} of ${input.server}`
     case 'other':
       return `Claude wants to use ${input.name}`
   }

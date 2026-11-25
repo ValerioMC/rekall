@@ -15,7 +15,16 @@ const NO_TOKENS: TurnUsage = {
 }
 
 export function emptyTimeline(): Timeline {
-  return { items: [], lastSeq: 0, turn: 'idle', pending: null, tokens: NO_TOKENS, ended: false }
+  return {
+    items: [],
+    lastSeq: 0,
+    turn: 'idle',
+    pending: null,
+    tokens: NO_TOKENS,
+    cost: 0,
+    context: null,
+    ended: false
+  }
 }
 
 type Draft = { -readonly [Field in keyof Timeline]: Timeline[Field] } & { items: TimelineItem[] }
@@ -36,6 +45,24 @@ function apply(draft: Draft, event: ChatEvent): void {
   draft.lastSeq = event.seq
   const body: ChatBody = event
   switch (body.type) {
+    case 'sessionStarted':
+      draft.items.push({
+        kind: 'session',
+        key: `session-${event.seq}`,
+        model: body.model,
+        cwd: body.cwd,
+        permissionMode: body.permissionMode,
+        version: body.version
+      })
+      break
+    case 'commandOutput':
+      draft.items.push({
+        kind: 'command-output',
+        key: `command-${event.seq}`,
+        command: body.command,
+        text: body.text
+      })
+      break
     case 'userMessage':
       draft.items.push({ kind: 'user', key: `user-${event.seq}`, text: body.text })
       draft.turn = 'working'
@@ -112,7 +139,8 @@ function foldAssistantText(
       key: `assistant-${body.messageId}`,
       messageId: body.messageId,
       text: body.text,
-      complete: body.complete
+      complete: body.complete,
+      parentToolUseId: body.parentToolUseId
     })
     markWorking(draft)
     return
@@ -134,7 +162,8 @@ function foldThinking(
       key: `thinking-${body.messageId}`,
       messageId: body.messageId,
       text: body.text,
-      complete: body.complete
+      complete: body.complete,
+      parentToolUseId: body.parentToolUseId
     })
     markWorking(draft)
     return
@@ -165,7 +194,8 @@ function foldToolUse(draft: Draft, body: Extract<ChatBody, { type: 'toolUse' }>)
     name: body.name,
     input: body.input,
     result: null,
-    state: 'running'
+    state: 'running',
+    parentToolUseId: body.parentToolUseId
   })
   markWorking(draft)
 }
@@ -179,7 +209,12 @@ function foldToolResult(draft: Draft, body: Extract<ChatBody, { type: 'toolResul
   const tool = draft.items[index] as ToolItem
   draft.items[index] = {
     ...tool,
-    result: { isError: body.isError, excerpt: body.excerpt, truncated: body.truncated },
+    result: {
+      isError: body.isError,
+      excerpt: body.excerpt,
+      truncated: body.truncated,
+      summary: body.summary
+    },
     state: resultState(tool, body.isError)
   }
 }
@@ -216,9 +251,13 @@ function foldTurnFinished(
     key: `turn-${seq}`,
     usage: body.usage,
     durationMs: body.durationMs,
-    outcome: body.outcome
+    outcome: body.outcome,
+    costUsd: body.costUsd,
+    context: body.context
   })
   draft.tokens = addUsage(draft.tokens, body.usage)
+  draft.cost += body.costUsd ?? 0
+  draft.context = body.context ?? draft.context
   draft.turn = 'idle'
   draft.pending = null
 }

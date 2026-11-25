@@ -37,7 +37,7 @@ describe('ToolCallCard', () => {
     const card = mountCard({
       ...BASH,
       state: 'done',
-      result: { isError: false, excerpt: 'test result: ok. 12 passed', truncated: false }
+      result: { isError: false, excerpt: 'test result: ok. 12 passed', truncated: false, summary: null }
     })
 
     await card.get('button').trigger('click')
@@ -56,7 +56,7 @@ describe('ToolCallCard', () => {
           replaceAll: true
         },
         state: 'done',
-        result: { isError: false, excerpt: 'The file has been updated', truncated: false }
+        result: { isError: false, excerpt: 'The file has been updated', truncated: false, summary: null }
       })
     )
 
@@ -78,7 +78,7 @@ describe('ToolCallCard', () => {
       toolItem({
         input: { tool: 'edit', filePath: 'a.rs', oldString: 'x', newString: 'y', replaceAll: false },
         state: 'failed',
-        result: { isError: true, excerpt: 'old_string not found', truncated: false }
+        result: { isError: true, excerpt: 'old_string not found', truncated: false, summary: null }
       })
     )
 
@@ -101,7 +101,7 @@ describe('ToolCallCard', () => {
 
   it('cuts a long output to its last 40 lines, with a key for all of them and a note when Rekall cut it', async () => {
     const excerpt = Array.from({ length: 100 }, (_, index) => `out ${index + 1}`).join('\n')
-    const card = mountCard({ ...BASH, state: 'done', result: { isError: false, excerpt, truncated: true } })
+    const card = mountCard({ ...BASH, state: 'done', result: { isError: false, excerpt, truncated: true, summary: null } })
 
     await card.get('button').trigger('click')
     const output = card.get('[data-testid=tool-output]')
@@ -121,5 +121,99 @@ describe('ToolCallCard', () => {
     await card.get('button').trigger('click')
 
     expect(card.get('[data-testid=tool-call-body]').text()).toContain('https://example.com')
+  })
+
+  it('says what the call did after what it was pointed at, without opening it', () => {
+    const card = mountCard({
+      ...BASH,
+      state: 'failed',
+      result: { isError: true, excerpt: 'boom', truncated: false, summary: 'exit code 1' }
+    })
+
+    expect(card.get('[data-testid=tool-summary]').text()).toBe('exit code 1')
+    expect(card.find('[data-testid=tool-call-body]').exists()).toBe(false)
+  })
+
+  it('shows no summary when the result has none', () => {
+    const card = mountCard({ ...BASH, state: 'done', result: { isError: false, excerpt: 'ok', truncated: false, summary: null } })
+
+    expect(card.find('[data-testid=tool-summary]').exists()).toBe(false)
+  })
+
+  it('reads a todo list open, in progress first, a glyph for each status', () => {
+    const card = mountCard(
+      toolItem({
+        input: {
+          tool: 'todos',
+          items: [
+            { content: 'write tests', status: 'pending' },
+            { content: 'build parser', status: 'completed' },
+            { content: 'wire route', status: 'inProgress' }
+          ]
+        }
+      })
+    )
+
+    expect(card.get('button').attributes('aria-expanded')).toBe('true')
+    const rows = card.findAll('[data-testid=tool-todos] li')
+    expect(rows.map((row) => row.text())).toEqual(['In progresswire route', 'Pendingwrite tests', 'Completedbuild parser'])
+    expect(card.text()).toContain('1 of 3 done')
+  })
+
+  it('keeps every other call closed', () => {
+    const web = mountCard(toolItem({ input: { tool: 'web', name: 'WebFetch', target: 'https://example.com/a' } }))
+    const agent = mountCard(
+      toolItem({ input: { tool: 'agent', description: 'Find it', subagentType: null, prompt: 'p' }, state: 'done' })
+    )
+
+    expect(web.get('button').attributes('aria-expanded')).toBe('false')
+    expect(agent.get('button').attributes('aria-expanded')).toBe('false')
+  })
+
+  it('shows a web call as its host in the row and its whole address in the body', async () => {
+    const card = mountCard(toolItem({ input: { tool: 'web', name: 'WebFetch', target: 'https://example.com/docs/a' } }))
+
+    expect(card.text()).toContain('example.com')
+    await card.get('button').trigger('click')
+
+    expect(card.get('[data-testid=tool-web-target]').text()).toBe('https://example.com/docs/a')
+  })
+
+  it('names an mcp call by server and tool and reads its arguments as lines', async () => {
+    const card = mountCard(
+      toolItem({
+        input: { tool: 'mcp', server: 'rekall', toolName: 'rekall_context', text: JSON.stringify({ anchors: 'task:RK-1', limit: 3 }, null, 2) }
+      })
+    )
+
+    expect(card.text()).toContain('rekall · rekall_context')
+    await card.get('button').trigger('click')
+
+    const arguments_ = card.get('[data-testid=tool-arguments]')
+    expect(arguments_.findAll('dt').map((key) => key.text())).toEqual(['anchors', 'limit'])
+    expect(arguments_.findAll('dd').map((value) => value.text())).toEqual(['task:RK-1', '3'])
+    expect(arguments_.text()).not.toContain('{')
+  })
+
+  it('opens an Agent while it runs and folds it when its result arrives, whatever it was before', async () => {
+    const agent = toolItem({ input: { tool: 'agent', description: 'Find it', subagentType: null, prompt: 'p' } })
+    const card = mountCard(agent)
+    expect(card.get('button').attributes('aria-expanded')).toBe('true')
+
+    await card.setProps({ call: { ...agent, state: 'done', result: { isError: false, excerpt: 'found', truncated: false, summary: null } } })
+
+    expect(card.get('button').attributes('aria-expanded')).toBe('false')
+  })
+
+  it('counts the calls of a subagent while it is folded', async () => {
+    const agent = toolItem({
+      input: { tool: 'agent', description: 'Find it', subagentType: null, prompt: 'p' },
+      state: 'done'
+    })
+    const card = mount(ToolCallCard, { props: { call: agent, innerCalls: 3 } })
+
+    expect(card.get('[data-testid=tool-inner-count]').text()).toBe('3 calls')
+    await card.get('button').trigger('click')
+    expect(card.find('[data-testid=tool-inner-count]').exists()).toBe(false)
   })
 })
