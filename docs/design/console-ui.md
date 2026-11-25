@@ -203,7 +203,7 @@ have the width; the other tabs start open. Open, it holds: the status pill that 
 then Labels (tag, skills, dependencies), Context (what `/rk` hands a session, as a total and a bar of
 its heaviest parts, with the tokens the task generated), Window (the context-fill badge of the task,
 shown only once a chat turn has recorded one) and Git (the branch and the commits, shown
-only while there is one). The Description tab keeps one strip: its views, Fix wording and Write/Read.
+only while there is one). The Description tab keeps one strip: its views, Fix wording (which also uses the task's steps and decisions, and works with no description when it has any) and Write/Read.
 
 The context-fill badge (`ContextFillBadge`, `rekall-ui/src/features/context-fill/`) is a 24px chip with its own
 shape: a thin bar and the percent of the context window a chat session held at the end of its last turn,
