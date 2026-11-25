@@ -42,6 +42,10 @@ A company is named by its name and a project by its `label`: lowercase letters, 
 
 A project belongs to one company, a task to one project. A note belongs to exactly one task and is deleted with it, so deleting a project or company deletes its notes too. A wrapup and a step belong to exactly one task and are deleted with it. Adding an entity is a SeaORM model and a migration in `rekall-store`, not a UI action.
 
+### Exports
+
+A project's exports (`project_export`, one row each) and their files (`project_export_file`, the bytes of a PDF or Word file) live in the database like every other row. They are kept until deleted, go with their project, and are part of every backup and restore.
+
 ## Context size and reference notes
 
 On the title line of a task's description, a chip estimates what `/rk project:… task:…` costs a session: the characters of the markdown it hands over and roughly how many tokens that is (3.5 characters to a token, an estimate for comparing tasks, not a bill). Under the pointer it lists the parts heaviest first: the description, the steps, the wrapup, the commits chosen for the context, each note, and the project around them. `GET /api/tasks/{id}/context-size` measures it with the same context renderer that answers `rekall_context`, so the figure is the length of what a session gets.
