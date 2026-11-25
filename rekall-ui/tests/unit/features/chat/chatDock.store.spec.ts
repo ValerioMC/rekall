@@ -90,6 +90,16 @@ describe('the chat dock', () => {
     expect(dock.mode).toBe('inline')
   })
 
+  it('keeps its placement while hidden, so a window sliding away keeps its layout', () => {
+    const dock = useChatDockStore()
+    dock.observe(700, true)
+
+    dock.hide()
+
+    expect(dock.mode).toBe('hidden')
+    expect(dock.placement).toBe('overlay')
+  })
+
   it('still works when the browser refuses storage', () => {
     installStorage({
       getItem: () => {

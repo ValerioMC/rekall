@@ -518,6 +518,16 @@ selected (`useChatWindowShown`, `chat.sessionFor`). A session on no task, such a
 diagram for a project, stays on screen. A chat opened from a button brings itself to the window
 (`useRevealOpenedChat`).
 
+`ChatDock` owns the window's motion, in the console layout and over a page alike. Hiding slides the
+window to the right edge it came from in `--motion-move`, and reopening slides it back; a hide
+reversed half-way turns back from where it is, because the state sits on the window as `data-state`
+and the motion is a CSS transition. Docked beside the note pane, the window gives its room back
+through a negative right margin, so its text does not reflow and the note pane follows it; over a
+page or expanded it translates and fades. Once shown the window stays mounted while hidden, inert and
+out of the tab order, so the draft and the scroll position survive a hide; focus moves to the note
+pane when the window hides. Under reduced motion it cuts. On `/console` with no terminal, the
+console waits for the slide before it leaves for the task page.
+
 An approval is never answered or expired on the user's behalf: `ChatApprovalCard` shows the call
 (with a diff for an edit) and stays until a `permissionResolved` event arrives. Whether the session is
 waiting is read from its own timeline once it is followed, because the flag on the stored session
