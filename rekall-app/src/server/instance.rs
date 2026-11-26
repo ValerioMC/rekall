@@ -5,6 +5,7 @@ use std::time::Duration;
 use axum::Router;
 use rekall_core::claude::UsageReader;
 use rekall_core::connection::TaskTrackerService;
+use rekall_core::picture::PictureStore;
 use rekall_core::settings::SetupStatus;
 use rekall_core::timeentry::IDLE_AFTER;
 use rekall_core::vulnerability::{ScanSettingsService, VulnerabilityScanService};
@@ -82,7 +83,9 @@ impl Instance {
         let clock = ctx.clock.clone();
         let claude_config = &config.claude;
         let login_shell = LoginShellEnvironment::new(claude_config.shell.as_deref(), claude_config.shell_environment_timeout);
-        let services = Services::new(ctx.clone(), check_runner_of(options, &login_shell));
+        let location = database.path.as_deref().and_then(DatabaseLocation::of);
+        let pictures = Arc::new(FolderPictureStore::new(location.as_ref()));
+        let services = Services::new(ctx.clone(), check_runner_of(options, &login_shell)).with_pictures_folder(pictures.folder());
         let secrets = secrets_of(config, options);
         let stream = Arc::new(StepEventStream::new(events.clone()));
         let task_tracker = TaskTrackerService::new(ctx.clone(), secrets.clone(), task_tracker_of(options));
@@ -98,11 +101,9 @@ impl Instance {
         );
         let mcp = rekall_mcp::McpController::new(rekall_mcp::tool_registry::all(&services));
         let usage = usage_of(options, claude_config, &clock);
-        let sessions = open_sessions(config, &ctx, &services, &secrets, &login_shell, served_port);
+        let sessions = open_sessions(config, &ctx, &services, &secrets, &login_shell, served_port, pictures.folder());
         let queue = start_queue(config, &ctx, &events, &services, &task_tracker, &sessions.hosts, &usage);
         let transcripts = TranscriptScanner::new(TranscriptFolder::new(claude_config.transcripts_dir.clone()), services.token_usage.clone());
-        let location = database.path.as_deref().and_then(DatabaseLocation::of);
-        let pictures = Arc::new(FolderPictureStore::new(location.as_ref()));
         let backups = DatabaseBackupService::new(
             database.conn.clone(),
             location,

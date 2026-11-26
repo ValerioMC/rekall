@@ -83,3 +83,23 @@ async fn without_a_database_file_every_call_is_a_conflict() {
     assert!(matches!(store.write(&path(), b"pixels").await, Err(RekallError::Conflict(_))));
     assert!(matches!(store.read(&path()).await, Err(RekallError::Conflict(_))));
 }
+
+#[test]
+fn the_folder_is_the_real_images_folder_before_and_after_it_exists() {
+    let folder = tempfile::tempdir().unwrap();
+    let database_folder = folder.path().join("db");
+    std::fs::create_dir(&database_folder).unwrap();
+    let link = folder.path().join("linked-db");
+    std::os::unix::fs::symlink(&database_folder, &link).unwrap();
+    let store = FolderPictureStore::new(Some(&DatabaseLocation::of(&link.join("rekall.db")).unwrap()));
+    let real = database_folder.canonicalize().unwrap().join("images");
+
+    assert_eq!(store.folder(), Some(real.clone()));
+    std::fs::create_dir(database_folder.join("images")).unwrap();
+    assert_eq!(store.folder(), Some(real));
+}
+
+#[test]
+fn without_a_database_file_there_is_no_folder() {
+    assert_eq!(FolderPictureStore::new(None).folder(), None);
+}

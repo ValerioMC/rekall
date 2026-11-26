@@ -144,3 +144,40 @@ async fn an_upload_refused_for_its_content_size_or_owner_keeps_nothing() {
 
     app.stop().await;
 }
+
+#[tokio::test]
+async fn a_session_is_told_where_the_pictures_are_by_the_context_and_each_read_tool() {
+    let app = app().await;
+    let company = app.post("/api/companies", json!({ "name": "Acme" })).await;
+    let project = app.post("/api/projects", json!({ "label": "web", "title": "Web", "taskKey": "WEB", "companyId": company.str("id") })).await;
+    let project_id = project.str("id");
+    let task = app.post("/api/tasks", json!({ "title": "Login", "projectId": project_id })).await.str("id");
+    let url = import(&app, &task, "Login Flow.png", PNG).await;
+    let shown = format!("Build it like this ![Login Flow]({url})");
+    app.put(&format!("/api/tasks/{task}"), json!({ "title": "Login", "projectId": project_id, "description": shown })).await;
+    app.post(&format!("/api/tasks/{task}/steps"), json!({ "title": "Build", "bodyMarkdown": shown })).await;
+    app.post(&format!("/api/projects/{project_id}/sections"), json!({ "title": "Look", "bodyMarkdown": shown })).await;
+    app.post(&format!("/api/projects/{project_id}/sections"), json!({ "title": "Words", "bodyMarkdown": "No picture here." })).await;
+    app.post(&format!("/api/projects/{project_id}/components"), json!({ "name": "UI", "folder": "/work/ui", "description": shown })).await;
+
+    let folder = app.folder.path().canonicalize().unwrap().join("db/images");
+    let block = format!("<pictures folder=\"{}\">", folder.display());
+    let reads = [
+        ("rekall_context", json!({ "anchors": "task:WEB-1" })),
+        ("rekall_read_steps", json!({ "anchors": "task:WEB-1" })),
+        ("rekall_read_sections", json!({ "anchors": "project:web", "title": "Look" })),
+        ("rekall_read_components", json!({ "anchors": "project:web", "name": "UI" })),
+    ];
+    for (tool, arguments) in reads {
+        let answer = app.call_tool(tool, arguments).await;
+        assert_eq!(answer.matches(&block).count(), 1, "{tool}: {answer}");
+        assert!(answer.contains(&url), "{tool} keeps the address: {answer}");
+    }
+    let plain = app.call_tool("rekall_read_sections", json!({ "anchors": "project:web", "title": "Words" })).await;
+    assert!(!plain.contains("<pictures"), "{plain}");
+
+    let size = app.get(&format!("/api/tasks/{task}/context-size")).await;
+    assert!(size.text.contains("Pictures folder"), "{}", size.text);
+
+    app.stop().await;
+}

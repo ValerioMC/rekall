@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::io::Cursor;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
@@ -30,6 +30,10 @@ impl FakePictures {
 
 #[async_trait]
 impl PictureStore for FakePictures {
+    fn folder(&self) -> Option<PathBuf> {
+        None
+    }
+
     async fn read_source(&self, _source: &Path, _limit_bytes: u64) -> Result<Vec<u8>> {
         unreachable!("an export copies no picture in")
     }

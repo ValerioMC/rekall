@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rekall_core::context::SessionPictures;
 use rekall_core::section::{ProjectSectionService, ProjectSectionView, SectionsRead};
 use rekall_core::ProjectRef;
 use serde_json::Value;
@@ -11,11 +12,12 @@ use crate::texts;
 /// them, with one it returns that section whole; it writes nothing.
 pub struct SectionReadTool {
     sections: ProjectSectionService,
+    pictures: SessionPictures,
 }
 
 impl SectionReadTool {
-    pub fn new(sections: ProjectSectionService) -> Self {
-        Self { sections }
+    pub fn new(sections: ProjectSectionService, pictures: SessionPictures) -> Self {
+        Self { sections, pictures }
     }
 }
 
@@ -58,7 +60,7 @@ impl McpTool for SectionReadTool {
             .read(target.project.as_ref(), target.task_code.as_deref(), args.optional_string("title").as_deref())
             .await
             .map_err(|e| told(e, hint))?;
-        Ok(report(&read))
+        Ok(self.pictures.appended_to(report(&read)))
     }
 }
 

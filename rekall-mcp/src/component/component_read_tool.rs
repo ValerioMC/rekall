@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use rekall_core::component::{ComponentsRead, ProjectComponentService};
+use rekall_core::context::SessionPictures;
 use serde_json::Value;
 
 use crate::protocol::{McpTool, ToolError, ToolSchema};
@@ -10,11 +11,12 @@ use crate::tool::{told, Anchor, AnchoredProject, Arguments};
 /// a name it lists them, with one it returns that component's description; it writes nothing.
 pub struct ComponentReadTool {
     components: ProjectComponentService,
+    pictures: SessionPictures,
 }
 
 impl ComponentReadTool {
-    pub fn new(components: ProjectComponentService) -> Self {
-        Self { components }
+    pub fn new(components: ProjectComponentService, pictures: SessionPictures) -> Self {
+        Self { components, pictures }
     }
 }
 
@@ -43,7 +45,7 @@ impl McpTool for ComponentReadTool {
             .read(&target.project, args.optional_string("name").as_deref())
             .await
             .map_err(|e| told(e, ""))?;
-        Ok(report(&read))
+        Ok(self.pictures.appended_to(report(&read)))
     }
 }
 

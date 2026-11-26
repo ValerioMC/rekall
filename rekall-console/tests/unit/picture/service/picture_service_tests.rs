@@ -23,6 +23,10 @@ struct FakeStore {
 
 #[async_trait]
 impl PictureStore for FakeStore {
+    fn folder(&self) -> Option<PathBuf> {
+        None
+    }
+
     async fn read_source(&self, source: &Path, limit_bytes: u64) -> Result<Vec<u8>> {
         let bytes = self.sources.lock().unwrap().get(source).cloned().ok_or_else(|| RekallError::illegal("not a file"))?;
         if bytes.len() as u64 > limit_bytes {

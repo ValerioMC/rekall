@@ -1,6 +1,7 @@
-//! The Claude Code settings a credential session starts with: deny rules that stop a session from
-//! reading its helpers' folder, dumping its environment or calling a helper by hand. Pattern
-//! matches against an accidental read, not a sandbox; they hold under `--dangerously-skip-permissions`.
+//! The Claude Code settings a session starts with: a rule that lets it read the pictures, and for
+//! a credential session deny rules against reading its helpers' folder, dumping its environment or
+//! calling a helper by hand. Pattern matches against an accidental read, not a sandbox; they hold
+//! under `--dangerously-skip-permissions`.
 
 use std::path::Path;
 
@@ -15,7 +16,28 @@ struct Settings {
 
 #[derive(Serialize)]
 struct Permissions {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    allow: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     deny: Vec<String>,
+}
+
+/// Reading the pictures without being asked, and nothing more: `--add-dir` would allow edits too.
+pub(super) fn picture_read_rules(pictures: Option<&Path>) -> Vec<String> {
+    // A leading `//` makes a file rule absolute.
+    pictures.map(|folder| format!("Read(/{}/**)", literal_pattern(folder))).into_iter().collect()
+}
+
+/// A file rule is a gitignore pattern, so a folder's own wildcard characters are escaped.
+fn literal_pattern(folder: &Path) -> String {
+    let mut pattern = String::new();
+    for character in folder.display().to_string().chars() {
+        if matches!(character, '\\' | '*' | '?' | '[' | ']') {
+            pattern.push('\\');
+        }
+        pattern.push(character);
+    }
+    pattern
 }
 
 /// `folder` is the session's own, `endpoint` where its helpers ask.
@@ -48,8 +70,8 @@ pub(super) fn deny_rules(folder: &Path, endpoint: &str) -> Vec<String> {
     rules
 }
 
-pub(super) fn settings_document(folder: &Path, endpoint: &str) -> String {
-    let settings = Settings { permissions: Permissions { deny: deny_rules(folder, endpoint) } };
+pub(super) fn settings_document(allow: Vec<String>, deny: Vec<String>) -> String {
+    let settings = Settings { permissions: Permissions { allow, deny } };
     serde_json::to_string_pretty(&settings).expect("a list of strings always serialises")
 }
 

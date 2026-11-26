@@ -1,6 +1,7 @@
 //! The parts `Instance::build` assembles: each port taken from the start options or built the way
 //! production builds it, the terminal and chat sessions, the run queue and the router.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -147,6 +148,7 @@ pub(super) fn open_sessions(
     secrets: &Arc<dyn SecretStore>,
     login_shell: &Arc<LoginShellEnvironment>,
     served_port: u16,
+    pictures_folder: Option<PathBuf>,
 ) -> Sessions {
     let claude_config = &config.claude;
     let cli = ClaudeCli::new(claude_config.cli_path.as_deref(), claude_config.home.clone(), Arc::new(login_shell.clone()));
@@ -155,7 +157,8 @@ pub(super) fn open_sessions(
         ConnectionAccessService::new(ctx.clone()),
         format!("http://127.0.0.1:{served_port}"),
         config.home.join(CREDENTIAL_SESSIONS_FOLDER),
-    ));
+    )
+    .with_readable_pictures(pictures_folder));
     let work_marker = WorkMarker::new(services.steps.clone(), services.review.clone(), services.step_snapshots.clone(), services.feedback.clone());
     let terminals = PtyTerminalManager::new(
         services.terminal_launch.clone(),

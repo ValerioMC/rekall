@@ -34,6 +34,12 @@ impl FolderPictureStore {
 
 #[async_trait]
 impl PictureStore for FolderPictureStore {
+    /// Resolved, since Claude Code matches a read rule against the real path, even before the
+    /// first picture creates the folder.
+    fn folder(&self) -> Option<PathBuf> {
+        self.root.as_deref().map(real_path)
+    }
+
     async fn read_source(&self, source: &Path, limit_bytes: u64) -> Result<Vec<u8>> {
         self.root()?;
         if !source.is_absolute() {
@@ -65,6 +71,11 @@ impl PictureStore for FolderPictureStore {
             _ => disk_failure(failure),
         })
     }
+}
+
+fn real_path(folder: &Path) -> PathBuf {
+    let under_real_parent = || Some(folder.parent()?.canonicalize().ok()?.join(folder.file_name()?));
+    folder.canonicalize().ok().or_else(under_real_parent).unwrap_or_else(|| folder.to_path_buf())
 }
 
 async fn read_up_to(source: &Path, bytes: u64) -> io::Result<Vec<u8>> {

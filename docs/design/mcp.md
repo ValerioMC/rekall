@@ -109,6 +109,14 @@ epic and never changes a kind, and publishes `task-created` so the console reads
 sections by title only, so this is the only way a session reads one. `ProjectSectionService::read` lists the titles by context, or returns one
 section by title ignoring case; a title the project lacks is refused with the titles it has.
 
+A text that shows a picture holds an address (`/api/images/...`) that a session cannot open. `rekall_context`,
+`rekall_read_sections`, `rekall_read_components` and `rekall_read_steps` then end their answer, once, with
+`<pictures folder="/abs/database/folder/images">`, which says that `/api/images/<path>` is the file `<folder>/<path>`
+(`SessionPictures`, rekall-core `context/`). The addresses are never rewritten: a session that saved a rewritten
+text back would store a file path. There is no block when the database is not a file, and `ContextSizeService` counts
+it as a part of its own. Reading the folder without a prompt is the session's settings
+([terminals.md](terminals.md)).
+
 `rekall_component` writes one component of a project: `anchors` name the project, then `name`, `folder`, a `summary`
 (at most 500 characters, the only text a context carries) and the `description`, a markdown page whose headings the tool's text lists (Purpose,
 Responsibilities, Stack and layout, Interfaces, Depends on and Used by, Configuration and data, Run and develop, Adding a

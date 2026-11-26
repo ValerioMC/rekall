@@ -195,9 +195,9 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `claude` | - | `catalog`, `connection`, `flow`, `task` | nothing | `skill` | - |
 | `codex` | - | nothing | nothing | nothing | - |
 | `commit` | `component`, `step`, `task` | `catalog`, `component`, `step`, `task` | - | nothing | nothing |
-| `component` | `catalog` | `catalog`, `connection`, `task` | nothing | nothing | nothing |
+| `component` | `catalog` | `catalog`, `connection`, `task` | nothing | nothing | `context` |
 | `connection` | `catalog`, `task` | `task`, `tracker` | `catalog`, `commit`, `component`, `section`, `task` | `catalog`, `section` | - |
-| `context` | - | `catalog`, `commit`, `component`, `connection`, `decision`, `dependency`, `deviation`, `feedback`, `note`, `section`, `step`, `tag`, `task`, `wrapup` | - | nothing | nothing |
+| `context` | - | `catalog`, `commit`, `component`, `connection`, `decision`, `dependency`, `deviation`, `feedback`, `note`, `picture`, `section`, `step`, `tag`, `task`, `wrapup` | - | nothing | nothing |
 | `context_fill` | `step`, `task` | `chat` | - | - | - |
 | `decision` | `task` | `deviation`, `step` | `context`, `deviation`, `step` | nothing | nothing |
 | `dependency` | `task` | `claude` | `queue`, `task` | nothing | - |
@@ -216,10 +216,10 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `quick` | - | - | `catalog`, `claude`, `terminal` | `catalog`, `claude` | - |
 | `review` | - | `step`, `task`, `timeentry` | - | - | - |
 | `search` | - | `task` | - | nothing | nothing |
-| `section` | `catalog` | `catalog`, `note` | nothing | nothing | `note` |
+| `section` | `catalog` | `catalog`, `note` | nothing | nothing | `context`, `note` |
 | `settings` | - | nothing | nothing | nothing | - |
 | `skill` | `step`, `tag`, `task` | `claude` | nothing | nothing | - |
-| `step` | `task` | `flow`, `task`, `timeentry` | - | nothing | `commit`, `flow` |
+| `step` | `task` | `flow`, `task`, `timeentry` | - | nothing | `commit`, `context`, `flow` |
 | `stream` | - | - | - | nothing | - |
 | `tag` | `task` | - | nothing | nothing | - |
 | `task` | `catalog`, `note`, `step`, `tag`, `wrapup` | `flow`, `step` | - | - | `flow` |
@@ -527,6 +527,9 @@ dropped one, in its owner's folder, `<company>/<project>/` followed by the task'
 falls back to the start of the record's id, a file's to `image`. A file already there is written again, so its
 modification time says when it was last asked for. How a picture is aligned is no part of its name: the
 markdown ends the address with `#center` or `#right`, nothing for left, and the console's style sheets draw it.
+A session reads the files themselves: a text it is handed that shows a picture names the folder
+([design/mcp.md](design/mcp.md)), and the session Rekall opens may read it
+([design/terminals.md](design/terminals.md)).
 
 | Route | Does |
 |---|---|

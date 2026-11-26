@@ -308,3 +308,54 @@ async fn a_grafana_user_and_password_are_handed_out_as_a_basic_header() {
     let header = broker.hand_out(terminal_id, Some(&token), "grafana", CredentialPurpose::Grafana).await;
     assert!(matches!(header, HandOut::Granted { ref body, .. } if body.expose() == "Authorization: Basic YWRtaW46cGE1NQ==\n"));
 }
+
+const PICTURES: &str = "/data/rekall/images";
+const PICTURES_RULE: &str = "Read(//data/rekall/images/**)";
+
+fn settings_of(environment: &SessionEnvironment) -> serde_json::Value {
+    let file = environment.claude_settings.as_ref().expect("the session has Claude settings");
+    serde_json::from_str(&std::fs::read_to_string(file).unwrap()).unwrap()
+}
+
+fn without_credentials(world: &World) -> TerminalLaunch {
+    launch_with(world.launch.connections.iter().filter(|connection| !connection.credential_set).cloned().collect())
+}
+
+#[tokio::test]
+async fn a_claude_session_with_no_credential_gets_settings_that_only_let_it_read_the_pictures() {
+    let world = world().await;
+    let terminal_id = Id::random();
+    let launch = without_credentials(&world);
+    let broker = world.broker.with_readable_pictures(Some(PICTURES.into()));
+
+    let environment = broker.open(terminal_id, &launch, SessionProvider::Claude).await.unwrap().unwrap();
+
+    assert_eq!(settings_of(&environment), serde_json::json!({ "permissions": { "allow": [PICTURES_RULE] } }));
+    assert_eq!(environment, SessionEnvironment { claude_settings: environment.claude_settings.clone(), ..SessionEnvironment::default() });
+    assert!(!broker.has_session(terminal_id));
+    let settings = environment.claude_settings.unwrap();
+    assert_eq!(std::fs::metadata(&settings).unwrap().permissions().mode() & 0o777, 0o600);
+    broker.close(terminal_id);
+    assert!(!settings.exists());
+}
+
+#[tokio::test]
+async fn a_credential_session_may_read_the_pictures_and_keeps_its_deny_rules() {
+    let world = world().await;
+    let broker = world.broker.with_readable_pictures(Some(PICTURES.into()));
+
+    let environment = broker.open(Id::random(), &world.launch, SessionProvider::Claude).await.unwrap().unwrap();
+
+    let settings = settings_of(&environment);
+    assert_eq!(settings["permissions"]["allow"], serde_json::json!([PICTURES_RULE]));
+    assert!(settings["permissions"]["deny"].as_array().unwrap().iter().any(|rule| rule == "Bash(printenv:*)"));
+}
+
+#[tokio::test]
+async fn a_codex_session_with_no_credential_needs_nothing_to_read_the_pictures() {
+    let world = world().await;
+    let launch = without_credentials(&world);
+    let broker = world.broker.with_readable_pictures(Some(PICTURES.into()));
+
+    assert_eq!(broker.open(Id::random(), &launch, SessionProvider::Codex).await.unwrap(), None);
+}
