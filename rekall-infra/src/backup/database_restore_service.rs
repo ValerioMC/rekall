@@ -7,6 +7,7 @@ use rekall_core::backup::{BackupFile, BackupReason, DatabaseRestore, UploadChunk
 use rekall_kernel::{InternalFailure, RekallError, Result};
 use tracing::{error, info, warn};
 
+use super::picture_entries::BackupPictures;
 use super::{DatabaseBackupService, DatabaseLocation};
 use crate::restart::Restarter;
 
@@ -60,7 +61,7 @@ impl DatabaseRestoreService {
             return Err(RekallError::conflict("This instance cannot restart itself, so nothing was restored."));
         }
 
-        let safety = match self.backups.back_up(BackupReason::BeforeRestore).await {
+        let safety = match self.back_up_then_restore_pictures(zip, &location).await {
             Ok(safety) => safety,
             Err(failed) => {
                 delete_quietly(&staged);
@@ -80,6 +81,14 @@ impl DatabaseRestoreService {
             safety = %safety.name,
             "Restoring a backup; the previous state is kept in the safety backup"
         );
+        Ok(safety)
+    }
+
+    /// The zip is opened first: the safety backup can prune the very file being restored.
+    async fn back_up_then_restore_pictures(&self, zip: &Path, location: &DatabaseLocation) -> Result<BackupFile> {
+        let pictures = BackupPictures::open(zip)?;
+        let safety = self.backups.back_up(BackupReason::BeforeRestore).await?;
+        pictures.restore_into(&location.images())?;
         Ok(safety)
     }
 

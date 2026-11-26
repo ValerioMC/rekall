@@ -13,6 +13,7 @@ use sea_orm::{ConnectionTrait, DatabaseConnection};
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
+use super::picture_entries::add_pictures;
 use super::DatabaseLocation;
 
 /// The only names this folder hands out or accepts back, which is what keeps a name from being a path.
@@ -108,9 +109,10 @@ impl DatabaseBackupService {
                 format!("SQLite refused the backup: {refused}"),
             )));
         }
-        let zipped = zip_single(&copy, &found.data_file_name, &target);
+        let zipped = zip_backup(&copy, &found, &target);
         cleanup::remove_file(&copy);
-        if zipped.is_err() {
+        if let Err(refused) = zipped {
+            warn!(failed = %refused, target = %target.display(), "Could not zip the backup");
             cleanup::remove_file(&target);
             return Err(self.failed(io_failure()));
         }
@@ -244,13 +246,15 @@ impl DatabaseBackups for DatabaseBackupService {
     }
 }
 
-fn zip_single(source: &Path, entry_name: &str, target: &Path) -> std::io::Result<()> {
+/// `copy` goes in under the live database's file name, followed by the pictures beside it.
+fn zip_backup(copy: &Path, location: &DatabaseLocation, target: &Path) -> std::io::Result<()> {
     let file = std::fs::File::create(target)?;
     let mut writer = zip::ZipWriter::new(file);
     let options = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
-    writer.start_file(entry_name, options).map_err(std::io::Error::other)?;
-    let mut input = std::fs::File::open(source)?;
+    writer.start_file(&location.data_file_name, options).map_err(std::io::Error::other)?;
+    let mut input = std::fs::File::open(copy)?;
     std::io::copy(&mut input, &mut writer)?;
+    add_pictures(&mut writer, &location.images())?;
     writer.finish().map_err(std::io::Error::other)?.flush()
 }
 

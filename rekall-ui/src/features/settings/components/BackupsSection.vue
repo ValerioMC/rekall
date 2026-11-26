@@ -93,7 +93,7 @@ onMounted(load)
 
     <template v-else>
       <p class="text-caption leading-relaxed text-text-subtle">
-        A copy of the whole database every {{ status.intervalHours }} hours and before every restore,
+        A copy of the whole database and its pictures every {{ status.intervalHours }} hours and before every restore,
         the newest {{ status.keep }} kept, in
         <span class="break-all font-mono text-text-muted">{{ status.folder }}</span>. Download one to move
         this database to another machine, and restore it there.
