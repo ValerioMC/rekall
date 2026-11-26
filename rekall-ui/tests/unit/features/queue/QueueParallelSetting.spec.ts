@@ -48,3 +48,19 @@ describe('the Parallel sessions setting of the run queue', () => {
     expect(wrapper.emitted('update:parallelSessions')).toEqual([['3']])
   })
 })
+
+describe('the run queue settings', () => {
+  it('keeps what both providers share apart from what only Claude Code uses', () => {
+    const wrapper = aside('1')
+    const shared = wrapper.get('[data-testid="run-queue-shared"]')
+    const claude = wrapper.get('[data-testid="run-queue-claude"]')
+
+    expect(shared.findAll('select').map((select) => select.attributes('id'))).toEqual(['queue-session-view', 'queue-parallel'])
+    expect(claude.findAll('select').map((select) => select.attributes('id'))).toEqual(['queue-model', 'queue-effort'])
+    expect(claude.find('[data-testid="run-queue-skip"]').exists()).toBe(true)
+  })
+
+  it('says where a queued Codex task takes its settings from', () => {
+    expect(aside('1').get('[data-testid="run-queue-codex"]').text()).toContain('set in Settings when you added it')
+  })
+})

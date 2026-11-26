@@ -411,7 +411,7 @@ viewer with the Walkthrough) and Claude files (a tree of Memories, Skills, Comma
 an editor). **Security** is the overview with its alert banner, the Needs attention list and the
 project rail. **Settings** is a screen at `/settings/:section?/:topic?` with a sticky rail of sections in four groups and the key `Settings` in the
 menu. Workspace: General (the databases), Connections (a link to the screen), Data and backup. Work: Sessions and run queue
-(Claude Code and its protections), Review (open the next item after a decision, confirm before sending work back), Time and usage
+(below), Review (open the next item after a decision, confirm before sending work back), Time and usage
 (the workday goal the report's dashed line reads, the percentage the usage meter warns from), Notifications. Console: Appearance
 (density, which is the project task ledger's, motion, text scale), Keyboard. Reference: Help and About. Help lists its topics (Load, Tasks,
 Steps, Wrapup, Notes and pages, Revisions, Diagrams, Security, Outside Rekall) under its own rail entry, each a `:topic` address:
@@ -422,6 +422,13 @@ the catalog is `settings/model/help-context.ts`. The browser-side choices live i
 document, where the stylesheet drops the loops and keeps every state change; the text scale is the
 document's font size; every send back goes through `sendBackGuard`. A session's concurrency, terminal
 command and retention have no home in the server's settings and are not offered.
+
+**Sessions and run queue** puts a setting where its reach is. **Both providers** (`SharedSessionSection`), across the
+whole width, has the default provider and the session view as segmented keys and the MCP server address both register.
+Under it Claude Code and Codex are two `ProviderPanel` columns whose subgrid rows line up (connection, model,
+reasoning effort, permission switch, what the run queue does with them), stacked under 1100px; neither is hidden by the
+default chosen above. Only a stale registration's **Repair** is amber. **Protections** closes the section. The run
+queue panel groups its settings the same way: Both providers (session view, parallel sessions), Claude Code, Codex.
 
 **Data and backup** is three titled panels: **Unused images** across the whole width, then Backups and Langfuse
 (`PictureCleanupPanel`, `usePictureCleanupStore`). At rest the first is one line saying what it finds and the key

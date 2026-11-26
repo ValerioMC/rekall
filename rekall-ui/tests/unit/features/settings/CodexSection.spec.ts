@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { skipsPermissions } from '@/common/config/claude-launch'
 import { codexPreferences } from '@/common/config/session-launch'
 import CodexSection from '@/features/settings/components/CodexSection.vue'
-import SessionChoiceGroup from '@/features/settings/components/SessionChoiceGroup.vue'
 import SessionPermissionSwitch from '@/features/settings/components/SessionPermissionSwitch.vue'
 import { installStorage } from '../../support/memoryStorage'
 
@@ -35,19 +34,17 @@ describe('Codex session settings', () => {
     expect(codexPreferences().skipPermissions).toBe(false)
   })
 
-  it('offers models and their supported efforts with the shared choice controls', async () => {
+  it('offers models and keeps the effort closed until a model is chosen', async () => {
     const section = mount(CodexSection, { global: { plugins: [createPinia()] } })
     await flushPromises()
-    expect(section.findAllComponents(SessionChoiceGroup)).toHaveLength(2)
-    expect(section.get('[data-testid="codex-effort-default"]').attributes('disabled')).toBeDefined()
+    const model = section.get<HTMLSelectElement>('select#codex-model')
+    const effort = section.get<HTMLSelectElement>('select#codex-effort')
+    expect(effort.element.disabled).toBe(true)
 
-    const model = section.get('[data-testid="codex-model-gpt-test"]')
-    await model.trigger('click')
-    expect(model.attributes('aria-checked')).toBe('true')
+    await model.setValue('gpt-test')
+    await effort.setValue('high')
 
-    const effort = section.get('[data-testid="codex-effort-high"]')
-    await effort.trigger('click')
-    expect(effort.attributes('aria-checked')).toBe('true')
+    expect(effort.element.disabled).toBe(false)
     expect(codexPreferences().model).toBe('gpt-test')
     expect(codexPreferences().effort).toBe('high')
   })

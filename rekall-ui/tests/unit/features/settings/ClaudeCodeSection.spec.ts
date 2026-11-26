@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ClaudeCodeSection from '@/features/settings/components/ClaudeCodeSection.vue'
+import { preferredEffort, preferredModel } from '@/common/config/claude-launch'
+import { installStorage } from '../../support/memoryStorage'
 import { useClaudeCommandUpdateStore } from '@/features/claude/store/claudeCommandUpdate.store'
 import type { ClaudeInstallation } from '@/features/claude/model/claude'
 
@@ -43,6 +45,7 @@ async function mountSection() {
 describe('ClaudeCodeSection', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    installStorage()
     fetchClaudeInstallation.mockReset()
     installClaudeIntegration.mockReset()
     fetchClaudeInstallation.mockResolvedValue(installation())
@@ -53,7 +56,6 @@ describe('ClaudeCodeSection', () => {
 
     expect(wrapper.get('[data-testid="claude-status"]').text()).toBe('Not connected')
     expect(wrapper.get('[data-testid="claude-install"]').text()).toBe('Connect')
-    expect(wrapper.text()).toContain(ENDPOINT)
   })
 
   it('registers in one click and then says the running session will not see it', async () => {
@@ -106,25 +108,22 @@ describe('ClaudeCodeSection', () => {
     expect(wrapper.get('[data-testid="claude-install"]').text()).toBe('Repair')
   })
 
-  it('offers a model and a reasoning-effort level for a Run here session, and marks each pick', async () => {
+  it('offers a model and a reasoning-effort level, and keeps each pick', async () => {
     fetchClaudeInstallation.mockResolvedValue(installation({ status: 'CONNECTED' }))
     const wrapper = await mountSection()
+    const model = wrapper.get<HTMLSelectElement>('select#claude-model')
+    const effort = wrapper.get<HTMLSelectElement>('select#claude-effort')
 
-    const modelBlock = wrapper.get('[data-testid="claude-model"]')
-    expect(modelBlock.get('[data-testid="claude-model-default"]').attributes('aria-checked')).toBe('true')
-    expect(modelBlock.find('[data-testid="claude-model-fable"]').exists()).toBe(true)
+    expect(model.element.value).toBe('default')
+    expect(model.findAll('option').map((option) => option.attributes('value'))).toContain('fable')
+    expect(effort.element.value).toBe('default')
+    expect(effort.findAll('option').map((option) => option.attributes('value'))).toContain('xhigh')
 
-    await modelBlock.get('[data-testid="claude-model-opus"]').trigger('click')
-    expect(modelBlock.get('[data-testid="claude-model-opus"]').attributes('aria-checked')).toBe('true')
-    expect(modelBlock.get('[data-testid="claude-model-default"]').attributes('aria-checked')).toBe('false')
+    await model.setValue('opus')
+    await effort.setValue('high')
 
-    const effortBlock = wrapper.get('[data-testid="claude-effort"]')
-    expect(effortBlock.get('[data-testid="claude-effort-default"]').attributes('aria-checked')).toBe('true')
-    expect(effortBlock.find('[data-testid="claude-effort-xhigh"]').exists()).toBe(true)
-
-    await effortBlock.get('[data-testid="claude-effort-high"]').trigger('click')
-    expect(effortBlock.get('[data-testid="claude-effort-high"]').attributes('aria-checked')).toBe('true')
-    expect(effortBlock.get('[data-testid="claude-effort-default"]').attributes('aria-checked')).toBe('false')
+    expect(preferredModel()).toBe('opus')
+    expect(preferredEffort()).toBe('high')
   })
 
   it('leaves the section usable when the configuration cannot be read', async () => {

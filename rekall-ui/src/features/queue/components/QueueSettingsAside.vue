@@ -122,18 +122,8 @@ onMounted(() => void loadUsage())
       <CeilingGauge v-model="ceiling" :windows="watchedWindows" :disabled="!ceilingOn" :now="now" />
     </section>
 
-    <section aria-labelledby="queue-session-heading" class="flex flex-col gap-3">
-      <h3 id="queue-session-heading" class="section-label">Sessions</h3>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label for="queue-model" class="mb-1 block text-caption text-text-subtle">Claude Code model</label>
-          <AppSelect id="queue-model" v-model="model" :options="MODEL_OPTIONS" />
-        </div>
-        <div>
-          <label for="queue-effort" class="mb-1 block text-caption text-text-subtle">Claude Code effort</label>
-          <AppSelect id="queue-effort" v-model="effort" :options="EFFORT_OPTIONS" />
-        </div>
-      </div>
+    <section aria-labelledby="queue-shared-heading" class="flex flex-col gap-3" data-testid="run-queue-shared">
+      <h3 id="queue-shared-heading" class="section-label">Both providers</h3>
       <div>
         <label for="queue-session-view" class="mb-1 block text-caption text-text-subtle">Session view</label>
         <AppSelect id="queue-session-view" v-model="sessionKind" :options="SESSION_VIEW_OPTIONS" data-testid="run-queue-session-view" />
@@ -149,13 +139,34 @@ onMounted(() => void loadUsage())
           </template>
         </p>
       </div>
+    </section>
+
+    <section aria-labelledby="queue-claude-heading" class="flex flex-col gap-3" data-testid="run-queue-claude">
+      <h3 id="queue-claude-heading" class="section-label">Claude Code</h3>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label for="queue-model" class="mb-1 block text-caption text-text-subtle">Model</label>
+          <AppSelect id="queue-model" v-model="model" :options="MODEL_OPTIONS" />
+        </div>
+        <div>
+          <label for="queue-effort" class="mb-1 block text-caption text-text-subtle">Effort</label>
+          <AppSelect id="queue-effort" v-model="effort" :options="EFFORT_OPTIONS" />
+        </div>
+      </div>
       <div>
-        <AppCheckbox v-model="skipPermissions" label="Skip Claude Code permission prompts" data-testid="run-queue-skip" />
+        <AppCheckbox v-model="skipPermissions" label="Skip permission prompts" data-testid="run-queue-skip" />
         <p class="mt-1.5 text-caption leading-relaxed" :class="skipPermissions ? 'text-text-subtle' : 'text-warn'">
           <template v-if="skipPermissions">Claude Code runs with <span class="font-mono">--dangerously-skip-permissions</span>.</template>
           <template v-else>Claude Code pauses for permission prompts.</template>
         </p>
       </div>
+    </section>
+
+    <section aria-labelledby="queue-codex-heading" data-testid="run-queue-codex">
+      <h3 id="queue-codex-heading" class="section-label mb-1">Codex</h3>
+      <p class="text-caption leading-relaxed text-text-muted">
+        Each task keeps the model, effort and permissions set in Settings when you added it.
+      </p>
     </section>
   </aside>
 </template>

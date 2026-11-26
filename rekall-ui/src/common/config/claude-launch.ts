@@ -1,10 +1,10 @@
 import {
   CLAUDE_EFFORT_CHOICES,
   CLAUDE_MODEL_CHOICES,
-  CLAUDE_SESSION_VIEWS,
+  SESSION_VIEWS,
   type ClaudeEffortChoice,
   type ClaudeModelChoice,
-  type ClaudeSessionView
+  type SessionView
 } from '@/features/claude/model/claude'
 import type { SessionKind } from '@/features/claude/model/terminal'
 
@@ -67,18 +67,18 @@ export function setPreferredEffort(value: ClaudeEffortChoice): void {
 }
 
 /** The view for a new in-app session. */
-export function preferredSessionKind(): ClaudeSessionView {
+export function preferredSessionKind(): SessionView {
   try {
     const stored = window.localStorage.getItem(SESSION_KIND_KEY)
-    return (CLAUDE_SESSION_VIEWS as readonly string[]).includes(stored ?? '')
-      ? (stored as ClaudeSessionView)
+    return (SESSION_VIEWS as readonly string[]).includes(stored ?? '')
+      ? (stored as SessionView)
       : 'terminal'
   } catch {
     return 'terminal'
   }
 }
 
-export function setPreferredSessionKind(value: ClaudeSessionView): void {
+export function setPreferredSessionKind(value: SessionView): void {
   try {
     window.localStorage.setItem(SESSION_KIND_KEY, value)
   } catch {
