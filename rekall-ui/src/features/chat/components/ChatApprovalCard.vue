@@ -41,15 +41,13 @@ defineExpose({ focus })
 <template>
   <div
     ref="card"
-    class="focus-ring relative mx-3 mb-2 flex flex-col gap-2 overflow-hidden rounded-card border border-warn/50 bg-warn-soft py-3 pr-3 pl-4"
+    class="focus-ring flex flex-col gap-2.5 rounded-card border border-warn/50 bg-warn-soft px-3.5 pt-3 pb-3.5"
     role="group"
     aria-label="Permission needed"
     tabindex="-1"
     data-testid="chat-approval"
     @keydown="onKeydown"
   >
-    <span class="absolute inset-y-0 left-0 w-[3px] bg-warn" aria-hidden="true" />
-
     <p class="flex items-center gap-1.5 text-micro font-semibold text-warn">
       <span class="relative grid size-2 place-items-center" aria-hidden="true">
         <span class="absolute inline-flex size-2 animate-ping rounded-full bg-current/50" />

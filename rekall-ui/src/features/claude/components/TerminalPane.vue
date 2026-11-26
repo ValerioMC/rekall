@@ -3,6 +3,7 @@ import TerminalConnectionChips from '@/features/connection/components/TerminalCo
 import { computed, onMounted, ref, watch } from 'vue'
 import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
 import SessionProviderMark from '@/features/claude/components/SessionProviderMark.vue'
+import SessionSwitcher from '@/features/claude/components/SessionSwitcher.vue'
 import TerminalScreen from '@/features/claude/components/TerminalScreen.vue'
 import { storeToRefs } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
@@ -23,7 +24,6 @@ const { run, isRunning } = useAsyncAction()
 const { provider: launchProvider } = useRunProvider(() => selectedTask.value?.id ?? null)
 const connected = ref(false)
 const ended = ref<{ exitCode: number; detail: string } | null>(null)
-const switcherOpen = ref(false)
 
 const hue = computed(() => identityHue(selectedTask.value?.projectId ?? ''))
 const folder = computed(() => selectedTask.value?.projectRepoFolder ?? null)
@@ -44,14 +44,6 @@ function switchTo(terminal: Terminal): void {
   store.selectTask(terminal.taskId)
   store.openTerminal()
   terminals.select(terminal.id)
-  switcherOpen.value = false
-}
-
-function onSwitcherKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape' && switcherOpen.value) {
-    event.stopPropagation()
-    switcherOpen.value = false
-  }
 }
 
 function onEnded(frame: TerminalEndedFrame): void {
@@ -172,60 +164,7 @@ watch(
           </div>
 
           <div class="flex shrink-0 items-center gap-1.5">
-            <div v-if="otherSessions.length > 0" class="relative" @keydown="onSwitcherKeydown">
-              <button
-                class="rounded-key focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px]"
-                :class="switcherOpen ? 'key-lit' : 'key-quiet'"
-                data-testid="terminal-other-sessions"
-                aria-haspopup="true"
-                :aria-expanded="switcherOpen"
-                @click="switcherOpen = !switcherOpen"
-              >
-                <span class="session-caret shrink-0" aria-hidden="true" />
-                Other {{ otherSessions.length }} {{ otherSessions.length === 1 ? 'session' : 'sessions' }}
-              </button>
-
-              <div
-                v-if="switcherOpen"
-                class="rise absolute right-0 top-[calc(100%+6px)] z-(--z-overlay) w-[300px] overflow-hidden rounded-[var(--radius-card)] border border-border-strong bg-surface-raised shadow-modal"
-                data-testid="terminal-other-sessions-list"
-              >
-                <ul class="max-h-[280px] overflow-y-auto p-1.5">
-                  <li v-for="terminal in otherSessions" :key="terminal.id">
-                    <button
-                      class="focus-ring flex w-full min-w-0 items-center gap-2.5 rounded-[var(--radius-control)] px-2 py-2 text-left transition-colors hover:bg-surface"
-                      :title="`Switch to ${terminal.taskTitle}`"
-                      data-testid="terminal-other-sessions-row"
-                      @click="switchTo(terminal)"
-                    >
-                      <SessionProviderMark :provider="terminal.provider" :size="14" />
-                      <span class="min-w-0 flex-1">
-                        <span class="block truncate text-[12.5px] font-medium text-text">
-                          {{ terminal.taskTitle }}
-                        </span>
-                        <span class="mt-0.5 flex items-center gap-1.5 truncate font-mono text-[10px] text-anchor/80">
-                          <span
-                            class="size-1 shrink-0 rounded-full"
-                            :style="{ backgroundColor: identityHue(terminal.projectId).base }"
-                            aria-hidden="true"
-                          />
-                          <span class="min-w-0 truncate">{{ terminal.anchors }}</span>
-                          <span class="shrink-0 font-sans text-caption text-text-muted">{{ SESSION_PROVIDER_LABEL[terminal.provider] }}</span>
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                </ul>
-              </div>
-
-              <button
-                v-if="switcherOpen"
-                class="fixed inset-0 z-(--z-sticky) cursor-default"
-                tabindex="-1"
-                aria-hidden="true"
-                @click="switcherOpen = false"
-              />
-            </div>
+            <SessionSwitcher v-if="otherSessions.length > 0" :sessions="otherSessions" @switch="switchTo" />
             <button
               v-if="activeTerminal"
               class="key-quiet rounded-key focus-ring inline-flex h-7 items-center gap-1.5 px-2.5 text-[11.5px]"

@@ -17,7 +17,7 @@ export function useConsoleLocation(): void {
   const store = useConsoleStore()
   const route = useRoute()
   const router = useRouter()
-  // The location the current entry holds, or is about to once a navigation lands.
+  // The location the current console entry holds, or is about to once a navigation lands; none elsewhere.
   let inUrl: ConsoleLocation | null = null
 
   function writeToUrl(location: ConsoleLocation, mode: 'push' | 'replace'): void {
@@ -27,7 +27,10 @@ export function useConsoleLocation(): void {
   }
 
   function followRoute(): void {
-    if (route.name !== 'console') return
+    if (route.name !== 'console') {
+      inUrl = null
+      return
+    }
     const wanted = locationFromQuery(route.query)
     if (wanted === null) {
       writeToUrl(store.location, 'replace')

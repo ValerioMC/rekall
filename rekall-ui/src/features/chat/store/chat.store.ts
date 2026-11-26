@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 import { answerPermission, interrupt, sendMessage } from '@/features/chat/api/chat.api'
-import { useChatDockStore } from '@/features/chat/store/chatDock.store'
 import { emptyTimeline, foldEvent } from '@/features/chat/lib/timeline'
 import { awaitRenewedSession } from '@/features/claude/lib/renewed-session'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
@@ -11,20 +10,28 @@ import type { Timeline } from '@/features/chat/model/timeline'
 import type { Terminal } from '@/features/claude/model/terminal'
 import type { TaskId, TerminalId } from '@/model/branded'
 
+export interface ChatConnection {
+  readonly connected: boolean
+  readonly reconnecting: boolean
+}
+
 /**
- * Chat sessions: each one's timeline folded from its event stream, the one the window shows, and
- * the writes to it. The session records themselves stay in the terminal store, which lists both kinds.
+ * Chat sessions: each one's timeline folded from its event stream, the followed one and its
+ * connection, and the writes to it. The session records stay in the terminal store, which lists both kinds.
  */
 export const useChatStore = defineStore('chat', () => {
   const terminals = useTerminalStore()
-  const dock = useChatDockStore()
   const timelines = shallowRef<Readonly<Record<string, Timeline>>>({})
   const activeChatId = ref<TerminalId | null>(null)
+  const connection = ref<ChatConnection>({ connected: false, reconnecting: false })
   const followingIds = ref<readonly TerminalId[]>([])
   const sendState = ref('saved')
   const answerState = ref('saved')
   const stopState = ref('saved')
 
+  const activeSession = computed(
+    () => terminals.terminals.find((terminal) => terminal.id === activeChatId.value) ?? null
+  )
   const activeTimeline = computed(() =>
     activeChatId.value ? timelineOf(activeChatId.value) : emptyTimeline()
   )
@@ -47,10 +54,8 @@ export const useChatStore = defineStore('chat', () => {
     activeChatId.value = id
   }
 
-  /** Brings a chat session to the screen: the window follows it and opens if it was hidden. */
-  function reveal(session: Terminal): void {
-    activeChatId.value = session.id
-    dock.open()
+  function noteConnection(next: ChatConnection): void {
+    connection.value = next
   }
 
   function chatForTask(taskId: TaskId | null): Terminal | null {
@@ -59,18 +64,14 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /**
-   * The chat session the window shows for a task: the active one when it belongs to the task, else
-   * the task's own live one, else the active one when it belongs to no task at all.
+   * The chat to follow for a task: its live one, else the active one when that is the task's own
+   * ended chat or belongs to no task.
    */
   function sessionFor(taskId: TaskId | null): Terminal | null {
-    const active = terminals.terminals.find((terminal) => terminal.id === activeChatId.value) ?? null
-    if (active && taskId !== null && active.taskId === taskId) return active
-    return chatForTask(taskId) ?? (active?.taskId === null ? active : null)
-  }
-
-  /** Moves the window to the task's session; a task with none leaves the window empty of any other task's. */
-  function showTaskSession(taskId: TaskId | null): void {
-    activeChatId.value = sessionFor(taskId)?.id ?? null
+    const active = activeSession.value
+    const ownActive = taskId !== null && active?.taskId === taskId ? active : null
+    if (ownActive?.live) return ownActive
+    return chatForTask(taskId) ?? ownActive ?? (active?.taskId === null ? active : null)
   }
 
   function ingest(id: TerminalId, event: ChatEvent): void {
@@ -98,8 +99,8 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /**
-   * Waits for the session the server opens next on the task, as a terminal does, and moves the
-   * window to it when the ended one was the active one.
+   * Waits for the session the server opens next on the task, as a terminal does, and moves to it
+   * when the ended one was the active one.
    */
   async function followNextSession(taskId: TaskId, endedId: TerminalId): Promise<void> {
     followingIds.value = [...followingIds.value, endedId]
@@ -144,7 +145,9 @@ export const useChatStore = defineStore('chat', () => {
   return {
     timelines,
     activeChatId,
+    activeSession,
     activeTimeline,
+    connection,
     liveChats,
     sending,
     answering,
@@ -154,8 +157,7 @@ export const useChatStore = defineStore('chat', () => {
     select,
     chatForTask,
     sessionFor,
-    reveal,
-    showTaskSession,
+    noteConnection,
     ingest,
     send,
     stop,

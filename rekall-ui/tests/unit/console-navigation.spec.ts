@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
 import type { RekallDocument } from '@/features/notes/model/document'
 import type { SearchHit } from '@/features/search/model/search'
-import type { DocumentId, TaskId, TaskStepId } from '@/model/branded'
+import type { DocumentId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 import { taskFixture } from './support/taskFixture'
 
 /**
@@ -81,9 +81,9 @@ describe('going back to a location', () => {
   })
 
   it('shows the task, note and pane it names', () => {
-    const shown = store.showLocation({ taskId: retry, documentId: note.id, pane: 'wrapup', deviationStep: null })
+    const shown = store.showLocation({ taskId: retry, documentId: note.id, pane: 'wrapup', deviationStep: null, chatId: null })
 
-    expect(shown).toEqual({ taskId: retry, documentId: note.id, pane: 'wrapup', deviationStep: null })
+    expect(shown).toEqual({ taskId: retry, documentId: note.id, pane: 'wrapup', deviationStep: null, chatId: null })
     expect([store.selectedTaskId, store.selectedDocId, store.paneFocus]).toEqual([retry, note.id, 'wrapup'])
   })
 
@@ -92,10 +92,10 @@ describe('going back to a location', () => {
       taskId: 'gone' as TaskId,
       documentId: 'gone' as DocumentId,
       pane: 'steps',
-      deviationStep: null
+      deviationStep: null, chatId: null
     })
 
-    expect(shown).toEqual({ taskId: null, documentId: null, pane: 'note', deviationStep: null })
+    expect(shown).toEqual({ taskId: null, documentId: null, pane: 'note', deviationStep: null, chatId: null })
   })
 
   it('opens a deviation on its own pane over the task in view, and leaving the task forgets the step', () => {
@@ -113,11 +113,56 @@ describe('going back to a location', () => {
   })
 
   it('shows the deviation a history entry names, and a deviation pane with no step falls back to the note', () => {
-    const shown = store.showLocation({ taskId: retry, documentId: null, pane: 'deviation', deviationStep: 2 })
-    const without = store.showLocation({ taskId: retry, documentId: null, pane: 'deviation', deviationStep: null })
+    const shown = store.showLocation({ taskId: retry, documentId: null, pane: 'deviation', deviationStep: 2, chatId: null })
+    const without = store.showLocation({ taskId: retry, documentId: null, pane: 'deviation', deviationStep: null, chatId: null })
 
     expect([shown.pane, shown.deviationStep]).toEqual(['deviation', 2])
     expect([without.pane, without.deviationStep]).toEqual(['note', null])
+  })
+})
+
+describe('a full-size chat', () => {
+  const loose = 'chat-9' as TerminalId
+  let store: ReturnType<typeof useConsoleStore>
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    store = useConsoleStore()
+    store.tasks = [taskFixture(report)]
+  })
+
+  it('is named by its task, and has none to answer for with another pane in front', () => {
+    store.selectTask(report)
+    expect(store.chatInPane).toBe(false)
+
+    store.openChat()
+
+    expect(store.chatInPane).toBe(true)
+    expect(store.location).toMatchObject({ taskId: report, pane: 'chat', chatId: null })
+  })
+
+  it('on no task takes the console with no task in view, named by its session', () => {
+    store.selectTask(report)
+
+    store.openProjectChat(loose)
+
+    expect(store.chatInPane).toBe(true)
+    expect(store.location).toMatchObject({ taskId: null, pane: 'chat', chatId: loose })
+  })
+
+  it('comes back from a history entry, with a task or without one', () => {
+    store.showLocation({ taskId: null, documentId: null, pane: 'chat', deviationStep: null, chatId: loose })
+    expect([store.paneFocus, store.projectChatId, store.chatInPane]).toEqual(['chat', loose, true])
+
+    store.showLocation({ taskId: report, documentId: null, pane: 'chat', deviationStep: null, chatId: null })
+    expect([store.paneFocus, store.selectedTaskId, store.chatInPane]).toEqual(['chat', report, true])
+  })
+
+  it('falls back to the note when the task of the entry was deleted since', () => {
+    const shown = store.showLocation({ taskId: 'gone' as TaskId, documentId: null, pane: 'chat', deviationStep: null, chatId: null })
+
+    expect(shown.pane).toBe('note')
+    expect(store.chatInPane).toBe(false)
   })
 })
 

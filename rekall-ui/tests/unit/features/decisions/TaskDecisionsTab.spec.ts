@@ -11,6 +11,7 @@ import { answered, decision, TASK } from './fixtures'
 import { installStorage } from '../../support/memoryStorage'
 
 vi.mock('@/features/decisions/api/decisions.api')
+vi.mock('vue-router', () => ({ useRouter: () => ({}) }))
 
 const task = { id: TASK, code: 'VG-41', anchor: 'task:VG-41', projectRepoFolder: '/code/vega' } as unknown as Task
 

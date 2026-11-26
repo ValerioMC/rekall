@@ -5,6 +5,7 @@ import OpenTerminalButton from '@/features/claude/components/OpenTerminalButton.
 import { useConsoleStore } from '@/stores/console.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import { useChatStore } from '@/features/chat/store/chat.store'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import { setPreferredEffort, setPreferredModel, setPreferredSessionKind, setSkipsPermissions } from '@/common/config/claude-launch'
 import { preferredProvider, setCodexEffort, setCodexModel, setPreferredProvider } from '@/common/config/session-launch'
@@ -26,6 +27,12 @@ vi.mock('@/features/claude/api/terminal.api', () => ({
   openTerminal: (...args: unknown[]) => openTerminal(...args),
   closeTerminal: vi.fn(),
   sendTerminalInput: (...args: unknown[]) => sendTerminalInput(...args)
+}))
+
+const push = vi.fn()
+
+vi.mock('vue-router', () => ({
+  useRouter: () => ({ currentRoute: { value: { name: 'task' } }, push })
 }))
 
 const runTaskInQueue = vi.fn()
@@ -135,6 +142,7 @@ describe('the Run here button', () => {
     openTerminal.mockReset()
     releaseOnRun.mockReset().mockResolvedValue(null)
     runTaskInQueue.mockReset()
+    push.mockReset()
     vi.useFakeTimers()
   })
 
@@ -150,6 +158,19 @@ describe('the Run here button', () => {
 
     expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ stepId: null }))
     expect(openPane).not.toHaveBeenCalled()
+    expect(push).not.toHaveBeenCalled()
+  })
+
+  it('shows the chat it opens full-size on its task, as soon as the server answers', async () => {
+    openTerminal.mockResolvedValue({ ...terminal(), kind: 'CHAT' })
+    const wrapper = mountButton()
+
+    await wrapper.get('[data-testid="open-terminal"]').trigger('click')
+    await flushPromises()
+
+    expect([useConsoleStore().selectedTaskId, useConsoleStore().paneFocus]).toEqual([TASK, 'chat'])
+    expect(useChatStore().activeChatId).toBe('term-1')
+    expect(push).toHaveBeenCalledWith({ name: 'console' })
   })
 
   it('runs the play mark out, then stamps the amber step seal, then turns the seal of a running step', async () => {

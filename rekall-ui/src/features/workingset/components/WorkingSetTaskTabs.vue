@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
+import ChatGlyph from '@/features/chat/components/ChatGlyph.vue'
 import type { Project, Task } from '@/features/catalog/model/catalog'
+import type { SessionKind } from '@/features/claude/model/terminal'
 import { TASK_STATUS_COLOR, TASK_STATUS_LABEL } from '@/features/catalog/model/task-status'
 import TaskActivityMark from '@/features/workingset/components/TaskActivityMark.vue'
 import { TASK_ACTIVITY_LABEL, type StepTally, type TaskActivity } from '@/features/workingset/model/task-activity'
@@ -10,20 +12,21 @@ import type { TaskId } from '@/model/branded'
 /**
  * Level 2 of the working-set bar: the project's task list, then a tab per open task. The dot is
  * the task's status, the bars its activity, the count its executed steps, amber while claims wait.
- * A live terminal adds a key that opens it, lit while on screen.
+ * A session adds a key that opens it, a terminal or a chat, lit while on screen.
  */
 const props = defineProps<{
   project: Project
   tasks: readonly Task[]
   currentTaskId: TaskId | null
+  listShown: boolean
   activities: ReadonlyMap<TaskId, TaskActivity>
   tallies: ReadonlyMap<TaskId, StepTally>
   reviewCounts: ReadonlyMap<TaskId, number>
-  terminalTaskIds: ReadonlySet<TaskId>
-  terminalShown: boolean
+  sessionKinds: ReadonlyMap<TaskId, SessionKind>
+  shownKind: SessionKind | null
 }>()
 
-const emit = defineEmits<{ select: [place: OpenPlace]; close: [taskId: TaskId]; openTerminal: [taskId: TaskId] }>()
+const emit = defineEmits<{ select: [place: OpenPlace]; close: [taskId: TaskId]; openSession: [taskId: TaskId] }>()
 
 function selectTask(taskId: TaskId): void {
   emit('select', { projectId: props.project.id, taskId })
@@ -47,7 +50,12 @@ function waitingCount(task: Task): number {
 }
 
 function isOnScreen(task: Task): boolean {
-  return props.terminalShown && props.currentTaskId === task.id
+  return props.currentTaskId === task.id && props.shownKind === props.sessionKinds.get(task.id)
+}
+
+function keyName(task: Task): string {
+  const kind = props.sessionKinds.get(task.id)
+  return `Open the ${kind === 'CHAT' ? 'chat' : 'terminal'} of ${task.code}`
 }
 
 function tallyTitle(task: Task): string {
@@ -68,8 +76,8 @@ function tallyTitle(task: Task): string {
       type="button"
       role="tab"
       class="focus-ring relative flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap pl-2.5 pr-3.5 font-medium transition-colors duration-(--motion-quick) hover:bg-surface hover:text-text"
-      :class="currentTaskId === null ? 'text-text after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-accent' : 'text-text-muted'"
-      :aria-selected="currentTaskId === null"
+      :class="listShown ? 'text-text after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-accent' : 'text-text-muted'"
+      :aria-selected="listShown"
       data-testid="working-set-all-tasks"
       @click="selectList"
     >
@@ -82,23 +90,24 @@ function tallyTitle(task: Task): string {
       :key="task.id"
       class="group/tab relative flex shrink-0 transition-colors duration-(--motion-quick) hover:bg-surface hover:text-text"
       :class="[
-        terminalTaskIds.has(task.id) ? 'max-w-[278px]' : 'max-w-[250px]',
+        sessionKinds.has(task.id) ? 'max-w-[278px]' : 'max-w-[250px]',
         currentTaskId === task.id ? 'text-text after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-accent' : 'text-text-muted'
       ]"
       data-testid="working-set-task-tab"
     >
       <button
-        v-if="terminalTaskIds.has(task.id)"
+        v-if="sessionKinds.has(task.id)"
         type="button"
         class="focus-ring ml-1.5 grid size-[22px] shrink-0 place-items-center self-center rounded-key"
         :class="isOnScreen(task) ? 'key-lit' : 'key-quiet cursor-pointer'"
         :aria-pressed="isOnScreen(task)"
-        :aria-label="`Open the terminal of ${task.code}`"
-        :title="`Open the terminal of ${task.code}`"
-        data-testid="working-set-task-terminal"
-        @click="emit('openTerminal', task.id)"
+        :aria-label="keyName(task)"
+        :title="keyName(task)"
+        :data-testid="sessionKinds.get(task.id) === 'CHAT' ? 'working-set-task-chat' : 'working-set-task-terminal'"
+        @click="emit('openSession', task.id)"
       >
-        <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+        <ChatGlyph v-if="sessionKinds.get(task.id) === 'CHAT'" class="size-3.5" />
+        <svg v-else class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
           <path d="M3 4l3 3-3 3M7.5 10.5H11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
       </button>
@@ -106,7 +115,7 @@ function tallyTitle(task: Task): string {
         type="button"
         role="tab"
         class="focus-ring flex min-w-0 cursor-pointer items-center gap-2 whitespace-nowrap pr-7"
-        :class="terminalTaskIds.has(task.id) ? 'pl-2' : 'pl-3'"
+        :class="sessionKinds.has(task.id) ? 'pl-2' : 'pl-3'"
         :aria-selected="currentTaskId === task.id"
         :title="`${task.code} ${task.title}, ${TASK_ACTIVITY_LABEL[activityOf(task)]}`"
         data-testid="working-set-task"

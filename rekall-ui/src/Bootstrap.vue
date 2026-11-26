@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { onMounted, onUnmounted, ref } from 'vue'
 import FirstRunSetup from '@/features/settings/components/FirstRunSetup.vue'
 import DatabaseUnreachable from '@/features/settings/components/DatabaseUnreachable.vue'
 import ShellDock from '@/components/shell/ShellDock.vue'
@@ -16,8 +15,6 @@ import UpdateDialog from '@/components/shell/UpdateDialog.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
 import SessionLaunchConflict from '@/features/claude/components/SessionLaunchConflict.vue'
-import ChatDock from '@/features/chat/components/ChatDock.vue'
-import ChatReopenTag from '@/features/chat/components/ChatReopenTag.vue'
 import { usePictureCleanupStore } from '@/features/picture/store/pictureCleanup.store'
 import { fetchDatabaseStatus } from '@/features/settings/api/settings.api'
 import { useConsoleStore } from '@/stores/console.store'
@@ -32,9 +29,7 @@ import { useVulnerabilityStore } from '@/features/vulnerability/store/vulnerabil
 import WorkingSetBar from '@/features/workingset/components/WorkingSetBar.vue'
 import { useWorkingSetFollowsRoute } from '@/features/workingset/composables/useWorkingSetFollowsRoute'
 import { useWorkingSetStore } from '@/features/workingset/store/workingSet.store'
-import { useChatDockArea } from '@/features/chat/composables/useChatDockArea'
-import { useChatWindowShown } from '@/features/chat/composables/useChatWindowShown'
-import { useRevealOpenedChat } from '@/features/chat/composables/useRevealOpenedChat'
+import { useFollowSelectedChat } from '@/features/chat/composables/useFollowSelectedChat'
 import type { DatabaseStatus } from '@/features/settings/model/settings'
 
 const store = useConsoleStore()
@@ -44,14 +39,8 @@ const update = useUpdateStore()
 const toast = useToastStore()
 const status = ref<DatabaseStatus | null>(null)
 const failed = ref(false)
-const route = useRoute()
-const pageArea = ref<HTMLElement | null>(null)
-const chatWindowShown = useChatWindowShown()
 
-// On the console the window docks beside the note pane, which App.vue arranges itself.
-const onConsole = computed(() => route.name === 'console')
-useChatDockArea(pageArea, false, () => !onConsole.value)
-useRevealOpenedChat()
+useFollowSelectedChat()
 usePaletteShortcut()
 usePreferenceEffects()
 useWorkingSetFollowsRoute()
@@ -113,14 +102,12 @@ onUnmounted(() => {
       <div class="flex h-full flex-col">
         <AppHeaderChrome />
         <WorkingSetBar />
-        <div ref="pageArea" class="relative flex min-h-0 flex-1 flex-col overflow-x-clip">
+        <div class="relative flex min-h-0 flex-1 flex-col">
           <router-view v-slot="{ Component }">
             <Transition name="pane" mode="out-in">
               <component :is="Component" />
             </Transition>
           </router-view>
-          <ChatDock v-if="!onConsole" :shown="chatWindowShown" />
-          <ChatReopenTag v-if="!onConsole" />
         </div>
       </div>
       <ShellDock />

@@ -263,6 +263,19 @@ describe('ShellDock', () => {
   })
 
   describe('one panel at a time', () => {
+    it('hides the sessions segment while a chat is full-size, and minimizes a floating terminal', async () => {
+      routeName.value = 'console'
+      const { wrapper, console, terminals } = await mountDock([terminal()], [running()])
+      terminals.float('term-1' as TerminalId)
+
+      console.openProjectChat('chat-9' as TerminalId)
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="terminal-dock-toggle"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="running-dock-toggle"]').exists()).toBe(true)
+      expect(terminals.floatingId).toBeNull()
+    })
+
     it('opens the panel of the segment pressed and closes it on a second press', async () => {
       const { wrapper } = await mountDock([terminal()])
       const toggle = wrapper.get('[data-testid="terminal-dock-toggle"]')
@@ -348,14 +361,16 @@ describe('ShellDock', () => {
       expect(push).not.toHaveBeenCalled()
     })
 
-    it('opens a chat session in the chat window, not in a floating panel', async () => {
-      const { wrapper } = await mountDock([terminal({ kind: 'CHAT' })])
+    it('shows a chat session full-size, not in a floating panel', async () => {
+      const { wrapper, console } = await mountDock([terminal({ kind: 'CHAT' })])
 
       await wrapper.get('[data-testid="terminal-dock-toggle"]').trigger('click')
       await wrapper.get('[data-testid="terminal-dock-jump"]').trigger('click')
       await flushPromises()
 
       expect(wrapper.find('[data-testid="terminal-float"]').exists()).toBe(false)
+      expect(console.paneFocus).toBe('chat')
+      expect(push).toHaveBeenCalledWith({ name: 'console' })
     })
 
     it('stops a terminal from its row', async () => {

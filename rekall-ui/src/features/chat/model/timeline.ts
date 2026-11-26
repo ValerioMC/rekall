@@ -105,7 +105,7 @@ export interface PendingPermission {
   readonly input: ToolInput
 }
 
-/** What the window shows of one chat session, folded from its events. */
+/** What a chat shows of one session, folded from its events. */
 export interface Timeline {
   readonly items: readonly TimelineItem[]
   readonly lastSeq: number

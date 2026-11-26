@@ -1,17 +1,14 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import ConsoleHeader from '@/components/console/ConsoleHeader.vue'
 import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import ReviewPage from '@/features/review/components/ReviewPage.vue'
 import TaskPage from '@/features/task/components/TaskPage.vue'
-import ChatDock from '@/features/chat/components/ChatDock.vue'
-import ChatReopenTag from '@/features/chat/components/ChatReopenTag.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useDeviationsStore } from '@/features/deviations/store/deviations.store'
-import { useChatDockArea } from '@/features/chat/composables/useChatDockArea'
-import { useChatWindowShown } from '@/features/chat/composables/useChatWindowShown'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { useQueueSessionSync } from '@/features/queue/composables/useQueueSessionSync'
 import { useModalGate } from '@/composables/useModalGate'
@@ -24,21 +21,19 @@ import { useTaskEditor } from '@/features/catalog/composables/useTaskEditor'
 // xterm and its stylesheet are only parsed once a terminal is opened: most sessions never do,
 // and the console's first paint should not pay for them.
 const TerminalPane = defineAsyncComponent(() => import('@/features/claude/components/TerminalPane.vue'))
+const ChatPane = defineAsyncComponent(() => import('@/features/chat/components/ChatPane.vue'))
 
 const store = useConsoleStore()
 const route = useRoute()
 const taskEditor = useTaskEditor()
 const onTask = computed(() => route.name === 'task')
 const onReview = computed(() => route.name === 'review')
-const { selectedTaskId, selectedTask, paneFocus, reviewQueue, isLoading } = storeToRefs(store)
+const { selectedTaskId, selectedTask, paneFocus, chatInPane, projectChatId, reviewQueue, isLoading } =
+  storeToRefs(store)
+const terminals = useTerminalStore()
 const runQueue = useRunQueueStore()
 const deviations = useDeviationsStore()
 const { isModalOpen } = useModalGate()
-const noteArea = ref<HTMLElement | null>(null)
-useChatDockArea(noteArea, true)
-
-const chatWindowShown = useChatWindowShown()
-
 useStepStream(
   (taskId, steps) => store.applyStepEvent(taskId, steps),
   (review) => store.applyTaskReview(review),
@@ -60,25 +55,23 @@ useConsoleLocation()
 
 const router = useRouter()
 
-/** `/console` hosts the terminal and nothing else: a task shown on any other pane is on its page. */
+/** `/console` hosts a full-size session and nothing else: a task shown on any other pane is on its page. */
 const showsTerminal = computed(() => paneFocus.value === 'terminal' && selectedTask.value !== null)
 
-/** Equals `--motion-move`: the console stays until the hidden chat window has slid away. */
-const CHAT_SLIDE_MS = 220
-let leavingConsole: ReturnType<typeof setTimeout> | undefined
+/** A chat on no task selects nothing, so the header is handed that chat's anchors. */
+const chatOnNoTaskAnchor = computed(() => {
+  if (!chatInPane.value || selectedTaskId.value !== null) return undefined
+  return terminals.terminals.find((session) => session.id === projectChatId.value)?.anchors
+})
 
 function leaveConsole(): void {
   void router.replace(selectedTaskId.value ? `/task/${selectedTaskId.value}` : '/projects')
 }
 
 watch(
-  [() => route.name, showsTerminal, () => store.isLoading, chatWindowShown],
-  ([name, terminal, loading, chatShown], previous) => {
-    clearTimeout(leavingConsole)
-    if (name !== 'console' || terminal || loading || chatShown) return
-    const chatJustHidden = previous?.[3] === true
-    if (chatJustHidden) leavingConsole = setTimeout(leaveConsole, CHAT_SLIDE_MS)
-    else leaveConsole()
+  [() => route.name, () => showsTerminal.value || chatInPane.value, () => store.isLoading],
+  ([name, session, loading]) => {
+    if (name === 'console' && !session && !loading) leaveConsole()
   },
   { immediate: true }
 )
@@ -114,7 +107,6 @@ onMounted(() => {
 })
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown)
-  clearTimeout(leavingConsole)
 })
 </script>
 
@@ -127,18 +119,17 @@ onUnmounted(() => {
       Skip to the editor
     </a>
 
-    <ConsoleHeader />
+    <ConsoleHeader :anchor="chatOnNoTaskAnchor" />
     <div class="flex min-h-0 flex-1">
       <TaskPage v-if="onTask" />
       <ReviewPage v-else-if="onReview" />
-      <div v-else ref="noteArea" class="relative flex min-h-0 min-w-0 flex-1 overflow-x-clip" data-testid="console-terminal">
+      <div v-else class="flex min-h-0 min-w-0 flex-1" data-testid="console-terminal">
         <!-- A place focus is sent to (the skip link), never a control, so it draws no ring: the pane
              that appears in it is what says where you are. -->
         <div id="note" class="flex min-h-0 min-w-0 flex-1 outline-none" tabindex="-1">
           <TerminalPane v-if="showsTerminal" />
+          <ChatPane v-else-if="chatInPane" />
         </div>
-        <ChatDock :shown="chatWindowShown" />
-        <ChatReopenTag />
       </div>
     </div>
 

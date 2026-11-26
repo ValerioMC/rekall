@@ -4,6 +4,7 @@ import { effectScope, nextTick, ref, type EffectScope, type Ref } from 'vue'
 import { useChatEvents, type ChatEventStream } from '@/features/chat/composables/useChatEvents'
 import { useChatStore } from '@/features/chat/store/chat.store'
 import type { TerminalId } from '@/model/branded'
+import { FakeEventSource } from './support'
 
 vi.mock('@/features/claude/api/terminal.api', () => ({
   fetchTerminals: vi.fn().mockResolvedValue([]),
@@ -11,42 +12,6 @@ vi.mock('@/features/claude/api/terminal.api', () => ({
   closeTerminal: vi.fn(),
   sendTerminalInput: vi.fn()
 }))
-
-class FakeEventSource {
-  static readonly CONNECTING = 0
-  static readonly OPEN = 1
-  static readonly CLOSED = 2
-  static instances: FakeEventSource[] = []
-
-  readyState = FakeEventSource.CONNECTING
-  closed = false
-  onopen: (() => void) | null = null
-  onmessage: ((message: MessageEvent<string>) => void) | null = null
-  onerror: (() => void) | null = null
-
-  constructor(readonly url: string) {
-    FakeEventSource.instances.push(this)
-  }
-
-  close(): void {
-    this.closed = true
-    this.readyState = FakeEventSource.CLOSED
-  }
-
-  open(): void {
-    this.readyState = FakeEventSource.OPEN
-    this.onopen?.()
-  }
-
-  emit(payload: unknown): void {
-    this.onmessage?.({ data: typeof payload === 'string' ? payload : JSON.stringify(payload) } as MessageEvent<string>)
-  }
-
-  drop(): void {
-    this.readyState = FakeEventSource.CONNECTING
-    this.onerror?.()
-  }
-}
 
 const FIRST = 'chat-1' as TerminalId
 const SECOND = 'chat-2' as TerminalId

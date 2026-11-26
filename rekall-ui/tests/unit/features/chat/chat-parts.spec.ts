@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ChatCommandOutput from '@/features/chat/components/ChatCommandOutput.vue'
-import ChatSessionReadout from '@/features/chat/components/ChatSessionReadout.vue'
 import ChatSessionStart from '@/features/chat/components/ChatSessionStart.vue'
 import ChatNotice from '@/features/chat/components/ChatNotice.vue'
 import ChatThinking from '@/features/chat/components/ChatThinking.vue'
@@ -82,30 +81,5 @@ describe('ChatCommandOutput', () => {
     expect(output.get('h3').text()).toBe('/context')
     expect(output.get('pre').text()).toBe('Context Usage\n  10% used')
     expect(output.get('pre').classes()).toContain('whitespace-pre')
-  })
-})
-
-describe('ChatSessionReadout', () => {
-  it('shows nothing before a turn has reported a fill or a cost', () => {
-    const readout = mount(ChatSessionReadout, { props: { context: null, cost: 0 } })
-
-    expect(readout.find('[data-testid=chat-readout]').exists()).toBe(false)
-  })
-
-  it('shows the share of the window held, the tokens in its tooltip, and the total cost', () => {
-    const readout = mount(ChatSessionReadout, {
-      props: { context: { usedTokens: 42000, windowTokens: 200000 }, cost: 1.234 }
-    })
-
-    expect(readout.get('[data-testid=chat-readout-context]').text()).toBe('context 21%')
-    expect(readout.get('[data-testid=chat-readout-context]').attributes('title')).toContain('42,000 of 200,000 tokens')
-    expect(readout.get('[data-testid=chat-readout-cost]').text()).toBe('$1.23')
-  })
-
-  it('shows only the cost when the turns reported no fill', () => {
-    const readout = mount(ChatSessionReadout, { props: { context: null, cost: 0.004 } })
-
-    expect(readout.find('[data-testid=chat-readout-context]').exists()).toBe(false)
-    expect(readout.get('[data-testid=chat-readout-cost]').text()).toBe('$0.0040')
   })
 })

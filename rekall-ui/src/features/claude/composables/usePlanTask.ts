@@ -1,5 +1,6 @@
 import { computed, ref, type Ref } from 'vue'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import { useOpenSessionInPane } from '@/features/claude/composables/useOpenSessionInPane'
 import { useToastStore } from '@/stores/toast.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { launchChoices } from '@/common/config/session-launch'
@@ -17,9 +18,8 @@ export interface PlanTask {
 }
 
 /**
- * Has a session plan or discuss a task: the line is typed into the one live on the task, or a terminal is
- * opened that starts on it. A replan deletes steps, so it waits for `confirmReplan`, which also
- * carries what the plan missed.
+ * Plans or discusses a task in its session, then floats a terminal or shows a chat full-size. A
+ * replan deletes steps, so it waits for `confirmReplan`.
  */
 export function usePlanTask(
   taskId: () => TaskId,
@@ -28,6 +28,7 @@ export function usePlanTask(
 ): PlanTask {
   const terminals = useTerminalStore()
   const toast = useToastStore()
+  const openInPane = useOpenSessionInPane()
   const { run, isRunning } = useAsyncAction()
 
   const isConfirmingReplan = ref(false)
@@ -66,6 +67,7 @@ export function usePlanTask(
       startedMessage(mode)
     )
     if (opened?.kind === 'TERMINAL') terminals.float(opened.id)
+    else if (opened) openInPane(opened)
   }
 
   function startedMessage(mode: PlanMode): string {

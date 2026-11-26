@@ -111,7 +111,7 @@ async function mountAt(path: string) {
   return wrapper
 }
 
-function openTerminalOf(taskId: string): void {
+function openSessionOf(taskId: string, kind: Terminal['kind']): void {
   let openInPane: ReturnType<typeof useOpenSessionInPane> | undefined
   const host = {
     setup() {
@@ -120,7 +120,7 @@ function openTerminalOf(taskId: string): void {
     }
   }
   mount(host, { global: { plugins: [pinia, router] } })
-  openInPane!({ id: 'term-1' as TerminalId, taskId: taskId as TaskId } as Terminal)
+  openInPane!({ id: 'term-1' as TerminalId, taskId: taskId as TaskId, kind } as Terminal)
 }
 
 describe('TaskPage', () => {
@@ -237,12 +237,23 @@ describe('TaskPage', () => {
     const store = seed()
     await mountAt('/task/rk-1/description')
 
-    openTerminalOf('rk-2')
+    openSessionOf('rk-2', 'TERMINAL')
     await flushPromises()
 
     expect(router.currentRoute.value.name).toBe('console')
     expect(store.selectedTaskId).toBe('rk-2')
     expect(store.paneFocus).toBe('terminal')
+  })
+
+  it('lets another task\'s chat take the screen', async () => {
+    const store = seed()
+    await mountAt('/task/rk-1/description')
+
+    openSessionOf('rk-2', 'CHAT')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('console')
+    expect([store.selectedTaskId, store.paneFocus]).toEqual(['rk-2', 'chat'])
   })
 
   it('opens a task with no tab on its description', async () => {

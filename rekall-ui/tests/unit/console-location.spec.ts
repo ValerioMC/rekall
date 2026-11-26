@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { locationFromQuery, locationToQuery, type ConsoleLocation } from '@/model/console-location'
-import type { DocumentId, TaskId } from '@/model/branded'
+import type { DocumentId, TaskId, TerminalId } from '@/model/branded'
 
 const onSteps: ConsoleLocation = {
   taskId: 't1' as TaskId,
   documentId: 'd1' as DocumentId,
   pane: 'steps',
-  deviationStep: null
+  deviationStep: null,
+  chatId: null
 }
 
 describe('the console location in the URL', () => {
@@ -18,7 +19,7 @@ describe('the console location in the URL', () => {
   })
 
   it('leaves out the note pane and empty selections, but always writes the mark', () => {
-    const query = locationToQuery({ taskId: null, documentId: null, pane: 'note', deviationStep: null })
+    const query = locationToQuery({ taskId: null, documentId: null, pane: 'note', deviationStep: null, chatId: null })
 
     expect(query).toEqual({ mode: 'tasks', task: undefined, note: undefined, pane: undefined, deviation: undefined })
   })
@@ -34,8 +35,25 @@ describe('the console location in the URL', () => {
       taskId: 't1',
       documentId: null,
       pane: 'note',
-      deviationStep: null
+      deviationStep: null,
+      chatId: null
     })
+  })
+
+  it('names a task\'s chat by the task, and reads it back', () => {
+    const onChat: ConsoleLocation = { ...onSteps, documentId: null, pane: 'chat' }
+    const query = locationToQuery(onChat)
+
+    expect(query).toEqual({ mode: 'tasks', task: 't1', note: undefined, pane: 'chat', deviation: undefined, chat: undefined })
+    expect(locationFromQuery({ mode: 'tasks', task: 't1', pane: 'chat' })).toEqual(onChat)
+  })
+
+  it('names a chat on no task by its session, and reads it back', () => {
+    const onChat: ConsoleLocation = { taskId: null, documentId: null, pane: 'chat', deviationStep: null, chatId: 'chat-9' as TerminalId }
+    const query = locationToQuery(onChat)
+
+    expect(query).toMatchObject({ pane: 'chat', task: undefined, chat: 'chat-9' })
+    expect(locationFromQuery({ mode: 'tasks', pane: 'chat', chat: 'chat-9' })).toEqual(onChat)
   })
 
   it('writes the step of the deviation in view and reads it back, refusing a step that is not a positive number', () => {

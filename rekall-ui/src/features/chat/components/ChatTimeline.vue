@@ -40,7 +40,7 @@ async function showEarlier(): Promise<void> {
   <div class="relative min-h-0 flex-1">
     <div
       ref="scroller"
-      class="focus-ring h-full overflow-y-auto px-4 py-3"
+      class="focus-ring h-full overflow-y-auto py-3 @min-[560px]/talk:py-5 @min-[560px]/talk:[scrollbar-gutter:stable_both-edges]"
       role="log"
       aria-label="Conversation"
       aria-live="off"
@@ -48,7 +48,7 @@ async function showEarlier(): Promise<void> {
       data-testid="chat-timeline"
       @scroll.passive="onScroll"
     >
-      <ol class="flex flex-col gap-3">
+      <ol class="mx-auto flex w-full max-w-[748px] flex-col gap-3 px-4 @min-[560px]/talk:px-6">
         <li v-if="hidden > 0" class="flex justify-center">
           <button
             type="button"

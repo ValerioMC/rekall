@@ -16,6 +16,7 @@ import type { ProjectId, TaskId } from '@/model/branded'
 vi.mock('@/features/context/api/context.api', () => ({ fetchContextSize: vi.fn(() => new Promise(() => undefined)) }))
 vi.mock('@/features/worktree/api/taskBranch.api', () => ({ fetchTaskBranch: vi.fn() }))
 vi.mock('@/features/dependency/api/dependencies.api')
+vi.mock('vue-router', () => ({ useRouter: () => ({}) }))
 
 const taskId = 't1' as TaskId
 

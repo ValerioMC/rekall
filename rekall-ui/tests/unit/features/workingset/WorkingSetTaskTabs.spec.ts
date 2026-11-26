@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import WorkingSetTaskTabs from '@/features/workingset/components/WorkingSetTaskTabs.vue'
 import type { StepTally, TaskActivity } from '@/features/workingset/model/task-activity'
+import type { SessionKind } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId } from '@/model/branded'
 import { project, task } from './fixtures'
 
@@ -13,24 +14,25 @@ function tabs(
   activities: ReadonlyMap<TaskId, TaskActivity> = new Map(),
   tallies: ReadonlyMap<TaskId, StepTally> = new Map(),
   reviewCounts: ReadonlyMap<TaskId, number> = new Map(),
-  terminal: { taskIds?: readonly TaskId[]; shown?: boolean } = {}
+  session: { kinds?: ReadonlyMap<TaskId, SessionKind>; shown?: SessionKind } = {}
 ) {
   return mount(WorkingSetTaskTabs, {
     props: {
       project: VEGA,
       tasks: TASKS,
       currentTaskId,
+      listShown: currentTaskId === null,
       activities,
       tallies,
       reviewCounts,
-      terminalTaskIds: new Set(terminal.taskIds),
-      terminalShown: terminal.shown ?? false
+      sessionKinds: session.kinds ?? new Map<TaskId, SessionKind>(),
+      shownKind: session.shown ?? null
     }
   })
 }
 
-function tabsWithTerminalOnT1(currentTaskId: TaskId | null, shown = false) {
-  return tabs(currentTaskId, new Map(), new Map(), new Map(), { taskIds: ['t1' as TaskId], shown })
+function tabsWithSessionOnT1(kind: SessionKind, currentTaskId: TaskId | null, shown?: SessionKind) {
+  return tabs(currentTaskId, new Map(), new Map(), new Map(), { kinds: new Map([['t1' as TaskId, kind]]), shown })
 }
 
 describe('the task tab row', () => {
@@ -110,29 +112,43 @@ describe('the task tab row', () => {
     expect(row.emitted('select')).toBeUndefined()
   })
 
-  it('puts a terminal key only on a task with a terminal, outside the tab itself', () => {
-    const row = tabsWithTerminalOnT1(null)
-    const keys = row.findAll('[data-testid="working-set-task-terminal"]')
+  it('puts no key on a task with no session', () => {
+    const row = tabs()
 
-    expect(keys.map((key) => key.attributes('aria-label'))).toEqual(['Open the terminal of t1'])
-    expect(row.find('[role="tab"] [data-testid="working-set-task-terminal"]').exists()).toBe(false)
+    expect(row.find('[data-testid="working-set-task-terminal"]').exists()).toBe(false)
+    expect(row.find('[data-testid="working-set-task-chat"]').exists()).toBe(false)
   })
 
-  it('presses the key only while that task\'s terminal is on screen', () => {
-    const pressed = (row: ReturnType<typeof tabs>) => row.get('[data-testid="working-set-task-terminal"]').attributes('aria-pressed')
+  describe.each([
+    ['TERMINAL', 'working-set-task-terminal', 'Open the terminal of t1', 'CHAT'],
+    ['CHAT', 'working-set-task-chat', 'Open the chat of t1', 'TERMINAL']
+  ] as const)('the key of a %s session', (kind, testid, name, otherKind) => {
+    const key = `[data-testid="${testid}"]`
 
-    expect(pressed(tabsWithTerminalOnT1('t1' as TaskId, true))).toBe('true')
-    expect(pressed(tabsWithTerminalOnT1('t1' as TaskId))).toBe('false')
-    expect(pressed(tabsWithTerminalOnT1('t2' as TaskId, true))).toBe('false')
-  })
+    it('is the only key of its task, named for its session and outside the tab itself', () => {
+      const row = tabsWithSessionOnT1(kind, null)
 
-  it('asks for the terminal from its key without selecting or closing the task', async () => {
-    const row = tabsWithTerminalOnT1(null)
+      expect(row.findAll('[aria-pressed]').map((button) => button.attributes('aria-label'))).toEqual([name])
+      expect(row.find(`[role="tab"] ${key}`).exists()).toBe(false)
+    })
 
-    await row.get('[data-testid="working-set-task-terminal"]').trigger('click')
+    it('is pressed only while that view of that task is on screen', () => {
+      const pressed = (row: ReturnType<typeof tabs>) => row.get(key).attributes('aria-pressed')
 
-    expect(row.emitted('openTerminal')).toEqual([['t1']])
-    expect(row.emitted('select')).toBeUndefined()
-    expect(row.emitted('close')).toBeUndefined()
+      expect(pressed(tabsWithSessionOnT1(kind, 't1' as TaskId, kind))).toBe('true')
+      expect(pressed(tabsWithSessionOnT1(kind, 't1' as TaskId))).toBe('false')
+      expect(pressed(tabsWithSessionOnT1(kind, 't2' as TaskId, kind))).toBe('false')
+      expect(pressed(tabsWithSessionOnT1(kind, 't1' as TaskId, otherKind))).toBe('false')
+    })
+
+    it('asks for the session without selecting or closing the task', async () => {
+      const row = tabsWithSessionOnT1(kind, null)
+
+      await row.get(key).trigger('click')
+
+      expect(row.emitted('openSession')).toEqual([['t1']])
+      expect(row.emitted('select')).toBeUndefined()
+      expect(row.emitted('close')).toBeUndefined()
+    })
   })
 })
