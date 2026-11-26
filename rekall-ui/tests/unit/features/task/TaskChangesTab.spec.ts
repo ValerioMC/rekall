@@ -146,6 +146,7 @@ describe('TaskChangesTab', () => {
 
   afterEach(() => {
     tab?.unmount()
+    vi.useRealTimers()
     document.body.innerHTML = ''
   })
 
@@ -332,23 +333,71 @@ describe('TaskChangesTab', () => {
     expect(tab.find('[data-testid="change-scope-header"]').text()).toContain('site')
   })
 
-  it('says so when nothing has changed yet', async () => {
+  it('shows a fast empty response without showing a loading message', async () => {
+    vi.useFakeTimers()
     vi.mocked(fetchTaskChanges).mockResolvedValue({ repositories: [] })
 
     mountTab()
+    expect(tab.find('[data-testid="changes-empty"]').exists()).toBe(false)
+    expect(tab.get('[data-testid="changes-loading"]').text()).toBe('')
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(200)
+
+    expect(tab.find('[data-testid="changes-empty"]').exists()).toBe(true)
+    expect(tab.find('[data-testid="changes-loading"]').exists()).toBe(false)
+  })
+
+  it('shows a small loading message only while a slow read is pending', async () => {
+    vi.useFakeTimers()
+    const pending = Promise.withResolvers<TaskChanges>()
+    vi.mocked(fetchTaskChanges).mockReturnValue(pending.promise)
+
+    mountTab()
+    await vi.advanceTimersByTimeAsync(199)
+    expect(tab.get('[data-testid="changes-loading"]').text()).toBe('')
+    await vi.advanceTimersByTimeAsync(1)
+    expect(tab.get('[data-testid="changes-loading"]').text()).toBe('Loading changes…')
+    expect(tab.find('[data-testid="changes-empty"]').exists()).toBe(false)
+
+    pending.resolve({ repositories: [] })
     await flushPromises()
 
+    expect(tab.find('[data-testid="changes-loading"]').exists()).toBe(false)
     expect(tab.find('[data-testid="changes-empty"]').exists()).toBe(true)
   })
 
+  it('starts a fresh delay for a new task and drops the old result', async () => {
+    vi.useFakeTimers()
+    const first = Promise.withResolvers<TaskChanges>()
+    const second = Promise.withResolvers<TaskChanges>()
+    vi.mocked(fetchTaskChanges).mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise)
+
+    mountTab()
+    await vi.advanceTimersByTimeAsync(150)
+    await tab.setProps({ task: { ...makeTask(), id: 't2' as TaskId } })
+    await vi.advanceTimersByTimeAsync(50)
+    first.resolve({ repositories: [] })
+    await flushPromises()
+
+    expect(tab.get('[data-testid="changes-loading"]').text()).toBe('')
+    expect(tab.find('[data-testid="changes-empty"]').exists()).toBe(false)
+    second.resolve(CHANGES)
+    await flushPromises()
+    expect(tab.find('[data-testid="changed-file"]').exists()).toBe(true)
+  })
+
   it('shows why the changes could not be read and reads them again on request', async () => {
-    vi.mocked(fetchTaskChanges).mockRejectedValueOnce(new Error('git took too long')).mockResolvedValueOnce(CHANGES)
+    vi.useFakeTimers()
+    const retry = Promise.withResolvers<TaskChanges>()
+    vi.mocked(fetchTaskChanges).mockRejectedValueOnce(new Error('git took too long')).mockReturnValueOnce(retry.promise)
 
     mountTab()
     await flushPromises()
     expect(tab.find('[data-testid="changes-failed"]').text()).toContain('git took too long')
 
     await tab.find('[data-testid="changes-failed"] button').trigger('click')
+    expect(tab.get('[data-testid="changes-loading"]').text()).toBe('')
+    retry.resolve(CHANGES)
     await flushPromises()
 
     expect(tab.find('[data-testid="changed-file"]').exists()).toBe(true)

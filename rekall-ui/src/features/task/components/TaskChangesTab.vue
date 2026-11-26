@@ -4,7 +4,6 @@ import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
-import AppSkeleton from '@/components/ui/AppSkeleton.vue'
 import SegmentedControl, { type SegmentOption } from '@/components/ui/SegmentedControl.vue'
 import ChangeRepositoryBand from '@/features/commits/components/ChangeRepositoryBand.vue'
 import ChangeFileTree from '@/features/commits/components/ChangeFileTree.vue'
@@ -56,7 +55,7 @@ const route = useRoute()
 const router = useRouter()
 const store = useConsoleStore()
 const { selectedTaskSteps, selectedTaskCommitReferences } = storeToRefs(store)
-const { changes, status, failure, reload } = useTaskChanges(
+const { changes, status, failure, showLoading, reload } = useTaskChanges(
   () => props.task.id,
   () => selectedTaskCommitReferences.value.length
 )
@@ -218,7 +217,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col" data-testid="task-changes-tab">
-    <div v-if="status === 'loading'" class="px-6 py-5" data-testid="changes-loading"><AppSkeleton variant="list" /></div>
+    <div v-if="status === 'loading'" class="flex-1 px-6 py-5" data-testid="changes-loading">
+      <p role="status" class="text-small text-text-subtle"><span v-if="showLoading">Loading changes…</span></p>
+    </div>
 
     <div v-else-if="status === 'failed'" class="grid flex-1 place-items-center px-6" data-testid="changes-failed">
       <div class="flex flex-col items-center gap-3 text-center">
