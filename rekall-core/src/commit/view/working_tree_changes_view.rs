@@ -5,7 +5,7 @@ use super::ChangedFileView;
 /// What the project's folder holds that no commit does yet, untracked files included.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WorkingTreeChangesView {
+pub struct WorkingTreeChangesView<Files = Vec<ChangedFileView>> {
     pub truncated: bool,
-    pub files: Vec<ChangedFileView>,
+    pub files: Files,
 }

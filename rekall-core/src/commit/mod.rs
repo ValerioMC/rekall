@@ -29,6 +29,9 @@ pub use git::{
 };
 pub use view::recent_commit_view::RecentCommitView;
 pub use view::{ChangeKind, ChangedFileView, CommitChangesView, DiffHunkView, DiffLineKind, DiffLineView, RepositoryChangesView, TaskChangesView, WorkingTreeChangesView};
+pub use view::{ChangeFileHunksView, ChangeSourceId, ChangedFileMetadata, TaskChangesIndexView};
+pub use model::change_file_key::ChangeFileKey;
+pub use model::task_changes_scope::TaskChangesScope;
 pub use model::repository_target::RepositoryTarget;
 pub use model::subject::Subject;
 

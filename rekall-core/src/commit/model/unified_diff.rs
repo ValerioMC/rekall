@@ -1,8 +1,8 @@
-use std::sync::LazyLock;
+use std::{ops::Range, sync::LazyLock};
 
 use regex::Regex;
 
-use crate::commit::view::{ChangeKind, ChangedFileView, DiffHunkView, DiffLineKind, DiffLineView};
+use crate::commit::view::{ChangeKind, ChangedFileMetadata, ChangedFileView, DiffHunkView, DiffLineKind, DiffLineView};
 
 static HUNK_HEADER: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@ ?(.*)$").expect("a valid pattern"));
@@ -13,32 +13,65 @@ pub struct UnifiedDiff;
 
 impl UnifiedDiff {
     pub fn parse(patch: &str) -> Vec<ChangedFileView> {
-        let mut reader = PatchReader::default();
-        for line in patch.lines() {
-            reader.feed(line);
+        Self::scan(patch, true).into_iter().map(ParsedFile::into_view).collect()
+    }
+
+    pub(in crate::commit) fn index(patch: &str) -> Vec<DiffFileSpan> {
+        Self::scan(patch, false).into_iter().map(|file| file.index).collect()
+    }
+
+    fn scan(patch: &str, read_hunks: bool) -> Vec<ParsedFile> {
+        let mut reader = PatchReader { read_hunks, ..PatchReader::default() };
+        let mut offset = 0;
+        for raw_line in patch.split_inclusive('\n') {
+            let line = raw_line.strip_suffix('\n').map_or(raw_line, |line| line.strip_suffix('\r').unwrap_or(line));
+            reader.feed(line, offset);
+            offset += raw_line.len();
         }
-        reader.finish()
+        reader.close_file(offset);
+        reader.files
+    }
+}
+
+pub(in crate::commit) struct DiffFileSpan {
+    pub metadata: ChangedFileMetadata,
+    pub bytes: Range<usize>,
+}
+
+struct ParsedFile {
+    index: DiffFileSpan,
+    hunks: Vec<DiffHunkView>,
+}
+
+impl ParsedFile {
+    fn into_view(self) -> ChangedFileView {
+        let ChangedFileMetadata { path, old_path, kind, binary, additions, deletions } = self.index.metadata;
+        ChangedFileView { path, old_path, kind, binary, additions, deletions, hunks: self.hunks }
     }
 }
 
 #[derive(Default)]
 struct PatchReader {
-    files: Vec<ChangedFileView>,
+    read_hunks: bool,
+    files: Vec<ParsedFile>,
     file: Option<FileDraft>,
     hunk: Option<HunkDraft>,
 }
 
 struct FileDraft {
+    offset: usize,
     header_path: String,
     path: Option<String>,
     old_path: Option<String>,
     kind: ChangeKind,
     binary: bool,
+    additions: u32,
+    deletions: u32,
     hunks: Vec<DiffHunkView>,
 }
 
 struct HunkDraft {
-    hunk: DiffHunkView,
+    view: Option<DiffHunkView>,
     old_remaining: u32,
     new_remaining: u32,
     next_old: u32,
@@ -46,14 +79,15 @@ struct HunkDraft {
 }
 
 impl PatchReader {
-    fn feed(&mut self, line: &str) {
+    fn feed(&mut self, line: &str, offset: usize) {
         if self.hunk.as_ref().is_some_and(HunkDraft::is_open) {
             self.read_hunk_line(line);
             return;
         }
         self.close_hunk();
         if let Some(rest) = line.strip_prefix("diff --git ") {
-            self.start_file(rest);
+            self.close_file(offset);
+            self.file = Some(FileDraft::new(rest, offset));
         } else if line.starts_with("@@") {
             self.start_hunk(line);
         } else if let Some(file) = self.file.as_mut() {
@@ -66,18 +100,17 @@ impl PatchReader {
         if line.starts_with('\\') {
             return;
         }
-        let (kind, text) = match line.chars().next() {
-            Some('+') => (DiffLineKind::Added, &line[1..]),
-            Some('-') => (DiffLineKind::Removed, &line[1..]),
-            Some(' ') => (DiffLineKind::Context, &line[1..]),
+        let (kind, text) = match line.as_bytes().first() {
+            Some(b'+') => (DiffLineKind::Added, &line[1..]),
+            Some(b'-') => (DiffLineKind::Removed, &line[1..]),
+            Some(b' ') => (DiffLineKind::Context, &line[1..]),
             _ => (DiffLineKind::Context, line),
         };
         draft.push(kind, text);
-    }
-
-    fn start_file(&mut self, header: &str) {
-        self.close_file();
-        self.file = Some(FileDraft::new(header));
+        if let Some(file) = self.file.as_mut() {
+            file.additions += u32::from(kind == DiffLineKind::Added);
+            file.deletions += u32::from(kind == DiffLineKind::Removed);
+        }
     }
 
     fn start_hunk(&mut self, line: &str) {
@@ -85,9 +118,12 @@ impl PatchReader {
         let number = |index: usize, default: u32| captures.get(index).and_then(|m| m.as_str().parse().ok()).unwrap_or(default);
         let (old_start, old_lines) = (number(1, 0), number(2, 1));
         let (new_start, new_lines) = (number(3, 0), number(4, 1));
-        let context = captures.get(5).map_or("", |m| m.as_str()).to_string();
+        let view = self.read_hunks.then(|| {
+            let context = captures.get(5).map_or("", |m| m.as_str()).to_string();
+            DiffHunkView { old_start, old_lines, new_start, new_lines, context, lines: Vec::new() }
+        });
         self.hunk = Some(HunkDraft {
-            hunk: DiffHunkView { old_start, old_lines, new_start, new_lines, context, lines: Vec::new() },
+            view,
             old_remaining: old_lines,
             new_remaining: new_lines,
             next_old: old_start,
@@ -96,21 +132,16 @@ impl PatchReader {
     }
 
     fn close_hunk(&mut self) {
-        if let (Some(draft), Some(file)) = (self.hunk.take(), self.file.as_mut()) {
-            file.hunks.push(draft.hunk);
+        if let (Some(view), Some(file)) = (self.hunk.take().and_then(|draft| draft.view), self.file.as_mut()) {
+            file.hunks.push(view);
         }
     }
 
-    fn close_file(&mut self) {
+    fn close_file(&mut self, offset: usize) {
         self.close_hunk();
         if let Some(file) = self.file.take() {
-            self.files.push(file.finish());
+            self.files.push(file.finish(offset));
         }
-    }
-
-    fn finish(mut self) -> Vec<ChangedFileView> {
-        self.close_file();
-        self.files
     }
 }
 
@@ -120,37 +151,31 @@ impl HunkDraft {
     }
 
     fn push(&mut self, kind: DiffLineKind, text: &str) {
-        let (old_number, new_number) = match kind {
-            DiffLineKind::Context => (Some(self.take_old()), Some(self.take_new())),
-            DiffLineKind::Removed => (Some(self.take_old()), None),
-            DiffLineKind::Added => (None, Some(self.take_new())),
-        };
-        self.hunk.lines.push(DiffLineView { kind, old_number, new_number, text: text.to_string() });
-    }
-
-    fn take_old(&mut self) -> u32 {
-        let number = self.next_old;
-        self.next_old += 1;
-        self.old_remaining = self.old_remaining.saturating_sub(1);
-        number
-    }
-
-    fn take_new(&mut self) -> u32 {
-        let number = self.next_new;
-        self.next_new += 1;
-        self.new_remaining = self.new_remaining.saturating_sub(1);
-        number
+        let consumes_old = kind != DiffLineKind::Added;
+        let consumes_new = kind != DiffLineKind::Removed;
+        self.old_remaining = self.old_remaining.saturating_sub(u32::from(consumes_old));
+        self.new_remaining = self.new_remaining.saturating_sub(u32::from(consumes_new));
+        if let Some(view) = self.view.as_mut() {
+            let old_number = consumes_old.then_some(self.next_old);
+            let new_number = consumes_new.then_some(self.next_new);
+            self.next_old += u32::from(consumes_old);
+            self.next_new += u32::from(consumes_new);
+            view.lines.push(DiffLineView { kind, old_number, new_number, text: text.to_string() });
+        }
     }
 }
 
 impl FileDraft {
-    fn new(header: &str) -> Self {
+    fn new(header: &str, offset: usize) -> Self {
         Self {
+            offset,
             header_path: path_of_header(header),
             path: None,
             old_path: None,
             kind: ChangeKind::Modified,
             binary: false,
+            additions: 0,
+            deletions: 0,
             hunks: Vec::new(),
         }
     }
@@ -174,18 +199,17 @@ impl FileDraft {
         }
     }
 
-    fn finish(self) -> ChangedFileView {
-        let additions = self.hunks.iter().flat_map(|h| &h.lines).filter(|l| l.kind == DiffLineKind::Added).count() as u32;
-        let deletions = self.hunks.iter().flat_map(|h| &h.lines).filter(|l| l.kind == DiffLineKind::Removed).count() as u32;
-        ChangedFileView {
+    fn finish(self, end: usize) -> ParsedFile {
+        let metadata = ChangedFileMetadata {
             path: self.path.unwrap_or(self.header_path),
             old_path: self.old_path,
             kind: self.kind,
             binary: self.binary,
-            additions,
-            deletions,
-            hunks: self.hunks,
-        }
+            additions: self.additions,
+            deletions: self.deletions,
+        };
+        let index = DiffFileSpan { metadata, bytes: self.offset..end };
+        ParsedFile { index, hunks: self.hunks }
     }
 }
 

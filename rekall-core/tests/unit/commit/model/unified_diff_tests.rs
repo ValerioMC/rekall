@@ -117,3 +117,36 @@ fn the_no_newline_marker_is_not_a_line() {
 fn an_empty_patch_has_no_files() {
     assert!(UnifiedDiff::parse("").is_empty());
 }
+
+#[test]
+fn the_file_index_matches_full_parsing_and_keeps_byte_spans_without_hunks() {
+    let patch = format!(
+        "commit café\n{}{}",
+        MODIFIED.replace('\n', "\r\n"),
+        concat!(
+            "diff --git a/logo.png b/logo.png\nnew file mode 100644\nBinary files /dev/null and b/logo.png differ\n",
+            "diff --git a/old.txt b/moved.txt\nrename from old.txt\nrename to moved.txt\n",
+            "diff --git a/gone.txt b/gone.txt\ndeleted file mode 100644\n--- a/gone.txt\n+++ /dev/null\n@@ -1 +0,0 @@\n-bye\n",
+            "diff --git a/é.txt b/é.txt\nnew file mode 100644\n+++ b/é.txt\n@@ -0,0 +1,3 @@\n+étude\n+co",
+        ),
+    );
+    let scanned = UnifiedDiff::scan(&patch, false);
+    let full = UnifiedDiff::parse(&patch);
+
+    assert_eq!(scanned.len(), 5);
+    assert_eq!(scanned.len(), full.len());
+    for (indexed, parsed) in scanned.into_iter().zip(full) {
+        assert!(indexed.hunks.is_empty());
+        let span = &patch[indexed.index.bytes];
+        assert!(span.starts_with("diff --git "));
+        assert_eq!(UnifiedDiff::parse(span), vec![parsed.clone()]);
+        assert_eq!(indexed.index.metadata, ChangedFileMetadata {
+            path: parsed.path,
+            old_path: parsed.old_path,
+            kind: parsed.kind,
+            binary: parsed.binary,
+            additions: parsed.additions,
+            deletions: parsed.deletions,
+        });
+    }
+}
