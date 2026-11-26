@@ -18,6 +18,8 @@ import { PAGE_CHIP_CLASS, paintPageReferences, type ReferencePage } from '@/comm
 import { paintTaskReferences } from '@/common/markdown/task-reference'
 import { useReferenceChips } from '@/composables/useReferenceChips'
 import { useEditorPathPicker } from '@/composables/useEditorPathPicker'
+import PictureContextMenu from '@/features/picture/components/PictureContextMenu.vue'
+import { usePictureContextMenu } from '@/features/picture/composables/usePictureContextMenu'
 import { usePictureInsert } from '@/features/picture/composables/usePictureInsert'
 import { usePictureTransfer } from '@/features/picture/composables/usePictureTransfer'
 import { withFolderSlash } from '@/common/path/path-query'
@@ -124,6 +126,7 @@ const {
 const {
   open: picturePickerOpen,
   start: picturePickerStart,
+  alignment: pictureAlignment,
   toggle: togglePicturePicker,
   close: closePicturePicker,
   locateCaret: locatePictureCaret,
@@ -137,6 +140,7 @@ const {
 usePictureTransfer(editor, () => props.pictureOwner)
 
 const tableMenu = useTableContextMenu(editor)
+const pictureMenu = usePictureContextMenu(editor)
 
 const componentChips = useReferenceChips(root, () => props.components, paintComponentReferences)
 const connectionChips = useReferenceChips(root, () => props.connections, paintConnectionReferences)
@@ -233,6 +237,7 @@ const toolbars = computed(() =>
     @keydown.capture="onEditorKeydown"
     @click="openPageClicked"
     @rk-table-menu="tableMenu.open"
+    @rk-picture-menu="pictureMenu.open"
   >
     <div v-if="readonly && !flush" class="rekall-read-controls">
       <div class="flex items-start gap-2">
@@ -341,6 +346,7 @@ const toolbars = computed(() =>
       <Transition name="popover">
         <PathPicker
           v-if="picturePickerOpen"
+          v-model:alignment="pictureAlignment"
           mode="image"
           :root="pathRoot"
           :start="picturePickerStart"
@@ -356,6 +362,12 @@ const toolbars = computed(() =>
         :request="tableMenu.request.value"
         @choose="tableMenu.choose"
         @close="tableMenu.close"
+      />
+      <PictureContextMenu
+        v-if="pictureMenu.request.value"
+        :request="pictureMenu.request.value"
+        @choose="pictureMenu.choose"
+        @close="pictureMenu.close"
       />
     </Teleport>
   </div>

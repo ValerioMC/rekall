@@ -7,7 +7,9 @@ import PathPickerTopBar from '@/components/ui/path-picker/PathPickerTopBar.vue'
 import { PICKER_MODES, type PickerMode } from '@/components/ui/path-picker/picker-mode'
 import { useCaretPlacement, type CaretBox } from '@/composables/useCaretPlacement'
 import { useDirectoryBrowser } from '@/composables/useDirectoryBrowser'
+import PictureAlignmentChoice from '@/features/picture/components/PictureAlignmentChoice.vue'
 import SourcePicturePreview from '@/features/picture/components/SourcePicturePreview.vue'
+import type { PictureAlignment } from '@/features/picture/model/picture'
 import type { DirectoryEntry } from '@/model/filesystem'
 
 export type { CaretBox }
@@ -27,8 +29,8 @@ export type { CaretBox }
  *
  * ↵ inserts the highlighted entry, ⌘↵ the folder in view. The footer shows exactly the text that
  * will land, formatted by the caller, so what is inserted is never a surprise. The `folder` mode
- * chooses a folder and leaves files out; the `image` mode lists folders and pictures, and only a
- * picture can be chosen.
+ * chooses a folder and leaves files out; the `image` mode lists folders and pictures, only a
+ * picture can be chosen, and the footer says how it is aligned, reached with Tab.
  */
 const props = withDefaults(defineProps<{
   /** The project's folder: where the picker opens and what the project button returns to. */
@@ -41,6 +43,9 @@ const props = withDefaults(defineProps<{
   format: (path: string, directory: boolean) => string
   mode?: PickerMode
 }>(), { mode: 'path' })
+
+/** How the picture about to be chosen is aligned; only the `image` mode offers it. */
+const alignment = defineModel<PictureAlignment>('alignment', { default: 'left' })
 
 const emit = defineEmits<{
   pick: [path: string, directory: boolean]
@@ -57,6 +62,7 @@ const panel = ref<HTMLElement | null>(null)
 const filterField = ref<HTMLInputElement | null>(null)
 const listEl = ref<HTMLElement | null>(null)
 const previewEl = ref<HTMLElement | null>(null)
+const alignmentChoice = ref<InstanceType<typeof PictureAlignmentChoice> | null>(null)
 
 const rules = computed(() => PICKER_MODES[props.mode])
 
@@ -133,9 +139,15 @@ function handlePanelKey(event: KeyboardEvent, mod: boolean, inFilter: boolean): 
   return true
 }
 
+/** Tab completes the name; on a picture to choose, it goes to the alignment, which WebKit's own Tab skips. */
+function tabFrom(entry: DirectoryEntry): void {
+  if (entry.directory || rules.value.choosesFolders) browser.complete(entry)
+  else alignmentChoice.value?.focus()
+}
+
 /** The keys that only mean something while typing in the filter. */
 function handleFilterKey(event: KeyboardEvent): boolean {
-  if (event.key === 'Tab' && !event.shiftKey && current.value) browser.complete(current.value)
+  if (event.key === 'Tab' && !event.shiftKey && current.value) tabFrom(current.value)
   else if (event.key === 'ArrowRight' && caretAtEnd() && current.value?.directory) browser.open(current.value)
   else if ((event.key === 'ArrowLeft' || event.key === 'Backspace') && query.value === '') browser.up()
   else return false
@@ -280,26 +292,30 @@ onUnmounted(() => {
     </div>
 
     <!-- What lands in the markdown, or which file is copied, and the keys that do it. -->
-    <div class="shrink-0 border-t border-border bg-canvas px-3 pb-2 pt-1.5">
-      <div class="flex min-w-0 items-baseline gap-2">
-        <span class="shrink-0 text-micro text-text-subtle">{{ words.preview }}</span>
-        <code
-          ref="previewEl"
-          class="path-preview min-w-0 flex-1 overflow-hidden whitespace-nowrap font-mono text-caption text-text-muted"
-          data-testid="path-picker-preview"
-          >{{ preview }}</code
-        >
+    <div class="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border bg-canvas px-3 pb-2 pt-1.5">
+      <div class="min-w-0 flex-1 basis-72">
+        <div class="flex min-w-0 items-baseline gap-2">
+          <span class="shrink-0 text-micro text-text-subtle">{{ words.preview }}</span>
+          <code
+            ref="previewEl"
+            class="path-preview min-w-0 flex-1 overflow-hidden whitespace-nowrap font-mono text-caption text-text-muted"
+            data-testid="path-picker-preview"
+            >{{ preview }}</code
+          >
+        </div>
+        <div class="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-micro text-text-subtle">
+          <span><kbd>↵</kbd> {{ words.enter }}</span>
+          <span v-if="rules.choosesFolders"><kbd>→</kbd> open</span>
+          <span v-if="mode === 'image'"><kbd>⇥</kbd> align</span>
+          <span><kbd>⌫</kbd> up</span>
+          <span v-if="rules.choosesFolders"><kbd>⌘↵</kbd> this folder</span>
+          <span v-if="listing?.truncated" class="text-warn" data-testid="path-picker-truncated">
+            first {{ listing.entries.length.toLocaleString(APP_LOCALE) }} shown
+          </span>
+          <span :class="mode !== 'image' && 'ml-auto'"><kbd>esc</kbd></span>
+        </div>
       </div>
-      <div class="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-micro text-text-subtle">
-        <span><kbd>↵</kbd> {{ words.enter }}</span>
-        <span v-if="rules.choosesFolders"><kbd>→</kbd> open</span>
-        <span><kbd>⌫</kbd> up</span>
-        <span v-if="rules.choosesFolders"><kbd>⌘↵</kbd> this folder</span>
-        <span v-if="listing?.truncated" class="text-warn" data-testid="path-picker-truncated">
-          first {{ listing.entries.length.toLocaleString(APP_LOCALE) }} shown
-        </span>
-        <span class="ml-auto"><kbd>esc</kbd></span>
-      </div>
+      <PictureAlignmentChoice v-if="mode === 'image'" ref="alignmentChoice" v-model="alignment" />
     </div>
   </div>
 </template>

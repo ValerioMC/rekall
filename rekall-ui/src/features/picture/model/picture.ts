@@ -15,3 +15,6 @@ export interface TransferredPicture {
   readonly file: File
   readonly name: string | null
 }
+
+/** Where a picture sits on its own line; its address ends with `#center` or `#right`, nothing for left. */
+export type PictureAlignment = 'left' | 'center' | 'right'

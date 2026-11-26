@@ -111,10 +111,25 @@
   cursor: pointer;
 }
 
+/* A picture takes its own line, left unless its address ends in #center or #right. */
 .rekall-md .md-editor .cm-rk-image {
+  display: block;
   max-width: 100%;
-  vertical-align: middle;
   border-radius: var(--radius-control);
+}
+
+.rekall-md .md-editor .cm-rk-image[src$='#center'] {
+  margin-inline: auto;
+}
+
+.rekall-md .md-editor .cm-rk-image[src$='#right'] {
+  margin-left: auto;
+}
+
+/* CodeMirror's spacers beside a widget would each take a line of their own around a picture. */
+.rekall-md .md-editor .cm-widgetBuffer:has(+ .cm-rk-image),
+.rekall-md .md-editor .cm-rk-image + .cm-widgetBuffer {
+  display: none;
 }
 
 /* Pictures dragged over the writing area: it is outlined, a mark shows where they would be written

@@ -62,6 +62,19 @@ describe('usePictureInsert', () => {
     expect(picture.open.value).toBe(false)
   })
 
+  it('writes the chosen alignment at the end of the address, and starts left the next time', async () => {
+    const picture = mountComposable()
+    select(4, 8)
+    picture.toggle()
+    picture.alignment.value = 'right'
+
+    await picture.insert(SOURCE)
+
+    expect(view.state.doc.toString()).toBe(`See ![Login Flow](${URL}#right) below.`)
+    picture.toggle()
+    expect(picture.alignment.value).toBe('left')
+  })
+
   it('escapes the brackets a file name carries into the description', async () => {
     const picture = mountComposable()
     picture.toggle()

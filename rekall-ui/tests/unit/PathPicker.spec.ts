@@ -319,6 +319,43 @@ describe('PathPicker', () => {
       expect(wrapper!.find('[data-testid="path-picker-preview"]').text()).toBe('')
     })
 
+    it('offers the alignment of the picture, left to begin with, and hands over the one chosen', async () => {
+      mountImagePicker()
+      await settle()
+      const options = wrapper!.findAll<HTMLInputElement>('[data-testid="picture-alignment"] input[type="radio"]')
+
+      const labels = wrapper!.findAll('[data-testid="picture-alignment"] label').map((label) => label.text())
+      expect(labels).toEqual(['Left', 'Centre', 'Right'])
+      expect(options.map((option) => option.element.checked)).toEqual([true, false, false])
+
+      await options[1]!.setValue(true)
+
+      expect(wrapper!.emitted('update:alignment')).toEqual([['center']])
+    })
+
+    it('takes Tab on a picture to the alignment, and still opens a folder with it', async () => {
+      mountImagePicker()
+      await settle()
+      const tab = (): KeyboardEvent => {
+        const event = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+        wrapper!.find('[data-testid="path-picker-filter"]').element.dispatchEvent(event)
+        return event
+      }
+      key({ key: 'ArrowDown' })
+      await flushPromises()
+
+      expect(tab().defaultPrevented).toBe(true)
+      const checked = wrapper!.find('[data-testid="picture-alignment"] input:checked').element
+      expect(document.activeElement).toBe(checked)
+      expect(wrapper!.find<HTMLInputElement>('[data-testid="path-picker-filter"]').element.value).toBe('')
+
+      key({ key: 'ArrowUp' })
+      await flushPromises()
+      expect(tab().defaultPrevented).toBe(true)
+      await settle()
+      expect(wrapper!.emitted('visit')!.at(-1)).toEqual([`${DESKTOP}/screens`])
+    })
+
     it('stays open on a click on its own button and closes on the path button', async () => {
       mountImagePicker()
       await settle()
@@ -433,5 +470,6 @@ describe('PathPicker thumbnails', () => {
 
     expect(wrapper!.find('img').exists()).toBe(false)
     expect(wrapper!.find('[data-testid="picture-preview"]').exists()).toBe(false)
+    expect(wrapper!.find('[data-testid="picture-alignment"]').exists()).toBe(false)
   })
 })

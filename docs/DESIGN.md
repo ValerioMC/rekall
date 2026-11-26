@@ -514,7 +514,8 @@ A picture is a file, not a row (D11). `PictureService` keeps the chosen file, or
 dropped one, in its owner's folder, `<company>/<project>/` followed by the task's code, `blueprint`,
 `pages/<title>` or `components/<name>`, and names it `<file name>-<hash>.<format>`. A name that leaves no slug
 falls back to the start of the record's id, a file's to `image`. A file already there is written again, so its
-modification time says when it was last asked for.
+modification time says when it was last asked for. How a picture is aligned is no part of its name: the
+markdown ends the address with `#center` or `#right`, nothing for left, and the console's style sheets draw it.
 
 | Route | Does |
 |---|---|

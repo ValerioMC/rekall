@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
+import { useContextMenuDismissal } from '@/composables/useContextMenuDismissal'
 import {
   TABLE_MENU_GROUPS,
   isTableActionAvailable,
@@ -24,30 +25,9 @@ function available(action: TableMenuAction): boolean {
   return isTableActionAvailable(action, props.request.cell, props.request.columnCount)
 }
 
-function closeOnOutside(event: MouseEvent): void {
-  if (!(event.target instanceof Node) || !menu.value?.contains(event.target)) emit('close')
-}
+useContextMenuDismissal(menu, () => emit('close'))
 
-function closeOnEscape(event: KeyboardEvent): void {
-  if (event.key === 'Escape') emit('close')
-}
-
-function closeOnWindowBlur(): void {
-  emit('close')
-}
-
-onMounted(() => {
-  document.addEventListener('mousedown', closeOnOutside, true)
-  document.addEventListener('keydown', closeOnEscape)
-  window.addEventListener('blur', closeOnWindowBlur)
-  menu.value?.querySelector<HTMLElement>('button:not(:disabled)')?.focus()
-})
-
-onUnmounted(() => {
-  document.removeEventListener('mousedown', closeOnOutside, true)
-  document.removeEventListener('keydown', closeOnEscape)
-  window.removeEventListener('blur', closeOnWindowBlur)
-})
+onMounted(() => menu.value?.querySelector<HTMLElement>('button:not(:disabled)')?.focus())
 </script>
 
 <template>
