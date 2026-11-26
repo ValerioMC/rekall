@@ -99,7 +99,7 @@ version from `system` / `init`, announced again only when one of them changed be
 read from the `local_command_source` and `local_command_run` of the `assistant` line `claude -p` prints it as,
 tags stripped, empty output dropped; `UserMessage`, `AssistantText` and `AssistantThinking` that
 grow until `complete`, `ToolUse` with a typed `ToolInput`, `ToolResult` with a one-line `summary`, `PermissionRequested` and
-`PermissionResolved`, `TurnFinished` with the turn's usage, its `cost_usd` (`total_cost_usd`) and its `context`, `Notice` and `Ended`). `ToolInput` types what the terminal draws in its own way: `Bash`, `Edit`, `Write`, `Read`, `Search` (Grep, Glob),
+`PermissionResolved`, `TurnFinished` with the turn's usage, its `cost_usd` (`total_cost_usd`) and its `context`, `Notice` and `Ended`). `ToolInput` types what the terminal draws in its own way: `Bash`, `Edit`, `Write`, `FileChanges` (a Codex change set, each file added, deleted or updated with its unified diff), `Read`, `Search` (Grep, Glob),
 `Todos` (TodoWrite, each item `pending`, `inProgress` or `completed`), `Agent` (Task and Agent), `Web` (WebFetch url,
 WebSearch query) and `Mcp` (`mcp__<server>__<tool>` split in its server and tool, arguments as text); a call missing
 the fields its tool is known by stays `Other`. A result's `summary` is read from the `tool_use_result` of its `user` line
@@ -120,8 +120,8 @@ numbers and keeps them, which is what lets a reader that reconnects resume from 
 The console folds these events in `rekall-ui/src/features/chat/lib/timeline.ts` into items: a subagent's items keep their place in
 the list and carry their `parentToolUseId`, and `lib/group-by-parent.ts` then splits them from the conversation, so the 150-item
 window of `ChatTimeline` counts the conversation only and an Agent card (`ToolCallCard`) draws its own items through the same row
-lookup (`components/timeline-rows.ts`). A todo card starts open and an Agent card is open while it runs and folds when its result
-arrives; every other card starts closed. The `session` item is `ChatSessionStart` and the `command-output` item is
+lookup (`components/timeline-rows.ts`). A card that changes files (`lib/tool-diff.ts`) and a todo card start open, and an Agent card is open while it runs and folds when its result
+arrives; every other card starts closed. A `Bash` call is no card: `ChatCommandLine` shows its description and state, and `ChatTimeline` drops one without a description. The `session` item is `ChatSessionStart` and the `command-output` item is
 `ChatCommandOutput`, which keeps its line breaks.
 
 `ChatSessionManager` owns the processes, the journal and the idle sweep; it talks to the rest of

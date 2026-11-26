@@ -26,7 +26,13 @@ const summary = computed(() => props.call.result?.summary ?? null)
   >
     <ToolGlyph class="text-text-muted" :icon="description.icon" />
     <span class="shrink-0 text-small font-semibold text-text">{{ description.name }}</span>
-    <span class="min-w-0 flex-1 truncate font-mono text-small text-text-muted">{{ description.target }}</span>
+    <span
+      v-if="description.path"
+      class="min-w-0 flex-1 truncate text-left font-mono text-small text-text-muted [direction:rtl]"
+      :title="description.path"
+      ><bdi>{{ description.path }}</bdi></span
+    >
+    <span v-else class="min-w-0 flex-1 truncate font-mono text-small text-text-muted">{{ description.target }}</span>
     <span v-if="!open && innerCalls > 0" class="shrink-0 text-caption text-text-subtle" data-testid="tool-inner-count"
       >{{ innerCalls }} {{ innerCalls === 1 ? 'call' : 'calls' }}</span
     >

@@ -566,12 +566,14 @@ by its session (`chat=…`), so a reload and Back work for both.
   272 px column from 1060 px of width and in one strip under the title below that.
 - **Conversation.** A column of 748 px at most, with the approval card and the message field pinned
   under it. Where the column reaches the dock (under 1100 px) the field's hint moves right.
+- **Tool calls.** The conversation shows what changed and what is being done, not command lines: a
+  file change is a card open on its diff (`ToolFileDiffs`), a command is its description alone.
 - **Empty.** The view reads the session list when it appears and when the task changes. A task with no
   chat reads "No chat session on this task" with **Run here**, and shows the terminal view if that
   opens a terminal. A chat on no task that left the list reads "This chat session has closed".
 
 An approval is never answered or expired on the user's behalf: `ChatApprovalCard` shows the call
-(with a diff for an edit) and stays until a `permissionResolved` event arrives. Whether the session is
+(with a diff for an edit, and the text of a command) and stays until a `permissionResolved` event arrives. Whether the session is
 waiting is read from its own timeline once it is followed, because the flag on the stored session
 list is only refreshed on load and focus and would go stale after the answer. Stop sends the
 interrupt and the session keeps answering. In the approval card `Y` allows and `N` denies; in the

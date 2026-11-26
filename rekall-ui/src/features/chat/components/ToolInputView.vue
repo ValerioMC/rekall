@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { onUnmounted, ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import ToolArguments from './ToolArguments.vue'
-import ToolDiff from './ToolDiff.vue'
+import ToolFileDiffs from './ToolFileDiffs.vue'
 import ToolTodoList from './ToolTodoList.vue'
-import { diffLines, writeLines } from '@/features/chat/lib/tool-diff'
+import { fileDiffs } from '@/features/chat/lib/tool-diff'
 import type { ToolInput } from '@/features/chat/model/chat-event'
 
 /**
@@ -16,6 +16,7 @@ const props = withDefaults(defineProps<{ input: ToolInput; lineLimit?: number }>
 
 const COPIED_FLASH_MS = 1400
 
+const files = computed(() => fileDiffs(props.input))
 const copied = ref(false)
 let copiedTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -49,17 +50,14 @@ onUnmounted(() => {
     <p v-if="input.description" class="text-caption text-text-muted">{{ input.description }}</p>
   </template>
 
-  <template v-else-if="input.tool === 'edit'">
-    <div class="flex items-center gap-2">
-      <span class="min-w-0 truncate font-mono text-small text-text">{{ input.filePath }}</span>
-      <AppBadge v-if="input.replaceAll" tone="neutral">all occurrences</AppBadge>
-    </div>
-    <ToolDiff :lines="diffLines(input.oldString, input.newString)" :limit="lineLimit" />
-  </template>
-
-  <template v-else-if="input.tool === 'write'">
-    <span class="min-w-0 truncate font-mono text-small text-text">{{ input.filePath }}</span>
-    <ToolDiff :lines="writeLines(input.content)" :limit="lineLimit" />
+  <template v-else-if="files.length > 0">
+    <span v-if="files.length === 1" class="min-w-0 truncate font-mono text-small text-text">{{ files[0]!.path }}</span>
+    <ToolFileDiffs
+      class="overflow-hidden rounded-control border border-border"
+      :files="files"
+      :named="files.length > 1"
+      :limit="lineLimit"
+    />
   </template>
 
   <ToolTodoList v-else-if="input.tool === 'todos'" :items="input.items" />

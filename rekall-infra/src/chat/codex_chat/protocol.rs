@@ -171,7 +171,7 @@ pub(super) enum Item {
     },
     FileChange {
         id: String,
-        changes: Vec<FileChange>,
+        changes: Vec<FileUpdateChange>,
         status: ToolStatus,
     },
     McpToolCall {
@@ -188,9 +188,18 @@ pub(super) enum Item {
 }
 
 #[derive(Deserialize)]
-pub(super) struct FileChange {
+pub(super) struct FileUpdateChange {
     pub path: String,
+    pub kind: PatchChangeKind,
     pub diff: String,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub(super) enum PatchChangeKind {
+    Add,
+    Delete,
+    Update { move_path: Option<String> },
 }
 
 #[derive(Deserialize)]

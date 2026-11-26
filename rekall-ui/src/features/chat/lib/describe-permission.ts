@@ -11,6 +11,8 @@ export function describePermission(input: ToolInput, provider: SessionProvider =
       return `${label} wants to edit ${input.filePath}`
     case 'write':
       return `${label} wants to write ${input.filePath} (${splitLines(input.content).length} lines)`
+    case 'fileChanges':
+      return `${label} wants to change ${input.changes.map((change) => change.path).join(', ')}`
     case 'read':
       return `${label} wants to read ${input.filePath}`
     case 'search':
