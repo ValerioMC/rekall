@@ -15,9 +15,9 @@ use tokio::sync::mpsc;
 use tracing::{debug, warn};
 
 use self::protocol::{
-    Approval, ApprovalParams, ApprovalResolved, Delta, ItemNotification, ReplyResult, RequestId, RetryNotice, RpcError,
-    ServerMessage, TextInput, ThreadStart, ThreadStarted, TokenUsage, TokenUsageUpdated, Turn, TurnInterrupt, TurnNotification,
-    TurnStart, TurnStatus,
+    Approval, ApprovalParams, ApprovalResolved, Delta, ItemNotification, McpToolApprovalParams, ReplyResult, RequestId,
+    RetryNotice, RpcError, ServerMessage, TextInput, ThreadStart, ThreadStarted, TokenUsage, TokenUsageUpdated, Turn,
+    TurnInterrupt, TurnNotification, TurnStart, TurnStatus,
 };
 use crate::codex::{app_server::AppServer, CodexTokenCounts};
 use crate::session::SessionOptions;
@@ -321,30 +321,44 @@ impl CodexChat {
     }
 
     async fn server_request(&mut self, method: &str, id: RequestId, params: Option<Value>) -> io::Result<Vec<ChatBody>> {
-        if matches!(method, "item/commandExecution/requestApproval" | "item/fileChange/requestApproval") {
-            if let Some(params) = params.and_then(decode::<ApprovalParams>) {
-                if self.matches_turn(&params.thread_id, &params.turn_id) {
-                    self.next_approval += 1;
-                    let view_id = format!("codex-approval-{}", self.next_approval);
-                    let approval = timeline::approval(method, id, view_id, params);
-                    let visible = self.approvals.is_empty().then(|| approval.event.clone());
-                    self.approvals.push_back(approval);
-                    return Ok(visible.into_iter().collect());
-                }
-            }
+        if let Some(approval) = params.and_then(|params| self.approval(method, &id, params)) {
+            let visible = self.approvals.is_empty().then(|| approval.event.clone());
+            self.approvals.push_back(approval);
+            return Ok(visible.into_iter().collect());
         }
         let text = format!("Codex Chat cannot handle {method}.");
         self.write(json!({ "id": id, "error": { "code": -32601, "message": text } })).await?;
         Ok(vec![ChatBody::notice(NoticeKind::Warning, text)])
     }
 
+    fn approval(&mut self, method: &str, id: &RequestId, params: Value) -> Option<Approval> {
+        let view_id = format!("codex-approval-{}", self.next_approval + 1);
+        let approval = match method {
+            "item/commandExecution/requestApproval" | "item/fileChange/requestApproval" => {
+                let params = decode::<ApprovalParams>(params)?;
+                if !self.matches_turn(&params.thread_id, &params.turn_id) {
+                    return None;
+                }
+                timeline::approval(method, id.clone(), view_id, params)
+            }
+            "mcpServer/elicitation/request" => {
+                let params = decode::<McpToolApprovalParams>(params)?;
+                if !params.is_confirmation() || !self.matches_turn(&params.thread_id, &params.turn_id) {
+                    return None;
+                }
+                timeline::mcp_tool_approval(id.clone(), view_id, params)
+            }
+            _ => return None,
+        };
+        self.next_approval += 1;
+        Some(approval)
+    }
+
     async fn answer(&mut self, request_id: &str, allow: bool) -> io::Result<Vec<ChatBody>> {
         let Some(pending) = self.approvals.front().filter(|approval| approval.view_id == request_id) else {
             return Ok(Vec::new());
         };
-        let decision = if allow { "accept" } else { "decline" };
-        let id = pending.id.clone();
-        self.write(json!({ "id": id, "result": { "decision": decision } })).await?;
+        self.write(json!({ "id": pending.id, "result": pending.reply.result(allow) })).await?;
         Ok(self.advance_approval(allow))
     }
 

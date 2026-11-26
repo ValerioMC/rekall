@@ -83,7 +83,7 @@ The per-user setup is written to `target\release\bundle\nsis\Rekall_<version>_x6
 
 Choose **Claude Code** or **Codex** under **Settings > Sessions and run queue > Provider**. Each keeps its own model, reasoning effort and permission settings. **Connect Codex** registers the same MCP endpoint and installs the `$rekall` skill. When both CLIs are installed, the console shows their account usage percentages side by side. [Session settings and limits](docs/guide/sessions.md#provider-settings)
 
-When both CLIs are installed, the arrow beside **Run here** or **Start quick task** lets you choose the provider for that run. The main button uses your default provider. **Refine** in the Decisions tab, planning, and discussion also use that default. Rekall reuses a live session with the matching provider and asks before closing one on a different provider.
+When both CLIs are installed, the arrow beside **Run here** or **Start quick task** lets you choose the provider for that run. The main button uses your default provider. **Run in queue**, **Discuss**, **Plan here**, **Plan a flow** and **Refine** offer a provider choice and mark your default as preferred. Rekall reuses a live session with the matching provider and asks before closing one on a different provider.
 
 On macOS and Linux, either provider can use the project’s saved connections from a terminal opened with **Run here**.
 
@@ -188,7 +188,7 @@ The guides describe each area as it behaves today, with its REST routes and prop
 | Pull requests | A project that turns on **Merge through a pull request** pushes each task's branch and opens a GitHub pull request or GitLab merge request when its work is claimed, merges it with a merge commit when the task is accepted, and has a session resolve a conflict | [workflow](docs/guide/workflow.md#pull-request-flow) |
 | Review | Accept a claim, send a step back, and keep revisions of a description in a tab beside it (each aimed at the work or the plan), run as numbered passes that a session replies to; the review queue and its notifications | [workflow](docs/guide/workflow.md#description-review) |
 | Sessions | Claude Code and Codex in Terminal or Chat. Queued tasks keep their provider across sessions and restarts. The run queue can work up to four tasks at once in separate Git worktrees. | [sessions](docs/guide/sessions.md) |
-| Token usage | Tokens Claude Code generated per task and step, read from its transcripts | [sessions](docs/guide/sessions.md#token-usage) |
+| Token usage | Tokens used by Claude Code and Codex per task and step, read from each provider’s local session records | [sessions](docs/guide/sessions.md#token-usage) |
 | Projects | Page, sections grouped in contexts (with a Reorganize session), components, icons, autoconfigure; connections to GitLab, GitHub, Kubernetes, Jira, Confluence and Grafana shared across companies; a Confluence space that fills a project's description, blueprint and sections; a task manager (GitLab, GitHub or Jira) that receives the project's tasks and their pictures, and a main branch their work is merged into | [projects](docs/guide/projects.md) |
 | Export | A project's blueprint, pages and components as one PDF or Word file, with their Mermaid diagrams and pictures, kept on an Exports page until deleted | [projects](docs/guide/projects.md#exporting) |
 | Console | Search, notes, tags, skills, the markdown editor, timers | [console](docs/guide/console.md) |

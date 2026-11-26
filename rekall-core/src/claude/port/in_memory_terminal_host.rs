@@ -133,9 +133,10 @@ impl TerminalHost for InMemoryTerminalHost {
 
     async fn renew(&self, id: Id) -> Result<TerminalView> {
         let old = self.close(id, "renewed").await.ok_or_else(|| RekallError::conflict(format!("No session {id} to renew.")))?;
-        self.renewed.lock().expect("never poisoned").push(id);
-        let renewed = TerminalView { id: Id::random(), ..old };
+        let now = Instant::now();
+        let renewed = TerminalView { id: Id::random(), started_at: now, last_activity_at: now, ..old };
         self.sessions().push(renewed.clone());
+        self.renewed.lock().expect("never poisoned").push(id);
         Ok(renewed)
     }
 }

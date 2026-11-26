@@ -1,12 +1,19 @@
+import { createRequire } from 'node:module'
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 
+const require = createRequire(import.meta.url)
+
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
   resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) }
+    alias: [
+      { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
+      // The build's esbuild version drops a local variable in xterm's ESM mode-query handler.
+      { find: /^@xterm\/xterm$/, replacement: require.resolve('@xterm/xterm') }
+    ]
   },
   build: {
     // Build output, and it lives where build output belongs: outside the source tree, ignored

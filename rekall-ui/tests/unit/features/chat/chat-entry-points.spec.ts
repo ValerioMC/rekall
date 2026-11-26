@@ -105,17 +105,19 @@ describe('the entry points', () => {
     chatButton.unmount()
   })
 
-  it('Plan here opens a chat session without opening the terminal pane', async () => {
+  it.each(['CLAUDE', 'CODEX'] as const)('Plan here opens %s Chat without opening the terminal pane', async (provider) => {
     chooseChatView()
-    terminalApi.openTerminal.mockResolvedValue(chatSession())
+    terminalApi.openTerminal.mockResolvedValue(chatSession({ provider }))
     const openPane = vi.spyOn(useConsoleStore(), 'openTerminal')
     const button = mount(OpenTerminalButton, { props: { taskId: TASK, folder: '/code/vega' }, attachTo: document.body })
 
     await button.get('[data-testid=run-menu-arrow]').trigger('click')
     document.body.querySelector<HTMLElement>('[data-testid=plan-here]')?.click()
     await flushPromises()
+    document.body.querySelector<HTMLElement>(`[data-testid=session-provider-${provider}]`)!.click()
+    await flushPromises()
 
-    expect(terminalApi.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'PLAN', kind: 'CHAT' }))
+    expect(terminalApi.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'PLAN', kind: 'CHAT', provider }))
     expect(openPane).not.toHaveBeenCalled()
     button.unmount()
   })

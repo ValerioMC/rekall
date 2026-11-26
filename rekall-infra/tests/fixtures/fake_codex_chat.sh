@@ -22,6 +22,11 @@ request_approval() {
     printf '%s\n' '{"id":"file-72","method":"item/fileChange/requestApproval","params":{"threadId":"thread-1","turnId":"turn-'"$turn"'","itemId":"file","reason":"Write a file","grantRoot":"."}}'
 }
 
+request_mcp_approval() {
+    printf '%s\n' '{"id":73,"method":"mcpServer/elicitation/request","params":{"threadId":"thread-1","turnId":"turn-'"$turn"'","serverName":"rekall","mode":"form","_meta":{"codex_approval_kind":"mcp_tool_call","tool_name":"rekall_context","tool_params":{"anchors":"task:AL-1"}},"requestedSchema":{"type":"object","properties":{}}}}'
+    printf '%s\n' '{"id":74,"method":"mcpServer/elicitation/request","params":{"threadId":"thread-1","turnId":"turn-'"$turn"'","serverName":"rekall","mode":"form","_meta":{"codex_approval_kind":"mcp_tool_call","tool_name":"rekall_step","tool_params":{"state":"claimed"}},"requestedSchema":{"type":"object","properties":{}}}}'
+}
+
 turn=0
 while IFS= read -r line; do
     if [ -n "$FAKE_CODEX_RECEIVED" ]; then
@@ -46,6 +51,7 @@ while IFS= read -r line; do
             case "$line" in
                 *'refine'*) answer_turn 'Which region should host the service?' ;;
                 *'request approval'*) request_approval ;;
+                *'request MCP approval'*) request_mcp_approval ;;
                 *'hold this turn'*) ;;
                 *'eu-west-1'*) answer_turn 'I will use eu-west-1.' ;;
                 *) answer_turn 'Ready.' ;;
@@ -62,6 +68,9 @@ while IFS= read -r line; do
             ;;
         *'"id":"file-72"'*'"decision":"decline"'*)
             answer_turn 'I will leave the file alone.'
+            ;;
+        *'"id":74'*'"action":"decline"'*)
+            answer_turn 'The step was left open.'
             ;;
     esac
 done

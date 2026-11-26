@@ -6,7 +6,6 @@ mod support;
 use rekall_core::claude::{SessionKind, SessionProvider, TerminalOpening};
 
 use std::sync::Arc;
-use std::os::unix::fs::PermissionsExt;
 
 use rekall_kernel::RekallError;
 use rekall_store::TaskStepState;
@@ -478,31 +477,23 @@ async fn a_session_on_a_step_leaves_the_running_entries_of_the_thread_alone() {
     assert_eq!((kept.state, kept.pass), (FeedbackState::Running, Some(1)));
 }
 
-fn install_fake_codex(home: &std::path::Path) {
-    let home_bin = home.join(".local/bin");
-    std::fs::create_dir_all(&home_bin).unwrap();
-    let codex = home_bin.join("codex");
-    std::fs::write(&codex, support::STUB_CLAUDE).unwrap();
-    std::fs::set_permissions(&codex, std::fs::Permissions::from_mode(0o755)).unwrap();
-}
-
 #[tokio::test]
 async fn either_provider_refines_in_a_new_or_live_terminal_without_marking_work() {
     let world = world().await;
-    install_fake_codex(world.home.path());
+    world.install_codex(support::STUB_CLAUDE);
     let project = world.project("alpha", Some(world.folder.path())).await;
     let task = world.task(&project, "one").await;
     let terminals = world.terminals(8);
 
-    for (provider, prompt) in [
-        (SessionProvider::Claude, "/rk task:AL-1 refine"),
-        (SessionProvider::Codex, "Use the $rekall skill with this exact argument line: task:AL-1 refine"),
+    for (provider, launch_flags, prompt) in [
+        (SessionProvider::Claude, "", "/rk task:AL-1 refine"),
+        (SessionProvider::Codex, "--no-daemon ", "Use the $rekall skill with this exact argument line: task:AL-1 refine"),
     ] {
         let opening = TerminalOpening { provider, mode: TerminalMode::Refine, ..opening_on(TerminalTarget::Task(task.id)) };
         let view = terminals.open(opening.clone()).await.unwrap();
         let recorder = Arc::new(Recorder::default());
         terminals.attach(view.id, recorder.clone()).unwrap();
-        eventually("the first refinement prompt", || async { recorder.text().contains(&format!("ARGS:{prompt}")) }).await;
+        eventually("the first refinement prompt", || async { recorder.text().contains(&format!("ARGS:{launch_flags}{prompt}")) }).await;
 
         let reused = terminals.open(opening).await.unwrap();
         assert_eq!((reused.id, reused.provider), (view.id, provider));
@@ -515,7 +506,7 @@ async fn either_provider_refines_in_a_new_or_live_terminal_without_marking_work(
 #[tokio::test]
 async fn codex_runs_the_rekall_skill_and_keeps_its_choices_on_renewal() {
     let world = world().await;
-    install_fake_codex(world.home.path());
+    world.install_codex(support::STUB_CLAUDE);
     let project = world.project("alpha", Some(world.folder.path())).await;
     let task = world.task(&project, "one").await;
     let terminals = world.terminals(8);
@@ -530,7 +521,7 @@ async fn codex_runs_the_rekall_skill_and_keeps_its_choices_on_renewal() {
     let recorder = Arc::new(Recorder::default());
     terminals.attach(first.id, recorder.clone()).unwrap();
     eventually("Codex arguments", || async {
-        recorder.text().contains("ARGS:--dangerously-bypass-approvals-and-sandbox --model gpt-test -c model_reasoning_effort=\"high\" Use the $rekall skill with this exact argument line: task:AL-1")
+        recorder.text().contains("ARGS:--no-daemon --dangerously-bypass-approvals-and-sandbox --model gpt-test -c model_reasoning_effort=\"high\" Use the $rekall skill with this exact argument line: task:AL-1")
     }).await;
 
     let refusal = terminals.open(TerminalOpening { provider: SessionProvider::Claude, ..opening }).await.unwrap_err();

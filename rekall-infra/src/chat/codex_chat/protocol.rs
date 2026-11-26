@@ -1,9 +1,11 @@
-use crate::codex::CodexTokenCounts;
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use rekall_core::chat::{ChatBody, ContextFill};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
+
+use crate::codex::CodexTokenCounts;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -259,4 +261,59 @@ pub(super) struct Approval {
     pub id: RequestId,
     pub view_id: String,
     pub event: ChatBody,
+    pub reply: ApprovalReply,
+}
+
+pub(super) enum ApprovalReply {
+    Decision,
+    McpTool,
+}
+
+impl ApprovalReply {
+    pub(super) fn result(&self, allow: bool) -> Value {
+        match (self, allow) {
+            (Self::Decision, true) => json!({ "decision": "accept" }),
+            (Self::Decision, false) => json!({ "decision": "decline" }),
+            (Self::McpTool, true) => json!({ "action": "accept", "content": {} }),
+            (Self::McpTool, false) => json!({ "action": "decline" }),
+        }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct McpToolApprovalParams {
+    pub thread_id: String,
+    pub turn_id: String,
+    pub server_name: String,
+    #[serde(rename = "_meta")]
+    pub tool: McpToolApproval,
+    #[serde(rename = "mode")]
+    _mode: ApprovalFormMode,
+    requested_schema: ApprovalSchema,
+}
+
+impl McpToolApprovalParams {
+    pub(super) fn is_confirmation(&self) -> bool {
+        self.requested_schema.properties.is_empty()
+            && self.requested_schema.required.as_ref().is_none_or(Vec::is_empty)
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+enum ApprovalFormMode {
+    Form,
+}
+
+#[derive(Deserialize)]
+struct ApprovalSchema {
+    properties: BTreeMap<String, Value>,
+    required: Option<Vec<String>>,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "codex_approval_kind", rename_all = "snake_case")]
+pub(super) enum McpToolApproval {
+    McpToolCall { tool_name: String, tool_params: Value },
 }

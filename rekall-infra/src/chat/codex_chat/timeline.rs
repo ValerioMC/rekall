@@ -1,6 +1,8 @@
 use rekall_core::chat::{ChatBody, ToolInput};
 
-use super::protocol::{Approval, ApprovalParams, FileChange, Item, RequestId};
+use super::protocol::{
+    Approval, ApprovalParams, ApprovalReply, FileChange, Item, McpToolApproval, McpToolApprovalParams, RequestId,
+};
 
 pub(super) fn assistant_text(message_id: String, text: String, complete: bool) -> ChatBody {
     ChatBody::AssistantText { message_id, text, complete, parent_tool_use_id: None }
@@ -64,7 +66,20 @@ pub(super) fn approval(method: &str, id: RequestId, request_id: String, params: 
         name: name.to_owned(),
         input,
     };
-    Approval { id, view_id: request_id, event }
+    Approval { id, view_id: request_id, event, reply: ApprovalReply::Decision }
+}
+
+pub(super) fn mcp_tool_approval(id: RequestId, request_id: String, params: McpToolApprovalParams) -> Approval {
+    let McpToolApproval::McpToolCall { tool_name, tool_params } = params.tool;
+    let name = format!("mcp__{}__{tool_name}", params.server_name);
+    let input = ToolInput::of(&name, &tool_params);
+    let event = ChatBody::PermissionRequested {
+        request_id: request_id.clone(),
+        tool_use_id: request_id.clone(),
+        name,
+        input,
+    };
+    Approval { id, view_id: request_id, event, reply: ApprovalReply::McpTool }
 }
 
 fn file_input(changes: Vec<FileChange>) -> ToolInput {

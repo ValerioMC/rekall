@@ -94,7 +94,7 @@ impl Follower {
     }
 
     fn requested_permission(&self) -> Option<String> {
-        self.events().into_iter().find_map(|event| match event.body {
+        self.events().into_iter().rev().find_map(|event| match event.body {
             ChatBody::PermissionRequested { request_id, .. } => Some(request_id),
             _ => None,
         })
@@ -219,6 +219,38 @@ async fn codex_chat_answers_approvals_and_interrupts_the_active_turn() {
     assert!(requests.iter().any(|line| line.contains("\"id\":71") && line.contains("\"decision\":\"accept\"")));
     assert!(requests.iter().any(|line| line.contains("\"id\":\"file-72\"") && line.contains("\"decision\":\"decline\"")));
     assert!(requests.iter().any(|line| line.contains("turn/interrupt") && line.contains("\"turnId\":\"turn-3\"")));
+}
+
+#[tokio::test]
+async fn codex_chat_requests_permission_before_running_mcp_tools() {
+    let world = world().await;
+    install_codex(&world);
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let chats = chats(&world, 8, 120, &[]);
+    let view = chats.manager.open(codex_on(&task, TerminalMode::Work)).await.unwrap();
+    let follower = follow(&chats, view.id);
+    eventually("the first turn", || async { follower.turn_finished() }).await;
+
+    chats.manager.send(view.id, "request MCP approval").unwrap();
+    eventually("the first MCP approval", || async { follower.requested_permission().is_some() }).await;
+    let first = follower.requested_permission().unwrap();
+    assert!(chats.manager.get(view.id).unwrap().awaiting_permission);
+    assert!(follower.events().iter().any(|event| matches!(&event.body,
+        ChatBody::PermissionRequested { name, input: rekall_core::chat::ToolInput::Mcp { text, .. }, .. }
+        if name == "mcp__rekall__rekall_context" && text.contains("task:AL-1"))));
+    chats.manager.answer_permission(view.id, &first, true).unwrap();
+
+    eventually("the next MCP approval", || async { follower.requested_permission().is_some_and(|id| id != first) }).await;
+    let second = follower.requested_permission().unwrap();
+    chats.manager.answer_permission(view.id, &second, false).unwrap();
+    eventually("the MCP approval turn to finish", || async { follower.outcomes().len() == 2 }).await;
+    assert_eq!(follower.resolutions(), [(first, true), (second, false)]);
+    assert!(!chats.manager.get(view.id).unwrap().awaiting_permission);
+
+    let requests = chats.received_lines();
+    assert!(requests.iter().any(|line| line.contains(r#""id":73,"result":{"action":"accept","content":{}}"#)));
+    assert!(requests.iter().any(|line| line.contains(r#""id":74,"result":{"action":"decline"}"#)));
 }
 
 #[tokio::test]
