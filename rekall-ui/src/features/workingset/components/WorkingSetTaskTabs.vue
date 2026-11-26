@@ -8,10 +8,9 @@ import type { OpenPlace } from '@/features/workingset/model/working-set'
 import type { TaskId } from '@/model/branded'
 
 /**
- * Level 2 of the working-set bar, for the project in view: the project's task list first, then a
- * tab per open task. A tab's dot is the task's own status, the bars beside it say whether a
- * session works on it, and the count is the steps executed of the steps there are, filled in
- * amber while claimed steps wait for the person. The cross closes a task and selects nothing; the plus goes to the task list, where another task is opened.
+ * Level 2 of the working-set bar: the project's task list, then a tab per open task. The dot is
+ * the task's status, the bars its activity, the count its executed steps, amber while claims wait.
+ * A live terminal adds a key that opens it, lit while on screen.
  */
 const props = defineProps<{
   project: Project
@@ -20,9 +19,11 @@ const props = defineProps<{
   activities: ReadonlyMap<TaskId, TaskActivity>
   tallies: ReadonlyMap<TaskId, StepTally>
   reviewCounts: ReadonlyMap<TaskId, number>
+  terminalTaskIds: ReadonlySet<TaskId>
+  terminalShown: boolean
 }>()
 
-const emit = defineEmits<{ select: [place: OpenPlace]; close: [taskId: TaskId] }>()
+const emit = defineEmits<{ select: [place: OpenPlace]; close: [taskId: TaskId]; openTerminal: [taskId: TaskId] }>()
 
 function selectTask(taskId: TaskId): void {
   emit('select', { projectId: props.project.id, taskId })
@@ -43,6 +44,10 @@ function tallyText(task: Task): string | null {
 
 function waitingCount(task: Task): number {
   return props.reviewCounts.get(task.id) ?? 0
+}
+
+function isOnScreen(task: Task): boolean {
+  return props.terminalShown && props.currentTaskId === task.id
 }
 
 function tallyTitle(task: Task): string {
@@ -75,14 +80,33 @@ function tallyTitle(task: Task): string {
     <div
       v-for="task in tasks"
       :key="task.id"
-      class="group/tab relative flex max-w-[250px] shrink-0"
+      class="group/tab relative flex shrink-0 transition-colors duration-(--motion-quick) hover:bg-surface hover:text-text"
+      :class="[
+        terminalTaskIds.has(task.id) ? 'max-w-[278px]' : 'max-w-[250px]',
+        currentTaskId === task.id ? 'text-text after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-accent' : 'text-text-muted'
+      ]"
       data-testid="working-set-task-tab"
     >
       <button
+        v-if="terminalTaskIds.has(task.id)"
+        type="button"
+        class="focus-ring ml-1.5 grid size-[22px] shrink-0 place-items-center self-center rounded-key"
+        :class="isOnScreen(task) ? 'key-lit' : 'key-quiet cursor-pointer'"
+        :aria-pressed="isOnScreen(task)"
+        :aria-label="`Open the terminal of ${task.code}`"
+        :title="`Open the terminal of ${task.code}`"
+        data-testid="working-set-task-terminal"
+        @click="emit('openTerminal', task.id)"
+      >
+        <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <path d="M3 4l3 3-3 3M7.5 10.5H11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+      <button
         type="button"
         role="tab"
-        class="focus-ring relative flex min-w-0 cursor-pointer items-center gap-2 whitespace-nowrap pl-3 pr-7 transition-colors duration-(--motion-quick) hover:bg-surface hover:text-text"
-        :class="currentTaskId === task.id ? 'text-text after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-accent' : 'text-text-muted'"
+        class="focus-ring flex min-w-0 cursor-pointer items-center gap-2 whitespace-nowrap pr-7"
+        :class="terminalTaskIds.has(task.id) ? 'pl-2' : 'pl-3'"
         :aria-selected="currentTaskId === task.id"
         :title="`${task.code} ${task.title}, ${TASK_ACTIVITY_LABEL[activityOf(task)]}`"
         data-testid="working-set-task"

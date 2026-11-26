@@ -47,6 +47,11 @@ export const useTerminalStore = defineStore('terminal', () => {
     return terminals.value.find((terminal) => terminal.taskId === taskId && terminal.live) ?? null
   }
 
+  function liveTerminalForTask(taskId: TaskId | null): Terminal | null {
+    if (!taskId) return null
+    return terminals.value.find((terminal) => terminal.taskId === taskId && terminal.live && terminal.kind === 'TERMINAL') ?? null
+  }
+
   function upsert(terminal: Terminal): void {
     const known = terminals.value.some((candidate) => candidate.id === terminal.id)
     terminals.value = known
@@ -211,6 +216,7 @@ export const useTerminalStore = defineStore('terminal', () => {
     launchConflict,
     chatFallback,
     terminalForTask,
+    liveTerminalForTask,
     upsert,
     load,
     openForTask,

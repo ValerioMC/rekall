@@ -6,7 +6,9 @@ import * as api from '@/features/workingset/api/working-set.api'
 import WorkingSetBar from '@/features/workingset/components/WorkingSetBar.vue'
 import { useWorkingSetStore } from '@/features/workingset/store/workingSet.store'
 import { useConsoleStore } from '@/stores/console.store'
-import type { ProjectId, TaskId } from '@/model/branded'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import type { Terminal } from '@/features/claude/model/terminal'
+import type { ProjectId, TaskId, TerminalId } from '@/model/branded'
 import { company, project, task } from './fixtures'
 
 vi.mock('@/features/workingset/api/working-set.api')
@@ -27,6 +29,10 @@ function showTerminalOf(taskId: TaskId): void {
 
 function markedTasks(bar: ReturnType<typeof mount>): (string | undefined)[] {
   return bar.findAll('[data-testid="working-set-task"]').map((tab) => tab.attributes('aria-selected'))
+}
+
+function liveTerminalOn(taskId: TaskId): void {
+  useTerminalStore().terminals = [{ id: `term-${taskId}` as TerminalId, taskId, kind: 'TERMINAL', live: true } as Terminal]
 }
 
 async function barAt(path: string): Promise<{ bar: ReturnType<typeof mount>; router: Router }> {
@@ -184,6 +190,56 @@ describe('the working-set bar', () => {
       await flushPromises()
 
       expect(router.currentRoute.value.fullPath).toBe('/task/t1/description')
+    })
+  })
+
+  describe('the terminal key of a task', () => {
+    it.each(['/task/t2/description', '/task/t1/description', '/projects/vega'])('shows its terminal from %s', async (path) => {
+      liveTerminalOn(T1)
+      const { bar, router } = await barAt(path)
+
+      await bar.get('[data-testid="working-set-task-terminal"]').trigger('click')
+      await flushPromises()
+
+      expect(router.currentRoute.value.name).toBe('console')
+      expect(useConsoleStore().selectedTaskId).toBe(T1)
+      expect(useConsoleStore().paneFocus).toBe('terminal')
+      expect(useTerminalStore().activeTerminalId).toBe('term-t1')
+      expect(bar.get('[data-testid="working-set-task-terminal"]').attributes('aria-pressed')).toBe('true')
+    })
+
+    it('shows its terminal from the terminal view of another task', async () => {
+      liveTerminalOn(T1)
+      showTerminalOf(T2)
+      const { bar } = await barAt('/console')
+
+      await bar.get('[data-testid="working-set-task-terminal"]').trigger('click')
+      await flushPromises()
+
+      expect(useConsoleStore().selectedTaskId).toBe(T1)
+      expect(useTerminalStore().activeTerminalId).toBe('term-t1')
+      expect(markedTasks(bar)).toEqual(['true', 'false'])
+    })
+
+    it('leaves the terminal on screen alone on a second press', async () => {
+      liveTerminalOn(T1)
+      showTerminalOf(T1)
+      const select = vi.spyOn(useConsoleStore(), 'selectTask')
+      const { bar } = await barAt('/console')
+
+      await bar.get('[data-testid="working-set-task-terminal"]').trigger('click')
+
+      expect(select).not.toHaveBeenCalled()
+    })
+
+    it('leaves when the session ends', async () => {
+      liveTerminalOn(T1)
+      const { bar } = await barAt('/task/t2/description')
+
+      useTerminalStore().markEnded('term-t1' as TerminalId)
+      await flushPromises()
+
+      expect(bar.find('[data-testid="working-set-task-terminal"]').exists()).toBe(false)
     })
   })
 })

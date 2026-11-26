@@ -106,8 +106,8 @@ is not added.
   company's name, each with the project mark, the count of its open tasks and, in amber, the count
   of items waiting for review. The current project's tab has the gold rule.
 - **Level 2, `WorkingSetTaskTabs`, for the project in view:** "All tasks N" first, which is the
-  project's task list, then a tab per open task: a dot in the task's own status colour, the
-  activity mark, its code, a truncated title, the count of steps executed over the steps there are
+  project's task list, then a tab per open task: the terminal key while the task has a live
+  terminal, a dot in the task's own status colour, the activity mark, its code, a truncated title, the count of steps executed over the steps there are
   (`3/7`, claimed and done both counted, drafts left out, nothing on a task with no steps; the same
   element is filled in amber, with the waiting count in its title and accessible name, while claimed
   steps wait for the person) and a cross on hover or focus. A plus goes to the task list, where another task is opened.
@@ -116,7 +116,15 @@ is not added.
   still bars in indigo once a step was claimed or done, or a session is open on the task; short
   grey bars when nothing happened. Under reduced motion the working bars sit at three heights.
   Only the chat the window follows reports a turn, so a task whose session is elsewhere shows
-  working from a running step alone. The counter and the mark never shrink; only the title does.
+  working from a running step alone. The key, the counter and the mark never shrink; only the
+  title does, and a tab with the key may be 28px wider.
+- **The terminal key** (mockup `.impeccable/mocks/terminal-tab/index.html`) is a button of its own
+  beside the tab, named "Open the terminal of RK-12": one press shows the task's live terminal
+  (`liveTerminalForTask`, never a chat) in the full pane, without selecting or closing the tab. It
+  is lit and pressed while that terminal view is on screen, where a second press does nothing; the
+  tab itself goes to the task page. It follows the session list the console holds: a session that
+  ends out of sight keeps its key until the list is next read, and pressing it shows the empty pane
+  with **Run here**.
 - **The set belongs to the person.** A task joins it when its page is opened and leaves it only
   through its cross. A running session, a queued run or a waiting review never adds, removes or
   orders anything. It is saved on the server (`working_set_task`, `working_set_place`,

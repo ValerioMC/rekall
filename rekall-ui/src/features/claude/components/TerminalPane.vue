@@ -26,10 +26,6 @@ const switcherOpen = ref(false)
 
 const hue = computed(() => identityHue(selectedTask.value?.projectId ?? ''))
 const folder = computed(() => selectedTask.value?.projectRepoFolder ?? null)
-const taskTerminal = computed(() => {
-  const live = terminals.terminalForTask(selectedTask.value?.id ?? null)
-  return live?.kind === 'TERMINAL' ? live : null
-})
 
 /** Only sessions on a task can be shown here; one on a project alone lives on the Diagrams screen. */
 const otherSessions = computed(() =>
@@ -104,7 +100,7 @@ async function closeActive(): Promise<void> {
 }
 
 function pickForTask(): void {
-  const live = taskTerminal.value
+  const live = terminals.liveTerminalForTask(selectedTask.value?.id ?? null)
   terminals.select(live ? live.id : null)
 }
 

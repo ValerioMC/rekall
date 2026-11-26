@@ -83,11 +83,11 @@ watch(
 )
 
 // Search and the review queue still select a task and a pane in the store; the page follows to
-// that task, on the tab that shows the pane.
+// that task, on the tab that shows the pane. The terminal pane is the console's, never a tab.
 watch(
   () => [store.selectedTaskId, store.paneFocus] as const,
   ([selected, pane]) => {
-    if (selected === null) return
+    if (selected === null || pane === 'terminal') return
     const wanted = tabOfPane(pane)
     if (selected === taskId.value && (wanted === null || wanted === tab.value)) return
     void router.push({ name: 'task', params: { id: selected, tab: wanted ?? 'description' } })

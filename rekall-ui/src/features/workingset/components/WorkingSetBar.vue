@@ -10,6 +10,7 @@ import { reviewCountsByTask } from '@/features/workingset/lib/review-counts'
 import { stepTally, taskActivity } from '@/features/workingset/lib/task-activity'
 import { useWorkingSetStore } from '@/features/workingset/store/workingSet.store'
 import { useChatStore } from '@/features/chat/store/chat.store'
+import { useOpenSessionInPane } from '@/features/claude/composables/useOpenSessionInPane'
 import { useTerminalPaneShown } from '@/features/claude/composables/useTerminalPaneShown'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import type { StepTally, TaskActivity } from '@/features/workingset/model/task-activity'
@@ -29,6 +30,7 @@ const chat = useChatStore()
 const terminals = useTerminalStore()
 const { taskInView, projectIdInView, placeToVisit, visit } = useWorkingSetNavigation()
 const terminalShown = useTerminalPaneShown()
+const openInPane = useOpenSessionInPane()
 
 const reviewCounts = computed(() => reviewCountsByTask(reviewQueue.value))
 const groupInView = computed(() =>
@@ -37,6 +39,9 @@ const groupInView = computed(() =>
 const tasksInView = computed(() => groupInView.value?.tasks ?? [])
 const activities = computed(() => new Map<TaskId, TaskActivity>(tasksInView.value.map((task) => [task.id, activityOf(task.id)])))
 const tallies = computed(() => new Map<TaskId, StepTally>(tasksInView.value.map((task) => [task.id, stepTally(stepsOf(task.id))])))
+const terminalTaskIds = computed(
+  () => new Set<TaskId>(tasksInView.value.filter((task) => terminals.liveTerminalForTask(task.id)).map((task) => task.id))
+)
 const onBarPage = computed(() => route.name === 'task' || route.name === 'project-detail' || terminalShown.value)
 const shown = computed(() => onBarPage.value && workingSet.groups.length > 0)
 
@@ -53,6 +58,12 @@ function activityOf(taskId: TaskId): TaskActivity {
     turn: chatSession ? chat.timelineOf(chatSession.id).turn : null,
     hasLiveSession: terminals.terminalForTask(taskId) !== null
   })
+}
+
+function openTerminal(taskId: TaskId): void {
+  if (terminalShown.value && taskInView.value?.id === taskId) return
+  const terminal = terminals.liveTerminalForTask(taskId)
+  if (terminal) openInPane(terminal)
 }
 
 async function close(taskId: TaskId): Promise<void> {
@@ -78,8 +89,11 @@ async function close(taskId: TaskId): Promise<void> {
       :activities="activities"
       :tallies="tallies"
       :review-counts="reviewCounts"
+      :terminal-task-ids="terminalTaskIds"
+      :terminal-shown="terminalShown"
       @select="visit"
       @close="close"
+      @open-terminal="openTerminal"
     />
   </div>
 </template>
