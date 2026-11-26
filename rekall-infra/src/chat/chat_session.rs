@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use rekall_core::chat::{ChatBody, ChatEvent, ChatListener};
-use rekall_core::claude::{SessionKind, TerminalConnectionView, TerminalLaunch, TerminalMode, TerminalView};
+use rekall_core::claude::{SessionKind, SessionProvider, TerminalConnectionView, TerminalLaunch, TerminalMode, TerminalView};
 use rekall_kernel::{Id, Instant, RekallError, Result};
 
 use super::chat_process::ChatProcess;
@@ -17,6 +17,7 @@ pub(super) struct ChatSession {
     pub(super) step_id: Mutex<Option<Id>>,
     /// What it was opened to do; only a session in a mode that follows steps can be followed by a new session.
     pub(super) mode: TerminalMode,
+    pub(super) provider: SessionProvider,
     pub(super) skip_permissions: bool,
     pub(super) model: Option<String>,
     pub(super) effort: Option<String>,
@@ -24,7 +25,7 @@ pub(super) struct ChatSession {
     pub(super) last_activity_at: Mutex<Instant>,
     pub(super) closing: AtomicBool,
     pub(super) process: ChatProcess,
-    /// Prompts `claude` is waiting on: each is answered once, and none outlives its turn.
+    /// Each approval is answered once and none outlives its turn.
     pending_permissions: Mutex<HashSet<String>>,
     journal: Mutex<EventJournal>,
 }
@@ -45,6 +46,7 @@ impl ChatSession {
             launch,
             step_id: Mutex::new(step_id),
             mode,
+            provider: options.provider,
             skip_permissions: options.skip_permissions,
             model: options.model,
             effort: options.effort,
@@ -81,7 +83,7 @@ impl ChatSession {
             task_code: self.launch.task_code.clone(),
             task_title: self.launch.task_title.clone(),
             mode: self.mode.clone(),
-            provider: Default::default(),
+            provider: self.provider,
             skip_permissions: self.skip_permissions,
             model: self.model.clone(),
             effort: self.effort.clone(),
@@ -103,6 +105,9 @@ impl ChatSession {
             ChatBody::PermissionRequested { request_id, .. } => {
                 self.pending().insert(request_id.clone());
             }
+            ChatBody::PermissionResolved { request_id, .. } => {
+                self.pending().remove(request_id);
+            }
             ChatBody::TurnFinished { .. } => self.deny_pending_permissions(),
             _ => {}
         }
@@ -113,18 +118,27 @@ impl ChatSession {
     /// Passes the person's answer to the prompt `request_id`. A prompt that is not waiting, because
     /// it was answered or its turn ended, is not found.
     pub(super) fn answer_permission(&self, request_id: &str, allow: bool) -> Result<()> {
-        if !self.pending().remove(request_id) {
-            return Err(RekallError::not_found("permission request", request_id));
+        {
+            let mut pending = self.pending();
+            if !pending.contains(request_id) {
+                return Err(RekallError::not_found("permission request", request_id));
+            }
+            self.process.answer_permission(request_id, allow)?;
+            pending.remove(request_id);
         }
-        self.process.answer_permission(request_id, allow)?;
-        self.publish(ChatBody::PermissionResolved { request_id: request_id.to_string(), allowed: allow });
+        if self.provider == SessionProvider::Claude {
+            self.publish(ChatBody::PermissionResolved { request_id: request_id.to_string(), allowed: allow });
+        }
         Ok(())
     }
 
     /// Writes a user message to the process and shows it in the stream.
     pub(super) fn say(&self, text: &str) -> Result<()> {
         self.process.send(text)?;
-        self.publish(ChatBody::UserMessage { text: text.to_string() });
+        if self.provider == SessionProvider::Claude {
+            self.publish(ChatBody::UserMessage { text: text.to_string() });
+        }
+        self.touch();
         Ok(())
     }
 

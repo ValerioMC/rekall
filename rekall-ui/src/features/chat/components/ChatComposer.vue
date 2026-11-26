@@ -3,19 +3,21 @@ import { computed, ref, useId } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import { matchingCommands, type SlashCommand } from '@/features/chat/lib/slash-commands'
 import type { ComposerState } from '@/features/chat/lib/chat-status'
+import { SESSION_PROVIDER_LABEL, type SessionProvider } from '@/features/claude/model/session-provider'
 
 /**
  * The message field. Enter sends, Shift+Enter breaks the line, and a line starting with `/` offers
  * the commands that work headless; choosing one only fills the field. A failed send leaves the
  * text where it was, so the parent clears it with `clear()` once the send succeeded.
  */
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   state: ComposerState
+  provider?: SessionProvider
   sending: boolean
   stopping: boolean
   error: string | null
   followingNext: boolean
-}>()
+}>(), { provider: 'CLAUDE' })
 
 const emit = defineEmits<{ send: [text: string]; stop: [] }>()
 
@@ -46,10 +48,15 @@ const canSend = computed(
     text.value.trim() !== ''
 )
 const rows = computed(() => Math.min(MAX_ROWS, text.value.split('\n').length))
-const commands = computed(() => (listDismissed.value || locked.value ? [] : matchingCommands(text.value)))
-const hint = computed(() =>
-  props.state === 'ended' && props.followingNext ? 'Session ended. Opening the next session…' : HINTS[props.state]
+const commands = computed(() =>
+  props.provider === 'CODEX' || listDismissed.value || locked.value ? [] : matchingCommands(text.value)
 )
+const hint = computed(() => {
+  if (props.state === 'ended' && props.followingNext) return 'Session ended. Opening the next session…'
+  if (props.provider === 'CODEX' && props.state === 'idle') return 'Enter sends · Shift+Enter new line'
+  if (props.provider === 'CODEX' && props.state === 'working') return 'Your message will run after this turn.'
+  return HINTS[props.state]
+})
 
 function submit(): void {
   if (!canSend.value) return
@@ -143,7 +150,7 @@ defineExpose({ focus, clear })
         class="field min-w-0 flex-1 resize-none rounded-control px-3 py-2 font-sans text-body leading-relaxed"
         :rows="rows"
         :disabled="locked"
-        aria-label="Message to Claude"
+        :aria-label="`Message to ${SESSION_PROVIDER_LABEL[provider]}`"
         :aria-describedby="`${listId}-hint`"
         role="combobox"
         aria-autocomplete="list"

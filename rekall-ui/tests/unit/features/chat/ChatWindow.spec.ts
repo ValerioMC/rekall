@@ -3,6 +3,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { ref } from 'vue'
 import ChatWindow from '@/features/chat/components/ChatWindow.vue'
+import { setCodexEffort, setCodexModel, setPreferredProvider } from '@/common/config/session-launch'
 import { useChatDockStore } from '@/features/chat/store/chatDock.store'
 import { useChatStore } from '@/features/chat/store/chat.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
@@ -277,6 +278,24 @@ describe('ChatWindow', () => {
 
     expect(chat.find('[data-testid=chat-open]').exists()).toBe(false)
     expect(chat.find('[data-testid=chat-set-folder]').exists()).toBe(true)
+    chat.unmount()
+  })
+
+  it('opens with the preferred Codex options and shows the actual provider', async () => {
+    setPreferredProvider('CODEX')
+    setCodexModel('gpt-test')
+    setCodexEffort('high')
+    terminalApi.openTerminal.mockResolvedValue(chatSession({ provider: 'CODEX' }))
+    const chat = mountWindow()
+
+    await chat.get('[data-testid=chat-open]').trigger('click')
+    await flushPromises()
+
+    expect(terminalApi.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({
+      provider: 'CODEX', kind: 'CHAT', model: 'gpt-test', effort: 'high', skipPermissions: false
+    }))
+    expect(chat.get('[data-testid=chat-header]').text()).toContain('Codex Chat')
+    expect(chat.get('[data-testid=chat-input]').attributes('aria-label')).toBe('Message to Codex')
     chat.unmount()
   })
 

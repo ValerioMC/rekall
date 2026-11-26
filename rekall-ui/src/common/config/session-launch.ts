@@ -67,7 +67,7 @@ export function setCodexBypass(enabled: boolean): void {
 
 export function launchChoices(provider = preferredProvider()): LaunchChoices {
   return provider === 'CODEX'
-    ? { ...codexPreferences(), provider, kind: 'TERMINAL' }
+    ? { ...codexPreferences(), provider, kind: preferredLaunchKind() }
     : {
         provider,
         skipPermissions: skipsPermissions(),

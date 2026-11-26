@@ -21,6 +21,11 @@ interface LaunchConflict {
   readonly decide: (retry: boolean) => void
 }
 
+interface ChatFallback {
+  readonly detail: string
+  readonly decide: (retry: boolean) => void
+}
+
 /**
  * In-app terminals: real PTYs running the interactive `claude` TUI, one active at a time. Never
  * persisted server-side, so the list is reloaded whenever the pane opens.
@@ -31,6 +36,7 @@ export const useTerminalStore = defineStore('terminal', () => {
   const lastOpened = shallowRef<Terminal | null>(null)
   const floatingId = ref<TerminalId | null>(null)
   const launchConflict = shallowRef<LaunchConflict | null>(null)
+  const chatFallback = shallowRef<ChatFallback | null>(null)
 
   const activeTerminal = computed(
     () => terminals.value.find((terminal) => terminal.id === activeTerminalId.value) ?? null
@@ -77,6 +83,9 @@ export const useTerminalStore = defineStore('terminal', () => {
       return await openTerminal(target, input)
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 409 || launchConflict.value) throw error
+      if (input.kind === 'CHAT' && input.provider === 'CODEX' && error.message.startsWith('Codex Chat could not start.')) {
+        return reopenInTerminal(target, input, error)
+      }
       const provider = input.provider ?? 'CLAUDE'
       const sessions = await fetchTerminals().catch(() => {
         throw error
@@ -93,6 +102,21 @@ export const useTerminalStore = defineStore('terminal', () => {
       })
       return openWithProvider(target, input)
     }
+  }
+
+  async function reopenInTerminal(target: TerminalTarget, input: OpenTerminalInput, error: ApiError): Promise<Terminal> {
+    if (chatFallback.value) throw error
+    const retry = await new Promise<boolean>((decide) => {
+      chatFallback.value = { detail: error.message, decide }
+    })
+    if (!retry) throw error
+    return openWithProvider(target, { ...input, kind: 'TERMINAL' })
+  }
+
+  function resolveChatFallback(retry: boolean): void {
+    const fallback = chatFallback.value
+    chatFallback.value = null
+    fallback?.decide(retry)
   }
 
   function blocksOpening(session: Terminal, target: TerminalTarget, input: OpenTerminalInput): boolean {
@@ -185,6 +209,7 @@ export const useTerminalStore = defineStore('terminal', () => {
     lastOpened,
     floatingId,
     launchConflict,
+    chatFallback,
     terminalForTask,
     upsert,
     load,
@@ -193,6 +218,7 @@ export const useTerminalStore = defineStore('terminal', () => {
     adoptOpened,
     planForTask,
     resolveLaunchConflict,
+    resolveChatFallback,
     followNextSession,
     select,
     float,

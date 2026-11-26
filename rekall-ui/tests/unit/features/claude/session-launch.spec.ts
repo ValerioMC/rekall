@@ -14,7 +14,7 @@ describe('session provider choices', () => {
     expect(launchChoices()).toEqual({ provider: 'CLAUDE', model: 'sonnet', effort: 'high', kind: 'CHAT', skipPermissions: true })
 
     setPreferredProvider('CODEX')
-    expect(launchChoices()).toEqual({ provider: 'CODEX', model: 'default', effort: 'default', kind: 'TERMINAL', skipPermissions: false })
+    expect(launchChoices()).toEqual({ provider: 'CODEX', model: 'default', effort: 'default', kind: 'CHAT', skipPermissions: false })
     setCodexModel('gpt-test')
     setCodexEffort('xhigh')
     setCodexBypass(true)
@@ -24,6 +24,6 @@ describe('session provider choices', () => {
     expect(launchChoices()).toEqual({ provider: 'CLAUDE', model: 'sonnet', effort: 'high', kind: 'CHAT', skipPermissions: false })
 
     setPreferredProvider('CODEX')
-    expect(launchChoices()).toEqual({ provider: 'CODEX', model: 'gpt-test', effort: 'xhigh', kind: 'TERMINAL', skipPermissions: true })
+    expect(launchChoices()).toEqual({ provider: 'CODEX', model: 'gpt-test', effort: 'xhigh', kind: 'CHAT', skipPermissions: true })
   })
 })

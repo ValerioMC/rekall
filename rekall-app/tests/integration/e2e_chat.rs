@@ -12,6 +12,7 @@ use serde_json::{json, Value};
 use support::{app_with, App};
 
 const FAKE_CLAUDE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../rekall-infra/tests/fixtures/fake_claude.sh");
+const FAKE_CODEX: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../rekall-infra/tests/fixtures/fake_codex_chat.sh");
 const PLAIN_REPLY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../rekall-infra/tests/fixtures/chat/plain_reply.jsonl");
 
 struct Frame {
@@ -193,6 +194,39 @@ async fn assert_refinement_answer_in_the_ledger(app: &App, task: &str) {
     assert_eq!(decisions.status, 200);
     assert_eq!(decisions.body["decisions"][0]["answer"], "eu-west-1");
     assert_eq!(decisions.body["decisions"][0]["source"], "CHAT");
+}
+
+#[tokio::test]
+async fn codex_chat_refinement_uses_the_existing_task_decisions_ledger() {
+    let home = tempfile::tempdir().unwrap();
+    let bin = home.path().join(".local/bin");
+    std::fs::create_dir_all(&bin).unwrap();
+    std::fs::copy(FAKE_CODEX, bin.join("codex")).unwrap();
+    let app = app_with(&[("user.home", home.path().to_str().unwrap())], StartOptions { no_restart: true, ..StartOptions::default() }).await;
+    let company = app.a_company("Acme").await;
+    let folder = tempfile::tempdir().unwrap();
+    let project = app.a_project_in(&company, "alpha", folder.path()).await;
+    let task = app.a_task(&project, "Deploy the service").await;
+    app.a_step(&task, "Deploy", None).await;
+    let steps_url = format!("/api/tasks/{task}/steps");
+    let before = app.get(&steps_url).await.list();
+
+    let opened = app.post(&format!("/api/tasks/{task}/terminals"), json!({ "provider": "CODEX", "kind": "CHAT", "mode": "REFINE" })).await;
+    assert_eq!(opened.status, 201, "{:?}", opened.body);
+    assert_eq!(opened.str("provider"), "CODEX");
+    assert_eq!(opened.str("kind"), "CHAT");
+    let id = opened.str("id");
+    let mut events = EventStream::open(&app, &id, None).await;
+    let question = events.until(is_turn_finished).await;
+    assert!(question.iter().any(|frame| frame.event["text"] == "Which region should host the service?"));
+
+    assert_eq!(app.post(&format!("/api/chat/{id}/messages"), json!({ "text": "eu-west-1" })).await.status, 204);
+    let answer = events.until(is_turn_finished).await;
+    assert!(answer.iter().any(|frame| frame.event["text"] == "I will use eu-west-1."));
+    assert_refinement_answer_in_the_ledger(&app, &task).await;
+    assert_eq!(app.get(&steps_url).await.list(), before);
+
+    app.stop().await;
 }
 
 #[tokio::test]

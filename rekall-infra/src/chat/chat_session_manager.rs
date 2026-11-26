@@ -1,9 +1,5 @@
-//! Every live chat session: a headless `claude` opened on a task or project, followed by clients
-//! through its event journal, written to, interrupted, closed, and swept when idle. It meets the
-//! obligations a PTY terminal does: the running marker, the cap, the end announced however it came.
-//! Nothing is persisted; strays are bounded by the cap, an idle sweep and a shutdown hook.
-
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
 use std::time::Duration;
@@ -11,7 +7,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use chrono::TimeDelta;
 use rekall_core::chat::{ChatAttachment, ChatBody, ChatListener, ChatPipe};
-use rekall_core::claude::{TerminalEnded, TerminalHost, TerminalLaunch, TerminalLaunchService, TerminalMode, TerminalOpening, TerminalTarget, TerminalView};
+use rekall_core::claude::{SessionProvider, TerminalEnded, TerminalHost, TerminalLaunch, TerminalLaunchService, TerminalMode, TerminalOpening, TerminalTarget, TerminalView};
 use rekall_core::telemetry::TelemetrySettingsService;
 use rekall_kernel::{Id, Instant, RekallError, Result};
 use tokio::process::Command;
@@ -19,7 +15,7 @@ use tokio::sync::{broadcast, mpsc};
 use tracing::info;
 
 use super::chat_command::chat_command;
-use super::chat_process::spawn_chat_process;
+use super::chat_process::{spawn_chat_process, spawn_codex_process};
 use super::chat_session::ChatSession;
 use crate::cli::ClaudeCli;
 use crate::config::ClaudeConfig;
@@ -39,7 +35,7 @@ pub struct ChatSessionManager {
     idle_minutes: u64,
     backlog_bytes: usize,
     live: Mutex<HashMap<Id, Arc<ChatSession>>>,
-    /// Serialises the cap check and registration so two fast opens cannot both slip past the cap.
+    /// Serializes lookup and registration so simultaneous opens share the same session and cap.
     spawn_gate: tokio::sync::Mutex<()>,
     next_listener: AtomicU64,
     stopped: AtomicBool,
@@ -136,8 +132,6 @@ impl ChatSessionManager {
         self.live_map().values().find(|session| session.launch.target() == target).cloned()
     }
 
-    /// Starts the process and records it as live, under the cap. The check and the record are
-    /// one step behind `spawn_gate`, so two fast opens cannot both slip past the cap.
     #[allow(clippy::too_many_arguments)]
     async fn register(
         &self,
@@ -149,14 +143,13 @@ impl ChatSessionManager {
         command: Command,
         first_line: &str,
     ) -> Result<Arc<ChatSession>> {
-        let _gate = self.spawn_gate.lock().await;
-        if self.live_map().len() >= self.max_live {
-            return Err(RekallError::conflict(format!(
-                "Rekall is already running {} chat sessions. Close one before opening another.",
-                self.max_live
-            )));
+        let (process, events) = match options.provider {
+            SessionProvider::Claude => spawn_chat_process(id, command, first_line)?,
+            SessionProvider::Codex => spawn_codex_process(id, command, &options, Path::new(&launch.working_dir), first_line).await?,
+        };
+        if mode.follows_steps() {
+            self.marker.mark_running(launch.task_id, step_id).await;
         }
-        let (process, events) = spawn_chat_process(id, command, first_line)?;
         let session = Arc::new(ChatSession::new(id, launch, step_id, mode, options, process, self.backlog_bytes));
         session.publish(ChatBody::UserMessage { text: first_line.to_string() });
         self.live_map().insert(id, session.clone());
@@ -194,7 +187,11 @@ impl ChatSessionManager {
     async fn on_exit(&self, id: Id) {
         let Some(session) = self.live_map().remove(&id) else { return };
         let code = session.process.exit_code().unwrap_or(-1);
-        let detail = if code == 0 { "The chat session ended.".to_string() } else { format!("claude exited with code {code}") };
+        let provider = match session.provider {
+            SessionProvider::Claude => "claude",
+            SessionProvider::Codex => "Codex",
+        };
+        let detail = if code == 0 { "The chat session ended.".to_string() } else { format!("{provider} exited with code {code}") };
         self.finish(&session, &detail).await;
         info!(terminal_id = %id, code, "Chat session exited");
     }
@@ -225,33 +222,36 @@ async fn follow_process(manager: Weak<ChatSessionManager>, session: Arc<ChatSess
 
 #[async_trait]
 impl TerminalHost for ChatSessionManager {
-    /// Start a headless `claude` for this target in its project's folder, with the `/rk` line of the
-    /// mode sent first. A missing folder or CLI is a retriable conflict. Only a work opening is on a
-    /// step: the step is marked `RUNNING` while the session is on it, or the review line on a task
-    /// with no checklist. A second open on a target that already has a session reuses it: a work open
-    /// is retargeted, and every mode has its line sent into that session.
     async fn open(&self, opening: TerminalOpening) -> Result<TerminalView> {
-        if opening.provider == rekall_core::claude::SessionProvider::Codex {
-            return Err(RekallError::illegal("Codex sessions use the terminal view."));
-        }
-        let TerminalOpening { target, step_id, skip_permissions, model, effort, mode, .. } = opening;
+        let _gate = self.spawn_gate.lock().await;
+        let TerminalOpening { target, step_id, provider, skip_permissions, ref model, ref effort, ref mode, .. } = opening;
         let launch = self.launch_service.resolve(target).await?;
         let follows_steps = mode.follows_steps();
         let step_id = if follows_steps { step_id } else { None };
+        let first_line = provider.command_prompt(&mode.first_line(&launch.anchors));
 
         if let Some(existing) = self.live_session_on(target) {
+            opening.kind_for_live_session(&existing.view())?;
             let view = if follows_steps { self.retarget(&existing, step_id).await } else { existing.view() };
-            existing.say(&mode.first_line(&launch.anchors))?;
+            existing.say(&first_line)?;
             return Ok(view);
         }
 
         let directory = require_folder(&launch)?;
-        let binary = self.launcher.require_cli().await?;
-        let mut options = SessionOptions::chosen(skip_permissions, model.as_deref(), effort.as_deref());
+        if self.live_map().len() >= self.max_live {
+            return Err(RekallError::conflict(format!(
+                "Rekall is already running {} chat sessions. Close one before opening another.",
+                self.max_live
+            )));
+        }
+        let binary = self.launcher.require_terminal_cli(provider).await?;
+        let mut options = match provider {
+            SessionProvider::Claude => SessionOptions::chosen(skip_permissions, model.as_deref(), effort.as_deref()),
+            SessionProvider::Codex => SessionOptions::codex(skip_permissions, model.as_deref(), effort.as_deref())?,
+        };
         let id = Id::random();
         let environment = self.launcher.environment(id, &launch, &mut options).await?;
         let command = chat_command(&binary, &options, environment, directory);
-        let first_line = mode.first_line(&launch.anchors);
 
         let session = match self.register(id, launch.clone(), step_id, mode.clone(), options, command, &first_line).await {
             Ok(session) => session,
@@ -261,10 +261,7 @@ impl TerminalHost for ChatSessionManager {
             }
         };
 
-        if follows_steps {
-            self.marker.mark_running(launch.task_id, step_id).await;
-        }
-        info!(terminal_id = %id, %mode, anchors = %launch.anchors, working_dir = %launch.working_dir, "Opened chat session");
+        info!(terminal_id = %id, provider = provider.label(), %mode, anchors = %launch.anchors, working_dir = %launch.working_dir, "Opened chat session");
         Ok(session.view())
     }
 
@@ -306,7 +303,7 @@ impl TerminalHost for ChatSessionManager {
         self.open(TerminalOpening {
             target: session.launch.target(),
             step_id: None,
-            provider: Default::default(),
+            provider: view.provider,
             skip_permissions: view.skip_permissions,
             model: view.model,
             effort: view.effort,

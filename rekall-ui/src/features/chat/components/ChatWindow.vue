@@ -7,7 +7,7 @@ import ChatApprovalCard from './ChatApprovalCard.vue'
 import ChatComposer from './ChatComposer.vue'
 import ChatHeader from './ChatHeader.vue'
 import ChatTimeline from './ChatTimeline.vue'
-import { preferredEffort, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
+import { launchChoices } from '@/common/config/session-launch'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useAttentionTitle } from '@/features/chat/composables/useAttentionTitle'
 import { useChatEvents } from '@/features/chat/composables/useChatEvents'
@@ -33,7 +33,7 @@ const terminals = useTerminalStore()
 const dock = useChatDockStore()
 const { selectedTask, selectedTaskSteps } = storeToRefs(store)
 const { activeChatId, activeTimeline } = storeToRefs(chat)
-const { run } = useAsyncAction()
+const { isRunning, run } = useAsyncAction()
 
 const composer = ref<InstanceType<typeof ChatComposer> | null>(null)
 const sendError = ref<string | null>(null)
@@ -141,18 +141,16 @@ async function stopSession(): Promise<void> {
 
 async function openHere(): Promise<void> {
   const task = selectedTask.value
-  if (!task || !folder.value) return
+  if (!task || !folder.value || isRunning.value) return
   const opened = await run(
-    () =>
-      terminals.openForTask(task.id, {
-        skipPermissions: skipsPermissions(),
-        model: preferredModel(),
-        effort: preferredEffort(),
-        kind: 'CHAT'
-      }),
-    'Chat session opened'
+    () => terminals.openForTask(task.id, { ...launchChoices(), kind: 'CHAT' }),
+    'Session opened'
   )
-  if (opened) chat.select(opened.id)
+  if (opened?.kind === 'CHAT') chat.select(opened.id)
+  if (opened?.kind === 'TERMINAL') {
+    dock.hide()
+    terminals.float(opened.id)
+  }
 }
 
 function startResize(event: PointerEvent): void {
@@ -272,6 +270,7 @@ onMounted(async () => {
         v-if="pending"
         :key="pending.requestId"
         :request="pending"
+        :provider="session.provider"
         :busy="answering"
         :error="answerError"
         @allow="answer(true)"
@@ -280,6 +279,7 @@ onMounted(async () => {
 
       <ChatComposer
         ref="composer"
+        :provider="session.provider"
         :state="composerState(status)"
         :sending="chat.sending"
         :stopping="stopRequested"
@@ -293,9 +293,9 @@ onMounted(async () => {
     <div v-else class="grid min-h-0 flex-1 place-items-center px-6">
       <AppEmptyState
         title="No chat session on this task"
-        description="Claude runs here without a terminal: the conversation, its tool calls and the approvals it asks for appear in this window."
+        description="Follow the conversation, tool calls and approval requests here."
       >
-        <AppButton v-if="selectedTask && folder" variant="primary" data-testid="chat-open" @click="openHere">
+        <AppButton v-if="selectedTask && folder" variant="primary" :loading="isRunning" data-testid="chat-open" @click="openHere">
           Run here
         </AppButton>
         <RouterLink

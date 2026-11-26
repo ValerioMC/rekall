@@ -341,7 +341,7 @@ describe('the Run here button', () => {
 
   it.each([
     { defaultProvider: 'CODEX', provider: 'CLAUDE', model: 'sonnet', effort: 'low', kind: 'CHAT', skipPermissions: true },
-    { defaultProvider: 'CLAUDE', provider: 'CODEX', model: 'gpt-test', effort: 'xhigh', kind: 'TERMINAL', skipPermissions: false }
+    { defaultProvider: 'CLAUDE', provider: 'CODEX', model: 'gpt-test', effort: 'xhigh', kind: 'CHAT', skipPermissions: false }
   ] as const)('runs once with $provider from the arrow menu', async ({ defaultProvider, ...choices }) => {
     installBothSessionProviders()
     setPreferredProvider(defaultProvider)

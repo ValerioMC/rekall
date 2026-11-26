@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import ToolInputView from './ToolInputView.vue'
 import { describePermission } from '@/features/chat/lib/describe-permission'
+import type { SessionProvider } from '@/features/claude/model/session-provider'
 import type { PendingPermission } from '@/features/chat/model/timeline'
 
 /**
@@ -10,14 +11,14 @@ import type { PendingPermission } from '@/features/chat/model/timeline'
  * only the resolution event removes it. Focus lands on the card, not on a key, so Enter cannot
  * answer by accident; Y and N answer while focus is inside it.
  */
-const props = defineProps<{ request: PendingPermission; busy: boolean; error: string | null }>()
+const props = defineProps<{ request: PendingPermission; busy: boolean; error: string | null; provider?: SessionProvider }>()
 
 const emit = defineEmits<{ allow: []; deny: [] }>()
 
 const INPUT_LINE_LIMIT = 12
 
 const card = ref<HTMLElement | null>(null)
-const sentence = computed(() => describePermission(props.request.input))
+const sentence = computed(() => describePermission(props.request.input, props.provider))
 
 function onKeydown(event: KeyboardEvent): void {
   if (props.busy || event.metaKey || event.ctrlKey || event.altKey) return

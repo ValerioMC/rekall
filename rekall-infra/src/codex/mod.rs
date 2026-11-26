@@ -1,4 +1,4 @@
-mod app_server;
+pub(crate) mod app_server;
 mod codex_cli;
 mod codex_integration;
 mod rekall_skill;
