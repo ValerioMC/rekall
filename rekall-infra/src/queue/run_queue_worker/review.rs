@@ -19,7 +19,7 @@ impl Worker {
             Err(RekallError::UnknownAnchor(_)) => {
                 self.forget(current.generation);
                 self.close_session(current, "The task was deleted.").await;
-                return self.advance().await;
+                return self.advance(false).await;
             }
             Err(other) => return Err(other),
         };
@@ -32,12 +32,14 @@ impl Worker {
             });
             return Ok(());
         }
-        if now.settled_steps > current.settled_steps {
-            if let Some(active) = self.active_mut(current.generation) {
-                active.settled_steps = now.settled_steps;
-            }
+        if now.last_settled_at > current.last_settled_at {
             let snapshot = self.queue.snapshot().await?;
-            let verdict = self.ceiling(&snapshot).await;
+            let verdict = self.usage
+                .check(current.provider, snapshot.ceiling_percent, current.model.as_deref(), false, &self.clock)
+                .await;
+            if let Some(active) = self.active_mut(current.generation) {
+                active.last_settled_at = now.last_settled_at;
+            }
             if !verdict.clear {
                 self.mark_closing(current.generation);
                 self.later(Command::Pause { generation: current.generation, verdict });

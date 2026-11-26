@@ -20,7 +20,7 @@ use rekall_infra::installer::{ClaudeCodeInstaller, GuardHookInstaller};
 use rekall_infra::login_shell::LoginShellEnvironment;
 use rekall_infra::picture::FolderPictureStore;
 use rekall_infra::pty::PtyTerminalManager;
-use rekall_infra::queue::RunQueueRunner;
+use rekall_infra::queue::{RunQueueRunner, RunQueueUsage};
 use rekall_infra::resources::ClaudeResourceService;
 use rekall_infra::restart::Restarter;
 use rekall_infra::secret::protected_references;
@@ -103,10 +103,17 @@ impl Instance {
         );
         let mcp = rekall_mcp::McpController::new(rekall_mcp::tool_registry::all(&services));
         let usage = usage_of(options, claude_config, &clock);
+        let codex_cli = CodexCli::new(config.user_home.clone(), Arc::new(login_shell.clone()));
+        let codex = Arc::new(CodexIntegration::new(codex_cli.clone(), config.mcp_endpoint(served_port)));
+        let guard_executable = guard_program();
         let sessions = open_sessions(config, &ctx, &services, &secrets, &login_shell, served_port, pictures.folder());
         let trackers = Trackers { issues: task_tracker.clone(), pictures: tracker_pictures };
-        let queue = start_queue(config, &ctx, &events, &services, trackers, &sessions.hosts, &usage);
-        let transcripts = TranscriptScanner::new(TranscriptFolder::new(claude_config.transcripts_dir.clone()), services.token_usage.clone());
+        let queue_usage = RunQueueUsage { claude: usage.clone(), codex: codex.clone() };
+        let queue = start_queue(config, &ctx, &events, &services, trackers, &sessions.hosts, queue_usage);
+        let transcripts = TranscriptScanner::with_codex(
+            TranscriptFolder::new(claude_config.transcripts_dir.clone()), services.token_usage.clone(), codex_cli.clone(),
+            config.home.join("worktrees"),
+        );
         let backups = DatabaseBackupService::new(
             database.conn.clone(),
             location,
@@ -126,13 +133,11 @@ impl Instance {
             chat_pipe: chats.clone(),
             queue_runner: Arc::new(queue.runner.clone()),
             usage: usage.clone(),
-            codex: Arc::new(CodexIntegration::new(
-                CodexCli::new(config.user_home.clone(), Arc::new(login_shell.clone())),
-                config.mcp_endpoint(served_port),
-            )),
+            codex,
             claude_folder: Arc::new(ClaudeResourceService::new(claude_config.claude_home.clone())),
             claude_setup: Arc::new(ClaudeCodeInstaller::new(config.user_home.clone(), config.mcp_endpoint(served_port))),
-            guard_installer: Arc::new(GuardHookInstaller::new(&config.user_home, guard_program())),
+            claude_guard: Arc::new(GuardHookInstaller::claude(&claude_config.claude_home, guard_executable.clone())),
+            codex_guard: Arc::new(GuardHookInstaller::codex(codex_cli, guard_executable)),
             credential_desk: broker,
             connection_probe: connection_probe_of(options),
             backups: Arc::new(backups.clone()),
@@ -243,7 +248,7 @@ impl Instance {
     }
 }
 
-/// The executable Claude Code runs for `guard <event>`: this process's own, since both
+/// The executable providers run for the guard hooks: this process's own, since both
 /// `rekall-server` and the desktop app answer the `guard` subcommand.
 fn guard_program() -> PathBuf {
     std::env::current_exe().unwrap_or_else(|failure| {

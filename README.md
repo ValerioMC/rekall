@@ -83,7 +83,7 @@ The per-user setup is written to `target\release\bundle\nsis\Rekall_<version>_x6
 
 Choose **Claude Code** or **Codex** under **Settings > Sessions and run queue > Provider**. Each keeps its own model, reasoning effort and permission settings. **Connect Codex** registers the same MCP endpoint and installs the `$rekall` skill. When both CLIs are installed, the console shows their account usage percentages side by side. [Session settings and limits](docs/guide/sessions.md#provider-settings)
 
-When both CLIs are installed, the arrow beside **Run here** or **Start quick task** lets you choose the provider for that run. The main button uses your default provider.
+When both CLIs are installed, the arrow beside **Run here** or **Start quick task** lets you choose the provider for that run. The main button uses your default provider. **Run in queue**, **Discuss**, **Plan here**, **Plan a flow** and **Refine** offer a provider choice and mark your default as preferred. Rekall reuses a live session with the matching provider and asks before closing one on a different provider.
 
 On macOS and Linux, either provider can use the project’s saved connections from a terminal opened with **Run here**.
 
@@ -110,7 +110,7 @@ mkdir -p ~/.claude/rk && cp .claude/rk/*.md ~/.claude/rk/
 
 **Fix wording** and **Restructure**, a split button on the description pane beside the Write/Read toggle, have a session rewrite the task's description with `/rk … rewrite fix` or `rewrite restructure` (see the table below). It is disabled while the description is blank or has unsaved changes. When the new text arrives an **Undo** puts the old one back; Rekall keeps no history, so that text is held in the console window only and is gone once you edit, leave the task or close the console.
 
-**Open in terminal**, on a task, hands the selected provider to your own terminal app in the project’s folder with the task already loading. Set the folder in the **Folder** field of the project page's **Settings** tab, under **Repository**. The terminal is iTerm2 when installed, Terminal.app otherwise. A switch in **Settings > Sessions and run queue** adds `--dangerously-skip-permissions`; it is stored on the machine, not in the database. This button works only inside the desktop app. **Run here** runs a session inside the app instead, as a terminal or, if you pick **Chat** under **Settings > Sessions and run queue > Session view**, as a chat window; see [Terminals](docs/guide/sessions.md) and its [Chat view](docs/guide/sessions.md#chat-view).
+**Open in terminal**, on a task, hands the selected provider to your own terminal app in the project’s folder with the task already loading. Set the folder in the **Folder** field of the project page's **Settings** tab, under **Repository**. The terminal is iTerm2 when installed, Terminal.app otherwise. The provider uses its saved permission settings from **Settings > Sessions and run queue**. This button works only inside the desktop app. **Run here** opens the configured provider and view inside the app. **More ways to run** and the Decisions tab’s **Refine** let you choose Claude Code or Codex for a single launch; see [Terminals](docs/guide/sessions.md) and its [Chat view](docs/guide/sessions.md#chat-view).
 
 ## Anchor syntax
 
@@ -187,8 +187,8 @@ The guides describe each area as it behaves today, with its REST routes and prop
 | Commits | A ledger of commits per task or step; commit on claim | [workflow](docs/guide/workflow.md#commits) |
 | Pull requests | A project that turns on **Merge through a pull request** pushes each task's branch and opens a GitHub pull request or GitLab merge request when its work is claimed, merges it with a merge commit when the task is accepted, and has a session resolve a conflict | [workflow](docs/guide/workflow.md#pull-request-flow) |
 | Review | Accept a claim, send a step back, and keep revisions of a description in a tab beside it (each aimed at the work or the plan), run as numbered passes that a session replies to; the review queue and its notifications | [workflow](docs/guide/workflow.md#description-review) |
-| Terminals | A real `claude` in a pseudo-terminal inside the app, or the same `claude` as a chat window (Settings > Sessions and run queue > Session view); the run queue, which can work up to four tasks at once in git worktrees of their own; the usage meter | [sessions](docs/guide/sessions.md) |
-| Token usage | Tokens Claude Code generated per task and step, read from its transcripts | [sessions](docs/guide/sessions.md#token-usage) |
+| Sessions | Claude Code and Codex in Terminal or Chat. Queued tasks keep their provider across sessions and restarts. The run queue can work up to four tasks at once in separate Git worktrees. | [sessions](docs/guide/sessions.md) |
+| Token usage | Tokens used by Claude Code and Codex per task and step, read from each provider’s local session records | [sessions](docs/guide/sessions.md#token-usage) |
 | Projects | Page, sections grouped in contexts (with a Reorganize session), components, icons, autoconfigure; connections to GitLab, GitHub, Kubernetes, Jira, Confluence and Grafana shared across companies; a Confluence space that fills a project's description, blueprint and sections; a task manager (GitLab, GitHub or Jira) that receives the project's tasks and their pictures, and a main branch their work is merged into | [projects](docs/guide/projects.md) |
 | Export | A project's blueprint, pages and components as one PDF or Word file, with their Mermaid diagrams and pictures, kept on an Exports page until deleted | [projects](docs/guide/projects.md#exporting) |
 | Console | Search, notes, tags, skills, the markdown editor, timers | [console](docs/guide/console.md) |
@@ -235,7 +235,7 @@ rekall-console/    the services only the console calls, commands in and views ou
 rekall-http/       Axum REST API for the UI, one folder per domain: controllers, request and response shapes, and the step event stream; `shared` holds the error body, request extractors and response helpers
 rekall-mcp/        MCP server, on rekall-core and never rekall-http: six tools read, twenty-one write
 rekall-infra/      everything with a process, a file, a socket or outbound HTTP behind it, each implementing a port of rekall-core and serving no route: the in-app terminal (portable-pty), the Claude Code usage meter, the run queue's worker, the transcript reader, the editor for Claude Code's own files (`~/.claude`), the database registry, backups and restores, the pictures beside the database, the restart handle, the release feed, the OS credential store and the HTTP clients
-rekall-app/        rekall-server: the local-access guard, the console bundle, the supervisor; builds the infrastructure, injects it and serves everything; `rekall-server guard` is the Claude Code hook command
+rekall-app/        rekall-server: the local-access guard, the console bundle, the supervisor; builds the infrastructure, injects it and serves everything; `rekall-server guard` serves Claude Code and Codex hooks
 rekall-app/desktop the Tauri desktop app over the same server
 rekall-ui/         Vue 3 + Vite frontend
 ```

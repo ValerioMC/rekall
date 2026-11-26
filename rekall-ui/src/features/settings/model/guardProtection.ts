@@ -1,8 +1,15 @@
-export type GuardProtectionState = 'INSTALLED' | 'NOT_INSTALLED' | 'INVALID_SETTINGS'
+export type GuardProtectionState =
+  | 'INSTALLED'
+  | 'NOT_INSTALLED'
+  | 'NEEDS_REPAIR'
+  | 'INVALID_SETTINGS'
+  | 'UNSUPPORTED'
+  | 'TRUST_REQUIRED'
+  | 'DISABLED'
 
 export interface GuardProtection {
   readonly state: GuardProtectionState
   readonly settingsFile: string
-  /** Why Claude Code's settings file cannot be edited; only set when it is invalid. */
+  readonly configured: boolean
   readonly problem: string | null
 }

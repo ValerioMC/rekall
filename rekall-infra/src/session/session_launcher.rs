@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use rekall_core::claude::{SessionProvider, TerminalLaunch};
+use rekall_core::claude::{SessionProvider, TerminalLaunch, TerminalMode};
+use rekall_core::guard::{GuardScope, GUARD_PORT_ENV, GUARD_SCOPE_ENV};
 use rekall_core::telemetry::TelemetrySettingsService;
 use rekall_kernel::{Id, RekallError, Result};
 use tracing::{info, warn};
@@ -16,11 +17,17 @@ pub struct SessionLauncher {
     cli: ClaudeCli,
     broker: Arc<CredentialBroker>,
     telemetry: TelemetrySettingsService,
+    guard_port: Option<u16>,
 }
 
 impl SessionLauncher {
     pub fn new(cli: ClaudeCli, broker: Arc<CredentialBroker>, telemetry: TelemetrySettingsService) -> Self {
-        Self { cli, broker, telemetry }
+        Self { cli, broker, telemetry, guard_port: None }
+    }
+
+    pub fn with_guard_port(mut self, port: u16) -> Self {
+        self.guard_port = Some(port);
+        self
     }
 
     pub async fn require_terminal_cli(&self, provider: SessionProvider) -> Result<PathBuf> {
@@ -37,15 +44,18 @@ impl SessionLauncher {
     }
 
     /// The environment session `id` runs in. Its Claude Code settings land in `options`.
-    pub async fn environment(&self, id: Id, launch: &TerminalLaunch, options: &mut SessionOptions) -> Result<HashMap<String, String>> {
+    pub async fn environment(&self, id: Id, launch: &TerminalLaunch, mode: &TerminalMode, options: &mut SessionOptions) -> Result<HashMap<String, String>> {
         let mut environment = match options.provider {
             SessionProvider::Claude => self.cli.environment().await,
             SessionProvider::Codex => self.cli.codex().environment().await,
         };
+        environment.insert(GUARD_SCOPE_ENV.into(), guard_scope(launch.task_id, mode).to_string());
+        if let Some(port) = self.guard_port {
+            environment.insert(GUARD_PORT_ENV.into(), port.to_string());
+        }
         if let Some(session) = self.broker.open(id, launch, options.provider).await? {
             session.apply(&mut environment);
             options.settings = session.claude_settings;
-            options.codex_credential_session = options.provider == SessionProvider::Codex;
         }
         if options.provider == SessionProvider::Claude {
             environment.extend(self.telemetry_variables(id, launch).await);
@@ -86,3 +96,15 @@ pub fn require_folder(launch: &TerminalLaunch) -> Result<&Path> {
     }
     Ok(directory)
 }
+
+fn guard_scope(task_id: Option<Id>, mode: &TerminalMode) -> GuardScope {
+    match task_id {
+        Some(task_id) if mode.follows_steps() => GuardScope::Work(task_id),
+        Some(task_id) if matches!(mode, TerminalMode::Merge | TerminalMode::MergePullRequest { .. }) => GuardScope::ResolveMerge(task_id),
+        _ => GuardScope::WithoutStep,
+    }
+}
+
+#[cfg(test)]
+#[path = "../../tests/unit/session/session_launcher_tests.rs"]
+mod tests;

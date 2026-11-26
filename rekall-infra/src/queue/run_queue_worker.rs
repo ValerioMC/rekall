@@ -6,8 +6,8 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
-use rekall_kernel::{Id, Result};
-use rekall_store::{RunQueueItemState, RunQueueState};
+use rekall_kernel::{Id, Instant, Result};
+use rekall_store::{RunQueueItemState, RunQueueState, SessionProvider};
 use rekall_core::claude::{TaskWorkService, TerminalHost};
 use rekall_core::step::TaskStepService;
 use rekall_core::worktree::TaskWorktreeService;
@@ -16,8 +16,8 @@ use tokio::sync::{mpsc, oneshot};
 use tracing::{info, warn};
 
 use super::usage_ceiling::Verdict;
+use super::RunQueueUsage;
 use rekall_core::queue::{NextTurn, RunQueueService, RunQueueView, Snapshot};
-use rekall_core::claude::UsageReader;
 
 mod launch;
 mod renewal;
@@ -31,7 +31,9 @@ struct Active {
     item_id: Id,
     task_id: Id,
     terminal_id: Id,
-    settled_steps: usize,
+    provider: SessionProvider,
+    model: Option<String>,
+    last_settled_at: Option<Instant>,
     /// Whether the item's detail says the session waits on a permission prompt.
     waiting_for_permission: bool,
     /// Set once the runner has decided to close this terminal, so a late event changes nothing.
@@ -54,7 +56,7 @@ pub(super) enum Command {
 pub(super) struct Worker {
     queue: RunQueueService,
     terminals: Arc<dyn TerminalHost>,
-    usage: Arc<dyn UsageReader>,
+    usage: RunQueueUsage,
     work: TaskWorkService,
     steps: TaskStepService,
     worktrees: TaskWorktreeService,
@@ -71,7 +73,7 @@ pub(super) struct Worker {
 pub(super) struct WorkerParts {
     pub queue: RunQueueService,
     pub terminals: Arc<dyn TerminalHost>,
-    pub usage: Arc<dyn UsageReader>,
+    pub usage: RunQueueUsage,
     pub work: TaskWorkService,
     pub steps: TaskStepService,
     pub worktrees: TaskWorktreeService,
@@ -167,8 +169,8 @@ impl Worker {
                     return Ok(());
                 }
                 info!("Run queue: hold over, taking a fresh usage reading");
-                self.usage.refresh().await;
                 self.queue.resume().await?;
+                return self.advance(true).await;
             }
             RunQueueState::Running => {}
         }
@@ -180,13 +182,13 @@ impl Worker {
                 self.note_permission_wait(active.generation).await?;
             }
         }
-        self.advance().await
+        self.advance(false).await
     }
 
     /// Fill the free places with the next waiting items, skipping and failing past the ones that
     /// cannot run. With every place taken, or nothing that may start while sessions run, it waits
     /// for one of them to end.
-    async fn advance(&mut self) -> Result<()> {
+    async fn advance(&mut self, mut refresh_usage: bool) -> Result<()> {
         loop {
             let snapshot = self.queue.snapshot().await?;
             if snapshot.state != RunQueueState::Running || self.active.len() >= places(&snapshot) {
@@ -210,7 +212,10 @@ impl Worker {
                     return Ok(());
                 }
             };
-            let verdict = self.ceiling(&snapshot).await;
+            let verdict = self.usage
+                .check(next.launch.provider, snapshot.ceiling_percent, snapshot.model.as_deref(), refresh_usage, &self.clock)
+                .await;
+            refresh_usage = false;
             if !verdict.clear {
                 if self.active.is_empty() {
                     info!(resume_at = ?verdict.resume_at, reason = ?verdict.reason, "Run queue: holding");

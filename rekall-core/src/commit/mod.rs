@@ -31,3 +31,5 @@ pub use view::recent_commit_view::RecentCommitView;
 pub use view::{ChangeKind, ChangedFileView, CommitChangesView, DiffHunkView, DiffLineKind, DiffLineView, RepositoryChangesView, TaskChangesView, WorkingTreeChangesView};
 pub use model::repository_target::RepositoryTarget;
 pub use model::subject::Subject;
+
+pub use model::step_claim::StepClaim;

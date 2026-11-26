@@ -8,6 +8,8 @@ import { useOpenSession } from '@/features/claude/composables/useOpenSession'
 import { sessionTitle } from '@/common/format/session-title'
 import { identityHue } from '@/common/identity'
 import { recordLatestCommit } from '@/features/commits/api/commitReference.api'
+import SessionProviderMark from '@/features/claude/components/SessionProviderMark.vue'
+import { SESSION_PROVIDER_LABEL } from '@/features/claude/model/session-provider'
 import DockPanel from './DockPanel.vue'
 import TerminalConnectionChips from '@/features/connection/components/TerminalConnectionChips.vue'
 import type { Terminal } from '@/features/claude/model/terminal'
@@ -55,7 +57,7 @@ async function logCommit(terminal: Terminal): Promise<void> {
 <template>
   <DockPanel
     panel-id="dock-panel-sessions"
-    title="Claude sessions"
+    title="Sessions"
     :count="live.length"
     tint="session"
     @close="emit('close')"
@@ -88,6 +90,10 @@ async function logCommit(terminal: Terminal): Promise<void> {
                 aria-hidden="true"
               />
               <span class="min-w-0 truncate">{{ terminal.anchors }}</span>
+            </span>
+            <span class="mt-1 flex items-center gap-1.5 text-caption text-text-muted" data-testid="terminal-dock-provider">
+              <SessionProviderMark :provider="terminal.provider" :size="12" />
+              {{ SESSION_PROVIDER_LABEL[terminal.provider] }}
             </span>
           </span>
         </button>

@@ -3,7 +3,7 @@
 //! `ResourcePath`, the only way to name a file of Claude Code's home folder, and what the console
 //! is shown of that folder and of the account's usage; and the ports the machine is reached
 //! through: `TerminalHost` and `TerminalPipe` for the terminals, `UsageReader` for the usage
-//! meter, `ClaudeResources` for the home folder and `ClaudeCodeSetup` for the install and `GuardInstaller` for the guard hooks.
+//! meter, `ClaudeResources` for the home folder and `ClaudeCodeSetup` for the install.
 
 mod model;
 mod port;
@@ -12,12 +12,10 @@ mod view;
 
 pub use port::claude_code_setup::ClaudeCodeSetup;
 pub use port::claude_resources::ClaudeResources;
-pub use port::guard_installer::GuardInstaller;
 #[cfg(any(test, feature = "testing"))]
 pub use port::in_memory_terminal_host::InMemoryTerminalHost;
 pub use view::claude_usage_view::ClaudeUsageView;
 pub use model::covering_document::{CoveringDocument, CoveringKind};
-pub use model::guard_protection::{GuardProtection, GuardProtectionState};
 pub use model::installation::Installation;
 pub use model::launch_choices::{EFFORT_LEVELS, MODEL_ALIASES};
 pub use model::limit::Limit;
@@ -34,8 +32,9 @@ pub use model::resource_kind::ResourceKind;
 pub use model::resource_path::ResourcePath;
 pub use model::resource_save::ResourceSave;
 pub use model::resource_summary::ResourceSummary;
-pub use rekall_store::SessionKind;
-pub use model::session_provider::SessionProvider;
+pub use rekall_store::{SessionKind, SessionProvider};
+pub use model::codex_session_options::CodexSessionOptions;
+pub use model::session_command_prompt::session_command_prompt;
 pub use model::severity::Severity;
 pub use model::skill_source::{SkillSource, SkillSourceKind};
 pub use crate::flow::{StepProgress, StepProgressState};

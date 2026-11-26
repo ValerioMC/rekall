@@ -3,6 +3,8 @@ use std::sync::Arc;
 use rekall_store::{company, project, task, task_step, ProjectStatus, TaskStepState};
 
 use super::*;
+use crate::claude::{CodexSessionOptions, SessionProvider};
+use crate::queue::QueueLaunch;
 use crate::EventBus;
 
 struct World {
@@ -51,7 +53,7 @@ async fn world() -> World {
 async fn an_idle_queue_starts_with_the_task_it_is_given() {
     let world = world().await;
 
-    let view = world.service.add_and_arm(world.first).await.unwrap();
+    let view = world.service.add_and_arm(world.first, QueueLaunch::default()).await.unwrap();
 
     assert_eq!(view.state, RunQueueState::Running);
     assert_eq!(view.items.len(), 1);
@@ -59,11 +61,39 @@ async fn an_idle_queue_starts_with_the_task_it_is_given() {
 }
 
 #[tokio::test]
+async fn queue_frames_carry_each_items_provider_and_validated_options() {
+    let world = world().await;
+    world.service.add(world.first, QueueLaunch::default()).await.unwrap();
+    let mut events = world.events.subscribe();
+    let launch = QueueLaunch {
+        provider: SessionProvider::Codex,
+        codex_options: Some(CodexSessionOptions {
+            model: Some(" example/codex ".into()),
+            effort: Some("default".into()),
+            skip_permissions: true,
+        }),
+    };
+
+    let view = world.service.add_and_arm(world.second, launch).await.unwrap();
+    let event = events.try_recv().unwrap();
+    let frame = event.downcast::<RunQueueFrame>().unwrap();
+
+    assert_eq!(frame.0, view);
+    assert_eq!(view.items[0].launch, QueueLaunch::default());
+    assert_eq!(view.items[1].launch.provider, SessionProvider::Codex);
+    assert_eq!(view.items[1].launch.codex_options, Some(CodexSessionOptions {
+        model: Some("example/codex".into()),
+        effort: None,
+        skip_permissions: true,
+    }));
+}
+
+#[tokio::test]
 async fn a_running_queue_only_appends_the_task() {
     let world = world().await;
-    world.service.add_and_arm(world.first).await.unwrap();
+    world.service.add_and_arm(world.first, QueueLaunch::default()).await.unwrap();
 
-    let view = world.service.add_and_arm(world.second).await.unwrap();
+    let view = world.service.add_and_arm(world.second, QueueLaunch::default()).await.unwrap();
 
     assert_eq!(view.state, RunQueueState::Running);
     assert_eq!(view.items.iter().map(|item| item.task_id).collect::<Vec<_>>(), vec![world.first, world.second]);
@@ -73,10 +103,10 @@ async fn a_running_queue_only_appends_the_task() {
 async fn a_scheduled_queue_keeps_its_start_time() {
     let world = world().await;
     let later = world.now.plus_minutes(30);
-    world.service.add(world.first).await.unwrap();
+    world.service.add(world.first, QueueLaunch::default()).await.unwrap();
     world.service.start(Some(later)).await.unwrap();
 
-    let view = world.service.add_and_arm(world.second).await.unwrap();
+    let view = world.service.add_and_arm(world.second, QueueLaunch::default()).await.unwrap();
 
     assert_eq!(view.state, RunQueueState::Scheduled);
     assert_eq!(view.start_at, Some(later));
@@ -86,9 +116,9 @@ async fn a_scheduled_queue_keeps_its_start_time() {
 #[tokio::test]
 async fn a_task_already_queued_is_refused() {
     let world = world().await;
-    world.service.add_and_arm(world.first).await.unwrap();
+    world.service.add_and_arm(world.first, QueueLaunch::default()).await.unwrap();
 
-    let refused = world.service.add_and_arm(world.first).await.unwrap_err();
+    let refused = world.service.add_and_arm(world.first, QueueLaunch::default()).await.unwrap_err();
 
     assert!(matches!(refused, RekallError::Conflict(_)));
 }
@@ -96,7 +126,7 @@ async fn a_task_already_queued_is_refused() {
 #[tokio::test]
 async fn finishing_with_a_task_still_waiting_keeps_the_queue_running() {
     let world = world().await;
-    world.service.add_and_arm(world.first).await.unwrap();
+    world.service.add_and_arm(world.first, QueueLaunch::default()).await.unwrap();
 
     world.service.finish().await.unwrap();
 
@@ -106,7 +136,7 @@ async fn finishing_with_a_task_still_waiting_keeps_the_queue_running() {
 #[tokio::test]
 async fn finishing_with_nothing_waiting_returns_the_queue_to_idle() {
     let world = world().await;
-    let view = world.service.add_and_arm(world.first).await.unwrap();
+    let view = world.service.add_and_arm(world.first, QueueLaunch::default()).await.unwrap();
     world.service.mark_item(view.items[0].id, RunQueueItemState::Finished, None).await.unwrap();
 
     world.service.finish().await.unwrap();
@@ -127,7 +157,7 @@ async fn an_item_carries_its_tasks_steps_and_the_one_being_worked() {
     step(&world, world.first, "View", 1, TaskStepState::Open).await;
     step(&world, world.first, "Idea", 2, TaskStepState::Draft).await;
 
-    let view = world.service.add(world.first).await.unwrap();
+    let view = world.service.add(world.first, QueueLaunch::default()).await.unwrap();
 
     let steps = &view.items[0].steps;
     assert_eq!(steps.iter().map(|step| step.title.as_str()).collect::<Vec<_>>(), vec!["Model", "View"]);
@@ -138,7 +168,7 @@ async fn an_item_carries_its_tasks_steps_and_the_one_being_worked() {
 async fn a_task_without_a_checklist_has_no_steps_on_its_item() {
     let world = world().await;
 
-    let view = world.service.add(world.first).await.unwrap();
+    let view = world.service.add(world.first, QueueLaunch::default()).await.unwrap();
 
     assert!(view.items[0].steps.is_empty());
 }
@@ -156,7 +186,7 @@ fn announced_queues(events: &mut tokio::sync::broadcast::Receiver<crate::Publish
 #[tokio::test]
 async fn a_step_move_on_a_listed_task_announces_the_queue_again() {
     let world = world().await;
-    world.service.add(world.first).await.unwrap();
+    world.service.add(world.first, QueueLaunch::default()).await.unwrap();
     let mut events = world.events.subscribe();
 
     world.service.refresh_for_task(world.first).await.unwrap();
@@ -167,7 +197,7 @@ async fn a_step_move_on_a_listed_task_announces_the_queue_again() {
 #[tokio::test]
 async fn a_step_move_on_a_task_outside_the_queue_announces_nothing() {
     let world = world().await;
-    world.service.add(world.first).await.unwrap();
+    world.service.add(world.first, QueueLaunch::default()).await.unwrap();
     let mut events = world.events.subscribe();
 
     world.service.refresh_for_task(world.second).await.unwrap();
@@ -195,8 +225,8 @@ fn ready_task(turn: NextTurn) -> Id {
 #[tokio::test]
 async fn the_next_turn_goes_to_the_first_waiting_task_when_none_depends_on_another() {
     let world = world().await;
-    world.service.add(world.first).await.unwrap();
-    world.service.add(world.second).await.unwrap();
+    world.service.add(world.first, QueueLaunch::default()).await.unwrap();
+    world.service.add(world.second, QueueLaunch::default()).await.unwrap();
 
     assert_eq!(ready_task(world.service.next_turn(&HashSet::new()).await.unwrap()), world.first);
 }
@@ -206,9 +236,9 @@ async fn a_chain_is_ordered_by_its_dependencies_whatever_the_order_it_was_queued
     let world = world().await;
     depend(&world, world.second, world.first).await;
     depend(&world, world.third, world.second).await;
-    world.service.add(world.third).await.unwrap();
-    world.service.add(world.second).await.unwrap();
-    let view = world.service.add(world.first).await.unwrap();
+    world.service.add(world.third, QueueLaunch::default()).await.unwrap();
+    world.service.add(world.second, QueueLaunch::default()).await.unwrap();
+    let view = world.service.add(world.first, QueueLaunch::default()).await.unwrap();
 
     assert_eq!(ready_task(world.service.next_turn(&HashSet::new()).await.unwrap()), world.first);
 
@@ -221,7 +251,7 @@ async fn a_chain_is_ordered_by_its_dependencies_whatever_the_order_it_was_queued
 async fn a_dependency_claimed_but_not_accepted_keeps_the_task_waiting() {
     let world = world().await;
     depend(&world, world.first, world.second).await;
-    world.service.add(world.first).await.unwrap();
+    world.service.add(world.first, QueueLaunch::default()).await.unwrap();
     review(&world, world.second, TaskStepState::Claimed).await;
 
     let turn = world.service.next_turn(&HashSet::new()).await.unwrap();
@@ -234,7 +264,7 @@ async fn a_dependency_claimed_but_not_accepted_keeps_the_task_waiting() {
 async fn an_accepted_dependency_lets_the_task_start() {
     let world = world().await;
     depend(&world, world.first, world.second).await;
-    world.service.add(world.first).await.unwrap();
+    world.service.add(world.first, QueueLaunch::default()).await.unwrap();
     review(&world, world.second, TaskStepState::Done).await;
 
     assert_eq!(ready_task(world.service.next_turn(&HashSet::new()).await.unwrap()), world.first);
@@ -245,9 +275,9 @@ async fn an_item_names_the_unaccepted_tasks_it_waits_for_and_whether_they_are_qu
     let world = world().await;
     depend(&world, world.first, world.second).await;
     depend(&world, world.first, world.third).await;
-    world.service.add(world.third).await.unwrap();
+    world.service.add(world.third, QueueLaunch::default()).await.unwrap();
 
-    let view = world.service.add(world.first).await.unwrap();
+    let view = world.service.add(world.first, QueueLaunch::default()).await.unwrap();
 
     let mut waits: Vec<(&str, bool)> = view.items[1].waiting_for.iter().map(|wait| (wait.title.as_str(), wait.in_queue)).collect();
     waits.sort();
@@ -258,7 +288,7 @@ async fn an_item_names_the_unaccepted_tasks_it_waits_for_and_whether_they_are_qu
 async fn a_queue_where_nothing_may_start_stops_and_says_why_on_each_waiting_item() {
     let world = world().await;
     depend(&world, world.first, world.second).await;
-    world.service.add_and_arm(world.first).await.unwrap();
+    world.service.add_and_arm(world.first, QueueLaunch::default()).await.unwrap();
     let NextTurn::Blocked(blocked) = world.service.next_turn(&HashSet::new()).await.unwrap() else { panic!("expected a blocked queue") };
 
     world.service.stop_blocked(&blocked).await.unwrap();
@@ -293,8 +323,8 @@ async fn parallel_sessions_are_kept_between_one_and_four() {
 #[tokio::test]
 async fn a_parked_item_is_passed_over_and_reported_with_its_reason() {
     let world = world().await;
-    world.service.add(world.first).await.unwrap();
-    let view = world.service.add(world.second).await.unwrap();
+    world.service.add(world.first, QueueLaunch::default()).await.unwrap();
+    let view = world.service.add(world.second, QueueLaunch::default()).await.unwrap();
     world.service.mark_item(view.items[0].id, RunQueueItemState::Queued, Some("git could not make a worktree.")).await.unwrap();
 
     let ready = world.service.next_turn(&HashSet::from([view.items[0].id])).await.unwrap();

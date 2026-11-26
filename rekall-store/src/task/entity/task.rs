@@ -43,6 +43,7 @@ pub struct Model {
     pub auto_accepted: bool,
     /// The git worktree the run queue gave the task; absent means it works in its project's folder.
     pub worktree_folder: Option<String>,
+    pub last_work_provider: Option<crate::SessionProvider>,
     /// The issue the project's task manager holds for this task: Jira's key, GitLab's `iid` or GitHub's number.
     pub created_at: Instant,
     pub updated_at: Instant,
@@ -134,6 +135,7 @@ impl Model {
             quick: false,
             auto_accepted: false,
             worktree_folder: None,
+            last_work_provider: None,
             created_at: now,
             updated_at: now,
         }

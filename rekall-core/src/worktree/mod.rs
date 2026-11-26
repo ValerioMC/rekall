@@ -27,3 +27,6 @@ pub use service::orphan_reclaim_service::OrphanReclaimService;
 pub use service::pull_request_flow_service::PullRequestFlowService;
 pub use service::task_pull_request_service::TaskPullRequestService;
 pub use service::task_worktree_service::{Merge, Release, TaskWorktreeService};
+
+mod pull_request_changed;
+pub use pull_request_changed::PullRequestChanged;

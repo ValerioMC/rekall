@@ -22,7 +22,7 @@ defineEmits<{ accept: []; 'send-back': []; 'mark-done': [] }>()
     </template>
 
     <template v-else-if="step.state === 'OPEN' || step.state === 'RUNNING'">
-      <OpenTerminalButton :task-id="task.id" :anchor="task.anchor" :step-id="step.id" :folder="task.projectRepoFolder" />
+      <OpenTerminalButton :task-id="task.id" :step-id="step.id" :folder="task.projectRepoFolder" />
       <AppButton data-testid="decision-mark-done" @click="$emit('mark-done')">Mark done myself</AppButton>
     </template>
   </div>

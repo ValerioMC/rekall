@@ -71,6 +71,7 @@ export const useConsoleStore = defineStore('console', () => {
     load: refreshes.load,
     refreshEverything: refreshes.refreshEverything,
     refreshTags: refreshes.refreshTags,
+    refreshTasks: refreshes.refreshTasks,
     refreshCommitReferences: refreshes.refreshCommitReferences,
     runningEntries: timers.runningEntries,
     startTimer: timers.startTimer,

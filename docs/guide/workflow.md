@@ -90,17 +90,17 @@ When a step's outcome decides what comes next (tests that can fail, a deploy tha
 
 **Replan** is in the menu behind the arrow of **Run here**, on the description and on the checklist, whenever the task has a draft or an open step. It asks first, because the session deletes those steps: the dialog says how many go and that running, claimed and done steps stay, and has an optional **What did the plan miss?** field for the message. Confirming types `/rk … replan` (with the message quoted, when there is one) into the session running on the task, or opens one that starts on it, and the new plan lands open and ready to work.
 
-**Plan here** is in the menu behind the arrow of **Run here**, on the description and on the checklist, and starts it with or without a session already running. While one runs on the task in the console's terminal, it types the command into it. Without one, it opens a terminal in the project's folder that starts on `/rk … plan` instead of the plain `/rk`, so the session plans the task rather than working it; the project needs its folder set, as for **Run here**. Either way the view stays where it is, and the steps land on the checklist for you to review, reword and run. While the task has no steps and no drafts, the only state a flow can land on, **Plan a flow** is in the same menu and does the same with `/rk … plan flow`. An empty checklist also shows the `/rk … plan` and `/rk … plan flow` chips, to copy into a session outside the console.
+**Plan here** is in the menu behind the arrow of **Run here**. Rekall sends the planning request to the task's live session when it uses your configured provider. With no live session, Rekall opens one in the project's folder. If a different provider already has a session on the task, you can open it or confirm closing it and retrying. The new steps land on the checklist for you to review, reword and run. **Plan a flow** appears while the task has no steps or drafts. The empty checklist also has command chips for planning a checklist or flow in an external session.
 
-**Discuss** is in the same menu, whatever steps the task has: it types `/rk … discuss` into the session running on the task, or opens one that starts on it, and the view stays where it is. It is a talk you lead because you want to clarify something. The session loads the task, its draft and open steps and its notes, says in a few lines what is still to do and asks what you want to clarify. It does not hunt for gaps or propose how to build unless you ask: that is `refine` (see [Decisions](#decisions)), where Claude asks the questions and proposes how as well as what. When the talk changes something, the session says exactly what will change and writes it only once you agree: the description, a decision, a note, a step's title or detail (`rekall_edit_step`), a step added or dropped, or a replan, which it announces first because it deletes every draft and open step. Only the work still to do changes: running, claimed and done steps are left alone, description text about built work stays as written, and new work is a new step. Nothing is executed: no code is edited, no step moves, nothing is claimed or committed, and opening the session marks nothing running. What it writes shows in the open console as it lands; a step open in its editor takes the new title and detail unless you have edited them there.
+**Discuss** is in the same menu, whatever steps the task has: it opens or reuses a session with the configured provider and shows it alongside the task. It is a talk you lead because you want to clarify something. The session loads the task, its draft and open steps and its notes, says in a few lines what is still to do and asks what you want to clarify. It does not hunt for gaps or propose how to build unless you ask: that is `refine` (see [Decisions](#decisions)), where the session asks the questions and proposes how as well as what. When the talk changes something, the session says exactly what will change and writes it only once you agree: the description, a decision, a note, a step's title or detail (`rekall_edit_step`), a step added or dropped, or a replan, which it announces first because it deletes every draft and open step. Only the work still to do changes: running, claimed and done steps are left alone, description text about built work stays as written, and new work is a new step. Nothing is executed: no code is edited, no step moves, nothing is claimed or committed, and opening the session marks nothing running. What it writes shows in the open console as it lands; a step open in its editor takes the new title and detail unless you have edited them there.
 
 Once every step is claimed, **Accept** appears beside the session buttons at the top of the checklist and accepts all of them at once, as ticking each would; it is refused while a step is still open or running. A claimed step is also reviewed from its detail: **Accept** ticks it to done, **Send back** returns it to open for another pass. Sending back seals the detail that pass worked from above the editor (`POST /api/steps/{id}/send-back`), and the detail starts empty for the feedback. `/rk` hands the next session each earlier pass in a `<previous-pass>` and the feedback in a `<feedback>`, so it builds on what was done instead of reading the feedback as a new brief. The **N awaiting review** count in the pane header jumps to the first one. Moving a task to **Done** accepts everything left in one go: every step that is open, running or claimed turns done (drafts stay, since you are still wording them), and a task without a checklist takes the accepted review line. Tasks already in Done were accepted the same way when Rekall updated. The step node itself only moves a step forward, so a stray click never walks it back; reopening an accepted step is a separate **Reopen** button that arms before it fires.
 
 ## Decisions
 
-Before a task runs, you go through it with Claude in the terminal or the chat: what is missing, what could be better, which of several ways to take. `/rk task:RK-12 refine` is that conversation. Claude asks one question at a time, with the options it sees, what each causes and the one it recommends, and records each question and answer with `rekall_decision` as you talk. Nothing runs, and no step, description or wrapup changes.
+Before a task runs, choose **Refine** in Decisions and select Claude Code or Codex. The session asks one question at a time, explains the options and records each question and confirmed answer with `rekall_decision`. Refinement writes only to the Decisions ledger.
 
-A decision is one record: a key, the question, why it was asked, the options offered, the answer, the details you add later, and the lines of the conversation behind it. It belongs to the task or, optionally, to one step; a task without steps has only task-level decisions. It is **open** until you answer, **answered**, or **on hold** while you find something out, with a note of what you are checking. A changed answer keeps the one it replaced. A decision you correct by telling Claude stays one record; a wrong one is removed the same way.
+A decision is one record: a key, the question, why it was asked, the options offered, the answer, the details you add later, and the lines of the conversation behind it. It belongs to the task or, optionally, to one step; a task without steps has only task-level decisions. It is **open** until you answer, **answered**, or **on hold** while you find something out, with a note of what you are checking. A changed answer keeps the one it replaced. A decision you correct in the session stays one record; a wrong one is removed the same way.
 
 Every context of the task carries a `<decisions>` block: the task's own records first, then each step's, read when that step runs. A session builds to the answers, asks you before building what depends on an open question, and does not contradict a record marked `[edited by you]`. Decisions are parallel to the plan: they add no count to the header or the Review queue, and nothing waits on them.
 
@@ -163,19 +163,23 @@ With **Merge through a pull request** on (project page, Settings, Repository), s
 
 ```mermaid
 sequenceDiagram
-    participant Claude as Session
+    participant Agent as Session
     participant Rekall
     participant Host as GitHub or GitLab
-    Claude->>Rekall: claim the last step (one commit per step)
-    Rekall->>Host: push the task branch
-    Rekall->>Host: open the pull request once
-    Note over Rekall: the task shows a link to it
+    loop each successful claim
+        Agent->>Rekall: claim work and record its commit
+        Rekall->>Host: push the task branch
+        opt first successful delivery
+            Rekall->>Host: open the pull request
+            Note over Rekall: the task shows a link to it
+        end
+    end
     Note over Rekall: you accept the task
     Rekall->>Host: merge with a merge commit
     alt the pull request conflicts
         Host-->>Rekall: conflicting
-        Rekall->>Claude: merge session in the worktree
-        Claude->>Host: merge the main branch into the branch, resolve, push
+        Rekall->>Agent: merge session in the worktree
+        Agent->>Host: merge the main branch into the branch, resolve, push
         Rekall->>Host: merge again
     end
     Host-->>Rekall: merged
@@ -184,9 +188,9 @@ sequenceDiagram
     Rekall->>Rekall: remove the worktree
 ```
 
-- When every step of the task is claimed, its branch is pushed and a pull request is opened against the project's main branch (the branch its folder is on when none is named). It is opened once: a task claimed again is pushed again and keeps the same one. Its body is the task's description, `Closes #<issue>` and the commits listed by step. If the push or the host refuses, the reason shows on the task as **Not opened** and the next claim tries again.
-- When you accept the task, the pull request is merged through the host with a merge commit, so the commit of each step reaches the main branch. Then the task's issue is closed, its branch is deleted on the host (one the host no longer has is not a failure), the worktree is removed and the task is set to done. A merge the host turns down (required checks, a branch rule) shows as **Not merged** with the host's reason, and the worktree stays; a network error is tried again the next time the task moves. Rekall does not wait for reviews or checks: it merges as soon as you accept.
-- When the host says the pull request conflicts, a session opens on the task in its worktree (`/rk … merge pull-request`): it merges the main branch into the task branch, resolves the conflicts, runs the checks, commits and pushes. It does not force-push and does not merge through the host. Rekall then merges again. If you close that session with the pull request still conflicting, none opens again until the task is accepted anew.
+- Each successful claim pushes the task branch. The first successful push opens one pull request against the project's main branch (the branch its folder is on when none is named). Later claims update the same request. Its body includes the task description, `Closes #<issue>` and the commits recorded when it opens. Delivery failures appear on the task and Rekall retries the pending push.
+- When you accept the task, Rekall ensures the claimed work has been pushed and asks the host to merge with a merge commit. A dirty worktree or a rejected merge leaves the checkout in place and shows the reason. After the merge succeeds, Rekall closes the task's issue, deletes the remote branch, removes the worktree and sets the task to done.
+- When the host says the pull request conflicts, Rekall opens a session in the task worktree with the last provider that worked it. The session merges the main branch into the task branch, resolves conflicts, runs the checks, commits and pushes the task branch. Rekall then retries the host merge. If you close the session while the pull request is still conflicting, accepting the task again starts another attempt.
 - The task's title row shows the request as a link (**PR #5**, **MR !5** on GitLab), **Merged** once it is, and nothing on a project with the switch off.
 
 ## Commits

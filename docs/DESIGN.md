@@ -9,7 +9,7 @@ hands them to the chosen session provider over MCP. A session can write the wrap
 a task, which is what that task's implementation currently looks like, and the state of a step,
 which it can move from open to running to claimed. The last tick, done, is a person's.
 The console uses the saved provider by default and lets a person override it for a single task
-launch when both CLIs are installed. The launch uses the chosen provider's saved options.
+launch. The menus show availability and use the chosen provider's saved options.
 
 ---
 
@@ -135,10 +135,10 @@ is found by opening one folder per crate:
 | `quick` | the quick task: a task started from one line of text with its session opened at once, accepted without a review when Claude's wrapup lands; console and HTTP only, the acceptance itself is in `review` and `wrapup` |
 | `skill`, `tag`, `queue`, `claude` | skill assignments, tags, the run queue, what a session launch needs |
 | `codex` | the Codex CLI port for the model catalog, account limits and Rekall setup. The console calls it through its service and HTTP routes. Infrastructure runs the CLI and its App Server. The header draws both provider readings with the same account usage meter. |
-| `chat` | the chat view of a session: its events (`ChatEvent`) and the ports a client reaches it through (`ChatPipe`, `ChatListener`), in `rekall-core`, next to `TerminalHost`, the lifecycle port, widened so that a session is no longer taken to be a PTY; in `rekall-infra` the stream parser, the headless `claude` process, `ChatSessionManager` and `SessionHosts`, which routes each call to the terminal or chat host; in `rekall-console` and `rekall-http` the service and the routes that follow and talk to one (opening, listing and closing stay with `terminal`) |
+| `chat` | the shared conversation and approval events (`ChatEvent`) and ports (`ChatPipe`, `ChatListener`) in `rekall-core`. In `rekall-infra`, `StreamParser` reads Claude Code’s stream JSON and `CodexChat` uses the Codex app-server transport over stdio. `CodexChat` maps command, file-change and MCP tool approvals to the same permission events and sends the corresponding app-server reply. `ChatSessionManager` keeps their event journal and session lifecycle, and `SessionHosts` routes openings to Chat or Terminal. The `chat` service and routes handle input and event replay. The `terminal` routes open, list and close either kind. |
 | `backup`, `settings`, `version` | the backups of the open database and restoring one, the registered database folders and the restart onto another, the update check; no table behind them, so no folder in `rekall-store` |
-| `guard` | the rules a Claude Code hook applies before a tool runs and before a session stops: which commands and reads are refused, and when a session may not end; decisions over data, no I/O |
-| `worktree` | a project's second working folder on a branch of its own, one per task, started from and merged into the project's main branch: the port `WorktreeHost`, the names and the safety rules of `WorktreeLayout`, the porcelain listing and the reclaiming of worktrees a crash left; `rekall-infra` runs git; for a project with `pull_request_flow` on, `PullRequestFlowService` guards the switch and `TaskPullRequestService` pushes the branch (`WorktreeHost::push_branch`), opens the request through `PullRequestHost` and merges it on acceptance, then closes the issue and deletes the remote branch, the only writer of `task_pull_request`; `TaskWorktreeService::requires_branch` decides which tasks live on a branch (a project with a folder and a task manager, never a quick task) and every session that works one, whether the run queue, `TerminalService` or `TaskBranchService::start` (for the desktop's external terminal) makes it first; a merged task is closed with `close_merged`; `rekall-core` only |
+| `guard` | shared rules for the Claude Code and Codex hooks. They refuse manual Git and credential access and remind a session once to claim its own running step. The guard port manages each provider’s hook entries and reports Codex trust. |
+| `worktree` | a project's second working folder on a branch of its own, one per task, started from and merged into the project's main branch: the port `WorktreeHost`, the names and the safety rules of `WorktreeLayout`, the porcelain listing and the reclaiming of worktrees a crash left; `rekall-infra` runs git; for a project with `pull_request_flow` on, `PullRequestFlowService` guards the switch and `TaskPullRequestService` pushes the branch (`WorktreeHost::push_branch`), opens the request through `PullRequestHost` and merges it on acceptance, then closes the issue and deletes the remote branch, and records delivery progress and failures on `task_pull_request`; `TaskWorktreeService::requires_branch` decides which tasks live on a branch (a project with a folder and a task manager, never a quick task) and every session that works one, whether the run queue, `TerminalService` or `TaskBranchService::start` (for the desktop's external terminal) makes it first; a merged task is closed with `close_merged`. Claim and wrapup transactions stage delivery after auto-commit. The cleaner retries unpublished revisions and accepted requests. The task retains its last work provider for conflict resolution. |
 | `inventory` | what each project is built from: its dependencies at the version each resolves to |
 | `terminal`, `filesystem`, `stream` | the in-app terminals, the folder listing behind the path picker, the event stream the console listens to; console and HTTP only |
 | `vulnerability` | the advisories, the projects they reach, the scan that finds them and what it looks for, a session's verdict and the fix task |
@@ -194,7 +194,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `chat` | - | `claude` | `claude` | nothing | - |
 | `claude` | - | `catalog`, `connection`, `flow`, `task` | nothing | `skill` | - |
 | `codex` | - | nothing | nothing | nothing | - |
-| `commit` | `component`, `step`, `task` | `catalog`, `component`, `step`, `task` | - | nothing | nothing |
+| `commit` | `component`, `step`, `task` | `catalog`, `component`, `flow`, `step`, `task` | - | nothing | nothing |
 | `component` | `catalog` | `catalog`, `connection`, `task` | nothing | nothing | `context` |
 | `connection` | `catalog`, `task` | `picture`, `task`, `tracker` | `catalog`, `commit`, `component`, `section`, `task` | `catalog`, `section` | - |
 | `context` | - | `catalog`, `commit`, `component`, `connection`, `decision`, `dependency`, `deviation`, `feedback`, `note`, `picture`, `section`, `step`, `tag`, `task`, `wrapup` | - | nothing | nothing |
@@ -208,7 +208,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `filesystem` | - | - | nothing | nothing | - |
 | `flow` | `step`, `task` | `step` | - | `step` | `step` |
 | `graph` | `catalog`, `flow`, `step` | - | `catalog`, `flow`, `step`, `task` | `step` | - |
-| `guard` | - | nothing | `catalog`, `step`, `task` | nothing | - |
+| `guard` | - | nothing | `catalog`, `claude`, `step`, `task`, `worktree` | nothing | - |
 | `inventory` | `catalog` | `catalog` | - | nothing | `vulnerability` |
 | `note` | `task` | `task` | nothing | nothing | nothing |
 | `picture` | nothing | nothing | `catalog`, `component`, `section`, `task` | nothing | - |
@@ -279,6 +279,12 @@ usage meter, the transcripts, `~/.claude`, the Claude Code installer. A rule tha
 goes in the first, one that needs the machine in the second. The run queue's rows and moves are
 `RunQueueService` in `rekall-core/src/queue/`, and how skills are grouped is `SkillGroupService` in
 `rekall-core/src/skill/`.
+
+In the console, `SessionProviderMenu` supplies the provider choices for task and step actions,
+Decisions refinement, and the queue task picker. `useAnchoredMenu` places the menu and handles
+keyboard focus outside the scrolling pane. Interactive actions pass the selected provider to the
+session store, which handles conflicts and view fallback. Queue actions save the provider on the item
+and its row displays the saved choice.
 
 ### Adding a field or a capability
 
@@ -351,6 +357,7 @@ Project ──< VulnerabilityExposure >── SecurityAdvisory
 | `company` | `name`, unique | `description` |
 | `project` | `label`, unique per company | `task_key` (two to four capital letters, unique across every company: the first half of its tasks' codes; migration `086-task-code`), `title`, `status`, `description`, `company_id`, `main_branch` (the branch a task's branch starts from and is merged into, null for the folder's current one; migration `075-task-manager`), `pull_request_flow` (whether accepted work reaches the main branch through a pull request, off by default; migration `081-pull-request-flow`) |
 | `task` | `code`, unique across every project | `number` (its place in its project, counted from 1: one past the highest the project holds), `label` (an internal slug, unique per project: the name of its branch and worktree, and what an anchor written before codes existed still names; migration `086-task-code`), `title`, `status`, `description`, `project_id`, `graph_laid_at` (when a deployment graph was laid on it), `release_skipped` (the project's release graph is not laid when the console runs it; migration `054-release-on-run`), `kind` (`TASK` or `EPIC`), `epic_id` (the epic of the same project it belongs to, set null when the epic is deleted; migration `055-epic`), `quick` (started from one line of text; at most one still open or running per project), `auto_accepted` (accepted by Rekall when the wrapup landed, not by a person; cleared when the review line moves again; migration `063-quick-task`) |
+| `run_queue_item` | through its task | `provider` defaults to Claude Code, including for existing rows. Codex entries store their own model, effort and permission preference. Queue reads and events carry the saved choice (migration `097-run-queue-provider`). The worker uses it to open the configured view through `SessionHosts` and check the provider's account limits before dispatch and at claim boundaries. |
 | `task_pull_request` | through its task | `task_id` (the key: one row per task of a project with the pull request flow on, once its work was first claimed), `number` and `url` (the pull request, or GitLab merge request, open for its branch), `failure` (why it was not opened or not merged, cleared by the next move that works), `merged_at` (when the host merged it); deleted with its task (migrations `082-task-pull-request` and `083-pull-request-merged`) |
 | `task_tracker_link` | through its task | `task_id` (the key: one row per task that was ever pushed to its project's task manager, none for one that was not), `issue_key` and `issue_url` (the issue the task manager holds for it), `sync_error` (why the last write there failed, cleared by the next that works), `synced_fingerprint` (a fingerprint of the title and description last written, which says whether the task changed since); deleted with its task (migrations `075-task-manager`, `080-task-tracker-link` and `085-task-tracker-synced-content`) |
 | `tracker_picture` | through its task | `task_id`, `destination` (the repository the picture was uploaded to, or the Jira issue holding the attachment, as a web address) and `picture_path` (under `images/`, without `/api/images/`, so a row is no use of the picture): together the key. `remote_reference` (how the tracker refers to its copy), `created_at`; written once per upload, deleted with its task (migration `096-tracker-picture`) |

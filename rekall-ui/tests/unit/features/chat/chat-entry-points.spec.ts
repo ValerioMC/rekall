@@ -3,7 +3,10 @@ import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import { effectScope, nextTick } from 'vue'
 import OpenTerminalButton from '@/features/claude/components/OpenTerminalButton.vue'
+import SessionLaunchConflict from '@/features/claude/components/SessionLaunchConflict.vue'
+import { ApiError } from '@/api/client'
 import { preferredLaunchKind, preferredSessionKind, setPreferredSessionKind } from '@/common/config/claude-launch'
+import { launchChoices, setCodexBypass, setCodexEffort, setCodexModel, setPreferredProvider } from '@/common/config/session-launch'
 import { useRevealOpenedChat } from '@/features/chat/composables/useRevealOpenedChat'
 import { useChatDockStore } from '@/features/chat/store/chatDock.store'
 import { useChatStore } from '@/features/chat/store/chat.store'
@@ -41,7 +44,6 @@ vi.mock('@/features/vulnerability/api/vulnerability.api', () => ({}))
 vi.mock('@/features/vulnerability/composables/useVulnerabilityStream', () => ({ useVulnerabilityStream: vi.fn() }))
 
 const TASK = 't-1' as TaskId
-const ANCHOR = 'project:vega task:report-builder'
 
 function chooseChatView(): void {
   setPreferredSessionKind('chat')
@@ -85,7 +87,7 @@ describe('the entry points', () => {
   it('Run here asks for a terminal by default and for a chat when the chat view is chosen', async () => {
     terminalApi.openTerminal.mockResolvedValue(chatSession({ kind: 'TERMINAL', id: 'term-1' as never }))
     useConsoleStore().releaseOnRun = vi.fn().mockResolvedValue(null)
-    const button = mount(OpenTerminalButton, { props: { taskId: TASK, anchor: ANCHOR, folder: '/code/vega' } })
+    const button = mount(OpenTerminalButton, { props: { taskId: TASK, folder: '/code/vega' } })
 
     await button.get('[data-testid=open-terminal]').trigger('click')
     await flushPromises()
@@ -94,7 +96,7 @@ describe('the entry points', () => {
 
     chooseChatView()
     terminalApi.openTerminal.mockResolvedValue(chatSession())
-    const chatButton = mount(OpenTerminalButton, { props: { taskId: TASK, anchor: ANCHOR, folder: '/code/vega' } })
+    const chatButton = mount(OpenTerminalButton, { props: { taskId: TASK, folder: '/code/vega' } })
     await chatButton.get('[data-testid=open-terminal]').trigger('click')
     await flushPromises()
 
@@ -103,37 +105,85 @@ describe('the entry points', () => {
     chatButton.unmount()
   })
 
-  it('Plan here opens a chat session without opening the terminal pane', async () => {
+  it.each(['CLAUDE', 'CODEX'] as const)('Plan here opens %s Chat without opening the terminal pane', async (provider) => {
     chooseChatView()
-    terminalApi.openTerminal.mockResolvedValue(chatSession())
+    terminalApi.openTerminal.mockResolvedValue(chatSession({ provider }))
     const openPane = vi.spyOn(useConsoleStore(), 'openTerminal')
-    const button = mount(OpenTerminalButton, { props: { taskId: TASK, anchor: ANCHOR, folder: '/code/vega' }, attachTo: document.body })
+    const button = mount(OpenTerminalButton, { props: { taskId: TASK, folder: '/code/vega' }, attachTo: document.body })
 
     await button.get('[data-testid=run-menu-arrow]').trigger('click')
     document.body.querySelector<HTMLElement>('[data-testid=plan-here]')?.click()
     await flushPromises()
+    document.body.querySelector<HTMLElement>(`[data-testid=session-provider-${provider}]`)!.click()
+    await flushPromises()
 
-    expect(terminalApi.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'PLAN', kind: 'CHAT' }))
+    expect(terminalApi.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'PLAN', kind: 'CHAT', provider }))
     expect(openPane).not.toHaveBeenCalled()
     button.unmount()
   })
 
-  it('Plan, Plan a flow and Replan on a live chat session send the line as a message', async () => {
+  it('keeps the existing chat view when the server reuses it for preparation', async () => {
     const terminals = useTerminalStore()
     terminals.upsert(chatSession())
-    const input = { skipPermissions: false }
+    terminalApi.openTerminal.mockResolvedValue(chatSession())
 
-    await terminals.planForTask(TASK, ANCHOR, input, 'PLAN')
-    await terminals.planForTask(TASK, ANCHOR, input, 'PLAN_FLOW')
-    await terminals.planForTask(TASK, ANCHOR, input, 'REPLAN')
+    const opened = await terminals.planForTask(TASK, { provider: 'CLAUDE', skipPermissions: false }, 'PLAN_FLOW')
 
-    expect(chatApi.sendMessage.mock.calls).toEqual([
-      [CHAT_ID, `/rk ${ANCHOR} plan`],
-      [CHAT_ID, `/rk ${ANCHOR} plan flow`],
-      [CHAT_ID, `/rk ${ANCHOR} replan`]
-    ])
+    expect(opened.kind).toBe('CHAT')
+    expect(terminals.lastOpened?.id).toBe(CHAT_ID)
+    expect(terminals.activeTerminalId).toBeNull()
+    expect(terminalApi.openTerminal).toHaveBeenCalledWith(
+      { taskId: TASK }, expect.objectContaining({ mode: 'PLAN_FLOW', provider: 'CLAUDE' })
+    )
+    expect(chatApi.sendMessage).not.toHaveBeenCalled()
     expect(terminalApi.sendTerminalInput).not.toHaveBeenCalled()
-    expect(terminalApi.openTerminal).not.toHaveBeenCalled()
+  })
+
+  it('opens Codex Refine as a chat with the selected options', async () => {
+    chooseChatView()
+    setPreferredProvider('CODEX')
+    setCodexModel('gpt-test')
+    setCodexEffort('high')
+    setCodexBypass(true)
+    const opened = chatSession({ provider: 'CODEX', mode: 'REFINE' })
+    terminalApi.openTerminal.mockResolvedValue(opened)
+
+    expect(await useTerminalStore().planForTask(TASK, launchChoices(), 'REFINE')).toEqual(opened)
+    expect(terminalApi.openTerminal).toHaveBeenCalledTimes(1)
+    expect(terminalApi.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({
+      provider: 'CODEX', kind: 'CHAT', mode: 'REFINE', model: 'gpt-test', effort: 'high', skipPermissions: true
+    }))
+  })
+
+  it.each([true, false])('asks before retrying an unsupported Codex Chat in Terminal (%s)', async (confirm) => {
+    chooseChatView()
+    setPreferredProvider('CODEX')
+    const error = new ApiError(409, 'Codex Chat could not start. Try updating the Codex CLI.', 'test')
+    terminalApi.openTerminal.mockRejectedValueOnce(error)
+    terminalApi.openTerminal.mockResolvedValue(chatSession({ provider: 'CODEX', kind: 'TERMINAL' }))
+    const terminals = useTerminalStore()
+    const dialog = mount(SessionLaunchConflict, { attachTo: document.body, global: { stubs: { Teleport: true } } })
+    const input = { ...launchChoices(), model: 'gpt-test', effort: 'high' }
+    const opened = terminals.planForTask(TASK, input, 'REFINE').catch((failure: unknown) => failure)
+    await flushPromises()
+
+    expect(dialog.text()).toContain(error.message)
+    expect(document.activeElement?.textContent?.trim()).toBe('Cancel')
+    expect(terminalApi.openTerminal).toHaveBeenCalledTimes(1)
+    const label = confirm ? 'Open in Terminal' : 'Cancel'
+    await dialog.findAll('button').find((button) => button.text() === label)!.trigger('click')
+
+    if (confirm) {
+      expect(await opened).toMatchObject({ provider: 'CODEX', kind: 'TERMINAL' })
+      expect(terminalApi.openTerminal).toHaveBeenNthCalledWith(2, { taskId: TASK }, expect.objectContaining({
+        ...input, kind: 'TERMINAL', mode: 'REFINE'
+      }))
+    } else {
+      expect(await opened).toBe(error)
+      expect(terminalApi.openTerminal).toHaveBeenCalledTimes(1)
+    }
+    expect(preferredSessionKind()).toBe('chat')
+    dialog.unmount()
   })
 
   it('Generate on a project asks for the chosen kind of session', async () => {

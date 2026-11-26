@@ -34,7 +34,7 @@ describe('Settings > Claude Code > Session view', () => {
     const chat = section.get('[data-testid=claude-session-view-chat]')
     expect(terminal.attributes('aria-checked')).toBe('true')
     expect(chat.text()).toBe('Chat (experimental)')
-    expect(section.get('[data-testid=claude-session-view]').text()).toContain('without a terminal')
+    expect(section.get('[data-testid=claude-session-view]').text()).toContain('selected provider')
 
     await chat.trigger('click')
 

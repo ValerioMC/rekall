@@ -52,11 +52,9 @@ onUnmounted(() => void claudeConnection.load().catch(() => undefined))
           <ReviewSection v-else-if="section === 'review'" />
           <template v-else-if="section === 'sessions'">
             <FormPanel class="overflow-visible"><SessionProviderSection v-model="provider" /></FormPanel>
-            <template v-if="provider === 'CLAUDE'">
-              <FormPanel><ClaudeCodeSection /></FormPanel>
-              <FormPanel><GuardProtectionSection /></FormPanel>
-            </template>
+            <FormPanel v-if="provider === 'CLAUDE'"><ClaudeCodeSection /></FormPanel>
             <FormPanel v-else><CodexSection /></FormPanel>
+            <FormPanel><GuardProtectionSection /></FormPanel>
           </template>
           <FormPanel v-else-if="section === 'notifications'"><NotificationsSection /></FormPanel>
           <TimeUsageSection v-else-if="section === 'time'" />

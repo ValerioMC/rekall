@@ -114,7 +114,7 @@ onMounted(() => void load())
             <template v-else>Registers the Rekall MCP server and installs the Rekall skill.</template>
           </p>
           <p class="mt-1 text-caption leading-relaxed text-text-subtle">
-            Codex runs in a terminal. Chat, the run queue and sessions with saved project credentials use Claude Code.
+            Codex runs in Chat or Terminal. Automatic launches from the run queue use Claude Code.
           </p>
         </div>
         <AppButton v-if="setup.status === 'NOT_CONNECTED'" size="sm" variant="primary" :loading="installing" @click="connect">

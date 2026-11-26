@@ -16,7 +16,11 @@ const BRIDGE: &str = r#"
       return call('open_in_claude_code', { launch: {
         directory: String((launch && launch.directory) || ''),
         anchors: String((launch && launch.anchors) || ''),
-        skipPermissions: Boolean(launch && launch.skipPermissions)
+        skipPermissions: Boolean(launch && launch.skipPermissions),
+        provider: (launch && launch.provider) || 'CLAUDE',
+        taskId: (launch && launch.taskId) || null,
+        model: (launch && launch.model) || null,
+        effort: (launch && launch.effort) || null
       } });
     },
     notify: function (notice) {

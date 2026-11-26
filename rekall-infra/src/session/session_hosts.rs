@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rekall_core::claude::{SessionKind, TerminalEnded, TerminalHost, TerminalOpening, TerminalView};
+use rekall_core::claude::{SessionKind, TerminalEnded, TerminalHost, TerminalLaunchService, TerminalOpening, TerminalView};
 use rekall_kernel::{Id, RekallError, Result};
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, Mutex};
 use tracing::warn;
 
 use super::EndedBus;
@@ -16,6 +16,8 @@ pub struct SessionHosts {
     chats: Arc<dyn TerminalHost>,
     max_sessions: usize,
     ended: Arc<EndedBus>,
+    opening_gate: Mutex<()>,
+    work_provider: Option<TerminalLaunchService>,
 }
 
 impl SessionHosts {
@@ -24,7 +26,29 @@ impl SessionHosts {
         let ended = Arc::new(EndedBus::new());
         forward_ends(terminals.subscribe_ended(), ended.clone());
         forward_ends(chats.subscribe_ended(), ended.clone());
-        Self { terminals, chats, max_sessions, ended }
+        Self { terminals, chats, max_sessions, ended, opening_gate: Mutex::new(()), work_provider: None }
+    }
+
+    pub fn with_work_provider(mut self, launches: TerminalLaunchService) -> Self {
+        self.work_provider = Some(launches);
+        self
+    }
+
+    async fn remember_work_provider(&self, session: &TerminalView) {
+        let (Some(service), Some(task_id)) = (&self.work_provider, session.task_id) else { return };
+        if let Err(failure) = service.remember_work_provider(task_id, session.provider).await {
+            warn!(%failure, %task_id, "Could not remember the task's work provider");
+        }
+    }
+
+    async fn require_work_directory(&self, opening: &TerminalOpening) -> Result<()> {
+        let Some(service) = &self.work_provider else { return Ok(()) };
+        let Some(existing) = self.list().into_iter().find(|view| view.live && view.target() == opening.target) else { return Ok(()) };
+        let launch = service.resolve(opening.target).await?;
+        if existing.working_dir != launch.working_dir {
+            return Err(RekallError::conflict("This session is open outside the task worktree. Close it to run in the task worktree."));
+        }
+        Ok(())
     }
 
     fn host_of_kind(&self, kind: SessionKind) -> &Arc<dyn TerminalHost> {
@@ -38,11 +62,13 @@ impl SessionHosts {
         [&self.terminals, &self.chats].into_iter().find(|host| host.get(id).is_some())
     }
 
-    fn require_room_for(&self, opening: &TerminalOpening) -> Result<()> {
-        let live = self.list();
-        let reuses_a_session = live.iter().any(|view| view.kind == opening.kind && view.target() == opening.target);
-        if reuses_a_session || live.len() < self.max_sessions {
-            return Ok(());
+    fn resolve_kind(&self, opening: &TerminalOpening) -> Result<SessionKind> {
+        let live: Vec<_> = self.list().into_iter().filter(|view| view.live).collect();
+        if let Some(existing) = live.iter().find(|view| view.target() == opening.target) {
+            return opening.kind_for_live_session(existing);
+        }
+        if live.len() < self.max_sessions {
+            return Ok(opening.kind);
         }
         Err(RekallError::conflict(format!(
             "Rekall is already running {} terminals. Close one before opening another.",
@@ -65,9 +91,18 @@ fn forward_ends(mut ends: broadcast::Receiver<TerminalEnded>, bus: Arc<EndedBus>
 
 #[async_trait]
 impl TerminalHost for SessionHosts {
-    async fn open(&self, opening: TerminalOpening) -> Result<TerminalView> {
-        self.require_room_for(&opening)?;
-        self.host_of_kind(opening.kind).open(opening).await
+    async fn open(&self, mut opening: TerminalOpening) -> Result<TerminalView> {
+        let _gate = self.opening_gate.lock().await;
+        opening.kind = self.resolve_kind(&opening)?;
+        let is_work = opening.mode.follows_steps();
+        if is_work {
+            self.require_work_directory(&opening).await?;
+        }
+        let session = self.host_of_kind(opening.kind).open(opening).await?;
+        if is_work {
+            self.remember_work_provider(&session).await;
+        }
+        Ok(session)
     }
 
     fn list(&self) -> Vec<TerminalView> {
@@ -98,6 +133,7 @@ impl TerminalHost for SessionHosts {
     }
 
     async fn renew(&self, id: Id) -> Result<TerminalView> {
+        let _gate = self.opening_gate.lock().await;
         match self.host_holding(id) {
             Some(host) => host.renew(id).await,
             None => Err(RekallError::conflict(format!("No session {id} is live to renew."))),

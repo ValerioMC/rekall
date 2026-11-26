@@ -29,7 +29,7 @@ Company ──< Project ──< Task ──< Document
 | `Wrapup` | through its task | markdown body, who wrote it last. One per task |
 | `WrapupVersion` | through its task | a past text of the wrapup: number, markdown body, who wrote it, when, the project's `HEAD` then. The last 20 per task, kept when the wrapup is deleted |
 | `Tag` | `name`, unique | icon key, glow-colour key, the tasks currently wearing it |
-| `TokenUsage` | through its task | the input, output, cache-write and cache-read tokens one Claude Code session spent on the task or one of its steps on one UTC day. Rewritten whole each time that session's transcript is read; `transcript_scan` remembers how much of each transcript was read |
+| `TokenUsage` | through its task | the input, output, cache-write and cache-read tokens one provider session spent on the task or one of its steps on one UTC day. Rewritten whole each time that session's transcript is read; `transcript_scan` remembers how much of each transcript was read |
 | `ProjectDependency` | through its project | ecosystem, name, exact version, the file that declares it. Unique per project, ecosystem, name and version; replaced whole by `rekall_inventory` |
 | `SecurityAdvisory` | its GHSA id, unique | CVE id, summary, description, link, publication date, the packages it affects as JSON. Recorded by a scan; never deleted |
 | `VulnerabilityExposure` | through its project | the advisory, the package and version it reached the project through, a session's verdict, reasoning and conclusion, the fix task. One per project and advisory; deleted with either |

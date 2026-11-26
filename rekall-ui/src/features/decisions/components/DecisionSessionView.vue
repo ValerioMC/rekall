@@ -8,7 +8,7 @@ defineProps<{ block: string; taskCode: string }>()
     <div class="max-w-[55rem]">
       <p class="mb-3.5 max-w-[70ch] text-body leading-[1.55] text-text-muted">
         This is the block <code class="rounded-key bg-surface-raised px-1.5 py-px font-mono text-small text-text-muted">/rk task:{{ taskCode }}</code>
-        hands a session with the task, and the same one Claude keeps up to date as you talk. Decisions of the task come first, then those of each step, read when that step runs.
+        hands a session with the task. Task decisions come first, followed by the decisions for each step.
         It holds the current answer to each question, what an answer replaced, and a question mark where one is still open. It does not hold the conversation.
       </p>
       <pre

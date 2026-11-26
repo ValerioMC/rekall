@@ -1,4 +1,4 @@
-//! The question asked before the app quits, or restarts into an update, while Claude sessions are
+//! The question asked before the app quits, or restarts into an update, while agent sessions are
 //! still live: either stops the server this process started, and with it every terminal it holds.
 //! The console asks it in its own dialog; the system dialog is the fallback when the console
 //! cannot show one.
@@ -82,9 +82,9 @@ pub fn warning(live: usize, leaving: Leaving) -> String {
         Leaving::Update => "Installing the update restarts Rekall, which",
     };
     if live == 1 {
-        format!("1 Claude session is still running. {action} stops the server and closes its terminal, so it will end and any work in progress is cut short.")
+        format!("1 agent session is still running. {action} stops the server and closes its terminal, so it will end and any work in progress is cut short.")
     } else {
-        format!("{live} Claude sessions are still running. {action} stops the server and closes their terminals, so they will end and any work in progress is cut short.")
+        format!("{live} agent sessions are still running. {action} stops the server and closes their terminals, so they will end and any work in progress is cut short.")
     }
 }
 

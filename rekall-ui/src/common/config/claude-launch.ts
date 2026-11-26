@@ -66,7 +66,7 @@ export function setPreferredEffort(value: ClaudeEffortChoice): void {
   }
 }
 
-/** How a new in-app session runs `claude`: in a terminal, the default, or headless in the chat window. */
+/** The view for a new in-app session. */
 export function preferredSessionKind(): ClaudeSessionView {
   try {
     const stored = window.localStorage.getItem(SESSION_KIND_KEY)

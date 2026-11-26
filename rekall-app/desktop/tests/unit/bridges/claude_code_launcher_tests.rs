@@ -15,11 +15,22 @@ fn an_anchor_is_letters_digits_and_the_few_marks_an_anchor_uses() {
 #[test]
 fn the_script_changes_into_the_folder_and_execs_claude_on_the_anchor() {
     assert_eq!(
-        script("/Users/me/Projects/it's here", "project:vega task:x ", &SessionOptions::chosen(true, None, None), "/Users/me/.local/bin/claude"),
+        script("/Users/me/Projects/it's here", "project:vega task:x ", &SessionOptions::chosen(true, None, None), "/Users/me/.local/bin/claude", None, 47355),
         "#!/bin/sh\nrm -f \"$0\"\ncd '/Users/me/Projects/it'\\''s here' || exit 1\n\
-         exec '/Users/me/.local/bin/claude' '--dangerously-skip-permissions' '/rk project:vega task:x'\n"
+         export REKALL_GUARD_PORT=47355\nunset REKALL_GUARD_SCOPE\nexec '/Users/me/.local/bin/claude' '--dangerously-skip-permissions' '/rk project:vega task:x'\n"
     );
-    assert!(!script("/p", "task:x", &SessionOptions::default(), "claude").contains("--dangerously-skip-permissions"));
+    assert!(!script("/p", "task:x", &SessionOptions::default(), "claude", None, 47355).contains("--dangerously-skip-permissions"));
+}
+
+#[test]
+fn codex_task_launch_exports_the_scope_and_server_port() {
+    let task_id = uuid::Uuid::new_v4();
+    let options = SessionOptions::codex(false, None, None).unwrap();
+    let command = script("/worktree", "task:VE-12", &options, "codex", Some(GuardScope::Work(task_id.into())), 49688);
+
+    assert!(command.contains(&format!("export REKALL_GUARD_SCOPE='{task_id}'\n")));
+    assert!(command.contains("export REKALL_GUARD_PORT=49688\n"));
+    assert!(command.contains("exec 'codex' '--no-daemon'"));
 }
 
 #[test]
@@ -47,7 +58,7 @@ fn tempfile_home() -> PathBuf {
 #[test]
 fn the_desktop_script_quotes_codex_arguments_and_the_skill_prompt() {
     let options = SessionOptions::codex(true, Some("gpt-6.2-sol"), Some("high")).unwrap();
-    let script = script("/p", "task:x", &options, "/opt/homebrew/bin/codex");
+    let script = script("/p", "task:x", &options, "/opt/homebrew/bin/codex", None, 47355);
     assert!(script.contains("'--dangerously-bypass-approvals-and-sandbox' '--model' 'gpt-6.2-sol' '-c' 'model_reasoning_effort=\"high\"'"));
     assert!(script.ends_with("'Use the $rekall skill with this exact argument line: task:x'\n"));
 }

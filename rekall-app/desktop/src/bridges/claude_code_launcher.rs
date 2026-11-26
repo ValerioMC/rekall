@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
+use rekall_app::guard_command::{GuardScope, GUARD_PORT_ENV, GUARD_SCOPE_ENV};
 use rekall_infra::codex::CodexCli;
 use rekall_infra::login_shell::LoginShellEnvironment;
-use rekall_infra::session::{SessionOptions, SessionProvider};
+use rekall_infra::session::{session_command_prompt, SessionOptions, SessionProvider};
 
 use std::path::{Path, PathBuf};
 
@@ -29,7 +30,8 @@ pub async fn open_in_claude_code(launch: ClaudeCodeLaunch) -> Result<String, Str
     let home = dirs::home_dir().unwrap_or_default();
     let options = options_of(&launch)?;
     let binary = terminal_binary(&home, launch.provider).await?;
-    let script = script(&directory.to_string_lossy(), &launch.anchors, &options, &binary);
+    let scope = launch.task_id.map(|task_id| GuardScope::Work(task_id.into()));
+    let script = script(&directory.to_string_lossy(), &launch.anchors, &options, &binary, scope, crate::shell::port());
     let file = write_script(&script).map_err(|e| e.to_string())?;
     open_terminal(&file)
 }
@@ -61,15 +63,19 @@ async fn terminal_binary(home: &Path, provider: SessionProvider) -> Result<Strin
     }
 }
 
-fn script(directory: &str, anchors: &str, options: &SessionOptions, binary: &str) -> String {
-    let prompt = options.provider.command_prompt(&format!("/rk {}", anchors.trim_matches([' ', '\t'])));
+fn script(directory: &str, anchors: &str, options: &SessionOptions, binary: &str, scope: Option<GuardScope>, port: u16) -> String {
+    let prompt = session_command_prompt(options.provider, &format!("/rk {}", anchors.trim_matches([' ', '\t'])));
     let arguments = options.arguments();
     let command = std::iter::once(quote(binary))
         .chain(arguments.iter().map(|argument| quote(&argument.to_string_lossy())))
         .chain(std::iter::once(quote(&prompt)))
         .collect::<Vec<_>>()
         .join(" ");
-    format!("#!/bin/sh\nrm -f \"$0\"\ncd {} || exit 1\nexec {command}\n", quote(directory))
+    let guard_scope = match scope {
+        Some(scope) => format!("export {GUARD_SCOPE_ENV}={}\n", quote(&scope.to_string())),
+        None => format!("unset {GUARD_SCOPE_ENV}\n"),
+    };
+    format!("#!/bin/sh\nrm -f \"$0\"\ncd {} || exit 1\nexport {GUARD_PORT_ENV}={port}\n{guard_scope}exec {command}\n", quote(directory))
 }
 
 /// POSIX single quoting: everything inside is literal, and only the quote itself needs a way out.

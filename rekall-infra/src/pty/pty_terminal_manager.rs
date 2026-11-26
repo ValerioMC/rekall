@@ -11,13 +11,10 @@ use std::time::Duration;
 use chrono::TimeDelta;
 use portable_pty::CommandBuilder;
 use rekall_kernel::{Id, Instant, RekallError, Result};
-use rekall_core::claude::{TerminalLaunch, TerminalLaunchService, SessionProvider, TerminalOpening, TerminalTarget};
-use rekall_core::telemetry::TelemetrySettingsService;
+use rekall_core::claude::{session_command_prompt, TerminalLaunch, TerminalLaunchService, SessionProvider, TerminalOpening, TerminalTarget};
 use tokio::sync::broadcast;
 use tracing::info;
 
-use crate::cli::ClaudeCli;
-use crate::connection::CredentialBroker;
 use crate::config::ClaudeConfig;
 
 use super::terminal_command::terminal_command;
@@ -46,15 +43,13 @@ pub struct PtyTerminalManager {
 impl PtyTerminalManager {
     pub fn new(
         launch_service: TerminalLaunchService,
-        cli: ClaudeCli,
+        launcher: SessionLauncher,
         marker: WorkMarker,
-        broker: Arc<CredentialBroker>,
-        telemetry: TelemetrySettingsService,
         config: &ClaudeConfig,
     ) -> Arc<Self> {
         Arc::new(Self {
             launch_service,
-            launcher: SessionLauncher::new(cli, broker, telemetry),
+            launcher,
             marker,
             ended: EndedBus::new(),
             max_live: config.max_sessions,
@@ -102,7 +97,7 @@ impl PtyTerminalManager {
         let step_id = if mode.follows_steps() { step_id } else { None };
 
         let _gate = self.spawn_gate.lock().await;
-        let prompt = provider.command_prompt(&mode.first_line(&launch.anchors));
+        let prompt = session_command_prompt(provider, &mode.first_line(&launch.anchors));
         if let Some(existing) = self.live_terminal_on(target) {
             if existing.provider != provider {
                 return Err(RekallError::conflict(format!(
@@ -123,7 +118,7 @@ impl PtyTerminalManager {
         };
         let binary = self.launcher.require_terminal_cli(provider).await?;
         let id = Id::random();
-        let environment = self.launcher.environment(id, &launch, &mut options).await?;
+        let environment = self.launcher.environment(id, &launch, &mode, &mut options).await?;
         let command = terminal_command(&binary, &options, &prompt, environment, directory);
 
         let terminal = match self.register(id, launch.clone(), step_id, mode.clone(), options, command).await {
@@ -134,7 +129,7 @@ impl PtyTerminalManager {
             }
         };
 
-        if !mode.only_discusses() {
+        if mode.marks_running_in_terminal() {
             self.marker.mark_running(launch.task_id, step_id).await;
         }
         info!(terminal_id = %id, %mode, anchors = %launch.anchors, working_dir = %launch.working_dir, "Opened terminal");
@@ -346,10 +341,9 @@ impl PtyTerminalManager {
         info!(terminal_id = %id, code, "Terminal exited");
     }
 
-    /// A discussion marked nothing, so it gives nothing back, unless a later work open put it on a step.
     async fn release_work(&self, terminal: &Terminal) {
         let step_id = terminal.step_id();
-        if terminal.mode.only_discusses() && step_id.is_none() {
+        if !terminal.mode.marks_running_in_terminal() && step_id.is_none() {
             return;
         }
         self.marker.release_running(terminal.launch.task_id, step_id).await;

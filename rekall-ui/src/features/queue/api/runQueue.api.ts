@@ -1,6 +1,8 @@
 import { apiClient, request } from '../../../api/client'
 import { RunQueueSchema } from './schemas/runQueue.schema'
-import type { RunQueue, RunQueueItemId, RunQueueSettings } from '@/features/queue/model/runQueue'
+import { codexPreferences } from '@/common/config/session-launch'
+import type { SessionProvider } from '@/features/claude/model/session-provider'
+import type { QueueTaskRequest, RunQueue, RunQueueItemId, RunQueueSettings } from '@/features/queue/model/runQueue'
 import type { TaskId } from '@/model/branded'
 
 /** Every call answers with the whole queue, the same shape the `run-queue` SSE event carries. */
@@ -16,12 +18,18 @@ export function saveRunQueueSettings(settings: RunQueueSettings): Promise<RunQue
   return queueCall('/settings', { method: 'PUT', body: settings })
 }
 
-export function enqueueTask(taskId: TaskId): Promise<RunQueue> {
-  return queueCall('/items', { method: 'POST', body: { taskId } })
+function queueTaskRequest(taskId: TaskId, provider: SessionProvider): QueueTaskRequest {
+  return provider === 'CODEX'
+    ? { taskId, provider, codexOptions: codexPreferences() }
+    : { taskId, provider }
 }
 
-export function runTaskInQueue(taskId: TaskId): Promise<RunQueue> {
-  return queueCall('/runs', { method: 'POST', body: { taskId } })
+export function enqueueTask(taskId: TaskId, provider: SessionProvider): Promise<RunQueue> {
+  return queueCall('/items', { method: 'POST', retry: 0, body: queueTaskRequest(taskId, provider) })
+}
+
+export function runTaskInQueue(taskId: TaskId, provider: SessionProvider): Promise<RunQueue> {
+  return queueCall('/runs', { method: 'POST', retry: 0, body: queueTaskRequest(taskId, provider) })
 }
 
 export function dequeueItem(itemId: RunQueueItemId): Promise<RunQueue> {

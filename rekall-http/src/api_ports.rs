@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use rekall_core::backup::{DatabaseBackups, DatabaseRestore};
 use rekall_core::chat::ChatPipe;
-use rekall_core::claude::{ClaudeCodeSetup, GuardInstaller, ClaudeResources, TerminalHost, TerminalPipe, UsageReader};
+use rekall_core::claude::{ClaudeCodeSetup, ClaudeResources, TerminalHost, TerminalPipe, UsageReader};
 use rekall_core::connection::{ConfluenceSpaces, ConnectionProbe, CredentialDesk, GitlabNamespaces, JiraIssues, SecretStore, TaskTrackerService};
+use rekall_core::guard::GuardInstaller;
 use rekall_core::picture::PictureStore;
 use rekall_core::queue::QueueRunner;
 use rekall_core::settings::{ApplicationRestart, DatabaseFolders};
@@ -26,7 +27,8 @@ pub struct ApiPorts {
     pub codex: Arc<dyn rekall_core::codex::CodexClient>,
     pub claude_folder: Arc<dyn ClaudeResources>,
     pub claude_setup: Arc<dyn ClaudeCodeSetup>,
-    pub guard_installer: Arc<dyn GuardInstaller>,
+    pub claude_guard: Arc<dyn GuardInstaller>,
+    pub codex_guard: Arc<dyn GuardInstaller>,
     pub credential_desk: Arc<dyn CredentialDesk>,
     pub connection_probe: Arc<dyn ConnectionProbe>,
     pub backups: Arc<dyn DatabaseBackups>,

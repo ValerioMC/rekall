@@ -33,6 +33,7 @@ let token: symbol | null = null
 
 function onKeydown(event: KeyboardEvent): void {
   if (token === null || !isTopDialog(token)) return
+  if (event.target instanceof Element && event.target.closest('[data-anchored-menu]')) return
   if (event.key === 'Escape') {
     if (!props.dismissible) return
     event.stopPropagation()

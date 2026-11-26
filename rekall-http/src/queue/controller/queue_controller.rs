@@ -6,9 +6,7 @@ use rekall_kernel::RekallError;
 use crate::shared::error::ApiResult;
 use crate::shared::extract::{uuid, JsonBody, OptionalJsonBody};
 
-use rekall_kernel::Id;
-
-use crate::queue::{AddRequest, MoveRequest, RunRequest, SettingsRequest, StartRequest};
+use crate::queue::{MoveRequest, QueueTaskRequest, SettingsRequest, StartRequest};
 use crate::ApiState;
 
 pub fn routes() -> Router<ApiState> {
@@ -32,18 +30,12 @@ async fn settings(State(state): State<ApiState>, JsonBody(request): JsonBody<Set
     Ok(Json(state.run_queue.update_settings(request.into()).await?))
 }
 
-async fn add(State(state): State<ApiState>, JsonBody(request): JsonBody<AddRequest>) -> ApiResult<Json<RunQueueView>> {
-    let task_id = task_to_queue(request.task_id)?;
-    Ok(Json(state.run_queue.add(task_id).await?))
+async fn add(State(state): State<ApiState>, JsonBody(request): JsonBody<QueueTaskRequest>) -> ApiResult<Json<RunQueueView>> {
+    Ok(Json(state.run_queue.add(request.command()?).await?))
 }
 
-async fn run_in_queue(State(state): State<ApiState>, JsonBody(request): JsonBody<RunRequest>) -> ApiResult<Json<RunQueueView>> {
-    let task_id = task_to_queue(request.task_id)?;
-    Ok(Json(state.run_queue.run_in_queue(task_id).await?))
-}
-
-fn task_to_queue(task_id: Option<Id>) -> Result<Id, RekallError> {
-    task_id.ok_or_else(|| RekallError::illegal("Name the task to queue."))
+async fn run_in_queue(State(state): State<ApiState>, JsonBody(request): JsonBody<QueueTaskRequest>) -> ApiResult<Json<RunQueueView>> {
+    Ok(Json(state.run_queue.run_in_queue(request.command()?).await?))
 }
 
 async fn remove(State(state): State<ApiState>, Path(item_id): Path<String>) -> ApiResult<Json<RunQueueView>> {

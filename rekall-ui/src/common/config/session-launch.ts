@@ -9,7 +9,7 @@ const CODEX_BYPASS_KEY = 'rekall.codex.bypass'
 
 export interface LaunchChoices {
   readonly skipPermissions: boolean
-  readonly provider?: SessionProvider
+  readonly provider: SessionProvider
   readonly model: string
   readonly effort: string
   readonly kind: SessionKind
@@ -65,11 +65,11 @@ export function setCodexBypass(enabled: boolean): void {
   saveChoice(CODEX_BYPASS_KEY, String(enabled))
 }
 
-export function launchChoices(provider?: SessionProvider): LaunchChoices {
-  return (provider ?? preferredProvider()) === 'CODEX'
-    ? { ...codexPreferences(), provider: 'CODEX', kind: 'TERMINAL' }
+export function launchChoices(provider = preferredProvider()): LaunchChoices {
+  return provider === 'CODEX'
+    ? { ...codexPreferences(), provider, kind: preferredLaunchKind() }
     : {
-        ...(provider ? { provider } : {}),
+        provider,
         skipPermissions: skipsPermissions(),
         model: preferredModel(),
         effort: preferredEffort(),

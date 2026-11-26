@@ -23,7 +23,7 @@ async fn main() -> ExitCode {
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
             "rekall-server [--server.port=N] [--rekall.home=DIR] [--<property>=<value> ...]\n\
-             rekall-server guard before-tool|before-stop   (a Claude Code hook; reads its event on stdin)\n\
+             rekall-server guard [codex] before-tool|before-stop   (reads a hook event on stdin)\n\
              \n\
              Properties can also be set as environment variables (SERVER_PORT, REKALL_HOME, REKALL_DB_URL, ...)."
         );

@@ -2,6 +2,7 @@ use axum::extract::{Query, State};
 use axum::routing::get;
 use axum::{Json, Router};
 use rekall_console::guard::GuardContextCommand;
+use rekall_kernel::RekallError;
 
 use crate::guard::{GuardContextQuery, GuardContextResponse};
 use crate::shared::error::ApiResult;
@@ -14,6 +15,7 @@ pub fn routes() -> Router<ApiState> {
 
 async fn context(State(state): State<ApiState>, Query(query): Query<GuardContextQuery>) -> ApiResult<Json<GuardContextResponse>> {
     Validator::new().not_blank("folder", query.folder.as_deref()).finish()?;
-    let command = GuardContextCommand { folder: query.folder.unwrap_or_default() };
+    let scope = query.scope.as_deref().map(str::parse).transpose().map_err(RekallError::illegal)?;
+    let command = GuardContextCommand { folder: query.folder.unwrap_or_default(), scope };
     Ok(Json(state.guard_context.context_of(command).await?.into()))
 }

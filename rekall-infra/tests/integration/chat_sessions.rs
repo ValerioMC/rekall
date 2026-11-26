@@ -9,9 +9,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use rekall_core::chat::{ChatBody, ChatEvent, ChatPipe, RecordingChatListener};
-use rekall_core::claude::{SessionKind, TerminalHost, TerminalMode, TerminalOpening, TerminalTarget};
+use rekall_core::chat::{ChatBody, ChatEvent, ChatPipe, RecordingChatListener, TurnOutcome};
+use rekall_core::claude::{SessionKind, SessionProvider, TerminalHost, TerminalMode, TerminalOpening, TerminalTarget};
 use rekall_infra::chat::ChatSessionManager;
+use rekall_infra::session::SessionLauncher;
 use rekall_infra::cli::{ClaudeCli, EnvironmentSource};
 use rekall_infra::ClaudeConfig;
 use rekall_kernel::{Id, RekallError};
@@ -19,6 +20,7 @@ use rekall_store::{task, task_step, TaskStepState};
 use support::{eventually, world, World};
 
 const FAKE_CLAUDE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/fake_claude.sh");
+const FAKE_CODEX: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/fake_codex_chat.sh");
 const PLAIN_REPLY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/chat/plain_reply.jsonl");
 const WAITING_FOR_PERMISSION: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/chat/permission_waiting.jsonl");
 const PERMISSION_THEN_END_OF_TURN: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/chat/permission_request_allow.jsonl");
@@ -49,19 +51,24 @@ fn chats(world: &World, max_sessions: usize, idle_minutes: u64, behaviour: &[(&s
         ("PATH".to_string(), "/usr/bin:/bin".to_string()),
         ("FAKE_CLAUDE_FIXTURE".to_string(), PLAIN_REPLY.to_string()),
         ("FAKE_CLAUDE_RECEIVED".to_string(), received.to_string_lossy().into_owned()),
+        ("FAKE_CODEX_RECEIVED".to_string(), received.to_string_lossy().into_owned()),
     ]);
     environment.extend(behaviour.iter().map(|(key, value)| (key.to_string(), value.to_string())));
     let config = ClaudeConfig { max_sessions, idle_minutes, home: world.home.path().to_path_buf(), ..ClaudeConfig::default() };
     let cli = ClaudeCli::new(Some(FAKE_CLAUDE), world.home.path().to_path_buf(), Arc::new(FakeClaudeEnvironment(environment)));
     let manager = ChatSessionManager::new(
         world.services.terminal_launch.clone(),
-        cli,
+        SessionLauncher::new(cli, world.broker("http://127.0.0.1:0"), world.telemetry()),
         world.work_marker(),
-        world.broker("http://127.0.0.1:0"),
-        world.telemetry(),
         &config,
     );
     Chats { manager, received }
+}
+
+fn install_codex(world: &World) {
+    let bin = world.home.path().join(".local/bin");
+    std::fs::create_dir_all(&bin).unwrap();
+    std::fs::copy(FAKE_CODEX, bin.join("codex")).unwrap();
 }
 
 /// A client attached from the start: the backlog it was handed plus what it was told after.
@@ -79,8 +86,15 @@ impl Follower {
         self.events().iter().any(|event| matches!(event.body, ChatBody::TurnFinished { .. }))
     }
 
+    fn outcomes(&self) -> Vec<TurnOutcome> {
+        self.events().into_iter().filter_map(|event| match event.body {
+            ChatBody::TurnFinished { outcome, .. } => Some(outcome),
+            _ => None,
+        }).collect()
+    }
+
     fn requested_permission(&self) -> Option<String> {
-        self.events().into_iter().find_map(|event| match event.body {
+        self.events().into_iter().rev().find_map(|event| match event.body {
             ChatBody::PermissionRequested { request_id, .. } => Some(request_id),
             _ => None,
         })
@@ -114,6 +128,188 @@ fn work_on(task: &task::Model, step: Option<&task_step::Model>) -> TerminalOpeni
         mode: TerminalMode::Work,
         kind: SessionKind::Chat,
     }
+}
+
+fn codex_on(task: &task::Model, mode: TerminalMode) -> TerminalOpening {
+    TerminalOpening {
+        provider: SessionProvider::Codex,
+        model: Some("gpt-test".into()),
+        effort: Some("high".into()),
+        skip_permissions: false,
+        mode,
+        ..work_on(task, None)
+    }
+}
+
+#[tokio::test]
+async fn codex_refines_in_chat_and_leaves_the_checklist_open() {
+    let world = world().await;
+    install_codex(&world);
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Open).await;
+    let chats = chats(&world, 8, 120, &[]);
+
+    let view = chats.manager.open(codex_on(&task, TerminalMode::Refine)).await.unwrap();
+    assert_eq!((view.provider, view.kind, view.mode, view.step_id), (SessionProvider::Codex, SessionKind::Chat, TerminalMode::Refine, None));
+    let follower = follow(&chats, view.id);
+    eventually("the Refine question", || async { follower.turn_finished() }).await;
+    let first_turn = follower.events();
+    assert!(matches!(&first_turn[0].body, ChatBody::UserMessage { text } if text.ends_with("task:AL-1 refine")));
+    assert!(first_turn.iter().any(|event| matches!(&event.body, ChatBody::AssistantText { text, complete: false, .. } if text.contains("Which region"))));
+
+    let conflict = chats.manager.open(work_on(&task, None)).await.unwrap_err();
+    assert!(conflict.message().contains("Codex Chat"));
+    chats.manager.send(view.id, "eu-west-1").unwrap();
+    eventually("the Refine answer", || async { follower.outcomes().len() == 2 }).await;
+
+    let last_seen = first_turn.last().unwrap().seq;
+    let replay = chats.manager.attach(view.id, Arc::new(RecordingChatListener::new()), last_seen).unwrap().backlog;
+    assert_eq!(replay.first().unwrap().seq, last_seen + 1);
+    assert!(replay.iter().any(|event| matches!(&event.body, ChatBody::AssistantText { text, complete: true, .. } if text == "I will use eu-west-1.")));
+    assert!(matches!(&replay.last().unwrap().body, ChatBody::TurnFinished { usage, context: Some(context), .. }
+        if usage.input_tokens == 35 && usage.output_tokens == 10 && context.used_tokens == 50));
+    assert_eq!(world.step_state(&task, &step).await, TaskStepState::Open);
+    let requests = chats.received_lines();
+    assert!(requests.iter().any(|line| line.contains("Use the $rekall skill with this exact argument line: task:AL-1 refine")));
+    let thread_start = requests.iter().find(|line| line.contains("thread/start")).unwrap();
+    assert!(!thread_start.contains("approvalPolicy"));
+    assert!(!thread_start.contains("sandbox"));
+    assert!(requests.iter().any(|line| line.contains("\"effort\":\"high\"")));
+}
+
+#[tokio::test]
+async fn codex_chat_answers_approvals_and_interrupts_the_active_turn() {
+    let world = world().await;
+    install_codex(&world);
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let chats = chats(&world, 8, 120, &[]);
+    let view = chats.manager.open(codex_on(&task, TerminalMode::Work)).await.unwrap();
+    let follower = follow(&chats, view.id);
+    eventually("the first turn", || async { follower.turn_finished() }).await;
+
+    chats.manager.send(view.id, "request approval").unwrap();
+    eventually("the command approval", || async { follower.requested_permission().is_some() }).await;
+    let command = follower.requested_permission().unwrap();
+    assert!(chats.manager.get(view.id).unwrap().awaiting_permission);
+    chats.manager.answer_permission(view.id, &command, true).unwrap();
+    assert!(matches!(chats.manager.answer_permission(view.id, &command, true), Err(RekallError::NotFound(_))));
+    eventually("the file approval", || async {
+        follower.events().iter().any(|event| matches!(&event.body, ChatBody::PermissionRequested { name, .. } if name == "File changes"))
+    }).await;
+    let file = follower.events().into_iter().find_map(|event| match event.body {
+        ChatBody::PermissionRequested { name, request_id, .. } if name == "File changes" => Some(request_id),
+        _ => None,
+    }).unwrap();
+    chats.manager.answer_permission(view.id, &file, false).unwrap();
+    eventually("the approval turn to finish", || async { follower.outcomes().len() == 2 }).await;
+
+    chats.manager.send(view.id, "hold this turn").unwrap();
+    chats.manager.send(view.id, "eu-west-1").unwrap();
+    eventually("Codex to receive the held turn", || async { chats.received_lines().iter().any(|line| line.contains("hold this turn")) }).await;
+    assert!(!chats.received_lines().iter().any(|line| line.contains("eu-west-1")));
+    chats.manager.interrupt(view.id).unwrap();
+    eventually("the interrupt and queued turn to finish", || async { follower.outcomes().len() == 4 }).await;
+
+    assert_eq!(follower.resolutions(), [(command, true), (file, false)]);
+    assert_eq!(follower.outcomes(), [TurnOutcome::Completed, TurnOutcome::Completed, TurnOutcome::Interrupted, TurnOutcome::Completed]);
+    assert!(chats.manager.get(view.id).unwrap().live);
+    let requests = chats.received_lines();
+    assert!(requests.iter().any(|line| line.contains("\"id\":71") && line.contains("\"decision\":\"accept\"")));
+    assert!(requests.iter().any(|line| line.contains("\"id\":\"file-72\"") && line.contains("\"decision\":\"decline\"")));
+    assert!(requests.iter().any(|line| line.contains("turn/interrupt") && line.contains("\"turnId\":\"turn-3\"")));
+}
+
+#[tokio::test]
+async fn codex_chat_requests_permission_before_running_mcp_tools() {
+    let world = world().await;
+    install_codex(&world);
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let chats = chats(&world, 8, 120, &[]);
+    let view = chats.manager.open(codex_on(&task, TerminalMode::Work)).await.unwrap();
+    let follower = follow(&chats, view.id);
+    eventually("the first turn", || async { follower.turn_finished() }).await;
+
+    chats.manager.send(view.id, "request MCP approval").unwrap();
+    eventually("the first MCP approval", || async { follower.requested_permission().is_some() }).await;
+    let first = follower.requested_permission().unwrap();
+    assert!(chats.manager.get(view.id).unwrap().awaiting_permission);
+    assert!(follower.events().iter().any(|event| matches!(&event.body,
+        ChatBody::PermissionRequested { name, input: rekall_core::chat::ToolInput::Mcp { text, .. }, .. }
+        if name == "mcp__rekall__rekall_context" && text.contains("task:AL-1"))));
+    chats.manager.answer_permission(view.id, &first, true).unwrap();
+
+    eventually("the next MCP approval", || async { follower.requested_permission().is_some_and(|id| id != first) }).await;
+    let second = follower.requested_permission().unwrap();
+    chats.manager.answer_permission(view.id, &second, false).unwrap();
+    eventually("the MCP approval turn to finish", || async { follower.outcomes().len() == 2 }).await;
+    assert_eq!(follower.resolutions(), [(first, true), (second, false)]);
+    assert!(!chats.manager.get(view.id).unwrap().awaiting_permission);
+
+    let requests = chats.received_lines();
+    assert!(requests.iter().any(|line| line.contains(r#""id":73,"result":{"action":"accept","content":{}}"#)));
+    assert!(requests.iter().any(|line| line.contains(r#""id":74,"result":{"action":"decline"}"#)));
+}
+
+#[tokio::test]
+async fn codex_chat_renews_in_the_worktree_with_the_same_options() {
+    use sea_orm::{ActiveModelTrait, Set};
+
+    let world = world().await;
+    install_codex(&world);
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let worktree = world.home.path().join("task-checkout");
+    std::fs::create_dir(&worktree).unwrap();
+    let task = task::ActiveModel { worktree_folder: Set(Some(worktree.to_string_lossy().into_owned())), ..task.into() }
+        .update(world.db()).await.unwrap();
+    let chats = chats(&world, 8, 120, &[]);
+    let opening = TerminalOpening { skip_permissions: true, ..codex_on(&task, TerminalMode::Work) };
+
+    let view = chats.manager.open(opening).await.unwrap();
+    let first = follow(&chats, view.id);
+    eventually("the original work turn", || async { first.turn_finished() }).await;
+    let renewed = chats.manager.renew(view.id).await.unwrap();
+    let second = follow(&chats, renewed.id);
+    eventually("the renewed work turn", || async { second.turn_finished() }).await;
+
+    assert_ne!(renewed.id, view.id);
+    assert_eq!(renewed.provider, SessionProvider::Codex);
+    assert_eq!(renewed.kind, SessionKind::Chat);
+    assert_eq!(renewed.mode, TerminalMode::Work);
+    assert_eq!(renewed.working_dir, worktree.to_string_lossy());
+    assert_eq!((renewed.model, renewed.effort, renewed.skip_permissions), (view.model, view.effort, true));
+    let starts: Vec<serde_json::Value> = chats.received_lines().iter()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+        .filter(|call| call["method"] == "thread/start")
+        .collect();
+    assert_eq!(starts.len(), 2);
+    for start in starts {
+        assert_eq!(start["params"]["model"], "gpt-test");
+        assert_eq!(start["params"]["approvalPolicy"], "never");
+        assert_eq!(start["params"]["sandbox"], "danger-full-access");
+        assert_eq!(start["params"]["cwd"].as_str(), worktree.to_str());
+    }
+}
+
+#[tokio::test]
+async fn an_unsupported_codex_chat_leaves_no_live_session_or_running_step() {
+    let world = world().await;
+    install_codex(&world);
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Open).await;
+    let chats = chats(&world, 8, 120, &[("FAKE_CODEX_CHAT_UNSUPPORTED", "1")]);
+    let opening = TerminalOpening { step_id: Some(step.id), ..codex_on(&task, TerminalMode::Work) };
+
+    let error = chats.manager.open(opening).await.unwrap_err();
+
+    assert!(error.message().starts_with("Codex Chat could not start."));
+    assert!(error.message().contains("Unknown method thread/start"));
+    assert_eq!(chats.manager.live_count(), 0);
+    assert_eq!(world.step_state(&task, &step).await, TaskStepState::Open);
 }
 
 #[tokio::test]

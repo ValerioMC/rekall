@@ -5,8 +5,8 @@ import PopoverMenu, { type PopoverMenuEntry } from '@/components/ui/PopoverMenu.
 import { useQuickTask } from '@/features/catalog/composables/useQuickTask'
 import { QUICK_TASK_HELP, folderTail } from '@/features/catalog/lib/quick-task'
 import SessionProviderMark from '@/features/claude/components/SessionProviderMark.vue'
-import { useSessionProviderChoice } from '@/features/claude/composables/useSessionProviderChoice'
-import { RUN_WITH_PROVIDER_LABEL, SESSION_PROVIDERS, type SessionProvider } from '@/features/claude/model/session-provider'
+import { useSessionProviderOptions } from '@/features/claude/composables/useSessionProviderOptions'
+import { RUN_WITH_PROVIDER_LABEL, type SessionProvider } from '@/features/claude/model/session-provider'
 import type { Project } from '@/features/catalog/model/catalog'
 import type { ProjectId } from '@/model/branded'
 
@@ -25,13 +25,9 @@ type ComposerAction = 'plan' | SessionProvider
 const PLAN_OPTION: SplitButtonOption<'plan'> = {
   id: 'plan', label: 'Plan a task…', hint: 'Title, description, steps, epic, tags and skills.'
 }
-const PROVIDER_OPTIONS: readonly SplitButtonOption<SessionProvider>[] = SESSION_PROVIDERS.map(
-  (id) => ({ id, label: RUN_WITH_PROVIDER_LABEL[id] })
-)
-
 const projectId = computed(() => props.project.id)
 const quick = useQuickTask(projectId)
-const canChooseProvider = useSessionProviderChoice()
+const providerOptions = useSessionProviderOptions(() => null)
 
 const text = ref('')
 const isFocused = ref(false)
@@ -44,7 +40,12 @@ const canStart = computed(() => hasText.value && reason.value === null && !quick
 const isExpanded = computed(() => isFocused.value || hasText.value)
 const rows = computed(() => Math.min(MAX_ROWS, text.value.split('\n').length))
 const menuOptions = computed<readonly SplitButtonOption<ComposerAction>[]>(() => [
-  ...(canStart.value && canChooseProvider.value ? PROVIDER_OPTIONS : []),
+  ...(canStart.value ? providerOptions.options().map(({ provider, unavailable }) => ({
+    id: provider,
+    label: RUN_WITH_PROVIDER_LABEL[provider],
+    hint: unavailable ?? undefined,
+    disabled: Boolean(unavailable)
+  })) : []),
   PLAN_OPTION
 ])
 const projectEntries = computed<readonly PopoverMenuEntry[]>(() =>

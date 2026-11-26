@@ -6,6 +6,9 @@
  * for the running task unless the person closed it, collapsed for the others unless they opened it.
  */
 import { computed, ref } from 'vue'
+import SessionProviderMark from '@/features/claude/components/SessionProviderMark.vue'
+import { SESSION_PROVIDER_LABEL, sessionViewLabel } from '@/features/claude/model/session-provider'
+import type { Terminal } from '@/features/claude/model/terminal'
 import AppButton from '@/components/ui/AppButton.vue'
 import QueueBead from '@/features/queue/components/QueueBead.vue'
 import QueueStepList from '@/features/queue/components/QueueStepList.vue'
@@ -22,6 +25,7 @@ import {
 const props = defineProps<{
   item: RunQueueItem
   position: number
+  blockingSession?: Terminal | null
   last: boolean
   live: boolean
   busy: boolean
@@ -92,9 +96,13 @@ const MOVE_BUTTON =
       >
         {{ item.taskTitle }}
       </button>
-      <span class="flex min-w-0 items-baseline gap-2 text-caption">
+      <span class="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 text-caption">
         <span class="truncate font-mono text-anchor">{{ item.anchor }}</span>
         <span class="shrink-0" :class="STATE_TONE[item.state]">{{ STATE_WORD[item.state] }}</span>
+        <span class="inline-flex shrink-0 items-center gap-1 text-text-muted" data-testid="run-queue-provider">
+          <SessionProviderMark :provider="item.provider" :size="12" />
+          {{ SESSION_PROVIDER_LABEL[item.provider] }}
+        </span>
       </span>
       <span v-if="reason" class="text-caption leading-snug text-text-muted" data-testid="run-queue-reason">{{ reason }}</span>
       <span
@@ -175,6 +183,9 @@ const MOVE_BUTTON =
         @click="$emit('watch')"
       >
         Watch session
+      </AppButton>
+      <AppButton v-else-if="blockingSession" variant="secondary" size="sm" @click="$emit('watch')">
+        Open {{ SESSION_PROVIDER_LABEL[blockingSession.provider] }} {{ sessionViewLabel(blockingSession.kind) }}
       </AppButton>
     </span>
   </li>

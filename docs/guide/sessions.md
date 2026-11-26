@@ -7,10 +7,10 @@ interactive sessions. Rekall remembers each provider’s model, reasoning effort
 settings separately. Existing sessions and automatic renewals keep the provider and options they
 started with.
 
-When both CLIs are installed, open the arrow beside **Run here** on a task or **Start quick task**
-after entering a description. Choose **Run with Claude Code** or **Run with Codex**. The choice
-applies to that launch and uses the provider's saved model, reasoning effort and permissions.
-Close any open session on the task before switching its provider.
+**Run here** and **Start quick task** use the configured provider and session view. Their arrows
+offer **Run with Claude Code** and **Run with Codex**, which apply to that launch and use the
+chosen provider’s settings. If another provider already has a session on the task, Rekall offers
+to show that session or asks for confirmation to close it and retry with your choice.
 
 For Codex, install the CLI, sign in, and choose **Connect Codex** to register Rekall’s MCP endpoint
 and install the `$rekall` skill. **Model** and **Reasoning effort** use the CLI’s model catalog.
@@ -22,8 +22,7 @@ Hover or focus either meter to see its available usage windows and reset times. 
 percentage in **Settings > Time and usage** applies to both rings. Codex limits require a ChatGPT
 login that reports account limits.
 
-Chat, unattended queue runs, Rekall’s installed guard hooks and per-task token attribution use
-Claude Code.
+Rekall offers guard hooks and task usage attribution for both providers.
 
 ## Terminal in Rekall
 
@@ -69,83 +68,95 @@ The top bar is a four-cell grid, so the screen tabs sit centred between the hist
 
 ## Chat view
 
-A session can also be shown as a chat. It is the same `claude`, started without a terminal (headless, over stream-json), and the app draws what it does in a window docked beside the task: your messages, its replies and reasoning as they stream, and each tool call as a card (an edit with its diff, a command with its output). Pick it in **Settings > Sessions and run queue > Session view**: **Terminal** is the default, **Chat** is marked experimental. The choice applies to **Run here**, **Plan here**, **Plan a flow**, **Replan** and the Generate and Explain actions on Diagrams and Security. The run queue has its own **Session view** in its settings, stored with the queue.
+Choose **Chat** under **Settings > Sessions and run queue > Session view** to see the selected provider’s conversation, reasoning and tool calls beside the task. Chat uses Claude Code’s stream JSON or Codex’s app server. The preference applies to agent actions including **Run here**, **Discuss**, **Plan here**, **Plan a flow** and **Refine**. The run queue has its own **Session view**. If the installed Codex CLI cannot open Chat, the launch dialog gives the reason and offers to retry the same action in Terminal.
 
 - **Window.** It docks beside the note pane, over the page when there is not room, or full width when expanded; drag its edge or use the arrow keys (Shift for bigger steps) to resize between 360 and 720 px. The window belongs to the task its session runs on: it disappears when you select another task and returns with the task. Its width and whether it is hidden are remembered on this machine. `C` hides or shows it and `Shift+C` expands it; while it is hidden and the task has a session, a **Chat** tag on the right edge of the console brings it back; `Esc` gives the keyboard back to the console.
 - **What the history shows.** The same as the terminal does. A quiet row opens the session with its model, working directory and permission mode. The output of a local command such as `/context` is drawn on its own, labelled with the command. A tool call is one row with what it did after what it was pointed at ("Read 120 lines", "exit code 1"), and opens to its input: a todo list as a checklist, already open, a web call as its address, an MCP call as its server and tool with its arguments as lines. An Agent call stays open while it runs, showing the calls its subagent makes, and folds to a count of them when its result arrives.
-- **Approvals.** With skip permissions off, a call that needs approval stops the session on a card with **Allow** and **Deny** (`Y` and `N`). Nothing answers it for you and it does not time out; the window, the sessions bar (which reads "approve") and the page title show that it waits. A denied call is reported to the model, which carries on. With skip permissions on, nothing is asked.
-- **Messages and Stop.** Enter sends, Shift+Enter breaks the line, `/` offers the slash commands (not `/clear`, which would change the session behind the window). A message sent while Claude is working is read at its next step. **Stop** ends the turn, not the session: the same process answers the next message.
+- **Approvals.** Claude Code tool approvals and Codex command, file-change and MCP tool approvals appear with **Allow** and **Deny** (`Y` and `N`). MCP tool approvals show the server, tool and arguments. The provider’s permission settings determine when it asks.
+- **Messages and Stop.** Enter sends and Shift+Enter inserts a line break. Claude Code accepts messages during a turn and offers supported slash commands. Codex processes messages in order, one turn at a time. **Stop** interrupts the current turn and leaves the conversation open for the next message.
 - **Steps and sessions.** Opening on a step marks it running, and claiming steps, `new_session` groups and the usage ceiling work as for a terminal. A chat session is replaced by a fresh one when the next step asks for a new session, and the window follows it. Plan and wrapup lines on a live chat go in as a message.
-- **When it ends.** If the `claude` process dies the window says so with its exit code, and the step it held is released. Closing the app releases every marker; nothing is persisted.
+- **When it ends.** If the provider process exits, the window shows its exit code and Rekall releases the step it held. Closing the app ends the live sessions and releases their running markers.
 - **What the terminal still does that chat does not.** `/clear` is not offered in the window, and the screens Claude Code draws in its own interface exist only in the terminal. A chat session counts toward the same session cap as terminals.
 
 Each finished turn leaves the share of the context window its last call held, for the task and for the step it ran on. `GET /api/context-fill?taskId=` returns them, and the console's event stream carries a task's fills as a `context-fill` frame after every turn. The console shows the last one as a badge with the percent, on the task's properties bar and on the step the turn ran on: grey below 60 %, yellow from 60 and red from 85, with the tokens over the window in its tooltip. The chat header also shows the live session's fill and its total cost, and each turn's footer its cost.
 
 Tokens are counted from the transcripts either way, and the token chip counts a chat session's work. Whether chat spends more or fewer tokens than a terminal has not been measured; `scripts/session_shape.py` compares them by session type, and a first run on a very small sample, with no cold turn on either side, says nothing about cache expiry (see [claude-and-tokens](../design/claude-and-tokens.md)).
 
-## Guard command
+## Worktree protections
 
-`rekall-server guard before-tool` and `rekall-server guard before-stop` are the programs Claude Code
-runs as a `PreToolUse` and a `Stop` hook. Each reads the hook's JSON on standard input, asks the
-running Rekall for the context of the session's folder, and exits 0 to let the action go ahead or 2 to
-block it with the reason on standard error.
+Open **Settings → Sessions → Protections** to install, repair, or remove the hooks for each
+provider. For Codex, open `/hooks` in the Codex terminal, review and trust both Rekall entries,
+then refresh their status in Settings. Start a fresh session after setup.
 
-- On an `auto-commit` project it blocks `git commit`, `git push` and `git add` (also after `&&`, in a
-  subshell or in `sh -c`), because Rekall commits when a step is claimed.
-- On every project it blocks a tool call that names Rekall's credential file, Claude Code's credential
-  file or the credential helpers' endpoint.
-- On `Stop` it blocks while a step of the folder's project is running and unclaimed, once: the next `Stop`
-  goes through so the session can explain why it could not claim.
+- On a project where Rekall commits for you, the hooks block direct `git commit`, `git push`, and
+  `git add` commands. Claiming a step lets Rekall run checks and commit the work.
+- On any project, the hooks block supported tool calls that name protected credential locations.
+- When a session stops with its task’s step still running, the hook gives the exact claim command,
+  such as `/rk task:VE-12 step:2 done`. The provider can continue once. Preparation launches and
+  sessions opened on a project folder without a task receive no step reminder.
 
-It lets the action through, and writes a line to `<rekall.home>/guard.log`, when Rekall does not answer
-within a second, when the input cannot be read or when a command has an unclosed quote. The port is
-`server.port` (`SERVER_PORT`), as for the server. Try it by hand:
+Rekall launches the provider with its existing permissions. The hooks let the action through if
+Rekall is unreachable or cannot read the event and log the failure to `<rekall.home>/guard.log`.
+See [write safety](../design/write-safety.md) for hook inputs and configuration paths.
 
-```
-echo '{"cwd":"/path/to/project","tool_name":"Bash","tool_input":{"command":"git commit -m x"}}' | rekall-server guard before-tool; echo $?
-```
+## Task pull requests
 
-**Settings, Protections** installs the two hooks into `~/.claude/settings.json` and removes them
-again, keeping every other setting and hook of yours; a settings file that is not valid JSON is shown as
-such and never edited. The design is in [write-safety](../design/write-safety.md).
+For a project with pull request flow enabled, Run here and Run in queue work in the task’s
+worktree. Each successful claim commits and pushes to the same branch. The first push opens a
+pull request. Later pushes update the commits on that request. The task’s Git and review
+surfaces show push and merge failures while Rekall retries.
+
+After you accept the task, Rekall merges through the host and closes the task on success.
+Conflicting work opens a merge session with the provider recorded for the task. Rekall
+keeps a dirty worktree and releases the clean checkout after a successful merge.
 
 ## Run queue
 
-The run queue works through a list of tasks without you: each one in its own terminal, one after another, until everything on it is claimed. It opens from the dial next to the usage meter in the top bar, or `q`. The dial is also its status: three bars when idle, a clock hand at the start time when scheduled, an orbiting comet with `2/5` while running, and a ring stopped at the ceiling with the time it resumes while holding. When the running task has a checklist the comet becomes a ring of one slice per step: claimed steps filled, the current one lighter and pulsing, the rest hairline (a flow's not-needed steps have no slice, and above 12 steps the ring is one arc filled in proportion). When the top bar has room for it (a wide window) the figure adds `step 3/6`, and the tooltip always reads in full, for example "Run queue: running Report, task 2 of 5, step 3 of 6". A strand of beads shows each task in the run.
+The run queue works through a list of tasks until everything on it is claimed. Each task opens in the queue's configured view, Chat or Terminal, using its saved provider. It opens from the dial next to the usage meter in the top bar, or `q`. The dial is also its status: three bars when idle, a clock hand at the start time when scheduled, an orbiting comet with `2/5` while running, and a ring stopped at the ceiling with the time it resumes while holding. When the running task has a checklist the comet becomes a ring of one slice per step: claimed steps filled, the current one lighter and pulsing, the rest hairline (a flow's not-needed steps have no slice, and above 12 steps the ring is one arc filled in proportion). When the top bar has room for it (a wide window) the figure adds `step 3/6`, and the tooltip always reads in full, for example "Run queue: running Report, task 2 of 5, step 3 of 6". A strand of beads shows each task in the run.
 
-- **Order.** Add tasks by typing a title, label or anchor. Waiting tasks move up and down or come off. The running one stays until you stop the queue, and finished ones stay as the record of the run until **Clear finished**. A task with a checklist shows `n of m steps` under its title, which opens a plain list of its steps with their state and the current one marked; the running task's list is open, the others start collapsed. A step a flow never needed reads "Not needed" and does not count in `m`. A finished task says why: "Claimed, waiting for your review", or "Flow finished, 3 steps not needed". The status line under the header says which step is being worked.
-- **Parallel sessions.** One to four tasks at once; one (the default) works them in turn, in the project's folder, exactly as before. From two on, every task the queue starts first gets a git worktree of its own: a second working folder of the same repository on a `rekall/<task-label>` branch, under `<Rekall home>/worktrees/<project>/<task-label>`, so two sessions never overwrite each other's files. The session, its "Done when" checks, the snapshot at `running` and the commit on claim all work in that folder, and the commit lands on that branch. Nothing merges while the task is under review; when you accept the task its branch is merged into the branch checked out in the project folder (see the workflow guide). Two tasks that depend on each other never run together, and the usage ceiling is checked before each new task starts, against the account's usage as a whole. A worktree git refuses leaves its task waiting with the reason (`Could not make a worktree: …`) while the others go on; start the queue again to retry. **Stop** closes every open session and puts their items back at the head. After a restart, a task whose worktree folder is gone forgets it (its branch and commits stay), and a worktree no task names is removed when it has nothing unsaved and left alone when it has.
+- **Order.** Find a task by title, label or anchor, then choose Claude Code or Codex. Each row shows its saved provider. Waiting tasks move up and down or come off. The running one stays until you stop the queue, and finished ones stay as the record of the run until **Clear finished**. A task with a checklist shows `n of m steps` under its title, which opens a plain list of its steps with their state and the current one marked; the running task's list is open, the others start collapsed. A step a flow never needed reads "Not needed" and does not count in `m`. A finished task says why: "Claimed, waiting for your review", or "Flow finished, 3 steps not needed". The status line under the header says which step is being worked.
+- **Parallel sessions.** One to four tasks at once; one (the default) works them in turn, in the project's folder, exactly as before. From two on, every task the queue starts first gets a git worktree of its own: a second working folder of the same repository on a `rekall/<task-label>` branch, under `<Rekall home>/worktrees/<project>/<task-label>`, so two sessions never overwrite each other's files. The session, its "Done when" checks, the snapshot at `running` and the commit on claim all work in that folder, and the commit lands on that branch. Nothing merges while the task is under review; when you accept the task its branch is merged into the branch checked out in the project folder (see the workflow guide). Two tasks that depend on each other never run together, and the usage ceiling is checked before each new task starts, against the saved provider's account usage. A worktree git refuses leaves its task waiting with the reason (`Could not make a worktree: …`) while the others go on; start the queue again to retry. **Stop** closes every open session and puts their items back at the head. After a restart, a task whose worktree folder is gone forgets it (its branch and commits stay), and a worktree no task names is removed when it has nothing unsaved and left alone when it has.
 - **Dependencies.** A task that depends on another (see Dependencies in the workflow guide) is skipped while that one is not accepted: the queue starts the first waiting task whose dependencies are all accepted, whatever the order they were added in. An item that waits reads `Waiting for task:…`, and says when that task is only claimed and waits for your review. Adding a task without the one it depends on shows a warning on its row; the queue never adds it for you. When every waiting task depends on an unaccepted one, the queue stops (`IDLE`) and each waiting item carries what it waits for as its detail. Accept the task it waits for and start the queue again.
 - **When.** **Start now**, or **At a time** for a schedule. Rekall has to be running then: the queue runs inside it.
-- **Usage ceiling.** With it on, no new task or step starts once a usage window reaches the line: the 5-hour session and the weekly total always, plus the weekly Opus or Sonnet window when the queue runs that model. The queue then holds until the latest reset among the windows over the line, plus a minute, and carries on from there. It checks before every task and at every step claim, never mid-step, so a step that is under way finishes. Set the line below 100 to leave room for it. With a ceiling set and no usage reading available, the queue holds and looks again every five minutes.
-- **Sessions.** Model, effort, **Skip permission prompts** and the kind of session (`TERMINAL`, the default, or `CHAT`) for the sessions the queue opens. They are stored with the queue, separately from **Settings > Sessions and run queue**. Without skip, an unattended terminal stops at its first permission prompt. An unattended chat session stops there too, but it is not failed: its item stays running with the detail "Waiting for you to answer a permission prompt in the chat session.", the idle sweep leaves the session open, and the detail goes once the prompt is answered.
+- **Usage ceiling.** The queue checks the task's provider before launch and after a step is claimed when work remains. For Claude Code it checks the 5-hour and weekly total windows, plus the weekly Opus or Sonnet window when the session uses that model. For Codex it checks the primary and secondary windows the account reports. At the ceiling, the queue waits until one minute after the latest applicable reset. If a window at the ceiling has no reset time, it checks again after fifteen minutes. If account usage is unavailable, it checks again after five minutes.
+- **Sessions.** The queue's session view (`TERMINAL` by default, or `CHAT`) applies to both providers. Claude Code uses the queue's model, effort and permission settings. Codex uses the options saved with its queue item. Without skip, an unattended terminal stops at its first permission prompt. An unattended chat session stops there too, but it is not failed: its item stays running with the detail "Waiting for you to answer a permission prompt in the chat session.", the idle sweep leaves the session open, and the detail goes once the prompt is answered.
 
-How each task runs: the queue opens a terminal on it, and the session works the open steps in order, claiming each (or writes the wrapup on a task with no checklist). A claim is enough: the queue never waits for a step or a task to be accepted, so a finished task reads "All of it claimed and waiting for review" while the next one already runs. A flow is finished when it reaches its end, even if some of its steps were never needed and stay open: the task reads "Flow finished: the steps it did not need were left unrun". Sending a step back from review, or resetting the flow's moves, makes the task work again. When nothing is left open, the queue closes the terminal and starts the next task. If the ceiling is reached at a claim, it closes the terminal, puts the task back at the head of the queue, sends any step the session had started back to open, and holds; the next session picks up at the first open step. A task with nothing open is skipped. A task fails, and the queue moves on, when the session can't open (no folder, no CLI, a terminal already open on it) or ends before its work is claimed. **Stop the queue** closes the running session after a confirmation. The queue survives a restart: a task that was running goes back to waiting, and an armed queue picks it up again.
+The queue opens a session on the task, which works the open steps in order, claiming each (or writes the wrapup on a task with no checklist). A claim is enough: the queue never waits for a step or a task to be accepted, so a finished task reads "All of it claimed and waiting for review" while the next one already runs. A flow is finished when it reaches its end, even if some of its steps were never needed and stay open: the task reads "Flow finished: the steps it did not need were left unrun". Sending a step back from review, or resetting the flow's moves, makes the task work again. When nothing is left open, the queue closes the session and starts the next task. If the ceiling is reached at a claim, it closes the session, puts the task back at the head of the queue, sends any step the session had started back to open, and holds; the next session picks up at the first open step. A task with nothing open is skipped. A task fails, and the queue moves on, when the session can't open (no folder, no CLI, a session already open on it) or ends before its work is claimed. **Stop the queue** closes the running session after a confirmation. The queue survives a restart: a task that was running goes back to waiting, and an armed queue picks it up again.
 
-**Sessions in a multi-step task.** By default one session works the whole checklist. A step can instead open a fresh Claude session: set `new_session` when a session proposes it (`rekall_propose_step`, `rekall_propose_flow`, `rekall_replan`; `/rk … plan` and `replan` always cut the sessions, picking the grouping they judge cheapest, without being asked), or switch it by hand with **New session from here** on the seam between two steps in the checklist (**Join session above** on a session's header undoes it), with **New session** on a draft, or when adding a draft. The first step always opens the first session, and the steps up to the next one that opens a session share one. The checklist draws a header over each session when there is more than one. A session claims the last step of its group, writes its wrapup and stops; Rekall closes that terminal and opens another on the same task, with the same model, effort and permissions, and the pane switches to it. A queued task stays running across its sessions, and the usage ceiling is checked before the next one opens. The choice is stored per step (`PATCH /api/steps/{id}/session` with `startsSession`) and `rekall_context` shows it as `(opens a new session)` and `sessions="N"` on `<steps>`.
+**Sessions in a multi-step task.** By default one session works the whole checklist. A step can open a fresh session with the same provider. Set `new_session` when a session proposes it (`rekall_propose_step`, `rekall_propose_flow`, `rekall_replan`; `/rk … plan` and `replan` always cut the sessions, picking the grouping they judge cheapest, without being asked), or switch it by hand with **New session from here** on the seam between two steps in the checklist (**Join session above** on a session's header undoes it), with **New session** on a draft, or when adding a draft. The first step always opens the first session, and the steps up to the next one that opens a session share one. The checklist draws a header over each session when there is more than one. A session claims the last step of its group, writes its wrapup and stops; Rekall opens another session on the same task with the same provider, view, model, effort and permissions, and the pane switches to it. A queued task stays running across its sessions, and the usage ceiling is checked before the next one opens. The choice is stored per step (`PATCH /api/steps/{id}/session` with `startsSession`) and `rekall_context` shows it as `(opens a new session)` and `sessions="N"` on `<steps>`.
 
 **Run in queue.** `POST /api/run-queue/runs` adds a task and starts the queue in the same step. An idle queue starts at once; a running, holding or scheduled one only gains the task, which runs when its turn comes. A task left waiting by an earlier **Stop the queue** runs ahead of it, because the queue is armed in order. A task already queued or running is refused with 409.
 
-In the console it is the arrow on the right of **Run here**, on a task's description and on its checklist: the arrow opens a menu of names with an icon each, in two groups split by a line. The first runs the work: **Run with Claude Code** and **Run with Codex** when both CLIs are installed, and **Run in queue**, which asks the same questions as the main key (the project folder, something left to run) and then says either "Running now in the queue" or "Queued, N ahead". The second prepares it: [**Discuss**](workflow.md#planning), always there, **Plan here**, **Plan a flow** (only while the task has no steps) and **Replan** (only while it has a draft or an open step). Where there is no room under the arrow, as from a step's keys at the foot of the page, the menu opens above it. The arrow does nothing while the key is working.
+**More ways to run** opens from the arrow beside **Run here** on a task, preview or step.
+**Run in queue**, **Discuss**, **Plan here** and **Plan a flow** each open provider choices.
+The menu marks the Settings default as **Preferred** and explains unavailable choices. From the
+**Decisions** tab, **Refine** opens the same choices and records answers in that task’s ledger.
+**Plan a flow** is available on tasks with no steps. **Replan** uses the configured provider and
+asks for confirmation when draft or open steps can be replaced.
 
 `/api/run-queue` holds the queue: `GET`, `PUT /settings` (`ceilingPercent`, `skipPermissions`, `model`, `effort`, `sessionKind`), `POST /items` (adds without starting), `POST /runs` (`taskId`: adds the task and arms the queue), `DELETE /items/{id}`, `PUT /items/{id}/position`, `POST /clear`, `POST /start` (`startAt` null starts now), `POST /stop`. Each answers with the whole queue, and every change is pushed on the console's event stream as a `run-queue` frame.
 
+Both add endpoints take `taskId` and an optional `provider` (`CLAUDE` or `CODEX`). Only Codex requests may include `codexOptions` with the model, effort and permission preference. Existing rows and requests with no provider use Claude Code and the queue's session settings. The queue returns each item's saved choice in responses and events, including after a restart. The worker launches the saved provider and uses it again when resuming an item after a hold, stop or restart.
+
 ## Token usage
 
-Every task and every step shows the tokens Claude Code generated while working on it: on the task's row in the navigator and on each step of its checklist. A project shows the sum of its tasks wherever it is drawn: its heading in the navigator, its card and page in the catalog, and its group in a calendar day. The figure is output tokens; the tooltip adds the input, cache-write and cache-read tokens read to produce them. A task's figure includes its steps'.
+The task’s token panel and the step’s evidence show generated tokens by provider, with input
+and cache counts in the tooltip. The task total includes its steps. Project and calendar totals
+sum the tasks. When a provider has reported no attributable usage, the panel says so.
 
 Beside the name of a task in its steps, wrapup and terminal panes, and at the right end of the tag and skills line in its description pane, the figure sits with a small sparkline of the last month. A project's heading in the navigator carries the same chip for the sum of its tasks. Click it for the daily trend: the running total of generated tokens, one point per day, over **1 month**, **3 months** or **All**. Move over the chart, or use the arrow keys, to read a day's total and what that day added. The task's title line holds a copy button that puts the task's `/rk project:… task:…` command on the clipboard (the command is in its tooltip). Days are UTC days, as the server cuts them. The tag on a task's description is a badge that opens the list of tags to change it; a task with none shows a dashed **New tag** button, the way skills show **Add a skill**.
 
-The counts come from Claude Code's own session transcripts (`~/.claude/projects/<folder>/<session>.jsonl`, and `<session>/subagents/` for its subagents), read in the background every minute. Only sessions started in a project's folder, or a folder under it, are read, and a transcript is read again only once it has grown. Each model call is charged to what the session was working on when it made it:
+Rekall reads Claude Code transcripts and Codex rollouts about once a minute. It looks in the
+providers’ configured homes for sessions in project folders and task worktrees. A session’s
+reading replaces its previous reading. A Codex thread uses its cumulative counters, so repeated
+records and archived copies do not add usage twice.
 
-- an `/rk` line, or a `rekall_context` call naming one task, puts the session on that task;
-- `rekall_step` with `running` puts it on that step, and with `claimed` or `open` back on the task;
-- a subagent's calls go to what the session was on at the moment they were made;
-- calls before any of these are not Rekall work and are not counted.
+The launch prompt or a Rekall context call identifies the task. Step start moves attribution to
+that step, and a claim moves it back to the task. Counts go to the named task even if its anchor
+belongs to another project. When a step can no longer be resolved, its tokens stay on the task.
 
-The tokens follow the anchors, not the folder: a session in one project's folder working another project's task counts for that task. A task that no longer resolves is not counted; a step that no longer resolves, or is deleted, leaves its tokens on the task. Sessions run in any terminal count, not only those opened from Rekall.
-
-`GET /api/token-usage` returns one tally per task and step, `GET /api/token-usage/daily` one entry per task and day, and the console's event stream carries a task's tallies and days as a `token-usage` frame whenever a read changes them.
+`GET /api/token-usage` returns tallies by task, optional step, and provider. The daily endpoint
+returns task totals by day. The `token-usage` stream refreshes both views after a scan.
 
 | Property | Default | Meaning |
 |---|---|---|

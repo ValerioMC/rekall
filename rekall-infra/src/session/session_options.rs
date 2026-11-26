@@ -1,8 +1,8 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use rekall_core::claude::{SessionProvider, EFFORT_LEVELS, MODEL_ALIASES};
-use rekall_kernel::{jstr, RekallError, Result};
+use rekall_core::claude::{CodexSessionOptions, SessionProvider, EFFORT_LEVELS, MODEL_ALIASES};
+use rekall_kernel::{jstr, Result};
 
 #[derive(Clone, Debug, Default)]
 pub struct SessionOptions {
@@ -11,7 +11,6 @@ pub struct SessionOptions {
     pub model: Option<String>,
     pub effort: Option<String>,
     pub settings: Option<PathBuf>,
-    pub(crate) codex_credential_session: bool,
 }
 
 impl SessionOptions {
@@ -25,18 +24,19 @@ impl SessionOptions {
     }
 
     pub fn codex(skip_permissions: bool, model: Option<&str>, effort: Option<&str>) -> Result<Self> {
+        let options = CodexSessionOptions::new(skip_permissions, model, effort)?;
         Ok(Self {
             provider: SessionProvider::Codex,
-            skip_permissions,
-            model: codex_choice(model, "model")?,
-            effort: codex_choice(effort, "reasoning effort")?,
+            skip_permissions: options.skip_permissions,
+            model: options.model,
+            effort: options.effort,
             ..Self::default()
         })
     }
 
     pub fn arguments(&self) -> Vec<OsString> {
         let mut arguments = Vec::new();
-        if self.codex_credential_session {
+        if self.provider == SessionProvider::Codex {
             arguments.push("--no-daemon".into());
         }
         if self.skip_permissions {
@@ -64,19 +64,6 @@ impl SessionOptions {
 fn normalise(value: Option<&str>, allowed: &[&str]) -> Option<String> {
     let trimmed = jstr::strip(value?).to_lowercase();
     allowed.contains(&trimmed.as_str()).then_some(trimmed)
-}
-
-fn codex_choice(value: Option<&str>, label: &str) -> Result<Option<String>> {
-    let Some(value) = value.map(jstr::strip).filter(|value| !value.is_empty() && *value != "default") else {
-        return Ok(None);
-    };
-    if value.len() <= 150
-        && value.as_bytes()[0].is_ascii_alphanumeric()
-        && value.bytes().all(|byte| byte.is_ascii_alphanumeric() || b"-_.:/".contains(&byte))
-    {
-        return Ok(Some(value.to_owned()));
-    }
-    Err(RekallError::illegal(format!("This Codex {label} is invalid.")))
 }
 
 #[cfg(test)]

@@ -75,7 +75,7 @@ onMounted(async () => {
         @keydown.enter.prevent="send"
       />
       <p class="mt-1.5 text-caption text-text-subtle">
-        Left blank, Claude writes the state as it stands. Said something, it writes only that.
+        Leave it blank to record the current state, or describe what the session should include.
       </p>
 
       <p

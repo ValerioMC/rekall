@@ -22,6 +22,17 @@ pub(in crate::guard) fn git_subcommands(command: &str) -> Result<Vec<String>, Un
     Ok(subcommands)
 }
 
+pub(in crate::guard) fn is_resolution_command(command: &str, branch: &str, pull_request: bool) -> bool {
+    let Ok(commands) = split_into_commands(command) else { return false };
+    let [words] = commands.as_slice() else { return false };
+    match words.iter().map(String::as_str).collect::<Vec<_>>().as_slice() {
+        ["git", "add", first, ..] => !first.is_empty(),
+        ["git", "commit", "--no-edit"] => true,
+        ["git", "push", "origin", head] => pull_request && *head == branch,
+        _ => false,
+    }
+}
+
 fn script_run_by_shell(words: &[String]) -> Option<&str> {
     let first = words.first()?;
     if !SHELLS.contains(&base_name(first)) {

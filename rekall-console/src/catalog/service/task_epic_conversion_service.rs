@@ -99,6 +99,7 @@ fn as_epic(task: &task::Model) -> task::Model {
         release_skipped: false,
         quick: false,
         worktree_folder: None,
+        last_work_provider: None,
         ..task.clone()
     }
 }

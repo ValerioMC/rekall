@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use rekall_core::step::TaskStepState;
 use rekall_core::check::CheckExecutionService;
-use rekall_core::commit::{AutoCommitOutcome, AutoCommitService, StepSnapshotService};
+use rekall_core::commit::{AutoCommitOutcome, AutoCommitService, StepClaim, StepSnapshotService};
 use rekall_core::flow::{FlowMove, FlowRoute, FlowService};
 use rekall_core::step::TaskStepService;
 use serde_json::Value;
@@ -201,21 +201,22 @@ impl McpTool for StepStateTool {
         let requested = parse_state(&raw_state)?;
         let checks_passed = self.checks_passed_by_claim(&target, &step_ref, requested).await?;
 
-        let flow_move = self
-            .flow
-            .transition(target.project_label.as_deref(), &target.task_code, Some(&step_ref), requested, outcome.as_deref(), report.as_deref())
-            .await
-            .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
-
-        let moved = &flow_move.step;
-        if flow_move.started {
-            self.step_snapshots.take(moved.task_id, Some(moved.id)).await;
-        }
-        let committed = if moved.state == TaskStepState::Claimed {
-            Some(self.auto_commit.after_step_claim(moved.task_id, moved.id, commit_message.as_deref()).await?)
+        let (flow_move, committed) = if requested == TaskStepState::Claimed {
+            let claim = StepClaim {
+                project_label: target.project_label.as_deref(), task_code: &target.task_code, step: &step_ref,
+                outcome: outcome.as_deref(), report: report.as_deref(), message: commit_message.as_deref(),
+            };
+            let (moved, committed) = self.auto_commit.claim_step(&self.flow, claim).await.map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
+            (moved, Some(committed))
         } else {
-            None
+            let moved = self.flow
+                .transition(target.project_label.as_deref(), &target.task_code, Some(&step_ref), requested, outcome.as_deref(), report.as_deref())
+                .await.map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
+            (moved, None)
         };
+        if flow_move.started {
+            self.step_snapshots.take(flow_move.step.task_id, Some(flow_move.step.id)).await;
+        }
         self.report(&target, &flow_move, &raw_state, checks_passed.as_deref(), committed.as_ref()).await
     }
 }

@@ -19,6 +19,8 @@ pub struct Model {
     pub url: Option<String>,
     pub failure: Option<String>,
     pub merged_at: Option<Instant>,
+    pub delivery_version: i64,
+    pub published_version: i64,
     pub created_at: Instant,
     pub updated_at: Instant,
 }
@@ -43,6 +45,15 @@ impl Related<crate::task::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
+    pub fn empty(task_id: Id, now: Instant) -> Self {
+        Self { task_id, number: None, url: None, failure: None, merged_at: None,
+            delivery_version: 0, published_version: 0, created_at: now, updated_at: now }
+    }
+
+    pub fn awaiting_push(&self) -> bool {
+        self.delivery_version > self.published_version
+    }
+
     pub fn validate(&self) -> Result<(), RekallError> {
         Violations::new("TaskPullRequest")
             .max_length("url", self.url.as_deref(), PULL_REQUEST_URL_MAX_CHARACTERS)

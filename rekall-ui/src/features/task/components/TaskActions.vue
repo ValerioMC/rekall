@@ -23,7 +23,7 @@ defineProps<{ task: Task }>()
       :folder="task.projectRepoFolder"
       missing-hint="Set this project's folder on its page to open a session from it"
     />
-    <OpenTerminalButton v-if="task.status !== 'DONE'" :task-id="task.id" :anchor="task.anchor" :folder="task.projectRepoFolder" />
+    <OpenTerminalButton v-if="task.status !== 'DONE'" :task-id="task.id" :folder="task.projectRepoFolder" />
     <ConvertToEpicButton v-if="!isEpic(task)" :task="task" />
     <TaskDeleteButton :task="task" />
   </div>

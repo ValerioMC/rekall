@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import ProviderTokenUsage from '@/features/tokens/components/ProviderTokenUsage.vue'
 import TokenTrendChart from '@/features/tokens/components/TokenTrendChart.vue'
 import { formatTokens } from '@/common/format/token-count'
 import { TREND_RANGES, trendOf, utcToday, type TrendRange } from '@/features/tokens/lib/token-trend'
 import type { TaskId } from '@/model/branded'
-import type { TokenDay, TokenTotals } from '@/features/tokens/model/token-usage'
+import type { ProviderTokenTally, TokenDay, TokenTotals } from '@/features/tokens/model/token-usage'
 
 /** What opens from a token count: the running total of `taskIds` over one month, three, or all of it. */
 const props = defineProps<{
   taskIds: readonly TaskId[]
   days: readonly TokenDay[]
   totals: TokenTotals
+  providers: readonly ProviderTokenTally[]
   color: string
   subject: 'task' | 'project'
 }>()
@@ -56,14 +58,15 @@ const readings = computed(() => [
 
     <TokenTrendChart v-if="points.length" :points="points" :color="color" />
     <p v-else class="py-6 text-center text-caption text-text-subtle" data-testid="token-trend-empty">
-      No session has generated tokens on this {{ subject }} yet.
+      {{ providers.length ? 'No output tokens in this period.' : `No token usage reported for this ${subject}.` }}
     </p>
 
-    <dl class="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-2.5">
+    <dl v-if="providers.length !== 0" class="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-2.5">
       <div v-for="reading in readings" :key="reading.label">
         <dt class="text-micro uppercase tracking-[0.04em] text-text-subtle">{{ reading.label }}</dt>
         <dd class="font-mono text-small tabular-nums text-text-muted">{{ formatTokens(reading.value) }}</dd>
       </div>
     </dl>
+    <ProviderTokenUsage v-if="providers.length" :providers="providers" class="mt-3 border-t border-border pt-2" />
   </div>
 </template>

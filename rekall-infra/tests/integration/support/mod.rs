@@ -9,7 +9,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use rekall_infra::session::SessionLauncher;
 use rekall_infra::cli::{ClaudeCli, EnvironmentSource};
+use rekall_infra::codex::{CodexCli, CodexIntegration};
 use rekall_infra::connection::CredentialBroker;
 use rekall_core::claude::TerminalListener;
 use rekall_infra::pty::PtyTerminalManager;
@@ -74,6 +76,19 @@ pub async fn world() -> World {
 }
 
 impl World {
+    pub fn install_codex(&self, script: &str) {
+        let home_bin = self.home.path().join(".local/bin");
+        std::fs::create_dir_all(&home_bin).unwrap();
+        let codex = home_bin.join("codex");
+        std::fs::write(&codex, script).unwrap();
+        std::fs::set_permissions(&codex, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+
+    pub fn codex(&self) -> Arc<CodexIntegration> {
+        let cli = CodexCli::new(self.home.path().to_path_buf(), Arc::new(FixedEnvironment));
+        Arc::new(CodexIntegration::new(cli, "http://127.0.0.1:0/mcp".into()))
+    }
+
     /// A worktree service over a scripted git, with its folders under this world's `home`.
     pub fn worktrees(&self) -> (rekall_core::worktree::TaskWorktreeService, Arc<rekall_core::worktree::ScriptedWorktreeHost>) {
         let host = Arc::new(rekall_core::worktree::ScriptedWorktreeHost::new());
@@ -88,7 +103,7 @@ impl World {
 
     pub fn pull_requests_over(
         &self,
-        git: Arc<rekall_core::worktree::ScriptedWorktreeHost>,
+        git: Arc<dyn rekall_core::worktree::WorktreeHost>,
         host: Arc<rekall_core::connection::ScriptedPullRequestHost>,
     ) -> rekall_core::worktree::TaskPullRequestService {
         let ctx = self.services.ctx.clone();
@@ -149,10 +164,8 @@ impl World {
         let cli = ClaudeCli::new(self.claude.to_str(), self.home.path().to_path_buf(), Arc::new(FixedEnvironment));
         PtyTerminalManager::new(
             self.services.terminal_launch.clone(),
-            cli,
+            SessionLauncher::new(cli, broker, self.telemetry()),
             self.work_marker(),
-            broker,
-            self.telemetry(),
             &config,
         )
     }

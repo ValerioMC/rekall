@@ -1,6 +1,7 @@
 import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
 import type { Task } from '@/features/catalog/model/catalog'
-import { NO_TOKENS, type TokenDay, type TokenTally, type TokenTotals } from '@/features/tokens/model/token-usage'
+import { SESSION_PROVIDERS } from '@/features/claude/model/session-provider'
+import { NO_TOKENS, type ProviderTokenTally, type TokenDay, type TokenTally, type TokenTotals } from '@/features/tokens/model/token-usage'
 
 function summed(tallies: Iterable<TokenTally>): TokenTotals {
   let totals = NO_TOKENS
@@ -13,6 +14,13 @@ function summed(tallies: Iterable<TokenTally>): TokenTotals {
     }
   }
   return totals
+}
+
+export function tokensByProvider(tallies: readonly TokenTally[]): ProviderTokenTally[] {
+  return SESSION_PROVIDERS.flatMap((provider) => {
+    const fromProvider = tallies.filter((tally) => (tally.provider ?? 'CLAUDE') === provider)
+    return fromProvider.length ? [{ provider, totals: summed(fromProvider) }] : []
+  })
 }
 
 export function stepTokens(tallies: readonly TokenTally[], stepId: TaskStepId): TokenTotals {

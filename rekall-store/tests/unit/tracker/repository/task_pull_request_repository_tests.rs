@@ -21,7 +21,7 @@ async fn a_task(db: &impl ConnectionTrait) -> task::Model {
 
 fn opened(task_id: Id, number: i64) -> Model {
     let now = Instant::now();
-    Model { task_id, number: Some(number), url: Some(format!("https://github.com/acme/app/pull/{number}")), failure: None, merged_at: None, created_at: now, updated_at: now }
+    Model { task_id, number: Some(number), url: Some(format!("https://github.com/acme/app/pull/{number}")), failure: None, merged_at: None, delivery_version: 0, published_version: 0, created_at: now, updated_at: now }
 }
 
 #[tokio::test]

@@ -118,6 +118,7 @@ onMounted(() => void loadUsage())
         </template>
         <template v-else>Off: the queue runs until it is empty, whatever the usage.</template>
       </p>
+      <p v-if="watchedWindows.length" class="mb-1 text-caption text-text-subtle">Claude Code account windows</p>
       <CeilingGauge v-model="ceiling" :windows="watchedWindows" :disabled="!ceilingOn" :now="now" />
     </section>
 
@@ -125,11 +126,11 @@ onMounted(() => void loadUsage())
       <h3 id="queue-session-heading" class="section-label">Sessions</h3>
       <div class="grid grid-cols-2 gap-2">
         <div>
-          <label for="queue-model" class="mb-1 block text-caption text-text-subtle">Model</label>
+          <label for="queue-model" class="mb-1 block text-caption text-text-subtle">Claude Code model</label>
           <AppSelect id="queue-model" v-model="model" :options="MODEL_OPTIONS" />
         </div>
         <div>
-          <label for="queue-effort" class="mb-1 block text-caption text-text-subtle">Effort</label>
+          <label for="queue-effort" class="mb-1 block text-caption text-text-subtle">Claude Code effort</label>
           <AppSelect id="queue-effort" v-model="effort" :options="EFFORT_OPTIONS" />
         </div>
       </div>
@@ -149,10 +150,10 @@ onMounted(() => void loadUsage())
         </p>
       </div>
       <div>
-        <AppCheckbox v-model="skipPermissions" label="Skip permission prompts" data-testid="run-queue-skip" />
+        <AppCheckbox v-model="skipPermissions" label="Skip Claude Code permission prompts" data-testid="run-queue-skip" />
         <p class="mt-1.5 text-caption leading-relaxed" :class="skipPermissions ? 'text-text-subtle' : 'text-warn'">
-          <template v-if="skipPermissions">Sessions run with <span class="font-mono">--dangerously-skip-permissions</span>.</template>
-          <template v-else>Off: an unattended session stops at its first permission prompt and waits for you.</template>
+          <template v-if="skipPermissions">Claude Code runs with <span class="font-mono">--dangerously-skip-permissions</span>.</template>
+          <template v-else>Claude Code pauses for permission prompts.</template>
         </p>
       </div>
     </section>

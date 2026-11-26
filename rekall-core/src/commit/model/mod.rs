@@ -9,3 +9,4 @@ pub(super) mod subject;
 pub(super) mod work_tree_snapshot;
 pub(super) mod session_changes;
 pub(super) mod unified_diff;
+pub(super) mod step_claim;

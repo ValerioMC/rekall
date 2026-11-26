@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
+use rekall_core::guard::GuardScope;
 use rekall_http::guard::GuardContextResponse;
 
 const ASK_TIMEOUT: Duration = Duration::from_secs(1);
@@ -11,7 +12,7 @@ pub struct ContextUnavailable(pub String);
 
 #[async_trait]
 pub trait GuardContextSource: Send + Sync {
-    async fn context_of(&self, folder: &str) -> Result<GuardContextResponse, ContextUnavailable>;
+    async fn context_of(&self, folder: &str, scope: Option<GuardScope>) -> Result<GuardContextResponse, ContextUnavailable>;
 }
 
 /// The Rekall listening on this machine, asked once over loopback.
@@ -27,13 +28,15 @@ impl LocalRekall {
 
 #[async_trait]
 impl GuardContextSource for LocalRekall {
-    async fn context_of(&self, folder: &str) -> Result<GuardContextResponse, ContextUnavailable> {
+    async fn context_of(&self, folder: &str, scope: Option<GuardScope>) -> Result<GuardContextResponse, ContextUnavailable> {
         let unavailable = |failure: reqwest::Error| ContextUnavailable(failure.to_string());
         let client = reqwest::Client::builder().no_proxy().timeout(ASK_TIMEOUT).build().map_err(unavailable)?;
-        client
-            .get(format!("{}/api/guard/context", self.base_url))
-            .query(&[("folder", folder)])
-            .send()
+        let request = client.get(format!("{}/api/guard/context", self.base_url)).query(&[("folder", folder)]);
+        let request = match scope {
+            Some(scope) => request.query(&[("scope", scope.to_string())]),
+            None => request,
+        };
+        request.send()
             .await
             .and_then(|response| response.error_for_status())
             .map_err(unavailable)?

@@ -78,7 +78,7 @@ describe('LaunchClaudeCodeButton', () => {
     await wrapper.get('[data-testid="launch-claude-code"]').trigger('click')
     await flushPromises()
 
-    expect(openInClaudeCode).toHaveBeenCalledWith({ directory: '/worktrees/stvv/env-vars-cv', anchors: ANCHORS, skipPermissions: false })
+    expect(openInClaudeCode).toHaveBeenCalledWith({ directory: '/worktrees/stvv/env-vars-cv', anchors: ANCHORS, taskId: 't-1', provider: 'CLAUDE', skipPermissions: false })
   })
 
   it('keeps the project folder when the project keeps no branches, and opens nothing when the branch cannot be made', async () => {
@@ -93,7 +93,7 @@ describe('LaunchClaudeCodeButton', () => {
     await flushPromises()
 
     expect(openInClaudeCode).toHaveBeenCalledTimes(1)
-    expect(openInClaudeCode).toHaveBeenCalledWith({ directory: FOLDER, anchors: ANCHORS, skipPermissions: false })
+    expect(openInClaudeCode).toHaveBeenCalledWith({ directory: FOLDER, anchors: ANCHORS, taskId: 't-1', provider: 'CLAUDE', skipPermissions: false })
   })
 
   it('is not there at all in a browser, where no terminal can be opened', () => {
@@ -111,6 +111,7 @@ describe('LaunchClaudeCodeButton', () => {
     expect(openInClaudeCode).toHaveBeenCalledWith({
       directory: FOLDER,
       anchors: ANCHORS,
+      provider: 'CLAUDE',
       skipPermissions: false
     })
     expect(useToastStore().toasts[0]?.message).toBe('Opened in iTerm.')

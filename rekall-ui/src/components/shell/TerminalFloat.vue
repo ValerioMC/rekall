@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import SessionProviderMark from '@/features/claude/components/SessionProviderMark.vue'
+import { SESSION_PROVIDER_LABEL } from '@/features/claude/model/session-provider'
 import TerminalScreen from '@/features/claude/components/TerminalScreen.vue'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useOpenSessionInPane } from '@/features/claude/composables/useOpenSessionInPane'
@@ -45,7 +47,10 @@ function expand(): void {
     data-testid="terminal-float"
   >
     <header class="flex h-10 shrink-0 items-center gap-2.5 border-b border-border bg-surface pl-4 pr-3">
-      <span class="session-caret shrink-0" aria-hidden="true" />
+      <span class="inline-flex shrink-0 items-center gap-1.5 text-caption text-text-muted">
+        <SessionProviderMark :provider="terminal.provider" :size="12" />
+        {{ SESSION_PROVIDER_LABEL[terminal.provider] }}
+      </span>
       <span
         class="shrink-0 rounded-key bg-surface-raised px-2 py-0.5 text-micro font-semibold"
         :class="status === 'connected' ? 'text-safe' : status === 'ended' ? 'text-text-subtle' : 'text-accent'"

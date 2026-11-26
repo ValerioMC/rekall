@@ -12,9 +12,9 @@ fn codex_uses_its_own_flags_and_preserves_model_ids() {
     let options = SessionOptions::codex(true, Some("gpt-6.2-sol"), Some("xhigh")).unwrap();
     assert_eq!(
         options.arguments(),
-        ["--dangerously-bypass-approvals-and-sandbox", "--model", "gpt-6.2-sol", "-c", "model_reasoning_effort=\"xhigh\""].map(OsString::from)
+        ["--no-daemon", "--dangerously-bypass-approvals-and-sandbox", "--model", "gpt-6.2-sol", "-c", "model_reasoning_effort=\"xhigh\""].map(OsString::from)
     );
-    assert!(SessionOptions::codex(false, Some("default"), Some("default")).unwrap().arguments().is_empty());
+    assert_eq!(SessionOptions::codex(false, Some("default"), Some("default")).unwrap().arguments(), ["--no-daemon"]);
     assert!(SessionOptions::codex(false, Some("--help"), None).is_err());
     assert!(SessionOptions::codex(false, None, Some("high\"\nmodel=\"other")).is_err());
 }

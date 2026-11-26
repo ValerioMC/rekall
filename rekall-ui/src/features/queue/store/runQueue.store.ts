@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import type { SessionProvider } from '@/features/claude/model/session-provider'
 import {
   clearSettledItems,
   dequeueItem,
@@ -47,12 +48,12 @@ export const useRunQueueStore = defineStore('runQueue', () => {
     apply(await saveRunQueueSettings(settings))
   }
 
-  async function add(taskId: TaskId): Promise<void> {
-    apply(await enqueueTask(taskId))
+  async function add(taskId: TaskId, provider: SessionProvider = 'CLAUDE'): Promise<void> {
+    apply(await enqueueTask(taskId, provider))
   }
 
-  async function runInQueue(taskId: TaskId): Promise<void> {
-    apply(await runTaskInQueue(taskId))
+  async function runInQueue(taskId: TaskId, provider: SessionProvider = 'CLAUDE'): Promise<void> {
+    apply(await runTaskInQueue(taskId, provider))
   }
 
   async function remove(itemId: RunQueueItemId): Promise<void> {

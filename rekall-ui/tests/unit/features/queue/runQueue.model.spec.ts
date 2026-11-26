@@ -23,6 +23,8 @@ import { asTaskId } from '@/model/branded'
 function item(id: string, state: RunQueueItemState): RunQueueItem {
   return {
     id: asRunQueueItemId(id),
+    provider: 'CLAUDE',
+    codexOptions: null,
     taskId: asTaskId(`task-${id}`),
     taskTitle: `Task ${id}`,
     taskCode: `task-${id}`,

@@ -5,6 +5,8 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import ChatSessionReadout from './ChatSessionReadout.vue'
 import TerminalConnectionChips from '@/features/connection/components/TerminalConnectionChips.vue'
+import SessionProviderMark from '@/features/claude/components/SessionProviderMark.vue'
+import { SESSION_PROVIDER_LABEL } from '@/features/claude/model/session-provider'
 import { stepChip } from '@/features/chat/lib/step-chip'
 import type { ChatStatus } from '@/features/chat/lib/chat-status'
 import type { TurnContext } from '@/features/chat/model/chat-event'
@@ -53,6 +55,7 @@ const switcherOpen = ref(false)
 const confirmingStop = ref(false)
 
 const look = computed(() => STATUS_LOOKS[props.status])
+const providerLabel = computed(() => SESSION_PROVIDER_LABEL[props.session.provider])
 const title = computed(() => props.session.taskTitle ?? `Project ${props.session.projectLabel}`)
 const step = computed(() => stepChip(props.session.stepId, props.steps))
 
@@ -82,8 +85,8 @@ function onSwitcherKeydown(event: KeyboardEvent): void {
     <div class="flex min-h-(--spacing-header) items-start gap-2 px-4 py-2">
       <div class="min-w-0 flex-1">
         <p class="eyebrow flex items-center gap-1.5">
-          <span class="h-2.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
-          Chat
+          <SessionProviderMark :provider="session.provider" :size="12" />
+          {{ providerLabel }} Chat
         </p>
         <div class="flex min-w-0 items-center gap-2">
           <button
@@ -182,7 +185,7 @@ function onSwitcherKeydown(event: KeyboardEvent): void {
     <AppConfirm
       v-if="confirmingStop"
       title="Stop this session?"
-      body="Claude stops where it is. The conversation stays in the task's history, but this window cannot resume it."
+      :body="`${providerLabel} stops where it is. The conversation stays in the provider’s history.`"
       :blast="session.anchors"
       confirm-label="Stop session"
       @cancel="confirmingStop = false"

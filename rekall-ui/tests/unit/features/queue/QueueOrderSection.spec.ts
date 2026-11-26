@@ -1,3 +1,4 @@
+import { createPinia } from 'pinia'
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import QueueOrderRow from '@/features/queue/components/QueueOrderRow.vue'
@@ -15,6 +16,8 @@ import { asTaskId } from '@/model/branded'
 function item(id: string, state: RunQueueItemState): RunQueueItem {
   return {
     id: asRunQueueItemId(id),
+    provider: 'CLAUDE',
+    codexOptions: null,
     taskId: asTaskId(`t-${id}`),
     taskTitle: `Report ${id}`,
     taskCode: `t-${id}`,
@@ -34,7 +37,7 @@ function mountSection(...items: RunQueueItem[]) {
   const queue: RunQueue = { ...EMPTY_RUN_QUEUE, items }
   return mount(QueueOrderSection, {
     props: { queue, progress: runProgress(queue), busy: false },
-    global: { stubs: { QueueTaskPicker: true } }
+    global: { plugins: [createPinia()], stubs: { QueueTaskPicker: true } }
   })
 }
 

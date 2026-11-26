@@ -3,19 +3,18 @@ use tracing::warn;
 use crate::guard::model::guard_context::GuardContext;
 use crate::guard::model::guard_event::GuardEvent;
 use crate::guard::model::guard_verdict::GuardVerdict;
-use crate::guard::rule::shell_command::git_subcommands;
+use crate::guard::rule::shell_command::{git_subcommands, is_resolution_command};
 
-const SHELL_TOOL: &str = "Bash";
 const SUBCOMMANDS_REKALL_RUNS: [&str; 3] = ["commit", "push", "add"];
 
-/// Decides, from an event and the facts around it, whether Claude Code may go on. A command it
+/// Decides, from an event and the facts around it, whether an agent may go on. A command it
 /// cannot read is allowed: a guard that stumbles must not stop the work.
 pub struct GuardService;
 
 impl GuardService {
     pub fn decide(event: &GuardEvent, context: &GuardContext) -> GuardVerdict {
         let refusal = match event {
-            GuardEvent::BeforeTool { tool_name, command_or_path } => refusal_before_tool(tool_name, command_or_path, context),
+            GuardEvent::BeforeTool { shell_command, input_texts } => refusal_before_tool(shell_command.as_deref(), input_texts, context),
             GuardEvent::BeforeStop => refusal_before_stop(context),
         };
         match refusal {
@@ -25,12 +24,14 @@ impl GuardService {
     }
 }
 
-fn refusal_before_tool(tool_name: &str, command_or_path: &str, context: &GuardContext) -> Option<String> {
-    credential_access_refusal(command_or_path, context).or_else(|| manual_git_refusal(tool_name, command_or_path, context))
+fn refusal_before_tool(shell_command: Option<&str>, input_texts: &[String], context: &GuardContext) -> Option<String> {
+    credential_access_refusal(input_texts, context).or_else(|| manual_git_refusal(shell_command?, context))
 }
 
-fn credential_access_refusal(command_or_path: &str, context: &GuardContext) -> Option<String> {
-    let touches_credentials = context.protected_credential_references.iter().any(|reference| command_or_path.contains(reference.as_str()));
+fn credential_access_refusal(input_texts: &[String], context: &GuardContext) -> Option<String> {
+    let touches_credentials = input_texts.iter().any(|text| {
+        context.protected_credential_references.iter().any(|reference| text.contains(reference.as_str()))
+    });
     touches_credentials.then(|| {
         "This reaches Rekall's credentials, which a session never reads, copies or searches. \
          Use the connection's helper command from the session's environment instead."
@@ -38,14 +39,17 @@ fn credential_access_refusal(command_or_path: &str, context: &GuardContext) -> O
     })
 }
 
-fn manual_git_refusal(tool_name: &str, command: &str, context: &GuardContext) -> Option<String> {
-    if !context.auto_commit || tool_name != SHELL_TOOL {
+fn manual_git_refusal(command: &str, context: &GuardContext) -> Option<String> {
+    if !context.auto_commit {
+        return None;
+    }
+    if context.merge.as_ref().is_some_and(|merge| is_resolution_command(command, &merge.branch, merge.pull_request)) {
         return None;
     }
     let subcommands = match git_subcommands(command) {
         Ok(subcommands) => subcommands,
         Err(failure) => {
-            warn!(%failure, command, "The guard could not read a shell command and let it through");
+            warn!(%failure, "The guard could not read a shell command and let it through");
             return None;
         }
     };
@@ -57,9 +61,11 @@ fn manual_git_refusal(tool_name: &str, command: &str, context: &GuardContext) ->
 }
 
 fn refusal_before_stop(context: &GuardContext) -> Option<String> {
-    let number = context.running_step_number?;
+    let step = context.running_step.as_ref()?;
+    let number = step.number;
+    let task = &step.task_anchor;
     Some(format!(
-        "Step {number} is still running and was never claimed. Claim it with `/rk … step:{number} done`, \
+        "Step {number} on {task} is still running and was never claimed. Claim it with `/rk {task} step:{number} done`, \
          or tell the user why it cannot be claimed."
     ))
 }

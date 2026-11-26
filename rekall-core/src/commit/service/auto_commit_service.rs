@@ -1,12 +1,13 @@
 use std::path::{Path, PathBuf};
 
 use rekall_kernel::{Id, RekallError, Result};
-use rekall_store::{task, task_step};
+use rekall_store::{task, task_step, TaskStepState};
 use rekall_store::repository as repo;
 use tracing::{info, warn};
 
 use crate::commit::git::{display_path, GitCommitter, GitRepositoryInspector};
-use crate::commit::PendingChange;
+use crate::commit::{PendingChange, StepClaim};
+use crate::flow::{FlowMove, FlowService};
 use crate::commit::model::session_changes::SessionChanges;
 use crate::commit::{CommitMessageGenerator, Subject};
 use crate::commit::CommitReferenceService;
@@ -25,6 +26,41 @@ pub struct AutoCommitService {
 impl AutoCommitService {
     pub fn new(ctx: Ctx, references: CommitReferenceService) -> Self {
         Self { ctx, inspector: GitRepositoryInspector, committer: GitCommitter, references }
+    }
+
+    pub async fn claim_step(&self, flow: &FlowService, claim: StepClaim<'_>) -> Result<(FlowMove, AutoCommitOutcome)> {
+        in_write!(&self.ctx, |tx| {
+            let moved = flow.transition_in(&mut tx, claim.project_label, claim.task_code, Some(claim.step), TaskStepState::Claimed, claim.outcome, claim.report).await?;
+            let task = repo::task::require(tx.db(), moved.step.task_id).await?;
+            let step = repo::task_step::require(tx.db(), moved.step.id).await?;
+            let commit = self.commit_claim_in(&mut tx, &task, Some(&step), claim.message).await?;
+            Ok((moved, commit))
+        })
+    }
+
+    pub(crate) async fn commit_wrapup_in(&self, tx: &mut Tx, task: &task::Model, message: Option<&str>) -> Result<AutoCommitOutcome> {
+        if !load::review_active(tx.db(), task.id).await? {
+            return Ok(AutoCommitOutcome::not_applicable());
+        }
+        self.commit_claim_in(tx, task, None, message).await
+    }
+
+    async fn commit_claim_in(
+        &self, tx: &mut Tx, task: &task::Model, step: Option<&task_step::Model>, message: Option<&str>,
+    ) -> Result<AutoCommitOutcome> {
+        let project = load::project_of(tx.db(), task).await?;
+        let publishes = project.pull_request_flow && !task.quick;
+        if publishes && project.auto_commit && task.worktree_folder.is_none() {
+            return Err(RekallError::conflict("Open the task in its worktree before claiming it on the pull request flow."));
+        }
+        let commit = self.commit(tx, task, step, message).await?;
+        if publishes {
+            if commit.has_failed() {
+                return Err(RekallError::conflict(format!("Auto-commit refused the claim. {}", commit.detail.as_deref().unwrap_or_default())));
+            }
+            repo::task_pull_request::stage_delivery(tx.db(), task.id, self.ctx.now()).await?;
+        }
+        Ok(commit)
     }
 
     /// `session_message` is the commit message the claiming session wrote, subject line first,

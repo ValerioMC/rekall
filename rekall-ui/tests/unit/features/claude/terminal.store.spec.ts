@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
+import { flushPromises } from '@vue/test-utils'
+import { ApiError } from '@/api/client'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import type { Terminal } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
@@ -90,107 +92,84 @@ describe('the terminal store', () => {
     expect(store.activeTerminalId).toBe('term-1')
   })
 
-  it('plans in a new terminal opened in plan mode when no session is live on the task', async () => {
-    api.openTerminal.mockResolvedValue(terminal())
+  it.each(['PLAN', 'PLAN_FLOW', 'REPLAN', 'REVISE', 'REFINE', 'DISCUSS', 'REWRITE_RESTRUCTURE', 'REWRITE_FIX'] as const)(
+    'routes %s through the open endpoint even with a matching live session',
+    async (mode) => {
+      const store = useTerminalStore()
+      const live = terminal({ provider: 'CODEX' })
+      const input = { provider: 'CODEX', skipPermissions: false, model: 'gpt-test', effort: 'high' } as const
+      store.upsert(live)
+      api.openTerminal.mockResolvedValue(live)
+
+      const opened = await store.planForTask(TASK, input, mode, mode === 'REPLAN' ? ' cover the export ' : '')
+
+      expect(opened.id).toBe(live.id)
+      expect(api.openTerminal).toHaveBeenCalledWith(
+        { taskId: TASK },
+        { ...input, mode, request: mode === 'REPLAN' ? 'cover the export' : undefined }
+      )
+      expect(api.openTerminal).toHaveBeenCalledTimes(1)
+      expect(api.sendTerminalInput).not.toHaveBeenCalled()
+      expect(store.lastOpened).toEqual(live)
+      expect(store.activeTerminalId).toBe(live.id)
+    }
+  )
+
+  it.each(['CLAUDE', 'CODEX'] as const)('opens %s for refinement without a live session', async (provider) => {
     const store = useTerminalStore()
+    api.openTerminal.mockResolvedValue(terminal({ provider, mode: 'REFINE' }))
 
-    const planning = await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true })
+    const opened = await store.planForTask(TASK, { skipPermissions: false, provider }, 'REFINE')
 
-    expect(api.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, { skipPermissions: true, mode: 'PLAN' })
-    expect(api.sendTerminalInput).not.toHaveBeenCalled()
-    expect(planning.id).toBe('term-1')
-    expect(store.activeTerminalId).toBe('term-1')
-  })
-
-  it('plans in the live session on the task instead of opening a second terminal', async () => {
-    api.sendTerminalInput.mockResolvedValue(undefined)
-    const store = useTerminalStore()
-    store.terminals = [terminal()]
-    store.activeTerminalId = null
-
-    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true })
-
-    expect(api.sendTerminalInput).toHaveBeenCalledWith('term-1', '/rk project:vega task:report-builder plan\r')
-    expect(api.openTerminal).not.toHaveBeenCalled()
-    expect(store.activeTerminalId).toBe('term-1')
-  })
-
-  it('plans a flow in a new terminal opened in flow mode, or types the flow line into the live one', async () => {
-    api.openTerminal.mockResolvedValue(terminal())
-    api.sendTerminalInput.mockResolvedValue(undefined)
-    const store = useTerminalStore()
-
-    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true }, 'PLAN_FLOW')
-    expect(api.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, { skipPermissions: true, mode: 'PLAN_FLOW' })
-
-    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true }, 'PLAN_FLOW')
-    expect(api.sendTerminalInput).toHaveBeenCalledWith('term-1', '/rk project:vega task:report-builder plan flow\r')
-  })
-
-  it('replans in a new terminal opened in replan mode, or types the replan line into the live one', async () => {
-    api.openTerminal.mockResolvedValue(terminal())
-    api.sendTerminalInput.mockResolvedValue(undefined)
-    const store = useTerminalStore()
-
-    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true }, 'REPLAN')
-    expect(api.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, { skipPermissions: true, mode: 'REPLAN' })
-
-    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true }, 'REPLAN')
-    expect(api.sendTerminalInput).toHaveBeenCalledWith('term-1', '/rk project:vega task:report-builder replan\r')
-  })
-
-  it('revises in a new terminal opened in revise mode, or types the revise line into the live one', async () => {
-    api.openTerminal.mockResolvedValue(terminal())
-    api.sendTerminalInput.mockResolvedValue(undefined)
-    const store = useTerminalStore()
-
-    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true }, 'REVISE')
-    expect(api.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, { skipPermissions: true, mode: 'REVISE' })
-
-    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true }, 'REVISE')
-    expect(api.sendTerminalInput).toHaveBeenCalledWith('term-1', '/rk project:vega task:report-builder revise\r')
-  })
-
-  it('refines in a new terminal opened in refine mode, or types the refine line into the live one', async () => {
-    api.openTerminal.mockResolvedValue(terminal())
-    api.sendTerminalInput.mockResolvedValue(undefined)
-    const store = useTerminalStore()
-
-    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true }, 'REFINE')
-    expect(api.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, { skipPermissions: true, mode: 'REFINE' })
-
-    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true }, 'REFINE')
-    expect(api.sendTerminalInput).toHaveBeenCalledWith('term-1', '/rk project:vega task:report-builder refine\r')
-  })
-
-  it('rewrites a description in a new terminal opened in the rewrite mode, or types the rewrite line into the live one', async () => {
-    api.openTerminal.mockResolvedValue(terminal())
-    api.sendTerminalInput.mockResolvedValue(undefined)
-    const store = useTerminalStore()
-
-    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true }, 'REWRITE_RESTRUCTURE')
-    expect(api.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, { skipPermissions: true, mode: 'REWRITE_RESTRUCTURE' })
-
-    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true }, 'REWRITE_FIX')
-    expect(api.sendTerminalInput).toHaveBeenCalledWith('term-1', '/rk project:vega task:report-builder rewrite fix\r')
-  })
-
-  it('hands a replan the message about what the plan missed, in a new terminal or the live one', async () => {
-    api.openTerminal.mockResolvedValue(terminal())
-    api.sendTerminalInput.mockResolvedValue(undefined)
-    const store = useTerminalStore()
-
-    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true }, 'REPLAN', 'cover the export')
+    expect(opened.provider).toBe(provider)
+    expect(api.openTerminal).toHaveBeenCalledTimes(1)
     expect(api.openTerminal).toHaveBeenCalledWith(
-      { taskId: TASK },
-      { skipPermissions: true, mode: 'REPLAN', request: 'cover the export' }
+      { taskId: TASK }, { skipPermissions: false, provider, mode: 'REFINE' }
     )
+  })
 
-    await store.planForTask(TASK, 'project:vega task:report-builder', { skipPermissions: true }, 'REPLAN', 'cover the export')
-    expect(api.sendTerminalInput).toHaveBeenCalledWith(
-      'term-1',
-      '/rk project:vega task:report-builder replan "cover the export"\r'
-    )
+  it.each([false, true])('lets the user switch providers after a server conflict with cached session %s', async (cached) => {
+    const store = useTerminalStore()
+    const existing = terminal({ kind: 'CHAT' })
+    const replacement = terminal({ id: 'term-2' as TerminalId, provider: 'CODEX' })
+    if (cached) store.upsert(existing)
+    const conflict = new ApiError(409, 'Claude Code Chat is already open here.', '')
+    api.openTerminal.mockRejectedValueOnce(conflict).mockResolvedValueOnce(replacement)
+    api.fetchTerminals.mockResolvedValue([existing])
+
+    const refining = store.planForTask(TASK, { provider: 'CODEX', skipPermissions: false }, 'REFINE')
+    await flushPromises()
+
+    expect(store.launchConflict?.session).toEqual(existing)
+    expect(api.sendTerminalInput).not.toHaveBeenCalled()
+    expect(api.closeTerminal).not.toHaveBeenCalled()
+    expect(api.openTerminal).toHaveBeenCalledTimes(1)
+
+    store.resolveLaunchConflict(true)
+
+    await expect(refining).resolves.toEqual(replacement)
+    expect(api.closeTerminal).toHaveBeenCalledTimes(1)
+    expect(api.closeTerminal).toHaveBeenCalledWith(existing.id)
+    expect(api.openTerminal.mock.calls[1]).toEqual(api.openTerminal.mock.calls[0])
+    expect(store.launchConflict).toBeNull()
+  })
+
+  it('keeps the other provider open when the user declines the switch', async () => {
+    const store = useTerminalStore()
+    const existing = terminal()
+    const conflict = new ApiError(409, 'Claude Code Terminal is already open here.', '')
+    api.openTerminal.mockRejectedValue(conflict)
+    api.fetchTerminals.mockResolvedValue([existing])
+
+    const pending = store.planForTask(TASK, { provider: 'CODEX', skipPermissions: false }, 'DISCUSS')
+    const refused = expect(pending).rejects.toBe(conflict)
+    await flushPromises()
+    store.resolveLaunchConflict(false)
+
+    await refused
+    expect(api.closeTerminal).not.toHaveBeenCalled()
+    expect(api.sendTerminalInput).not.toHaveBeenCalled()
+    expect(api.openTerminal).toHaveBeenCalledTimes(1)
   })
 
   it('markEnded drops the terminal out of the live set without removing it', () => {
@@ -216,15 +195,19 @@ describe('the terminal store', () => {
     expect(store.activeTerminalId).toBeNull()
   })
 
-  it('sendCommand types the line into the PTY with a trailing enter', async () => {
+  it.each([
+    ['CLAUDE', '/rk'],
+    ['CODEX', 'Use the $rekall skill with this exact argument line:']
+  ] as const)('sendCommand submits the %s prompt to the PTY', async (provider, prompt) => {
     api.sendTerminalInput.mockResolvedValue(undefined)
     const store = useTerminalStore()
 
+    store.upsert(terminal({ provider }))
     await store.sendCommand('term-1' as TerminalId, '/rk project:vega task:report-builder wrapup')
 
     expect(api.sendTerminalInput).toHaveBeenCalledWith(
       'term-1',
-      '/rk project:vega task:report-builder wrapup\r'
+      `${prompt} project:vega task:report-builder wrapup\r`
     )
   })
   it('switches to the session the server opened on the task after the active one ended', async () => {

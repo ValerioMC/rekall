@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use rekall_core::claude::{InMemoryTerminalHost, SessionKind, TerminalMode, TerminalTarget};
+use rekall_core::claude::{InMemoryTerminalHost, SessionKind, SessionProvider, TerminalMode, TerminalTarget};
 
 use super::*;
 
@@ -67,6 +67,51 @@ async fn an_opening_that_reuses_a_session_at_the_cap_is_not_refused() {
     world.hosts.open(opening(task, SessionKind::Chat)).await.unwrap();
 
     assert_eq!(world.chats.openings().len(), 2);
+}
+
+#[tokio::test]
+async fn refinement_uses_the_matching_provider_in_its_live_view() {
+    let world = hosts(1);
+    let target = TerminalTarget::Task(Id::random());
+    world.hosts.open(opening(target, SessionKind::Chat)).await.unwrap();
+
+    let refine = TerminalOpening { mode: TerminalMode::Refine, ..opening(target, SessionKind::Terminal) };
+    let reused = world.hosts.open(refine).await.unwrap();
+
+    assert_eq!(reused.kind, SessionKind::Chat);
+    assert_eq!(world.chats.openings()[1].mode, TerminalMode::Refine);
+    assert!(world.terminals.openings().is_empty());
+}
+
+#[tokio::test]
+async fn a_preparation_request_cannot_reach_a_different_provider_in_either_view() {
+    let world = hosts(5);
+    let target = TerminalTarget::Task(Id::random());
+    world.hosts.open(opening(target, SessionKind::Chat)).await.unwrap();
+
+    for kind in [SessionKind::Terminal, SessionKind::Chat] {
+        let refine = TerminalOpening { provider: SessionProvider::Codex, mode: TerminalMode::Refine, ..opening(target, kind) };
+        let refused = world.hosts.open(refine).await.unwrap_err();
+        assert!(matches!(refused, RekallError::Conflict(_)));
+        assert!(refused.message().contains("Claude Code Chat"));
+        assert!(refused.message().contains("Codex"));
+    }
+
+    assert_eq!(world.chats.openings().len(), 1);
+    assert!(world.terminals.openings().is_empty());
+}
+
+#[tokio::test]
+async fn an_explicit_work_view_switch_requires_closing_the_live_session() {
+    let world = hosts(5);
+    let target = TerminalTarget::Task(Id::random());
+    world.hosts.open(opening(target, SessionKind::Chat)).await.unwrap();
+
+    let refused = world.hosts.open(opening(target, SessionKind::Terminal)).await.unwrap_err();
+
+    assert!(matches!(refused, RekallError::Conflict(_)));
+    assert!(refused.message().contains("Claude Code Terminal"));
+    assert!(world.terminals.openings().is_empty());
 }
 
 #[tokio::test]

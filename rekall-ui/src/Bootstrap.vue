@@ -7,6 +7,7 @@ import ShellDock from '@/components/shell/ShellDock.vue'
 import AppHeaderChrome from '@/components/shell/AppHeaderChrome.vue'
 import LeaveDialog from '@/components/shell/LeaveDialog.vue'
 import SendBackConfirm from '@/features/review/components/SendBackConfirm.vue'
+import { subscribeToFrame } from '@/common/stream/consoleEventStream'
 import { usePreferenceEffects } from '@/features/settings/composables/usePreferenceEffects'
 import CommandPalette from '@/features/search/components/CommandPalette.vue'
 import { usePaletteShortcut } from '@/features/search/composables/usePaletteShortcut'
@@ -14,11 +15,15 @@ import { usePaletteStore } from '@/features/search/store/palette.store'
 import UpdateDialog from '@/components/shell/UpdateDialog.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
+import SessionLaunchConflict from '@/features/claude/components/SessionLaunchConflict.vue'
 import ChatDock from '@/features/chat/components/ChatDock.vue'
 import ChatReopenTag from '@/features/chat/components/ChatReopenTag.vue'
 import { usePictureCleanupStore } from '@/features/picture/store/pictureCleanup.store'
 import { fetchDatabaseStatus } from '@/features/settings/api/settings.api'
 import { useConsoleStore } from '@/stores/console.store'
+import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
+import { useClaudeCommandUpdateStore } from '@/features/claude/store/claudeCommandUpdate.store'
+import { useCodexStore } from '@/features/codex/store/codex.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useUpdateStore } from '@/features/settings/store/update.store'
 import { useToastStore } from '@/stores/toast.store'
@@ -52,6 +57,7 @@ usePreferenceEffects()
 useWorkingSetFollowsRoute()
 
 let refreshing = false
+let stopPullRequestUpdates: (() => void) | undefined
 
 async function refreshWhatChangedElsewhere(): Promise<void> {
   if (refreshing || status.value?.status !== 'READY') return
@@ -71,7 +77,13 @@ onMounted(async () => {
     status.value = await fetchDatabaseStatus()
     if (status.value.status === 'READY') {
       await store.load()
+      stopPullRequestUpdates = subscribeToFrame('pull-request', () => {
+        void store.refreshTasks().catch((caught: unknown) => toast.notifyError(caught))
+      })
       void terminals.load()
+      void useClaudeConnectionStore().load().catch(() => undefined)
+      void useClaudeCommandUpdateStore().load().catch(() => undefined)
+      void useCodexStore().loadSetup().catch(() => undefined)
       // Opened only once the database is there: the store's stream would otherwise retry forever.
       void useTokenUsageStore().load().catch((caught: unknown) => toast.notifyError(caught))
       void useVulnerabilityStore().load().catch((caught: unknown) => toast.notifyError(caught))
@@ -87,6 +99,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  stopPullRequestUpdates?.()
   window.removeEventListener('focus', refreshWhatChangedElsewhere)
   document.removeEventListener('visibilitychange', refreshWhatChangedElsewhere)
 })
@@ -113,6 +126,7 @@ onUnmounted(() => {
       <ShellDock />
       <CommandPalette v-if="palette.isOpen" />
       <SendBackConfirm />
+      <SessionLaunchConflict />
       <UpdateDialog v-if="update.promptOpen" />
     </template>
     <FirstRunSetup v-else-if="status.status === 'SETUP_NEEDED'" />

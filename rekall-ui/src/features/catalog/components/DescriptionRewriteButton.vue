@@ -12,7 +12,7 @@ import type { TaskId } from '@/model/branded'
  * it runs the key becomes the lit seal Run here and Run revision show, and once the new text is in
  * an Undo puts the old one back. Rekall keeps no history, so that text is held in this window only.
  */
-const props = defineProps<{ taskId: TaskId; anchor: string; folder: string | null }>()
+const props = defineProps<{ taskId: TaskId; folder: string | null }>()
 
 const RESTRUCTURE_OPTIONS: readonly SplitButtonOption<RewriteStyle>[] = [
   {
@@ -24,7 +24,6 @@ const RESTRUCTURE_OPTIONS: readonly SplitButtonOption<RewriteStyle>[] = [
 
 const { phase, blocker, undoable, start, undo } = useDescriptionRewrite(
   () => props.taskId,
-  () => props.anchor,
   () => props.folder
 )
 

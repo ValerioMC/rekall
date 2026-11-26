@@ -5,13 +5,14 @@ const CREDENTIAL_FILE: &str = "/home/dev/.rekall/credentials.json";
 fn context(auto_commit: bool) -> GuardContext {
     GuardContext {
         auto_commit,
-        running_step_number: None,
+        merge: None,
+        running_step: None,
         protected_credential_references: vec![CREDENTIAL_FILE.into(), "/api/terminal/".into()],
     }
 }
 
 fn shell(command: &str) -> GuardEvent {
-    GuardEvent::BeforeTool { tool_name: "Bash".into(), command_or_path: command.into() }
+    GuardEvent::BeforeTool { shell_command: Some(command.into()), input_texts: vec![command.into()] }
 }
 
 fn is_blocked(verdict: &GuardVerdict) -> bool {
@@ -72,7 +73,7 @@ fn a_command_that_cannot_be_read_is_allowed() {
 
 #[test]
 fn git_in_a_tool_that_is_not_the_shell_is_not_a_command() {
-    let event = GuardEvent::BeforeTool { tool_name: "Read".into(), command_or_path: "git commit".into() };
+    let event = GuardEvent::BeforeTool { shell_command: None, input_texts: vec!["git commit".into()] };
 
     assert_eq!(GuardService::decide(&event, &context(true)), GuardVerdict::Allow);
 }
@@ -85,7 +86,7 @@ fn credential_paths_are_blocked_in_any_tool_on_any_project() {
             shell(&format!("grep token {CREDENTIAL_FILE}")),
             shell(&format!("cp {CREDENTIAL_FILE} /tmp/copy")),
             shell("curl http://127.0.0.1:3000/api/terminal/7/credentials/gitlab"),
-            GuardEvent::BeforeTool { tool_name: "Read".into(), command_or_path: CREDENTIAL_FILE.into() },
+            GuardEvent::BeforeTool { shell_command: None, input_texts: vec![CREDENTIAL_FILE.into()] },
         ] {
             assert!(is_blocked(&GuardService::decide(&event, &context(auto_commit))), "{event:?}");
         }
@@ -99,10 +100,28 @@ fn other_paths_are_not_credentials() {
 
 #[test]
 fn stopping_is_blocked_only_while_a_step_is_running_and_names_it() {
-    let running = GuardContext { running_step_number: Some(4), ..context(false) };
+    let running = GuardContext { running_step: Some(crate::guard::GuardRunningStep { number: 4, task_anchor: "task:VE-12".into() }), ..context(false) };
 
     let GuardVerdict::Block { reason } = GuardService::decide(&GuardEvent::BeforeStop, &running) else { panic!("expected a block") };
 
-    assert!(reason.contains("Step 4") && reason.contains("step:4 done"), "{reason}");
+    assert!(reason.contains("Step 4") && reason.contains("/rk task:VE-12 step:4 done"), "{reason}");
     assert_eq!(GuardService::decide(&GuardEvent::BeforeStop, &context(false)), GuardVerdict::Allow);
+}
+
+#[test]
+fn merging_allows_only_the_designated_branch_operations() {
+    let mut context = context(true);
+    context.merge = Some(crate::guard::GuardMerge { branch: "rekall/ve-12".into(), pull_request: true });
+
+    for command in ["git add -- src/main.rs", "git commit --no-edit", "git push origin rekall/ve-12"] {
+        assert_eq!(GuardService::decide(&shell(command), &context), GuardVerdict::Allow);
+    }
+    for command in [
+        "git -C /other add -A", "cd /other && git commit --no-edit", "git push origin main",
+        "git push --force origin rekall/ve-12", "git push origin +rekall/ve-12",
+    ] {
+        assert!(is_blocked(&GuardService::decide(&shell(command), &context)), "{command}");
+    }
+    context.merge.as_mut().unwrap().pull_request = false;
+    assert!(is_blocked(&GuardService::decide(&shell("git push origin rekall/ve-12"), &context)));
 }

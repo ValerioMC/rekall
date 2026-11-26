@@ -9,12 +9,14 @@ import AppButton from '@/components/ui/AppButton.vue'
 import QueueOrderRow from '@/features/queue/components/QueueOrderRow.vue'
 import QueueTaskPicker from '@/features/queue/components/QueueTaskPicker.vue'
 import { isSettled, type RunProgress, type RunQueue, type RunQueueItem } from '@/features/queue/model/runQueue'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import type { SessionProvider } from '@/features/claude/model/session-provider'
 import type { TaskId } from '@/model/branded'
 
 const props = defineProps<{ queue: RunQueue; progress: RunProgress; busy: boolean }>()
 
 const emit = defineEmits<{
-  add: [taskId: TaskId]
+  add: [taskId: TaskId, provider: SessionProvider]
   /** `index` is the item's new place among the waiting ones. */
   move: [item: RunQueueItem, index: number]
   remove: [item: RunQueueItem]
@@ -23,12 +25,22 @@ const emit = defineEmits<{
   open: [item: RunQueueItem]
 }>()
 
+const terminals = useTerminalStore()
 const items = computed(() => props.queue.items)
 const waitingIds = computed(() => items.value.filter((item) => item.state === 'QUEUED').map((item) => item.id))
 const excluded = computed<ReadonlySet<TaskId>>(
   () => new Set(items.value.filter((item) => !isSettled(item.state)).map((item) => item.taskId))
 )
 const hasSettled = computed(() => items.value.some((item) => isSettled(item.state)))
+
+function blockingSession(item: RunQueueItem) {
+  if (item.state !== 'FAILED' || !item.detail?.includes('is already open on this task.')) return null
+  return terminals.terminalForTask(item.taskId)
+}
+
+function add(taskId: TaskId, provider: SessionProvider): void {
+  emit('add', taskId, provider)
+}
 
 function waitingIndex(item: RunQueueItem): number {
   return waitingIds.value.indexOf(item.id)
@@ -69,8 +81,7 @@ function moveBy(item: RunQueueItem, delta: number): void {
       >
         <p class="text-body font-medium text-text">Nothing queued</p>
         <p class="max-w-[46ch] text-small leading-relaxed text-text-muted">
-          Add the tasks you want run, in the order you want them. Each one gets a Claude
-          session that works its open steps and claims them, then the next one starts.
+          Add the tasks you want run, in the order you want them. Each task runs with the provider you choose when adding it.
         </p>
       </div>
 
@@ -80,6 +91,7 @@ function moveBy(item: RunQueueItem, delta: number): void {
           :key="item.id"
           :item="item"
           :position="index + 1"
+          :blocking-session="blockingSession(item)"
           :last="index === items.length - 1"
           :live="queue.state === 'RUNNING'"
           :busy="busy"
@@ -94,7 +106,7 @@ function moveBy(item: RunQueueItem, delta: number): void {
     </div>
 
     <div class="border-t border-border px-6 py-3">
-      <QueueTaskPicker :excluded="excluded" :disabled="busy" @pick="emit('add', $event)" />
+      <QueueTaskPicker :excluded="excluded" :disabled="busy" @pick="add" />
     </div>
   </section>
 </template>

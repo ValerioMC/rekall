@@ -1,29 +1,40 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import * as api from '@/features/decisions/api/decisions.api'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import { preferredProvider, setPreferredProvider } from '@/common/config/session-launch'
 import TaskDecisionsTab from '@/features/task/components/TaskDecisionsTab.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Task } from '@/features/catalog/model/catalog'
 import { answered, decision, TASK } from './fixtures'
+import { installStorage } from '../../support/memoryStorage'
 
 vi.mock('@/features/decisions/api/decisions.api')
 
 const task = { id: TASK, code: 'VG-41', anchor: 'task:VG-41', projectRepoFolder: '/code/vega' } as unknown as Task
 
 function mountTab(forTask: Task = task) {
-  return mount(TaskDecisionsTab, { props: { task: forTask } })
+  return mount(TaskDecisionsTab, { props: { task: forTask }, global: { stubs: { RouterLink: RouterLinkStub } } })
 }
 
 async function settle(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve))
 }
 
+async function chooseRefine(page: ReturnType<typeof mountTab>, provider: 'CLAUDE' | 'CODEX'): Promise<void> {
+  await page.get('[data-testid="decision-refine"]').trigger('click')
+  const option = document.querySelector<HTMLButtonElement>(`[data-testid="session-provider-${provider}"]`)!
+  option.click()
+  option.click()
+  await flushPromises()
+}
+
 describe('the Decisions tab', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.resetAllMocks()
+    installStorage()
   })
 
   it('says nothing is recorded yet and how to start, with no ledger and no switch', async () => {
@@ -62,15 +73,28 @@ describe('the Decisions tab', () => {
     expect(page.find('[data-testid="decision-ledger"]').exists()).toBe(false)
   })
 
-  it('has a session refine the task from the button, whether or not decisions were recorded', async () => {
+  it.each(['CLAUDE', 'CODEX'] as const)('refines with %s and shows its answer in the task ledger', async (provider) => {
+    const preferred = provider === 'CODEX' ? 'CLAUDE' : 'CODEX'
+    setPreferredProvider(preferred)
     vi.mocked(api.fetchDecisions).mockResolvedValue({ decisions: [], sessionBlock: '' })
     const planForTask = vi.spyOn(useTerminalStore(), 'planForTask').mockResolvedValue({} as never)
     const page = mountTab()
     await settle()
 
-    await page.get('[data-testid="decision-refine"]').trigger('click')
+    await chooseRefine(page, provider)
 
-    expect(planForTask).toHaveBeenCalledWith(TASK, 'task:VG-41', expect.anything(), 'REFINE', '')
+    expect(planForTask).toHaveBeenCalledTimes(1)
+    expect(preferredProvider()).toBe(preferred)
+    expect(planForTask).toHaveBeenCalledWith(TASK, expect.objectContaining({ provider }), 'REFINE', '')
+
+    vi.mocked(api.fetchDecisions).mockResolvedValue({
+      decisions: [answered('region', 'eu-west-1')],
+      sessionBlock: '<decisions/>'
+    })
+    await useConsoleStore().loadDecisions(TASK)
+    await settle()
+
+    expect(page.get('[data-testid="decision-ledger"]').text()).toContain('eu-west-1')
   })
 
   it('refuses to start a session when the project has no folder', async () => {
@@ -79,7 +103,7 @@ describe('the Decisions tab', () => {
     const page = mountTab({ ...task, projectRepoFolder: null } as Task)
     await settle()
 
-    await page.get('[data-testid="decision-refine"]').trigger('click')
+    await chooseRefine(page, 'CODEX')
 
     expect(planForTask).not.toHaveBeenCalled()
   })

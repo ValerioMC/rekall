@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use rekall_kernel::{jstr, Id, Result};
 use rekall_store::repository as repo;
-use rekall_store::TaskStatus;
+use rekall_store::{SessionProvider, TaskStatus};
 use tracing::warn;
 
 use crate::worktree::{BranchReview, MergeOutcome, OrphanReclaimService, Worktree, WorktreeHost, WorktreeLayout};
@@ -52,16 +52,18 @@ pub struct TaskWorktreeService {
     ctx: Ctx,
     host: Arc<dyn WorktreeHost>,
     layout: WorktreeLayout,
+    creating: Arc<tokio::sync::Mutex<()>>,
 }
 
 impl TaskWorktreeService {
     pub fn new(ctx: Ctx, host: Arc<dyn WorktreeHost>, layout: WorktreeLayout) -> Self {
-        Self { ctx, host, layout }
+        Self { ctx, host, layout, creating: Arc::new(tokio::sync::Mutex::new(())) }
     }
 
     /// The task's worktree: the one it already has when its folder is there, else a new one on
     /// `rekall/<task-label>` (the branch is reused when it exists), named on the task.
     pub async fn ensure(&self, task_id: Id) -> Result<PathBuf> {
+        let _creating = self.creating.lock().await;
         let Site { task, project_folder, project_label, base } = self.read(task_id).await?;
         if let Some(folder) = task.worktree_folder.as_deref().map(PathBuf::from).filter(|folder| folder.is_dir()) {
             return Ok(folder);
@@ -69,9 +71,19 @@ impl TaskWorktreeService {
         let project_folder = project_folder.ok_or_else(|| rekall_kernel::RekallError::illegal("Set this project's folder on its page before working here."))?;
         let branch = self.layout.branch_for(&task.label)?;
         let folder = self.layout.folder_for(&project_label, &task.label)?;
-        let worktree = self.host.create(Path::new(&project_folder), &branch, &folder, &base).await?;
-        self.name_on_task(task_id, Some(worktree.folder.to_string_lossy().into_owned())).await?;
-        Ok(worktree.folder)
+        if !self.can_reattach(Path::new(&project_folder), &branch, &folder).await? {
+            self.host.create(Path::new(&project_folder), &branch, &folder, &base).await?;
+        }
+        self.name_on_task(task_id, Some(folder.to_string_lossy().into_owned())).await?;
+        Ok(folder)
+    }
+
+    async fn can_reattach(&self, project_folder: &Path, branch: &str, folder: &Path) -> Result<bool> {
+        if !folder.is_dir() {
+            return Ok(false);
+        }
+        let worktrees = self.host.list(project_folder).await?;
+        Ok(worktrees.iter().any(|tree| tree.folder == folder && tree.branch == branch))
     }
 
     /// Whether the task's project wants every task on a branch of its own: it has a task manager
@@ -86,6 +98,25 @@ impl TaskWorktreeService {
             let has_folder = project.repo_folder.as_deref().is_some_and(|folder| !jstr::is_blank(folder));
             Ok(has_folder && repo::project_connection::task_manager_of_project(tx.db(), project.id).await?.is_some())
         })
+    }
+
+    pub async fn last_work_provider(&self, task_id: Id) -> Result<Option<SessionProvider>> {
+        in_read!(&self.ctx, |tx| {
+            let task = repo::task::require(tx.db(), task_id).await?;
+            Ok(task.last_work_provider)
+        })
+    }
+
+    pub async fn resolution_branch(&self, task_id: Id, folder: &Path) -> Result<Option<String>> {
+        let Site { task, project_folder, .. } = self.read(task_id).await?;
+        let Some(project_folder) = project_folder else { return Ok(None) };
+        let Some(task_folder) = task.worktree_folder.as_deref() else { return Ok(None) };
+        if std::fs::canonicalize(folder).ok().zip(std::fs::canonicalize(task_folder).ok()).is_none_or(|(cwd, worktree)| cwd != worktree) {
+            return Ok(None);
+        }
+        let branch = self.layout.branch_for(&task.label)?;
+        let worktrees = self.host.list(Path::new(&project_folder)).await?;
+        Ok(worktrees.iter().any(|tree| tree.folder == Path::new(task_folder) && tree.branch == branch).then_some(branch))
     }
 
     /// Takes the task's worktree away once its work is accepted, or when a person asks. A worktree
@@ -136,7 +167,10 @@ impl TaskWorktreeService {
             let before = load::task_or_unknown(tx.db(), task_id).await?;
             let mut task = before.clone();
             task.status = TaskStatus::Done;
-            repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
+            if task.status != before.status {
+                repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
+                tx.publish(crate::worktree::PullRequestChanged { task_id });
+            }
             Ok(())
         })
     }

@@ -19,14 +19,15 @@ import QueueSettingsAside from '@/features/queue/components/QueueSettingsAside.v
 import QueueStatusLine from '@/features/queue/components/QueueStatusLine.vue'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { useConsoleStore } from '@/stores/console.store'
-import { useChatStore } from '@/features/chat/store/chat.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import { SESSION_PROVIDER_LABEL, type SessionProvider } from '@/features/claude/model/session-provider'
 import { useOpenSession } from '@/features/claude/composables/useOpenSession'
 import { useToastStore } from '@/stores/toast.store'
 import { useNow } from '@/composables/useNow'
 import { useQueueSettingsDraft } from '@/features/queue/composables/useQueueSettingsDraft'
 import {
   clockLabel,
+  queuePlacement,
   fromLocalInputValue,
   suggestedStart,
   toLocalInputValue,
@@ -41,7 +42,6 @@ const consoleStore = useConsoleStore()
 const router = useRouter()
 const terminals = useTerminalStore()
 const openSession = useOpenSession()
-const chat = useChatStore()
 const toast = useToastStore()
 const { queue, progress } = storeToRefs(store)
 const now = useNow(15_000)
@@ -81,8 +81,11 @@ async function act(action: () => Promise<void>): Promise<void> {
   }
 }
 
-function add(taskId: TaskId): void {
-  void act(() => store.add(taskId))
+function add(taskId: TaskId, provider: SessionProvider): void {
+  void act(async () => {
+    await store.add(taskId, provider)
+    toast.notify(queuePlacement(queue.value, taskId, provider))
+  })
 }
 
 function moveTo(item: RunQueueItem, index: number): void {
@@ -110,15 +113,12 @@ async function watchSession(item: RunQueueItem): Promise<void> {
     return
   }
   const terminal = terminals.terminalForTask(item.taskId)
-  consoleStore.selectTask(item.taskId)
-  if (terminal?.kind === 'CHAT') {
-    chat.reveal(terminal)
-  } else if (terminal) {
-    openSession(terminal)
-  } else {
-    consoleStore.openTerminal()
-    if (router.currentRoute.value.name !== 'console') void router.push({ name: 'console' })
+  if (!terminal) {
+    toast.notifyError(new Error('This session has closed.'))
+    return
   }
+  consoleStore.selectTask(item.taskId)
+  openSession(terminal)
   emit('close')
 }
 
@@ -167,7 +167,7 @@ function confirmStop(): void {
 const stopBlast = computed(() => {
   const item = progress.value.running
   return item
-    ? `Closes the Claude session working on ${item.taskTitle}. Claimed steps stay claimed; the one it was on goes back to open.`
+    ? `Closes the ${SESSION_PROVIDER_LABEL[item.provider]} session working on ${item.taskTitle}. Claimed steps stay claimed; the one it was on goes back to open.`
     : ''
 })
 
@@ -191,7 +191,7 @@ onMounted(async () => {
       <div class="min-w-0">
         <h2 class="text-title font-semibold tracking-[-0.01em] text-text">Run queue</h2>
         <p class="text-small text-text-subtle">
-          Tasks run one after another, each in its own Claude session, until everything on it is
+          Tasks run one after another, each with its selected provider, until everything on it is
           claimed.
         </p>
       </div>

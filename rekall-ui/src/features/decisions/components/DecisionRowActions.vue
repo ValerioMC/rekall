@@ -8,7 +8,6 @@ import type { Decision } from '@/features/decisions/model/decision'
 import { useToastStore } from '@/stores/toast.store'
 import { useConsoleStore } from '@/stores/console.store'
 
-/** What a person can do to one decision by hand: correct it or remove it. A wrong record is best put right by telling Claude. */
 const props = defineProps<{ decision: Decision }>()
 
 const store = useConsoleStore()
@@ -39,13 +38,13 @@ async function remove(): Promise<void> {
     <div v-else class="flex flex-wrap items-center gap-1">
       <AppButton ref="editButton" variant="quiet" size="sm" data-testid="decision-edit" @click="editing = true">Edit</AppButton>
       <AppButton variant="danger-quiet" size="sm" data-testid="decision-remove" @click="confirming = true">Remove</AppButton>
-      <span class="ml-auto text-caption text-text-subtle">Wrong? Tell Claude in the conversation and it corrects or removes this.</span>
+      <span class="ml-auto text-caption text-text-subtle">You can also ask in the session to correct or remove this.</span>
     </div>
     <Transition name="dialog">
       <AppConfirm
         v-if="confirming"
         :title="`Remove ${decision.key}?`"
-        body="Claude will no longer read this decision with the task."
+        body="Future sessions will load the task without this decision."
         :blast="`Removes this decision from the task: ${decision.question}`"
         confirm-label="Remove decision"
         @cancel="confirming = false"

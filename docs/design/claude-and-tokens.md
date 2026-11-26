@@ -106,3 +106,11 @@ only on similar work: a few short sessions say nothing about a long one.
 Sharp edges: a session started outside every project's folder is never read, and a step named by
 number in an old transcript resolves against the checklist as it is when the transcript is reread.
 
+
+### Codex rollouts
+
+The scanner reads transcript rollouts under the configured Codex home alongside Claude Code’s
+transcripts. A rollout’s task prompt and completed Rekall tool calls determine attribution.
+`CodexRolloutLedger` calculates deltas from cumulative counts, including cache fields when
+reported. The provider and thread ID identify one set of stored rows across reconnects,
+restarts, and archive moves. The task and step views group those rows by provider.

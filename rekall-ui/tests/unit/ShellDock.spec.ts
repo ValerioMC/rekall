@@ -164,7 +164,19 @@ describe('ShellDock', () => {
   })
 
   describe('the bar', () => {
-    it('renders nothing when nothing runs and no session is live', async () => {
+    it('identifies both providers in the session dock', async () => {
+    const { wrapper } = await mountDock([
+      terminal(),
+      terminal({ id: 'term-2' as TerminalId, provider: 'CODEX', kind: 'CHAT' })
+    ])
+    await wrapper.get('[aria-controls="dock-panel-sessions"]').trigger('click')
+
+    const labels = wrapper.findAll('[data-testid="terminal-dock-provider"]').map((row) => row.text())
+    expect(labels).toEqual(['Claude Code', 'Codex'])
+    wrapper.unmount()
+  })
+
+  it('renders nothing when nothing runs and no session is live', async () => {
       const { wrapper } = await mountDock([terminal({ live: false })])
       expect(wrapper.find('[data-testid="shell-dock"]').exists()).toBe(false)
     })

@@ -73,7 +73,6 @@ defineExpose({ toggleMode })
           <DescriptionRewriteButton
             :key="selectedTask.id"
             :task-id="selectedTask.id"
-            :anchor="selectedTask.anchor"
             :folder="selectedTask.projectRepoFolder"
             :class="{ invisible: view !== 'description' }"
             :inert="view !== 'description'"
@@ -96,7 +95,6 @@ defineExpose({ toggleMode })
       <RevisionRunBar
         :key="selectedTask.id"
         :task-id="selectedTask.id"
-        :anchor="selectedTask.anchor"
         :folder="selectedTask.projectRepoFolder"
         :revisions-shown="view === 'revisions'"
         @show-revisions="view = 'revisions'"

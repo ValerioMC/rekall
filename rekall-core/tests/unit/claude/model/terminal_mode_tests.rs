@@ -50,9 +50,9 @@ fn a_discuss_terminal_asks_the_session_to_discuss_the_task_and_follows_no_step()
 }
 
 #[test]
-fn only_a_discuss_terminal_only_discusses() {
-    assert!(TerminalMode::Discuss.only_discusses());
-    assert!([TerminalMode::Work, TerminalMode::Plan, TerminalMode::Refine, TerminalMode::Revise].iter().all(|mode| !mode.only_discusses()));
+fn discussion_and_refinement_leave_the_running_marker_alone() {
+    assert!([TerminalMode::Discuss, TerminalMode::Refine].iter().all(|mode| !mode.marks_running_in_terminal()));
+    assert!([TerminalMode::Work, TerminalMode::Plan, TerminalMode::Revise].iter().all(TerminalMode::marks_running_in_terminal));
 }
 
 #[test]

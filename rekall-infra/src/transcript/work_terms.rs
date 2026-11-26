@@ -27,7 +27,8 @@ fn slash_arguments(text: &str) -> Option<&str> {
     if let Some(found) = RECORDED.captures(text).and_then(|captures| captures.get(1)) {
         return Some(found.as_str());
     }
-    text.trim_start().strip_prefix("/rk ")
+    let text = text.trim_start();
+    text.strip_prefix("/rk ").or_else(|| text.strip_prefix("Use the $rekall skill with this exact argument line: "))
 }
 
 #[derive(Default)]

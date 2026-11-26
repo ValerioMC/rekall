@@ -37,9 +37,9 @@ impl Worker {
                 self.forget(generation);
                 self.release_running_steps(current.task_id).await;
                 self.queue
-                    .mark_item(current.item_id, RunQueueItemState::Failed, Some("The next session could not be opened."))
+                    .mark_item(current.item_id, RunQueueItemState::Failed, Some(failure.message()))
                     .await?;
-                self.advance().await
+                self.advance(false).await
             }
         }
     }

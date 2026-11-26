@@ -38,7 +38,7 @@ impl CodexCli {
         environment
     }
 
-    pub(super) async fn codex_home(&self) -> PathBuf {
+    pub(crate) async fn codex_home(&self) -> PathBuf {
         self.environment().await.get("CODEX_HOME").filter(|path| !path.is_empty()).map(PathBuf::from)
             .unwrap_or_else(|| self.home.join(".codex"))
     }

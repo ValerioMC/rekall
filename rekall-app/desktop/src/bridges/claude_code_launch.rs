@@ -12,6 +12,7 @@ pub struct ClaudeCodeLaunch {
     pub(super) skip_permissions: bool,
     #[serde(default)]
     pub(super) provider: SessionProvider,
+    pub(super) task_id: Option<uuid::Uuid>,
     pub(super) model: Option<String>,
     pub(super) effort: Option<String>,
 }

@@ -224,8 +224,8 @@ onMounted(() => void load())
       <div class="mt-3 border-t border-border pt-3" data-testid="claude-session-view">
         <p class="text-small text-text">Session view</p>
         <p class="mt-0.5 text-caption leading-relaxed text-text-subtle">
-          <span class="text-text-muted">Chat</span> runs <code class="text-anchor/80">claude</code> without a
-          terminal, in a window beside the task. With permission prompts on, it asks for each tool call there.
+          <span class="text-text-muted">Chat</span> shows the selected provider’s conversation and approval requests
+          in a window beside the task.
           <span class="text-text-muted">Terminal</span> stays the default.
         </p>
         <SessionChoiceGroup

@@ -16,7 +16,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import type { TaskId } from '@/model/branded'
 
-const props = defineProps<{ taskId: TaskId; anchor: string; folder: string | null; revisionsShown: boolean }>()
+const props = defineProps<{ taskId: TaskId; folder: string | null; revisionsShown: boolean }>()
 const emit = defineEmits<{ showRevisions: [] }>()
 
 const store = useConsoleStore()
@@ -24,7 +24,6 @@ const { selectedTaskFeedback } = storeToRefs(store)
 const { run } = useAsyncAction()
 const { phase, visible, hint, waitingCount, runningPass, apply } = useRevisionRun(
   () => props.taskId,
-  () => props.anchor,
   () => props.folder
 )
 

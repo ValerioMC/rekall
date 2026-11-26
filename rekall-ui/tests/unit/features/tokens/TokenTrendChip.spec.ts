@@ -53,10 +53,10 @@ describe('the token chip', () => {
     wrapper.unmount()
   })
 
-  it('draws no sparkline for a task that generated nothing', () => {
+  it('shows unavailable usage without a sparkline when there are no readings', () => {
     const wrapper = mountChip(0, [])
 
-    expect(wrapper.get('[data-testid="token-chip"]').text()).toContain('0')
+    expect(wrapper.get('[data-testid="token-chip"]').attributes('title')).toBe('No token usage reported')
     expect(wrapper.find('[data-testid="token-chip-spark"]').exists()).toBe(false)
     wrapper.unmount()
   })

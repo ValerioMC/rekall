@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
+import { SESSION_PROVIDER_LABEL } from '@/features/claude/model/session-provider'
 import TaskActivityMark from '@/features/workingset/components/TaskActivityMark.vue'
 import { chatStatus, type ChatStatus } from '@/features/chat/lib/chat-status'
 import { useChatStore } from '@/features/chat/store/chat.store'
@@ -13,33 +14,31 @@ import { useConsoleStore } from '@/stores/console.store'
  * moving bars while Claude works, an amber pill while it waits for an answer, a still glyph otherwise.
  */
 interface HandleLook {
-  readonly name: string
+  readonly detail?: string
   readonly tone: string
 }
 
 const HANDLE_LOOKS: Readonly<Record<ChatStatus, HandleLook>> = {
   working: {
-    name: 'Open the chat, Claude is working',
+    detail: 'working',
     tone: 'border-session bg-surface-raised text-session-strong hover:bg-surface-hover'
   },
   waiting: {
-    name: 'Open the chat, waiting for your answer',
+    detail: 'waiting for your answer',
     tone: 'border-accent-deep bg-accent text-accent-ink hover:bg-accent-strong'
   },
   idle: {
-    name: 'Open the chat, Claude is idle',
+    detail: 'idle',
     tone: 'border-border-strong bg-surface-raised text-text-muted hover:bg-surface-hover hover:text-text'
   },
   ended: {
-    name: 'Open the chat, the session has ended',
+    detail: 'ended',
     tone: 'border-dashed border-border-strong bg-surface text-text-subtle hover:bg-surface-hover hover:text-text'
   },
   connecting: {
-    name: 'Open the chat',
     tone: 'border-border-strong bg-surface-raised text-text-muted hover:bg-surface-hover hover:text-text'
   },
   reconnecting: {
-    name: 'Open the chat',
     tone: 'border-border-strong bg-surface-raised text-text-muted hover:bg-surface-hover hover:text-text'
   }
 }
@@ -56,6 +55,11 @@ const status = computed<ChatStatus>(() => {
   return chatStatus({ timeline: chat.timelineOf(current.id), session: current, connected: true, reconnecting: false })
 })
 const look = computed(() => HANDLE_LOOKS[status.value])
+const label = computed(() => {
+  const provider = session.value?.provider
+  const name = provider ? `Open ${SESSION_PROVIDER_LABEL[provider]} Chat` : 'Open Chat'
+  return look.value.detail ? `${name}, ${look.value.detail}` : name
+})
 </script>
 
 <template>
@@ -65,8 +69,8 @@ const look = computed(() => HANDLE_LOOKS[status.value])
       type="button"
       class="chat-handle focus-ring absolute bottom-4 right-4 z-(--z-sticky) flex h-10 cursor-pointer items-center rounded-full border text-text shadow-raised"
       :class="look.tone"
-      :aria-label="look.name"
-      :title="look.name"
+      :aria-label="label"
+      :title="label"
       :data-status="status"
       data-testid="chat-reopen-tag"
       @click="dock.open(selectedTaskId)"

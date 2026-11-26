@@ -2,6 +2,7 @@
 import TerminalConnectionChips from '@/features/connection/components/TerminalConnectionChips.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
+import SessionProviderMark from '@/features/claude/components/SessionProviderMark.vue'
 import TerminalScreen from '@/features/claude/components/TerminalScreen.vue'
 import { storeToRefs } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
@@ -80,14 +81,18 @@ async function openHere(): Promise<void> {
 }
 
 async function restart(): Promise<void> {
-  const task = selectedTask.value
-  const current = activeTerminalId.value
-  if (!task || !current) return
+  const current = activeTerminal.value
+  if (!current?.taskId) return
+  const taskId = current.taskId
   await run(async () => {
-    await terminals.close(current)
-    await terminals.openForTask(task.id, {
-      ...launchChoices(),
-      kind: 'TERMINAL'
+    await terminals.close(current.id)
+    await terminals.openForTask(taskId, {
+      provider: current.provider,
+      skipPermissions: current.skipPermissions,
+      model: current.model ?? undefined,
+      effort: current.effort ?? undefined,
+      stepId: current.stepId,
+      kind: current.kind
     })
   }, 'Terminal restarted')
 }
@@ -196,7 +201,7 @@ watch(
                       data-testid="terminal-other-sessions-row"
                       @click="switchTo(terminal)"
                     >
-                      <span class="session-caret shrink-0" aria-hidden="true" />
+                      <SessionProviderMark :provider="terminal.provider" :size="14" />
                       <span class="min-w-0 flex-1">
                         <span class="block truncate text-[12.5px] font-medium text-text">
                           {{ terminal.taskTitle }}
@@ -208,6 +213,7 @@ watch(
                             aria-hidden="true"
                           />
                           <span class="min-w-0 truncate">{{ terminal.anchors }}</span>
+                          <span class="shrink-0 font-sans text-caption text-text-muted">{{ SESSION_PROVIDER_LABEL[terminal.provider] }}</span>
                         </span>
                       </span>
                     </button>
@@ -253,8 +259,12 @@ watch(
           </div>
         </header>
         <div class="relative flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border bg-surface px-5 py-2">
+          <span v-if="activeTerminal" class="inline-flex shrink-0 items-center gap-1.5 text-caption text-text-muted">
+            <SessionProviderMark :provider="activeTerminal.provider" :size="12" />
+            {{ SESSION_PROVIDER_LABEL[activeTerminal.provider] }}
+          </span>
           <span v-if="activeTerminal" class="truncate font-mono text-micro text-text-subtle">
-            {{ SESSION_PROVIDER_LABEL[activeTerminal.provider] }} · {{ activeTerminal.workingDir }}
+            {{ activeTerminal.workingDir }}
           </span>
           <span
             v-if="activeTerminal"

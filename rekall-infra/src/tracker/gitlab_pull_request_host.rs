@@ -23,6 +23,7 @@ struct GitlabMergeRequest {
     iid: u64,
     web_url: String,
     merge_status: Option<String>,
+    state: Option<String>,
 }
 
 /// GitLab's merge request API over HTTPS with `reqwest`, through the connection's proxy when it
@@ -55,15 +56,19 @@ impl GitlabPullRequestHost {
     }
 
     async fn read(&self, endpoint: &TrackerEndpoint, iid: u64) -> Result<PullRequest, TrackerFailure> {
+        Ok(pull_request_of(self.read_details(endpoint, iid).await?))
+    }
+
+    async fn read_details(&self, endpoint: &TrackerEndpoint, iid: u64) -> Result<GitlabMergeRequest, TrackerFailure> {
         let mut merge_request = self.read_once(endpoint, iid).await?;
         for _ in 1..CHECK_ATTEMPTS {
-            if mergeability_of(&merge_request) != Mergeability::Unknown {
+            if merge_request.state.as_deref() == Some("merged") || mergeability_of(&merge_request) != Mergeability::Unknown {
                 break;
             }
             tokio::time::sleep(self.check_interval).await;
             merge_request = self.read_once(endpoint, iid).await?;
         }
-        Ok(pull_request_of(merge_request))
+        Ok(merge_request)
     }
 
     async fn read_once(&self, endpoint: &TrackerEndpoint, iid: u64) -> Result<GitlabMergeRequest, TrackerFailure> {
@@ -73,7 +78,11 @@ impl GitlabPullRequestHost {
 
     async fn refusal_of_merge(&self, endpoint: &TrackerEndpoint, pull_request: &PullRequest, response: Response) -> Result<PullRequestMerge, TrackerFailure> {
         let reason = response.json::<Refusal>().await.ok().map(|refusal| said_by(&refusal)).unwrap_or_default();
-        if self.read(endpoint, pull_request.number).await?.mergeability == Mergeability::Conflicting {
+        let current = self.read_details(endpoint, pull_request.number).await?;
+        if current.state.as_deref() == Some("merged") {
+            return Ok(PullRequestMerge::Merged);
+        }
+        if mergeability_of(&current) == Mergeability::Conflicting {
             return Ok(PullRequestMerge::Conflicting);
         }
         Ok(PullRequestMerge::Refused(if reason.is_empty() { "GitLab refused the merge".to_string() } else { reason }))

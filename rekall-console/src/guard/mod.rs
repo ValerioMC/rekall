@@ -9,3 +9,4 @@ pub use command::guard_context_command::GuardContextCommand;
 pub use service::guard_context_service::GuardContextService;
 pub use view::guard_context_view::GuardContextView;
 pub use view::running_step_view::RunningStepView;
+pub use service::guard_protection_service::GuardProtectionService;

@@ -1,5 +1,5 @@
 pub(super) mod covering_document;
-pub(super) mod guard_protection;
+pub(super) mod codex_session_options;
 pub(super) mod installation;
 pub(super) mod launch_choices;
 pub(super) mod limit;
@@ -17,7 +17,7 @@ pub(super) mod resource_path;
 pub(super) mod resource_save;
 pub(super) mod resource_summary;
 pub(super) mod rewrite_style;
-pub(super) mod session_provider;
+pub(super) mod session_command_prompt;
 pub(super) mod severity;
 pub(super) mod skill_source;
 pub(super) mod task_work;

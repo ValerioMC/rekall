@@ -34,6 +34,7 @@ export async function openTerminal(target: TerminalTarget, input: OpenTerminalIn
     TerminalSchema.parse(
       await apiClient(terminalsPath(target), {
         method: 'POST',
+        retry: 0,
         body: {
           stepId: input.stepId ?? null,
           ...(input.provider ? { provider: input.provider } : {}),
