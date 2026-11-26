@@ -1,5 +1,5 @@
 use super::*;
-use crate::chat::{ChatEvent, ContextFill};
+use crate::chat::{ChatEvent, ContextFill, FileChange, FileChangeKind};
 
 #[test]
 fn a_short_output_is_kept_whole() {
@@ -88,5 +88,16 @@ fn an_event_of_a_subagent_names_the_agent_call_it_belongs_to() {
     assert_eq!(
         serde_json::to_value(&inner).unwrap(),
         serde_json::json!({"type": "toolUse", "toolUseId": "toolu_2", "name": "Read", "input": {"tool": "read", "filePath": "a"}, "parentToolUseId": "toolu_1"})
+    );
+}
+
+#[test]
+fn a_change_set_is_written_with_what_happens_to_each_file() {
+    let change = FileChange { path: "a".into(), kind: FileChangeKind::Update, moved_to: Some("b".into()), diff: "@@ -1 +1 @@\n".into() };
+    let input = ToolInput::FileChanges { changes: vec![change] };
+
+    assert_eq!(
+        serde_json::to_value(&input).unwrap(),
+        serde_json::json!({"tool": "fileChanges", "changes": [{"path": "a", "kind": "update", "movedTo": "b", "diff": "@@ -1 +1 @@\n"}]})
     );
 }

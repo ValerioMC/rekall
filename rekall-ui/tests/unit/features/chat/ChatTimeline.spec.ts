@@ -162,6 +162,24 @@ describe('ChatTimeline', () => {
     timeline.unmount()
   })
 
+  it('tells a command by its description alone, and leaves out one that has none', () => {
+    const described = toolItem({
+      input: { tool: 'bash', command: 'cargo test --workspace', description: 'Run every test' },
+      state: 'done',
+      result: { isError: false, excerpt: '12 passed', truncated: false, summary: 'exit code 0' }
+    })
+    const bare = toolItem({ key: 'tool-u2', toolUseId: 'u2', input: { tool: 'bash', command: 'pwd', description: null } })
+
+    const timeline = mountTimeline([described, bare])
+
+    expect(timeline.get('[data-testid=chat-command-line]').text()).toBe('DoneRun every test')
+    expect(timeline.findAll('li')).toHaveLength(1)
+    expect(timeline.text()).not.toContain('cargo test')
+    expect(timeline.text()).not.toContain('12 passed')
+    expect(timeline.find('button').exists()).toBe(false)
+    timeline.unmount()
+  })
+
   it('shows the session row and the output of a command in place', () => {
     const timeline = mountTimeline([
       { kind: 'session', key: 'session-1', model: 'claude-opus', cwd: '/code/vega', permissionMode: 'default', version: '2.1.331' },

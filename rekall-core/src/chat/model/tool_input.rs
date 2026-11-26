@@ -1,7 +1,7 @@
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::chat::{TodoItem, TodoStatus};
+use crate::chat::{FileChange, TodoItem, TodoStatus};
 
 const MCP_PREFIX: &str = "mcp__";
 const MCP_SEPARATOR: &str = "__";
@@ -14,6 +14,7 @@ pub enum ToolInput {
     Bash { command: String, description: Option<String> },
     Edit { file_path: String, old_string: String, new_string: String, replace_all: bool },
     Write { file_path: String, content: String },
+    FileChanges { changes: Vec<FileChange> },
     Read { file_path: String },
     Search { name: String, pattern: String, path: Option<String> },
     Todos { items: Vec<TodoItem> },

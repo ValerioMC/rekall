@@ -22,6 +22,13 @@ request_approval() {
     printf '%s\n' '{"id":"file-72","method":"item/fileChange/requestApproval","params":{"threadId":"thread-1","turnId":"turn-'"$turn"'","itemId":"file","reason":"Write a file","grantRoot":"."}}'
 }
 
+change_files() {
+    changes='[{"path":"/work/notes.md","kind":{"type":"add"},"diff":"hello\n"},{"path":"/work/old.md","kind":{"type":"update","move_path":"/work/new.md"},"diff":"@@ -1 +1 @@\n-a\n+b\n"}]'
+    send_event 'item/started' '{"threadId":"thread-1","item":{"type":"fileChange","id":"patch","status":"inProgress","changes":'"$changes"'}}'
+    send_event 'item/completed' '{"threadId":"thread-1","item":{"type":"fileChange","id":"patch","status":"completed","changes":'"$changes"'}}'
+    answer_turn 'Files changed.'
+}
+
 request_mcp_approval() {
     printf '%s\n' '{"id":73,"method":"mcpServer/elicitation/request","params":{"threadId":"thread-1","turnId":"turn-'"$turn"'","serverName":"rekall","mode":"form","_meta":{"codex_approval_kind":"mcp_tool_call","tool_name":"rekall_context","tool_params":{"anchors":"task:AL-1"}},"requestedSchema":{"type":"object","properties":{}}}}'
     printf '%s\n' '{"id":74,"method":"mcpServer/elicitation/request","params":{"threadId":"thread-1","turnId":"turn-'"$turn"'","serverName":"rekall","mode":"form","_meta":{"codex_approval_kind":"mcp_tool_call","tool_name":"rekall_step","tool_params":{"state":"claimed"}},"requestedSchema":{"type":"object","properties":{}}}}'
@@ -52,6 +59,7 @@ while IFS= read -r line; do
                 *'refine'*) answer_turn 'Which region should host the service?' ;;
                 *'request approval'*) request_approval ;;
                 *'request MCP approval'*) request_mcp_approval ;;
+                *'change files'*) change_files ;;
                 *'hold this turn'*) ;;
                 *'eu-west-1'*) answer_turn 'I will use eu-west-1.' ;;
                 *) answer_turn 'Ready.' ;;

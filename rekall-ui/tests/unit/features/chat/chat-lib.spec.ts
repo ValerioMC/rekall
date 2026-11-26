@@ -5,7 +5,9 @@ import { mcpArguments } from '@/features/chat/lib/mcp-arguments'
 import { describePermission } from '@/features/chat/lib/describe-permission'
 import { describeTool } from '@/features/chat/lib/describe-tool'
 import { splitLines } from '@/features/chat/lib/lines'
-import { diffLines, writeLines } from '@/features/chat/lib/tool-diff'
+import { diffLines, fileDiffs, unifiedLines, writeLines } from '@/features/chat/lib/tool-diff'
+import { isShownInChat } from '@/features/chat/lib/tool-card'
+import { toolItem, userItem } from './support'
 
 describe('splitLines', () => {
   it('has no lines for no text, and does not count the newline that ends the text', () => {
@@ -29,6 +31,50 @@ describe('diffLines', () => {
       { sign: '+', text: 'one' },
       { sign: '+', text: 'two' }
     ])
+  })
+})
+
+describe('unifiedLines', () => {
+  it('reads the hunks, with their unchanged lines, and nothing outside them', () => {
+    const diff = '--- a/x\n+++ b/x\n@@ -1,2 +1,2 @@\n keep\n-a\n+b\n\\ No newline at end of file\n\nMoved to: y'
+
+    expect(unifiedLines(diff)).toEqual([
+      { sign: '@', text: '@@ -1,2 +1,2 @@' },
+      { sign: ' ', text: 'keep' },
+      { sign: '-', text: 'a' },
+      { sign: '+', text: 'b' }
+    ])
+  })
+
+  it('has no lines for a diff with no hunk', () => {
+    expect(unifiedLines('Moved to: y')).toEqual([])
+  })
+})
+
+describe('fileDiffs', () => {
+  it('reads an added file as put in and a deleted one as taken out', () => {
+    const diffs = fileDiffs({
+      tool: 'fileChanges',
+      changes: [
+        { path: 'a', kind: 'add', movedTo: null, diff: 'one' },
+        { path: 'b', kind: 'delete', movedTo: null, diff: 'two' }
+      ]
+    })
+
+    expect(diffs.map((file) => file.lines)).toEqual([[{ sign: '+', text: 'one' }], [{ sign: '-', text: 'two' }]])
+  })
+
+  it('has none for a call that changes no file', () => {
+    expect(fileDiffs({ tool: 'read', filePath: 'a' })).toEqual([])
+  })
+})
+
+describe('isShownInChat', () => {
+  it('leaves out only a command that says nothing about itself', () => {
+    const described = toolItem({ input: { tool: 'bash', command: 'ls', description: 'List the folder' } })
+    const bare = toolItem({ input: { tool: 'bash', command: 'ls', description: null } })
+
+    expect([described, bare, userItem(1)].map(isShownInChat)).toEqual([true, false, true])
   })
 })
 

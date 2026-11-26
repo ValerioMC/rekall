@@ -8,34 +8,34 @@ function mountCard(call: ToolItem) {
   return mount(ToolCallCard, { props: { call } })
 }
 
-const BASH = toolItem({ input: { tool: 'bash', command: 'cargo test --workspace', description: 'Run every test' } })
+const SEARCH = toolItem({ input: { tool: 'search', name: 'Grep', pattern: 'fn main', path: 'src' } })
 
 describe('ToolCallCard', () => {
   it('is one row until it is opened, and opens and closes on its button', async () => {
-    const card = mountCard(BASH)
+    const card = mountCard(SEARCH)
 
     expect(card.get('button').attributes('aria-expanded')).toBe('false')
     expect(card.find('[data-testid=tool-call-body]').exists()).toBe(false)
-    expect(card.text()).toContain('Bash')
-    expect(card.text()).toContain('cargo test --workspace')
+    expect(card.text()).toContain('Grep')
+    expect(card.text()).toContain('fn main in src')
 
     await card.get('button').trigger('click')
     expect(card.get('button').attributes('aria-expanded')).toBe('true')
-    expect(card.get('[data-testid=tool-call-body]').text()).toContain('Run every test')
+    expect(card.find('[data-testid=tool-call-body]').exists()).toBe(true)
 
     await card.get('button').trigger('click')
     expect(card.find('[data-testid=tool-call-body]').exists()).toBe(false)
   })
 
   it('says what state the call is in', () => {
-    expect(mountCard(BASH).get('button [data-state]').text()).toBe('Running')
-    expect(mountCard({ ...BASH, state: 'done' }).text()).toContain('Done')
-    expect(mountCard({ ...BASH, state: 'denied' }).text()).toContain('Denied')
+    expect(mountCard(SEARCH).get('button [data-state]').text()).toBe('Running')
+    expect(mountCard({ ...SEARCH, state: 'done' }).text()).toContain('Done')
+    expect(mountCard({ ...SEARCH, state: 'denied' }).text()).toContain('Denied')
   })
 
-  it('shows the end of a command\'s output once opened', async () => {
+  it('shows the end of a call\'s output once opened', async () => {
     const card = mountCard({
-      ...BASH,
+      ...SEARCH,
       state: 'done',
       result: { isError: false, excerpt: 'test result: ok. 12 passed', truncated: false, summary: null }
     })
@@ -45,7 +45,7 @@ describe('ToolCallCard', () => {
     expect(card.get('[data-testid=tool-output]').text()).toContain('12 passed')
   })
 
-  it('shows an edit as the lines it removes and the lines it adds', async () => {
+  it('shows an edit open, as the lines it removes and the lines it adds', () => {
     const card = mountCard(
       toolItem({
         input: {
@@ -60,8 +60,7 @@ describe('ToolCallCard', () => {
       })
     )
 
-    await card.get('button').trigger('click')
-
+    expect(card.get('button').attributes('aria-expanded')).toBe('true')
     const rows = card.findAll('[data-sign]')
     expect(rows.map((row) => row.attributes('data-sign'))).toEqual(['-', '-', '+'])
     expect(rows.map((row) => row.text())).toEqual([
@@ -73,7 +72,7 @@ describe('ToolCallCard', () => {
     expect(card.find('[data-testid=tool-output]').exists()).toBe(false)
   })
 
-  it('shows the output of an edit that failed', async () => {
+  it('shows the output of an edit that failed', () => {
     const card = mountCard(
       toolItem({
         input: { tool: 'edit', filePath: 'a.rs', oldString: 'x', newString: 'y', replaceAll: false },
@@ -82,8 +81,6 @@ describe('ToolCallCard', () => {
       })
     )
 
-    await card.get('button').trigger('click')
-
     expect(card.get('[data-testid=tool-output]').text()).toContain('old_string not found')
   })
 
@@ -91,7 +88,6 @@ describe('ToolCallCard', () => {
     const content = Array.from({ length: 45 }, (_, index) => `line ${index + 1}`).join('\n')
     const card = mountCard(toolItem({ input: { tool: 'write', filePath: 'out.txt', content } }))
 
-    await card.get('button').trigger('click')
     expect(card.findAll('[data-sign]')).toHaveLength(40)
 
     const more = card.findAll('button').find((button) => button.text() === 'Show 5 more lines')
@@ -101,7 +97,7 @@ describe('ToolCallCard', () => {
 
   it('cuts a long output to its last 40 lines, with a key for all of them and a note when Rekall cut it', async () => {
     const excerpt = Array.from({ length: 100 }, (_, index) => `out ${index + 1}`).join('\n')
-    const card = mountCard({ ...BASH, state: 'done', result: { isError: false, excerpt, truncated: true, summary: null } })
+    const card = mountCard({ ...SEARCH, state: 'done', result: { isError: false, excerpt, truncated: true, summary: null } })
 
     await card.get('button').trigger('click')
     const output = card.get('[data-testid=tool-output]')
@@ -125,19 +121,50 @@ describe('ToolCallCard', () => {
 
   it('says what the call did after what it was pointed at, without opening it', () => {
     const card = mountCard({
-      ...BASH,
+      ...SEARCH,
       state: 'failed',
-      result: { isError: true, excerpt: 'boom', truncated: false, summary: 'exit code 1' }
+      result: { isError: true, excerpt: 'boom', truncated: false, summary: '3 matches' }
     })
 
-    expect(card.get('[data-testid=tool-summary]').text()).toBe('exit code 1')
+    expect(card.get('[data-testid=tool-summary]').text()).toBe('3 matches')
     expect(card.find('[data-testid=tool-call-body]').exists()).toBe(false)
   })
 
   it('shows no summary when the result has none', () => {
-    const card = mountCard({ ...BASH, state: 'done', result: { isError: false, excerpt: 'ok', truncated: false, summary: null } })
+    const card = mountCard({ ...SEARCH, state: 'done', result: { isError: false, excerpt: 'ok', truncated: false, summary: null } })
 
     expect(card.find('[data-testid=tool-summary]').exists()).toBe(false)
+  })
+
+  it('heads each file of a change set with its path, and shows no output when it has none to show', () => {
+    const card = mountCard(
+      toolItem({
+        input: {
+          tool: 'fileChanges',
+          changes: [
+            { path: 'notes.md', kind: 'add', movedTo: null, diff: 'hello\n' },
+            { path: 'old.rs', kind: 'update', movedTo: 'new.rs', diff: '@@ -1,2 +1,2 @@\n keep\n-a\n+b\n' }
+          ]
+        },
+        state: 'failed',
+        result: { isError: true, excerpt: '', truncated: false, summary: null }
+      })
+    )
+
+    const files = card.findAll('[data-testid=tool-file]')
+    expect(card.text()).toContain('2 files')
+    expect(files.map((file) => file.get('p').text())).toEqual(['notes.md', 'old.rsmoved to new.rs'])
+    expect(files[1]!.findAll('[data-sign]').map((row) => row.attributes('data-sign'))).toEqual(['@', ' ', '-', '+'])
+    expect(card.find('[data-testid=tool-output]').exists()).toBe(false)
+  })
+
+  it('names a single changed file once, whole in the row\'s title', () => {
+    const card = mountCard(
+      toolItem({ input: { tool: 'fileChanges', changes: [{ path: 'src/main.rs', kind: 'delete', movedTo: null, diff: 'gone' }] } })
+    )
+
+    expect(card.get('[title="src/main.rs"]').text()).toBe('src/main.rs')
+    expect(card.get('[data-testid=tool-file]').find('p').exists()).toBe(false)
   })
 
   it('reads a todo list open, in progress first, a glyph for each status', () => {

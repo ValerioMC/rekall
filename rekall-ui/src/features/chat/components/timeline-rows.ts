@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import ChatCommandLine from './ChatCommandLine.vue'
 import ChatCommandOutput from './ChatCommandOutput.vue'
 import ChatEnded from './ChatEnded.vue'
 import ChatMessage from './ChatMessage.vue'
@@ -7,6 +8,7 @@ import ChatSessionStart from './ChatSessionStart.vue'
 import ChatThinking from './ChatThinking.vue'
 import ChatTurnFooter from './ChatTurnFooter.vue'
 import ToolCallCard from './ToolCallCard.vue'
+import { isCommand } from '@/features/chat/lib/tool-card'
 import type { TimelineItem } from '@/features/chat/model/timeline'
 
 export interface RowContext {
@@ -54,6 +56,9 @@ export interface ResolvedRow {
 }
 
 export function resolveRow(item: TimelineItem, context: RowContext): ResolvedRow {
+  if (isCommand(item)) {
+    return { component: ChatCommandLine, props: { description: item.input.description, state: item.state } }
+  }
   const row = ROWS[item.kind] as Row<TimelineItem>
   return { component: row.component, props: row.props(item, context) }
 }

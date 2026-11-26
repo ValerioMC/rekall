@@ -1,7 +1,8 @@
-use rekall_core::chat::{ChatBody, ToolInput};
+use rekall_core::chat::{ChatBody, FileChange, FileChangeKind, ToolInput};
 
 use super::protocol::{
-    Approval, ApprovalParams, ApprovalReply, FileChange, Item, McpToolApproval, McpToolApprovalParams, RequestId,
+    Approval, ApprovalParams, ApprovalReply, FileUpdateChange, Item, McpToolApproval, McpToolApprovalParams,
+    PatchChangeKind, RequestId,
 };
 
 pub(super) fn assistant_text(message_id: String, text: String, complete: bool) -> ChatBody {
@@ -34,9 +35,7 @@ pub(super) fn item_completed(item: Item) -> Option<ChatBody> {
             let summary = exit_code.map(|code| format!("Exit code {code}"));
             Some(ChatBody::tool_result(&id, status.failed(), aggregated_output.as_deref().unwrap_or_default(), summary, None))
         }
-        Item::FileChange { id, changes, status } => {
-            Some(ChatBody::tool_result(&id, status.failed(), &diff(changes), None, None))
-        }
+        Item::FileChange { id, status, .. } => Some(ChatBody::tool_result(&id, status.failed(), "", None, None)),
         Item::McpToolCall { id, status, result, error, .. } => {
             let output =
                 error.map(|error| error.message).or_else(|| result.map(|result| result.to_string())).unwrap_or_default();
@@ -82,11 +81,15 @@ pub(super) fn mcp_tool_approval(id: RequestId, request_id: String, params: McpTo
     Approval { id, view_id: request_id, event, reply: ApprovalReply::McpTool }
 }
 
-fn file_input(changes: Vec<FileChange>) -> ToolInput {
-    let text = changes.into_iter().map(|change| change.path).collect::<Vec<_>>().join("\n");
-    ToolInput::Other { name: "File changes".to_owned(), text }
+fn file_input(changes: Vec<FileUpdateChange>) -> ToolInput {
+    ToolInput::FileChanges { changes: changes.into_iter().map(file_change).collect() }
 }
 
-fn diff(changes: Vec<FileChange>) -> String {
-    changes.into_iter().map(|change| format!("{}\n{}", change.path, change.diff)).collect::<Vec<_>>().join("\n")
+fn file_change(change: FileUpdateChange) -> FileChange {
+    let (kind, moved_to) = match change.kind {
+        PatchChangeKind::Add => (FileChangeKind::Add, None),
+        PatchChangeKind::Delete => (FileChangeKind::Delete, None),
+        PatchChangeKind::Update { move_path } => (FileChangeKind::Update, move_path),
+    };
+    FileChange { path: change.path, kind, moved_to, diff: change.diff }
 }

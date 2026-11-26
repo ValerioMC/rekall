@@ -22,6 +22,16 @@ export interface TurnContext {
   readonly windowTokens: number
 }
 
+export type FileChangeKind = 'add' | 'delete' | 'update'
+
+/** One file of a change set. `diff` is a unified diff for an update, and the file's whole text otherwise. */
+export interface FileChange {
+  readonly path: string
+  readonly kind: FileChangeKind
+  readonly movedTo: string | null
+  readonly diff: string
+}
+
 /** What a tool call was asked to do; the tools the chat shows in a way of their own are typed, the rest are `Other`. */
 export type ToolInput =
   | { readonly tool: 'bash'; readonly command: string; readonly description: string | null }
@@ -33,6 +43,7 @@ export type ToolInput =
       readonly replaceAll: boolean
     }
   | { readonly tool: 'write'; readonly filePath: string; readonly content: string }
+  | { readonly tool: 'fileChanges'; readonly changes: readonly FileChange[] }
   | { readonly tool: 'read'; readonly filePath: string }
   | {
       readonly tool: 'search'

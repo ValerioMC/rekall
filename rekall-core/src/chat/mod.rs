@@ -8,6 +8,8 @@ pub use model::chat_attachment::ChatAttachment;
 pub use model::chat_body::{ChatBody, NoticeKind, TurnOutcome, TurnUsage, TOOL_EXCERPT_MAX_CHARACTERS};
 pub use model::chat_event::ChatEvent;
 pub use model::context_fill::ContextFill;
+pub use model::file_change::FileChange;
+pub use model::file_change_kind::FileChangeKind;
 pub use model::todo_item::TodoItem;
 pub use model::todo_status::TodoStatus;
 pub use model::tool_input::ToolInput;

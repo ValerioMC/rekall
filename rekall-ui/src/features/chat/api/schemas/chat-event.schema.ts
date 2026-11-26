@@ -11,6 +11,17 @@ const ToolInputSchema: z.ZodType<ToolInput> = z.discriminatedUnion('tool', [
     replaceAll: z.boolean()
   }),
   z.object({ tool: z.literal('write'), filePath: z.string(), content: z.string() }),
+  z.object({
+    tool: z.literal('fileChanges'),
+    changes: z.array(
+      z.object({
+        path: z.string(),
+        kind: z.enum(['add', 'delete', 'update']),
+        movedTo: z.string().nullable(),
+        diff: z.string()
+      })
+    )
+  }),
   z.object({ tool: z.literal('read'), filePath: z.string() }),
   z.object({
     tool: z.literal('search'),

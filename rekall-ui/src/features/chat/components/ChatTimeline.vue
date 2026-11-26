@@ -3,6 +3,7 @@ import { computed, nextTick, ref } from 'vue'
 import ChatTimelineRows from './ChatTimelineRows.vue'
 import { groupByParent } from '@/features/chat/lib/group-by-parent'
 import { useStickToBottom } from '@/features/chat/composables/useStickToBottom'
+import { isShownInChat } from '@/features/chat/lib/tool-card'
 import type { TimelineItem } from '@/features/chat/model/timeline'
 
 /**
@@ -20,9 +21,11 @@ const WINDOW_ITEMS = 150
 const scroller = ref<HTMLElement | null>(null)
 const mounted = ref(WINDOW_ITEMS)
 
-const { stuck, unseen, onScroll, jumpToLatest } = useStickToBottom(scroller, () => props.items)
+const readable = computed(() => props.items.filter(isShownInChat))
 
-const grouped = computed(() => groupByParent(props.items))
+const { stuck, unseen, onScroll, jumpToLatest } = useStickToBottom(scroller, () => readable.value)
+
+const grouped = computed(() => groupByParent(readable.value))
 const hidden = computed(() => Math.max(0, grouped.value.top.length - mounted.value))
 const visible = computed(() => grouped.value.top.slice(hidden.value))
 const earlierCount = computed(() => Math.min(WINDOW_ITEMS, hidden.value))

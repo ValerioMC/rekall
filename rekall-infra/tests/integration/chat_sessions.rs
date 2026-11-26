@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use rekall_core::chat::{ChatBody, ChatEvent, ChatPipe, RecordingChatListener, TurnOutcome};
+use rekall_core::chat::{ChatBody, ChatEvent, ChatPipe, FileChangeKind, RecordingChatListener, TurnOutcome};
 use rekall_core::claude::{SessionKind, SessionProvider, TerminalHost, TerminalMode, TerminalOpening, TerminalTarget};
 use rekall_infra::chat::ChatSessionManager;
 use rekall_infra::session::SessionLauncher;
@@ -219,6 +219,31 @@ async fn codex_chat_answers_approvals_and_interrupts_the_active_turn() {
     assert!(requests.iter().any(|line| line.contains("\"id\":71") && line.contains("\"decision\":\"accept\"")));
     assert!(requests.iter().any(|line| line.contains("\"id\":\"file-72\"") && line.contains("\"decision\":\"decline\"")));
     assert!(requests.iter().any(|line| line.contains("turn/interrupt") && line.contains("\"turnId\":\"turn-3\"")));
+}
+
+#[tokio::test]
+async fn codex_chat_reports_the_diff_of_the_files_it_changes() {
+    let world = world().await;
+    install_codex(&world);
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let chats = chats(&world, 8, 120, &[]);
+    let view = chats.manager.open(codex_on(&task, TerminalMode::Work)).await.unwrap();
+    let follower = follow(&chats, view.id);
+    eventually("the first turn", || async { follower.turn_finished() }).await;
+
+    chats.manager.send(view.id, "change files").unwrap();
+    eventually("the file change turn", || async { follower.outcomes().len() == 2 }).await;
+
+    let events = follower.events();
+    let changes = events.iter().find_map(|event| match &event.body {
+        ChatBody::ToolUse { input: rekall_core::chat::ToolInput::FileChanges { changes }, .. } => Some(changes),
+        _ => None,
+    }).unwrap();
+    assert_eq!((changes[0].path.as_str(), changes[0].kind, changes[0].diff.as_str()), ("/work/notes.md", FileChangeKind::Add, "hello\n"));
+    assert_eq!((changes[1].kind, changes[1].moved_to.as_deref()), (FileChangeKind::Update, Some("/work/new.md")));
+    assert!(events.iter().any(|event| matches!(&event.body,
+        ChatBody::ToolResult { tool_use_id, is_error: false, excerpt, .. } if tool_use_id == "patch" && excerpt.is_empty())));
 }
 
 #[tokio::test]
