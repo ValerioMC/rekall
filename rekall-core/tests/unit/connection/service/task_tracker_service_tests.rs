@@ -6,11 +6,13 @@ use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use super::*;
 use crate::connection::{InMemorySecretStore, ScriptedTaskTracker, TrackerFailure};
+use crate::picture::{InMemoryPictureStore, PicturePath};
 use crate::EventBus;
 
 struct World {
     service: TaskTrackerService,
     tracker: Arc<ScriptedTaskTracker>,
+    pictures: Arc<InMemoryPictureStore>,
     ctx: Ctx,
     project_id: Id,
 }
@@ -35,7 +37,9 @@ async fn world(kind: ConnectionKind, target: Option<&str>, task_manager: bool) -
     let secrets = Arc::new(InMemorySecretStore::new());
     secrets.put(&connection.secret_ref, &Secret::new("token")).unwrap();
     let tracker = Arc::new(ScriptedTaskTracker::new());
-    World { service: TaskTrackerService::new(ctx.clone(), secrets, tracker.clone()), tracker, ctx, project_id: project.id }
+    let pictures = Arc::new(InMemoryPictureStore::new());
+    let uploads = TrackerPictureService::new(ctx.clone(), pictures.clone(), tracker.clone());
+    World { service: TaskTrackerService::new(ctx.clone(), secrets, tracker.clone(), uploads), tracker, pictures, ctx, project_id: project.id }
 }
 
 impl World {
@@ -191,4 +195,100 @@ async fn a_binding_without_a_target_is_kept_as_a_failure() {
 
     assert!(world.tracker.created().is_empty());
     assert!(world.link(id).await.unwrap().sync_error.unwrap().contains("target"));
+}
+
+const LOGIN: &str = "acme/app/app-1/login-3f9a1c2b.png";
+const MOCK: &str = "acme/app/app-1/mock-77aa01de.png";
+
+impl World {
+    fn picture(&self, path: &str) -> String {
+        self.pictures.put(&PicturePath::parse(path).unwrap(), b"picture");
+        format!("![Shown](/api/images/{path}#right)")
+    }
+
+    async fn describe(&self, id: Id, description: String) {
+        let mut task = task::Entity::find_by_id(id).one(&self.ctx.db).await.unwrap().unwrap().into_active_model();
+        task.description = sea_orm::Set(Some(description));
+        task.update(&self.ctx.db).await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn the_first_push_creates_the_issue_with_descriptions_then_uploads_and_shows_the_copies() {
+    let world = world(ConnectionKind::Gitlab, Some("acme/app"), true).await;
+    let id = world.task("first", |_| {}).await;
+    world.describe(id, format!("Build {}", world.picture(LOGIN))).await;
+
+    world.service.sync_content(id).await.unwrap();
+
+    assert_eq!(world.tracker.created()[0].1.description, "Build Shown");
+    assert_eq!(world.tracker.uploaded(), [(Some("acme/app-1".to_string()), LOGIN.to_string())]);
+    assert_eq!(world.tracker.updated()[0].1.description, "Build ![Shown](https://tracker.example.com/uploads/login-3f9a1c2b.png)");
+    let written = TrackerIssue::of(&task::Entity::find_by_id(id).one(&world.ctx.db).await.unwrap().unwrap());
+    assert_eq!(world.link(id).await.unwrap().synced_fingerprint, Some(written.fingerprint()));
+}
+
+#[tokio::test]
+async fn a_second_push_uploads_nothing_and_a_new_picture_only_is_uploaded() {
+    let world = world(ConnectionKind::Github, Some("acme/app"), true).await;
+    let id = world.task("first", |_| {}).await;
+    let login = world.picture(LOGIN);
+    world.describe(id, login.clone()).await;
+    world.service.sync_content(id).await.unwrap();
+
+    world.service.sync_content(id).await.unwrap();
+    assert_eq!(world.tracker.uploaded().len(), 1);
+
+    world.describe(id, format!("{login} {}", world.picture(MOCK))).await;
+    world.service.sync_content(id).await.unwrap();
+
+    assert_eq!(world.tracker.uploaded().iter().map(|(_, path)| path.as_str()).collect::<Vec<_>>(), [LOGIN, MOCK]);
+    let description = world.tracker.updated().last().unwrap().1.description.clone();
+    assert!(description.contains("uploads/login-3f9a1c2b.png") && description.contains("uploads/mock-77aa01de.png"));
+}
+
+#[tokio::test]
+async fn a_refused_upload_keeps_the_issue_description_and_the_reason_on_the_task() {
+    let world = world(ConnectionKind::Github, Some("acme/app"), true).await;
+    let id = world.task("first", |_| {}).await;
+    world.link_issue(id, "12").await;
+    world.describe(id, world.picture(LOGIN)).await;
+    world.tracker.refuse_uploads(TrackerFailure::Failed { reason: "it answered HTTP 404".into() });
+
+    let refused = world.service.sync_content(id).await.unwrap_err();
+
+    assert!(refused.message().contains("GitHub could not take the picture login-3f9a1c2b.png: it answered HTTP 404"));
+    assert!(world.tracker.updated().is_empty());
+    let link = world.link(id).await.unwrap();
+    assert_eq!(link.sync_error.as_deref(), Some(refused.message()));
+    assert_eq!(link.synced_fingerprint, None);
+}
+
+#[tokio::test]
+async fn an_upload_refused_after_the_issue_was_created_keeps_its_key_for_the_next_push() {
+    let world = world(ConnectionKind::Gitlab, Some("acme/app"), true).await;
+    let id = world.task("first", |_| {}).await;
+    world.describe(id, world.picture(LOGIN)).await;
+    world.tracker.refuse_uploads(TrackerFailure::Failed { reason: "too large".into() });
+
+    assert!(world.service.sync_content(id).await.is_err());
+    world.tracker.recover();
+    world.service.sync_content(id).await.unwrap();
+
+    assert_eq!(world.tracker.created().len(), 1);
+    assert_eq!(world.tracker.updated().len(), 1);
+    assert_eq!(world.link(id).await.unwrap().sync_error, None);
+}
+
+#[tokio::test]
+async fn a_picture_missing_from_disk_is_written_as_its_description() {
+    let world = world(ConnectionKind::Github, Some("acme/app"), true).await;
+    let id = world.task("first", |_| {}).await;
+    world.link_issue(id, "12").await;
+    world.describe(id, format!("Build ![Gone](/api/images/{LOGIN})")).await;
+
+    world.service.sync_content(id).await.unwrap();
+
+    assert!(world.tracker.uploaded().is_empty());
+    assert_eq!(world.tracker.updated()[0].1.description, "Build Gone");
 }

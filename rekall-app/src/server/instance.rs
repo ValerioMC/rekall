@@ -4,7 +4,8 @@ use std::time::Duration;
 
 use axum::Router;
 use rekall_core::claude::UsageReader;
-use rekall_core::connection::TaskTrackerService;
+use rekall_core::connection::{TaskTrackerService, TrackerPictureService};
+use rekall_core::picture::PictureStore;
 use rekall_core::settings::SetupStatus;
 use rekall_core::timeentry::IDLE_AFTER;
 use rekall_core::vulnerability::{ScanSettingsService, VulnerabilityScanService};
@@ -17,6 +18,7 @@ use rekall_infra::chat::ChatSessionManager;
 use rekall_infra::codex::{CodexCli, CodexIntegration};
 use rekall_infra::installer::{ClaudeCodeInstaller, GuardHookInstaller};
 use rekall_infra::login_shell::LoginShellEnvironment;
+use rekall_infra::picture::FolderPictureStore;
 use rekall_infra::pty::PtyTerminalManager;
 use rekall_infra::queue::RunQueueRunner;
 use rekall_infra::resources::ClaudeResourceService;
@@ -29,7 +31,7 @@ use tracing::warn;
 
 use crate::config::AppConfig;
 
-use super::instance_parts::{advisory_feed_of, assemble_router, check_runner_of, confluence_spaces_of, connection_probe_of, gitlab_namespaces_of, jira_issues_of, open_sessions, release_feed_of, secrets_of, start_queue, task_tracker_of, usage_of, Sessions};
+use super::instance_parts::{advisory_feed_of, assemble_router, check_runner_of, confluence_spaces_of, connection_probe_of, gitlab_namespaces_of, jira_issues_of, open_sessions, release_feed_of, secrets_of, start_queue, task_tracker_of, usage_of, Sessions, Trackers};
 use super::StartOptions;
 
 /// How often open timers are checked against [`IDLE_AFTER`].
@@ -81,10 +83,14 @@ impl Instance {
         let clock = ctx.clock.clone();
         let claude_config = &config.claude;
         let login_shell = LoginShellEnvironment::new(claude_config.shell.as_deref(), claude_config.shell_environment_timeout);
-        let services = Services::new(ctx.clone(), check_runner_of(options, &login_shell));
+        let location = database.path.as_deref().and_then(DatabaseLocation::of);
+        let pictures = Arc::new(FolderPictureStore::new(location.as_ref()));
+        let services = Services::new(ctx.clone(), check_runner_of(options, &login_shell)).with_pictures_folder(pictures.folder());
         let secrets = secrets_of(config, options);
         let stream = Arc::new(StepEventStream::new(events.clone()));
-        let task_tracker = TaskTrackerService::new(ctx.clone(), secrets.clone(), task_tracker_of(options));
+        let tracker_port = task_tracker_of(options);
+        let tracker_pictures = TrackerPictureService::new(ctx.clone(), pictures.clone(), tracker_port.clone());
+        let task_tracker = TaskTrackerService::new(ctx.clone(), secrets.clone(), tracker_port, tracker_pictures.clone());
         TaskTrackerRunner::start(&events, task_tracker.clone());
         let scan_settings = ScanSettingsService::new(ctx.clone(), secrets.clone());
         let vulnerability_scans = VulnerabilityScanService::new(
@@ -97,10 +103,10 @@ impl Instance {
         );
         let mcp = rekall_mcp::McpController::new(rekall_mcp::tool_registry::all(&services));
         let usage = usage_of(options, claude_config, &clock);
-        let sessions = open_sessions(config, &ctx, &services, &secrets, &login_shell, served_port);
-        let queue = start_queue(config, &ctx, &events, &services, &task_tracker, &sessions.hosts, &usage);
+        let sessions = open_sessions(config, &ctx, &services, &secrets, &login_shell, served_port, pictures.folder());
+        let trackers = Trackers { issues: task_tracker.clone(), pictures: tracker_pictures };
+        let queue = start_queue(config, &ctx, &events, &services, trackers, &sessions.hosts, &usage);
         let transcripts = TranscriptScanner::new(TranscriptFolder::new(claude_config.transcripts_dir.clone()), services.token_usage.clone());
-        let location = database.path.as_deref().and_then(DatabaseLocation::of);
         let backups = DatabaseBackupService::new(
             database.conn.clone(),
             location,
@@ -133,6 +139,7 @@ impl Instance {
             restore: Arc::new(DatabaseRestoreService::new(backups.clone(), restarter.clone())),
             database_folders: Arc::new(DatabaseFolderRegistry::new(DatabaseRegistryStore::new(&config.home), config.user_home.clone())),
             restart: Arc::new(restarter),
+            pictures,
             task_tracker: task_tracker.clone(),
             task_worktrees: queue.worktrees.clone(),
             protected_credential_references: protected_references(&config.home, &config.user_home),

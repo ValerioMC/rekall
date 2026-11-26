@@ -1,6 +1,7 @@
 pub(super) mod connection_check;
 pub(super) mod credential_purpose;
 pub(super) mod github_api_root;
+pub(super) mod github_upload_root;
 pub(super) mod gitlab_namespace;
 pub(super) mod hand_out;
 pub(super) mod atlassian_credential;

@@ -148,6 +148,23 @@ describe('AppMarkdownEditor', () => {
     expect(trigger.attributes('aria-expanded')).toBe('false')
   })
 
+  it('puts the picture picker where the image key was, only for text with an owner', async () => {
+    const withOwner = mount(AppMarkdownEditor, {
+      props: { modelValue: '', pictureOwner: { kind: 'TASK', id: 't-1' } }
+    })
+    const without = mount(AppMarkdownEditor, { props: { modelValue: '' } })
+    await flushPromises()
+
+    const titles = (wrapper: typeof withOwner): (string | undefined)[] =>
+      wrapper.findAll('.md-editor-toolbar-item').map((item) => item.attributes('title'))
+    const place = titles(without).indexOf('image')
+    expect(place).toBeGreaterThan(-1)
+    expect(titles(withOwner)[place]).toBe('Insert a picture')
+    expect(titles(withOwner)).not.toContain('image')
+    expect(titles(withOwner)).toHaveLength(titles(without).length)
+    expect(without.find('[data-testid="picture-picker-trigger"]').exists()).toBe(false)
+  })
+
   it('writes in one pane, drawn as the page, with no split preview beside it', async () => {
     const wrapper = mount(AppMarkdownEditor, { props: { modelValue: '# Titolo\n\nUn **punto**.' } })
     await flushPromises()

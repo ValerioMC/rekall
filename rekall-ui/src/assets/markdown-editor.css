@@ -335,6 +335,34 @@
 }
 
 /*
+ * A picture's alignment is the end of its address: `#center`, `#right`, or nothing for left, which
+ * is where the library's figure already sits. The figure and its caption move together.
+ */
+.rekall-md .md-editor-preview figure:has(img[src$='#center'], img[src$='#right']) {
+  display: flex;
+  width: fit-content;
+}
+
+.rekall-md .md-editor-preview figure:has(img[src$='#center']) {
+  align-items: center;
+  margin-inline: auto;
+}
+
+.rekall-md .md-editor-preview figure:has(img[src$='#right']) {
+  align-items: flex-end;
+  margin-right: 0;
+  margin-left: auto;
+}
+
+.rekall-md .md-editor-preview img[src$='#center'] {
+  margin-inline: auto;
+}
+
+.rekall-md .md-editor-preview img[src$='#right'] {
+  margin-left: auto;
+}
+
+/*
  * The writing surface: a quiet toolbar that lights only what is on, text set in the page's face
  * and scale (live-preview.css draws the markdown), and a footer that counts in the chrome's voice
  * rather than the library's.

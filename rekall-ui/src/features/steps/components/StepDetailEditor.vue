@@ -6,6 +6,7 @@ import { useSelectedProjectComponents } from '@/features/project/composables/use
 import { useSelectedProjectConnections } from '@/features/connection/composables/useSelectedProjectConnections'
 import { useSelectedProjectTasks } from '@/features/catalog/composables/useSelectedProjectTasks'
 import { useStepEditor } from '@/features/steps/composables/useStepEditor'
+import type { TaskId } from '@/model/branded'
 
 /**
  * The title and markdown detail of the step the checklist has open, to write or to read, saved
@@ -28,6 +29,8 @@ defineProps<{
   emptyText: string
   writePrompt: string
   pathRoot: string | null | undefined
+  /** The task the step belongs to, whose folder keeps the pictures of the detail. */
+  taskId: TaskId
 }>()
 
 const { mode, title, body, scheduleSave } = useStepEditor()
@@ -60,6 +63,7 @@ const projectTasks = useSelectedProjectTasks()
             :grow="!compact"
             :autofocus="autofocus"
             :path-root="pathRoot"
+            :picture-owner="{ kind: 'TASK', id: taskId }"
             :components="projectComponents"
             :connections="projectConnections"
             :tasks="projectTasks"

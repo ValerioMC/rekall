@@ -5,6 +5,6 @@ pub enum ExportError {
     Docx(String),
     #[error("the PDF could not be written: {0}")]
     Pdf(String),
-    #[error("a diagram image could not be read: {0}")]
+    #[error("an image could not be read: {0}")]
     Image(String),
 }

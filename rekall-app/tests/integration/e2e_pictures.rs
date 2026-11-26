@@ -1,0 +1,252 @@
+//! Keeping pictures beside the database, serving them back and cleaning up the unused ones, over HTTP.
+
+mod support;
+
+use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime};
+
+use serde_json::{json, Value};
+use support::{app, App};
+
+const PNG: &[u8] = b"\x89PNG\r\n\x1a\n pixels";
+const SVG: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>"#;
+const SVG_POLICY: &str = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox";
+
+async fn a_task(app: &App) -> String {
+    let company = app.post("/api/companies", json!({ "name": "Acme" })).await;
+    let project = app.post("/api/projects", json!({ "label": "web", "title": "Web", "taskKey": "WEB", "companyId": company.str("id") })).await;
+    let task = app.post("/api/tasks", json!({ "title": "Login", "projectId": project.str("id") })).await;
+    task.str("id")
+}
+
+async fn import(app: &App, task: &str, name: &str, bytes: &[u8]) -> String {
+    let source = app.folder.path().join(name);
+    std::fs::write(&source, bytes).unwrap();
+    let imported = app.post("/api/images", json!({ "sourcePath": source, "owner": { "kind": "TASK", "id": task } })).await;
+    assert_eq!(imported.status, 201, "{}", imported.text);
+    imported.str("url")
+}
+
+async fn served(app: &App, url: &str) -> reqwest::Response {
+    app.client.get(app.url(url)).send().await.unwrap()
+}
+
+fn header<'a>(response: &'a reqwest::Response, name: &str) -> Option<&'a str> {
+    response.headers().get(name).map(|value| value.to_str().unwrap())
+}
+
+#[tokio::test]
+async fn an_imported_png_and_svg_are_copied_beside_the_database_and_served_with_their_headers() {
+    let app = app().await;
+    let task = a_task(&app).await;
+
+    let png_url = import(&app, &task, "Login Flow.png", PNG).await;
+    let svg_url = import(&app, &task, "Diagram.svg", SVG).await;
+
+    assert!(png_url.starts_with("/api/images/acme/web/web-1/login-flow-"), "{png_url}");
+    let copied = app.folder.path().join("db/images").join(png_url.strip_prefix("/api/images/").unwrap());
+    assert_eq!(std::fs::read(copied).unwrap(), PNG);
+
+    let png = served(&app, &png_url).await;
+    assert_eq!(png.status(), 200);
+    assert_eq!(header(&png, "content-type"), Some("image/png"));
+    assert_eq!(header(&png, "cache-control"), Some("public, max-age=31536000, immutable"));
+    assert_eq!(header(&png, "x-content-type-options"), Some("nosniff"));
+    assert_eq!(header(&png, "cross-origin-resource-policy"), Some("same-origin"));
+    assert_eq!(header(&png, "content-security-policy"), None);
+    assert_eq!(png.bytes().await.unwrap().as_ref(), PNG);
+
+    let svg = served(&app, &svg_url).await;
+    assert_eq!(header(&svg, "content-type"), Some("image/svg+xml"));
+    assert_eq!(header(&svg, "content-security-policy"), Some(SVG_POLICY));
+    assert_eq!(svg.bytes().await.unwrap().as_ref(), SVG);
+
+    assert_eq!(app.get("/api/images/acme/web/..%2F..%2Frekall.db").await.status, 404);
+    assert_eq!(app.get("/api/images/acme/web/web-1/..%2F..%2F..%2F..%2Frekall.png").await.status, 404);
+
+    app.stop().await;
+}
+
+async fn thumbnail_of(app: &App, name: &str, bytes: &[u8]) -> reqwest::Response {
+    let source = app.folder.path().join(name);
+    std::fs::write(&source, bytes).unwrap();
+    let url = app.url("/api/image-thumbnail");
+    app.client.get(url).query(&[("path", source.to_str().unwrap())]).send().await.unwrap()
+}
+
+#[tokio::test]
+async fn a_file_being_browsed_is_previewed_under_the_headers_of_a_kept_picture() {
+    let app = app().await;
+
+    let svg = thumbnail_of(&app, "Logo & mark.svg", SVG).await;
+    assert_eq!(svg.status(), 200);
+    assert_eq!(header(&svg, "content-type"), Some("image/svg+xml"));
+    assert_eq!(header(&svg, "content-security-policy"), Some(SVG_POLICY));
+    assert_eq!(header(&svg, "cache-control"), Some("private, no-cache"));
+    assert_eq!(header(&svg, "x-content-type-options"), Some("nosniff"));
+    assert_eq!(header(&svg, "cross-origin-resource-policy"), Some("same-origin"));
+    assert_eq!(svg.bytes().await.unwrap().as_ref(), SVG);
+
+    assert_eq!(thumbnail_of(&app, "notes.png", b"only text").await.status(), 400);
+    assert_eq!(app.get("/api/image-thumbnail").await.status, 400);
+    assert_eq!(app.get("/api/image-thumbnail?path=relative.png").await.status, 400);
+    assert!(!app.folder.path().join("db/images").exists());
+
+    app.stop().await;
+}
+
+
+async fn uploaded(app: &App, query: &[(&str, &str)], bytes: Vec<u8>) -> (u16, serde_json::Value) {
+    let request = app.client.post(app.url("/api/image-uploads")).query(query).header("content-type", "image/png");
+    let response = request.body(bytes).send().await.unwrap();
+    let status = response.status().as_u16();
+    (status, response.json().await.unwrap_or_default())
+}
+
+#[tokio::test]
+async fn uploaded_bytes_are_kept_as_a_picture_of_their_owner() {
+    let app = app().await;
+    let task = a_task(&app).await;
+    let owner = [("ownerKind", "TASK"), ("ownerId", task.as_str())];
+
+    let (status, pasted) = uploaded(&app, &owner, PNG.to_vec()).await;
+    assert_eq!(status, 201, "{pasted}");
+    let url = pasted["url"].as_str().unwrap();
+    assert!(url.starts_with("/api/images/acme/web/web-1/pasted-image-"), "{url}");
+    assert_eq!(served(&app, url).await.bytes().await.unwrap().as_ref(), PNG);
+
+    let named = [owner[0], owner[1], ("name", "Login Flow & co.png")];
+    let (_, dropped) = uploaded(&app, &named, PNG.to_vec()).await;
+    assert!(dropped["url"].as_str().unwrap().contains("/web-1/login-flow-co-"), "{dropped}");
+
+    app.stop().await;
+}
+
+#[tokio::test]
+async fn an_upload_refused_for_its_content_size_or_owner_keeps_nothing() {
+    let app = app().await;
+    let task = a_task(&app).await;
+    let owner = [("ownerKind", "TASK"), ("ownerId", task.as_str())];
+    let mut at_the_limit = PNG.to_vec();
+    at_the_limit.resize(10 * 1024 * 1024, 0);
+    let mut over_the_limit = at_the_limit.clone();
+    over_the_limit.push(0);
+
+    assert_eq!(uploaded(&app, &owner, b"only text".to_vec()).await.0, 400);
+    assert_eq!(uploaded(&app, &owner, Vec::new()).await.0, 400);
+    let (status, refusal) = uploaded(&app, &owner, over_the_limit).await;
+    assert_eq!((status, refusal["detail"].as_str()), (400, Some("The picture is larger than 10 MB.")));
+    assert_eq!(uploaded(&app, &[("ownerKind", "TASK")], PNG.to_vec()).await.0, 400);
+    assert_eq!(uploaded(&app, &[("ownerKind", "TASK"), ("ownerId", "nope")], PNG.to_vec()).await.0, 400);
+    assert_eq!(uploaded(&app, &[("ownerKind", "FOLDER"), ("ownerId", task.as_str())], PNG.to_vec()).await.0, 400);
+    let stranger = [("ownerKind", "PAGE"), ("ownerId", task.as_str())];
+    assert_eq!(uploaded(&app, &stranger, PNG.to_vec()).await.0, 404);
+    assert!(!app.folder.path().join("db/images").exists());
+
+    assert_eq!(uploaded(&app, &owner, at_the_limit).await.0, 201);
+
+    app.stop().await;
+}
+
+#[tokio::test]
+async fn a_session_is_told_where_the_pictures_are_by_the_context_and_each_read_tool() {
+    let app = app().await;
+    let company = app.post("/api/companies", json!({ "name": "Acme" })).await;
+    let project = app.post("/api/projects", json!({ "label": "web", "title": "Web", "taskKey": "WEB", "companyId": company.str("id") })).await;
+    let project_id = project.str("id");
+    let task = app.post("/api/tasks", json!({ "title": "Login", "projectId": project_id })).await.str("id");
+    let url = import(&app, &task, "Login Flow.png", PNG).await;
+    let shown = format!("Build it like this ![Login Flow]({url})");
+    app.put(&format!("/api/tasks/{task}"), json!({ "title": "Login", "projectId": project_id, "description": shown })).await;
+    app.post(&format!("/api/tasks/{task}/steps"), json!({ "title": "Build", "bodyMarkdown": shown })).await;
+    app.post(&format!("/api/projects/{project_id}/sections"), json!({ "title": "Look", "bodyMarkdown": shown })).await;
+    app.post(&format!("/api/projects/{project_id}/sections"), json!({ "title": "Words", "bodyMarkdown": "No picture here." })).await;
+    app.post(&format!("/api/projects/{project_id}/components"), json!({ "name": "UI", "folder": "/work/ui", "description": shown })).await;
+
+    let folder = app.folder.path().canonicalize().unwrap().join("db/images");
+    let block = format!("<pictures folder=\"{}\">", folder.display());
+    let reads = [
+        ("rekall_context", json!({ "anchors": "task:WEB-1" })),
+        ("rekall_read_steps", json!({ "anchors": "task:WEB-1" })),
+        ("rekall_read_sections", json!({ "anchors": "project:web", "title": "Look" })),
+        ("rekall_read_components", json!({ "anchors": "project:web", "name": "UI" })),
+    ];
+    for (tool, arguments) in reads {
+        let answer = app.call_tool(tool, arguments).await;
+        assert_eq!(answer.matches(&block).count(), 1, "{tool}: {answer}");
+        assert!(answer.contains(&url), "{tool} keeps the address: {answer}");
+    }
+    let plain = app.call_tool("rekall_read_sections", json!({ "anchors": "project:web", "title": "Words" })).await;
+    assert!(!plain.contains("<pictures"), "{plain}");
+
+    let size = app.get(&format!("/api/tasks/{task}/context-size")).await;
+    assert!(size.text.contains("Pictures folder"), "{}", size.text);
+
+    app.stop().await;
+}
+
+fn kept_file(app: &App, url: &str) -> PathBuf {
+    app.folder.path().join("db/images").join(url.strip_prefix("/api/images/").unwrap())
+}
+
+fn written_two_days_ago(file: &Path) {
+    let long_ago = SystemTime::now() - Duration::from_secs(48 * 60 * 60);
+    std::fs::File::options().write(true).open(file).unwrap().set_modified(long_ago).unwrap();
+}
+
+async fn cleanup_that_reaches(app: &App, state: &str) -> Value {
+    for _ in 0..200 {
+        let status = app.get("/api/image-cleanup").await;
+        if status.str("state") == state {
+            return status.body;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    panic!("the cleanup never reached {state}: {}", app.get("/api/image-cleanup").await.text);
+}
+
+#[tokio::test]
+async fn a_cleanup_lists_and_then_deletes_only_the_old_picture_no_text_shows() {
+    let app = app().await;
+    let task = a_task(&app).await;
+    let project = app.get(&format!("/api/tasks/{task}")).await.str("projectId");
+    let used = import(&app, &task, "Used.png", PNG).await;
+    let unused = import(&app, &task, "Old mock.png", PNG).await;
+    let young = import(&app, &task, "Fresh.png", PNG).await;
+    let shown = format!("![Used]({used}#right)");
+    app.put(&format!("/api/tasks/{task}"), json!({ "title": "Login", "projectId": project, "description": shown })).await;
+    written_two_days_ago(&kept_file(&app, &used));
+    written_two_days_ago(&kept_file(&app, &unused));
+    let stranger = kept_file(&app, &unused).with_file_name("notes.txt");
+    std::fs::write(&stranger, "not a picture").unwrap();
+    written_two_days_ago(&stranger);
+    assert_eq!(app.get("/api/image-cleanup").await.body, json!({ "state": "IDLE" }));
+    assert_eq!(app.post_empty("/api/image-cleanup/deletion").await.status, 409);
+    assert_eq!(app.delete("/api/image-cleanup").await.status, 409);
+    let mut events = app.open_stream().await;
+    events.await_line("ready", 5).await;
+
+    assert_eq!(app.post_empty("/api/image-cleanup").await.status, 202);
+
+    events.await_line("event:picture-cleanup", 10).await;
+    events.await_line(r#""state":"READY""#, 10).await;
+    let ready = cleanup_that_reaches(&app, "READY").await;
+    let folder = unused.strip_prefix("/api/images/").unwrap().rsplit_once('/').unwrap().0;
+    assert_eq!(ready["pictures"], json!([{ "url": unused, "folder": folder, "sizeBytes": PNG.len() }]));
+    assert_eq!(ready["totalBytes"], PNG.len());
+    assert_eq!(app.post_empty("/api/image-cleanup").await.status, 409);
+
+    assert_eq!(app.post_empty("/api/image-cleanup/deletion").await.status, 202);
+
+    let finished = cleanup_that_reaches(&app, "FINISHED").await;
+    assert_eq!(finished, json!({ "state": "FINISHED", "removed": 1, "freedBytes": PNG.len(), "kept": 0, "notDeleted": 0 }));
+    assert!(!kept_file(&app, &unused).exists());
+    assert!(kept_file(&app, &used).exists() && kept_file(&app, &young).exists() && stranger.exists());
+
+    assert_eq!(app.post_empty("/api/image-cleanup").await.status, 202);
+    cleanup_that_reaches(&app, "READY").await;
+    assert_eq!(app.delete("/api/image-cleanup").await.status, 204);
+    assert_eq!(app.get("/api/image-cleanup").await.body, json!({ "state": "IDLE" }));
+
+    app.stop().await;
+}

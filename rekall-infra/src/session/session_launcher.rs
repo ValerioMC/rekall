@@ -36,7 +36,7 @@ impl SessionLauncher {
         })
     }
 
-    /// The environment session `id` runs in. A credential session's settings land in `options`.
+    /// The environment session `id` runs in. Its Claude Code settings land in `options`.
     pub async fn environment(&self, id: Id, launch: &TerminalLaunch, options: &mut SessionOptions) -> Result<HashMap<String, String>> {
         let mut environment = match options.provider {
             SessionProvider::Claude => self.cli.environment().await,

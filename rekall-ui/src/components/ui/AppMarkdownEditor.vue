@@ -18,6 +18,12 @@ import { PAGE_CHIP_CLASS, paintPageReferences, type ReferencePage } from '@/comm
 import { paintTaskReferences } from '@/common/markdown/task-reference'
 import { useReferenceChips } from '@/composables/useReferenceChips'
 import { useEditorPathPicker } from '@/composables/useEditorPathPicker'
+import PictureContextMenu from '@/features/picture/components/PictureContextMenu.vue'
+import { usePictureContextMenu } from '@/features/picture/composables/usePictureContextMenu'
+import { usePictureInsert } from '@/features/picture/composables/usePictureInsert'
+import { usePictureTransfer } from '@/features/picture/composables/usePictureTransfer'
+import { withFolderSlash } from '@/common/path/path-query'
+import type { PictureOwner } from '@/features/picture/model/picture'
 import { useFittedEditorHeight } from '@/composables/useFittedEditorHeight'
 import { useMermaidFences } from '@/composables/useMermaidFences'
 import { useReadModeSearch } from '@/composables/useReadModeSearch'
@@ -55,6 +61,11 @@ const props = withDefaults(
      */
     pathRoot?: string | null
     /**
+     * The record the text belongs to, for pictures: with one, the toolbar's image button picks a
+     * file, and pasted or dropped pictures are taken, all copied into that record's folder.
+     */
+    pictureOwner?: PictureOwner | null
+    /**
      * The project's components, when the text belongs to one: a `[[Name]]` in the read view is
      * drawn as a chip for the component, or as a broken reference. `null` (a note with no
      * project) leaves every reference as plain text. Write mode draws the same chip, with its glyph,
@@ -79,6 +90,7 @@ const props = withDefaults(
     readSettings: true,
     pageFullscreen: true,
     pathRoot: null,
+    pictureOwner: null,
     components: null,
     connections: null,
     tasks: null,
@@ -111,7 +123,24 @@ const {
   onKeydown: onEditorKeydown
 } = useEditorPathPicker(editor, { readonly: () => props.readonly, pathRoot: () => props.pathRoot })
 
+const {
+  open: picturePickerOpen,
+  start: picturePickerStart,
+  alignment: pictureAlignment,
+  toggle: togglePicturePicker,
+  close: closePicturePicker,
+  locateCaret: locatePictureCaret,
+  visit: visitPictureFolder,
+  insert: insertPicture
+} = usePictureInsert(editor, {
+  readonly: () => props.readonly,
+  pathRoot: () => props.pathRoot,
+  owner: () => props.pictureOwner
+})
+usePictureTransfer(editor, () => props.pictureOwner)
+
 const tableMenu = useTableContextMenu(editor)
+const pictureMenu = usePictureContextMenu(editor)
 
 const componentChips = useReferenceChips(root, () => props.components, paintComponentReferences)
 const connectionChips = useReferenceChips(root, () => props.connections, paintConnectionReferences)
@@ -185,7 +214,14 @@ const TOOLBARS: ToolbarNames[] = [
   'catalog'
 ]
 
-const toolbars = computed(() => (props.pageFullscreen ? TOOLBARS : TOOLBARS.filter((name) => name !== 'pageFullscreen')))
+const takesPictures = computed(() => props.pictureOwner !== null)
+
+// A number stands for the button at that place in the `defToolbars` slot.
+const toolbars = computed(() =>
+  TOOLBARS.filter((name) => props.pageFullscreen || name !== 'pageFullscreen').map((name) =>
+    name === 'image' && takesPictures.value ? 1 : name
+  )
+)
 </script>
 
 <template>
@@ -201,6 +237,7 @@ const toolbars = computed(() => (props.pageFullscreen ? TOOLBARS : TOOLBARS.filt
     @keydown.capture="onEditorKeydown"
     @click="openPageClicked"
     @rk-table-menu="tableMenu.open"
+    @rk-picture-menu="pictureMenu.open"
   >
     <div v-if="readonly && !flush" class="rekall-read-controls">
       <div class="flex items-start gap-2">
@@ -259,7 +296,7 @@ const toolbars = computed(() => (props.pageFullscreen ? TOOLBARS : TOOLBARS.filt
           title="Insert a path  ⌘⇧P"
           aria-label="Insert a path"
           :aria-expanded="pickerOpen"
-          data-path-picker-trigger
+          data-path-picker-trigger="path"
           data-testid="path-picker-trigger"
           :class="{ 'md-editor-toolbar-active': pickerOpen }"
           @on-click="togglePicker"
@@ -273,6 +310,21 @@ const toolbars = computed(() => (props.pageFullscreen ? TOOLBARS : TOOLBARS.filt
               stroke-linejoin="round"
             />
             <path d="m13.6 10.4-3.2 6.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        </NormalToolbar>
+        <NormalToolbar
+          title="Insert a picture"
+          aria-label="Insert a picture"
+          :aria-expanded="picturePickerOpen"
+          data-path-picker-trigger="image"
+          data-testid="picture-picker-trigger"
+          :class="{ 'md-editor-toolbar-active': picturePickerOpen }"
+          @on-click="togglePicturePicker"
+        >
+          <svg class="md-editor-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3" y="4.5" width="18" height="15" rx="2" stroke="currentColor" stroke-width="1.6" />
+            <circle cx="8.6" cy="9.6" r="1.6" stroke="currentColor" stroke-width="1.6" />
+            <path d="m4.5 18.3 5.2-4.7 3.5 3.1 3.6-4 3.8 4.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </NormalToolbar>
       </template>
@@ -291,11 +343,31 @@ const toolbars = computed(() => (props.pageFullscreen ? TOOLBARS : TOOLBARS.filt
           @close="closePicker"
         />
       </Transition>
+      <Transition name="popover">
+        <PathPicker
+          v-if="picturePickerOpen"
+          v-model:alignment="pictureAlignment"
+          mode="image"
+          :root="pathRoot"
+          :start="picturePickerStart"
+          :locate="locatePictureCaret"
+          :format="withFolderSlash"
+          @pick="insertPicture"
+          @visit="visitPictureFolder"
+          @close="closePicturePicker"
+        />
+      </Transition>
       <TableContextMenu
         v-if="tableMenu.request.value"
         :request="tableMenu.request.value"
         @choose="tableMenu.choose"
         @close="tableMenu.close"
+      />
+      <PictureContextMenu
+        v-if="pictureMenu.request.value"
+        :request="pictureMenu.request.value"
+        @choose="pictureMenu.choose"
+        @close="pictureMenu.close"
       />
     </Teleport>
   </div>

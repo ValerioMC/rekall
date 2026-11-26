@@ -4,7 +4,8 @@ export const DirectoryEntrySchema = z.object({
   name: z.string(),
   path: z.string(),
   directory: z.boolean(),
-  hidden: z.boolean()
+  hidden: z.boolean(),
+  size: z.number().nullable()
 })
 
 export const PathSegmentSchema = z.object({

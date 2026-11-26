@@ -1,4 +1,3 @@
-use crate::image::PngSize;
 use crate::markdown::{Block, InlineRun, ListItem};
 use crate::style::DocumentStyle;
 use crate::ExportError;
@@ -16,9 +15,8 @@ use super::text_style::TextStyle;
 
 const HEADING_LEADING: f32 = 1.25;
 const MARKER_GAP: f32 = 4.0;
-const ERROR_TEXT_POINTS: f32 = 10.5;
 
-/// Lays the blocks of every part out on pages. The code, table and quote layouts add their
+/// Lays the blocks of every part out on pages. The code, table and figure layouts add their
 /// methods from their own files.
 pub(super) struct PdfBlocks<'a> {
     pub(super) faces: &'a PdfFaces,
@@ -77,7 +75,9 @@ impl<'a> PdfBlocks<'a> {
             Block::Quote(blocks) => return self.quote(blocks, x, width),
             Block::Rule => self.rule(x, width),
             Block::Diagram { png } => return self.diagram(png, x, width),
-            Block::DiagramFailed => self.diagram_failed(x, width),
+            Block::DiagramFailed => self.error_box(DocumentStyle::DIAGRAM_ERROR_TEXT, x, width),
+            Block::Picture(picture) => return self.picture(picture, x, width),
+            Block::PictureMissing { description } => self.error_box(&DocumentStyle::missing_picture_text(description), x, width),
         }
         Ok(())
     }
@@ -111,12 +111,20 @@ impl<'a> PdfBlocks<'a> {
         let text_x = x + PdfMetrics::LIST_INDENT;
         let text_width = width - PdfMetrics::LIST_INDENT;
         for (index, item) in items.iter().enumerate() {
-            self.sheet.ensure(Self::body_line_height());
+            self.sheet.ensure(Self::first_height(item, text_width)?);
             self.draw_marker(ordered, index, item, x, text_x);
             self.render_all(&item.blocks, text_x, text_width, true)?;
         }
         self.sheet.advance(PdfMetrics::PARAGRAPH_GAP - PdfMetrics::TIGHT_GAP);
         Ok(())
+    }
+
+    /// What an item needs on the page of its marker: a line, or the whole picture it opens with.
+    fn first_height(item: &ListItem, width: f32) -> Result<f32, ExportError> {
+        match item.blocks.first() {
+            Some(Block::Picture(picture)) => Ok(Self::picture_size(picture, width)?.1 + PdfMetrics::BLOCK_GAP),
+            _ => Ok(Self::body_line_height()),
+        }
     }
 
     fn draw_marker(&mut self, ordered: bool, index: usize, item: &ListItem, x: f32, text_x: f32) {
@@ -156,38 +164,5 @@ impl<'a> PdfBlocks<'a> {
         let y = self.sheet.cursor() + PdfMetrics::BLOCK_GAP;
         self.sheet.push(Placed::Stroke { x1: x, y1: y, x2: x + width, y2: y, width: PdfMetrics::HAIRLINE_WIDTH, color: DocumentStyle::HAIRLINE });
         self.sheet.advance(PdfMetrics::BLOCK_GAP * 2.0);
-    }
-
-    fn diagram(&mut self, png: &'a [u8], x: f32, width: f32) -> Result<(), ExportError> {
-        let size = PngSize::read(png)?;
-        let (fitted_width, fitted_height) = size.fit(f64::from(width), f64::from(PdfMetrics::diagram_max_height()));
-        let (picture_width, picture_height) = (fitted_width as f32, fitted_height as f32);
-        self.sheet.ensure(picture_height + PdfMetrics::BLOCK_GAP);
-        let picture = self.pictures.len();
-        self.pictures.push(png);
-        let top = self.sheet.cursor();
-        let left = x + (width - picture_width) / 2.0;
-        self.sheet.push(Placed::Picture { picture, x: left, top, width: picture_width, height: picture_height });
-        self.sheet.advance(picture_height + PdfMetrics::BLOCK_GAP);
-        Ok(())
-    }
-
-    fn diagram_failed(&mut self, x: f32, width: f32) {
-        let height = PdfMetrics::ERROR_BOX_HEIGHT;
-        self.sheet.ensure(height + PdfMetrics::BLOCK_GAP);
-        let top = self.sheet.cursor();
-        self.sheet.push(Placed::Rect { x, top, width, height, fill: DocumentStyle::ERROR_BACKGROUND });
-        self.error_border(x, top, width, height);
-        let style = TextStyle { kind: FontKind::Bold, size: ERROR_TEXT_POINTS, color: DocumentStyle::ERROR_TEXT_COLOUR, link: None };
-        let text_width = self.faces.face(FontKind::Bold).width(DocumentStyle::DIAGRAM_ERROR_TEXT, style.size);
-        self.painter.text(&mut self.sheet, x + (width - text_width) / 2.0, top, height, DocumentStyle::DIAGRAM_ERROR_TEXT, style);
-        self.sheet.advance(height + PdfMetrics::BLOCK_GAP);
-    }
-
-    fn error_border(&mut self, x: f32, top: f32, width: f32, height: f32) {
-        let (right, bottom) = (x + width, top + height);
-        for (x1, y1, x2, y2) in [(x, top, right, top), (right, top, right, bottom), (right, bottom, x, bottom), (x, bottom, x, top)] {
-            self.sheet.push(Placed::Stroke { x1, y1, x2, y2, width: PdfMetrics::ERROR_BORDER_WIDTH, color: DocumentStyle::ERROR_BORDER });
-        }
     }
 }

@@ -244,3 +244,19 @@ async fn a_github_issue_that_cannot_be_deleted_is_closed_as_not_planned() {
 
     HttpTaskTracker::new().delete(&endpoint(ConnectionKind::Github, &site, "acme/app", "ghp_secret"), "12").await.unwrap();
 }
+
+#[tokio::test]
+async fn a_jira_cloud_description_links_the_attachments_it_names() {
+    let attachment = "https://acme.atlassian.net/rest/api/3/attachment/content/10000";
+    let markdown = format!("Build [login.png]({attachment}) as [documented](https://example.com).\n\n[mock.png]({attachment})");
+
+    let document = jira_description(AtlassianDeployment::Cloud, &markdown);
+
+    let link = |name: &str| json!({ "type": "text", "text": name, "marks": [{ "type": "link", "attrs": { "href": attachment } }] });
+    assert_eq!(document["content"][0]["content"], json!([
+        { "type": "text", "text": "Build " },
+        link("login.png"),
+        { "type": "text", "text": " as [documented](https://example.com)." },
+    ]));
+    assert_eq!(document["content"][1]["content"], json!([link("mock.png")]));
+}

@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  claimNotificationsEnabled,
+  notificationsEnabled,
   postNotice,
   requestNotificationPermission,
-  setClaimNotificationsEnabled
+  setNotificationsEnabled
 } from '@/common/native/notify'
 
 const notice = { title: 'A step is waiting for review', body: 'Wire the export — Report builder' }
@@ -61,9 +61,9 @@ describe('posting a notice', () => {
     const notify = vi.fn(async () => true)
     window.rekallDesktop = { pickFolder: vi.fn(), notify }
 
-    setClaimNotificationsEnabled(false)
+    setNotificationsEnabled(false)
 
-    expect(claimNotificationsEnabled()).toBe(false)
+    expect(notificationsEnabled()).toBe(false)
     expect(await postNotice(notice)).toBe(false)
     expect(notify).not.toHaveBeenCalled()
   })

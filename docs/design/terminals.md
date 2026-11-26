@@ -219,6 +219,15 @@ folder goes. A cluster whose stored kubeconfig no longer reads is left out of th
 logged. The helpers are shell scripts using `curl`, so a Windows terminal gets no session, and the
 external **Open in terminal** gets none either.
 
+**Reading pictures.** The pictures a context shows are files outside the project's folder, so every Claude
+terminal, chat and queued session starts with a `--settings` file allowing `Read(//<pictures folder>/**)` and
+nothing more: `--add-dir` would allow edits too. `CredentialBroker` writes it: beside the deny rules of a credential
+session, or alone, in a folder of the same place and lifetime, for a session with no credential. The folder is the
+resolved path, since Claude Code matches a rule against the real file, and `\ * ? [ ]` in it are escaped. A Codex
+session needs nothing: its read-only and workspace-write sandboxes read files outside the workspace and refuse
+writes (checked with `codex sandbox`, codex-cli 0.170). A database that is not a file, a Windows terminal and
+**Open in terminal** get no rule.
+
 `TerminalView` carries the project's connections (`TerminalConnectionView`: id, label, kind, whether
 a credential is stored), and every access line is published as a `credential-access` frame (terminal,
 connection, granted) in the same transaction as the line, so the pane never shows an access the log

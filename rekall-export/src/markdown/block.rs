@@ -1,4 +1,4 @@
-use super::{InlineRun, ListItem};
+use super::{InlineRun, ListItem, PictureBlock};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Block {
@@ -11,4 +11,6 @@ pub enum Block {
     Rule,
     Diagram { png: Vec<u8> },
     DiagramFailed,
+    Picture(PictureBlock),
+    PictureMissing { description: String },
 }

@@ -8,7 +8,9 @@ impl DocumentStyle {
     pub const PAGE_HEIGHT_MM: f64 = 297.0;
     pub const MARGIN_MM: f64 = 25.0;
     pub const TEXT_WIDTH_MM: f64 = Self::PAGE_WIDTH_MM - 2.0 * Self::MARGIN_MM;
-    pub const DIAGRAM_MAX_HEIGHT_MM: f64 = 200.0;
+    pub const FIGURE_MAX_HEIGHT_MM: f64 = 200.0;
+    /// A picture's natural size takes 96 pixels to the inch, as a browser draws it.
+    pub const MILLIMETRES_PER_PIXEL: f64 = 25.4 / 96.0;
 
     pub const BODY_POINTS: f64 = 10.5;
     pub const CODE_POINTS: f64 = 9.0;
@@ -33,4 +35,12 @@ impl DocumentStyle {
 
     /// Printed in place of a diagram that could not be drawn; both writers use these words.
     pub const DIAGRAM_ERROR_TEXT: &'static str = "Error exported diagram";
+
+    /// Printed in place of a picture the writers were not handed.
+    pub fn missing_picture_text(description: &str) -> String {
+        match description.trim() {
+            "" => "Picture missing".to_string(),
+            description => format!("Picture missing: {description}"),
+        }
+    }
 }

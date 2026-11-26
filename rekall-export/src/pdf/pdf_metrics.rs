@@ -33,6 +33,10 @@ impl PdfMetrics {
         millimetres as f32 * POINTS_PER_MM
     }
 
+    pub(super) fn millimetres(points: f32) -> f64 {
+        f64::from(points / POINTS_PER_MM)
+    }
+
     pub(super) fn page_width() -> f32 {
         Self::points(DocumentStyle::PAGE_WIDTH_MM)
     }
@@ -49,7 +53,7 @@ impl PdfMetrics {
         Self::points(DocumentStyle::TEXT_WIDTH_MM)
     }
 
-    pub(super) fn diagram_max_height() -> f32 {
-        Self::points(DocumentStyle::DIAGRAM_MAX_HEIGHT_MM)
+    pub(super) fn figure_max_height() -> f32 {
+        Self::points(DocumentStyle::FIGURE_MAX_HEIGHT_MM)
     }
 }

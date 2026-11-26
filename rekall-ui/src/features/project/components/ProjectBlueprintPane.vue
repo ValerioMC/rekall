@@ -87,6 +87,7 @@ onUnmounted(flush)
             v-model="draft"
             :height="editorHeight"
             :path-root="project.repoFolder"
+            :picture-owner="{ kind: 'BLUEPRINT', id: project.id }"
             placeholder="# What this is
 
 How it's built, how it's organised, the conventions to follow while working in it."

@@ -30,6 +30,7 @@ defineProps<{ step: TaskStep; task: Task }>()
       :empty-text="step.passes.length ? 'No feedback yet.' : 'Nothing written under this step yet.'"
       :write-prompt="step.passes.length ? 'Write what the next pass has to change' : 'Write the detail'"
       :path-root="task.projectRepoFolder"
+      :task-id="task.id"
     />
   </div>
 </template>

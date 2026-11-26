@@ -11,6 +11,7 @@ mod view;
 pub use view::context_commit_view::ContextCommitView;
 pub use model::context_record::ContextRecord;
 pub use model::context_renderer::ContextRenderer;
+pub use model::session_pictures::SessionPictures;
 pub use render::text::{MAX_DIFF_CHARACTERS, MAX_DOCUMENT_CHARACTERS, REFERENCE_LINE_MAX};
 pub use model::anchor_entity::AnchorEntity;
 pub use service::context_service::ContextService;

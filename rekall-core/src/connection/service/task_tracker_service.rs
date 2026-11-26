@@ -6,16 +6,19 @@ use rekall_store::{external_connection, project_connection, task, task_tracker_l
 use sea_orm::{ActiveModelTrait, IntoActiveModel, Set};
 use tracing::{info, warn};
 
-use crate::connection::{Secret, SecretStore, TaskTracker, TrackerEndpoint, TrackerFailure, TrackerIssue, TrackerLink};
+use crate::connection::rule::tracker_markdown::pictures_as_descriptions;
+use crate::connection::rule::tracker_name::tracker_name;
+use crate::connection::{Secret, SecretStore, TaskTracker, TrackerEndpoint, TrackerFailure, TrackerIssue, TrackerLink, TrackerPictureService};
 use crate::{in_read, in_write, load, Ctx};
 
 /// Writes a task to the project's task manager: its title when the task is created, and its
-/// title and description only when the person asks. A failure is kept on the task.
+/// title, description and pictures only when the person asks. A failure is kept on the task.
 #[derive(Clone)]
 pub struct TaskTrackerService {
     ctx: Ctx,
     secrets: Arc<dyn SecretStore>,
     tracker: Arc<dyn TaskTracker>,
+    pictures: TrackerPictureService,
 }
 
 /// What a write found to send and where.
@@ -27,8 +30,8 @@ struct Delivery {
 }
 
 impl TaskTrackerService {
-    pub fn new(ctx: Ctx, secrets: Arc<dyn SecretStore>, tracker: Arc<dyn TaskTracker>) -> Self {
-        Self { ctx, secrets, tracker }
+    pub fn new(ctx: Ctx, secrets: Arc<dyn SecretStore>, tracker: Arc<dyn TaskTracker>, pictures: TrackerPictureService) -> Self {
+        Self { ctx, secrets, tracker, pictures }
     }
 
     /// Creates the issue of a task that has none, with its title alone. A project without a task
@@ -54,7 +57,7 @@ impl TaskTrackerService {
     /// row can no longer name. A project that lost its task manager since has nothing to tell.
     pub async fn remove(&self, project_id: Id, issue_key: &str) -> Result<()> {
         let Some(endpoint) = self.endpoint_of_project(project_id).await? else { return Ok(()) };
-        self.tracker.delete(&endpoint, issue_key).await.map_err(|failure| RekallError::conflict(failure_message(endpoint.kind, &failure)))?;
+        self.tracker.delete(&endpoint, issue_key).await.map_err(|failure| refused(endpoint.kind, &failure))?;
         info!(%project_id, issue = issue_key, "A deleted task's issue was removed from the project's task manager");
         Ok(())
     }
@@ -84,9 +87,9 @@ impl TaskTrackerService {
     async fn write(&self, delivery: &Delivery, issue: &TrackerIssue) -> Result<()> {
         let task_id = delivery.task.id;
         match self.deliver(delivery, issue).await {
-            Ok(created) => {
+            Ok(()) => {
                 info!(task_id = %task_id, "A task was written to the project's task manager");
-                self.keep_written(task_id, created, issue.fingerprint()).await
+                self.keep_written(task_id, issue.fingerprint()).await
             }
             Err(failure) => {
                 warn!(%failure, task_id = %task_id, "A task could not be written to the project's task manager");
@@ -96,15 +99,34 @@ impl TaskTrackerService {
         }
     }
 
-    /// The link of the issue it created, or none when it rewrote the issue the task already had.
-    async fn deliver(&self, delivery: &Delivery, issue: &TrackerIssue) -> Result<Option<TrackerLink>> {
+    async fn deliver(&self, delivery: &Delivery, issue: &TrackerIssue) -> Result<()> {
         let endpoint = self.endpoint(&delivery.binding, &delivery.connection).await?;
-        let kind = delivery.connection.kind;
+        let task_id = delivery.task.id;
         match delivery.issue_key.as_deref() {
-            Some(key) => self.tracker.update(&endpoint, key, issue).await.map(|()| None),
-            None => self.tracker.create(&endpoint, issue).await.map(Some),
+            Some(key) => {
+                let description = self.pictures.send(&endpoint, task_id, Some(key), &issue.description).await?;
+                self.rewrite(&endpoint, key, &TrackerIssue { description, ..issue.clone() }).await
+            }
+            None => self.create(&endpoint, task_id, issue).await,
         }
-        .map_err(|failure| RekallError::conflict(failure_message(kind, &failure)))
+    }
+
+    /// The issue is created with its pictures as descriptions, since Jira takes an upload only on an
+    /// issue that exists. Its key is kept at once, so a refused upload never creates a second issue.
+    async fn create(&self, endpoint: &TrackerEndpoint, task_id: Id, issue: &TrackerIssue) -> Result<()> {
+        let first = TrackerIssue { description: pictures_as_descriptions(&issue.description), ..issue.clone() };
+        let link = self.tracker.create(endpoint, &first).await.map_err(|failure| refused(endpoint.kind, &failure))?;
+        let key = link.key.clone();
+        self.keep_created(task_id, link).await?;
+        let description = self.pictures.send(endpoint, task_id, Some(&key), &issue.description).await?;
+        if description == first.description {
+            return Ok(());
+        }
+        self.rewrite(endpoint, &key, &TrackerIssue { description, ..first }).await
+    }
+
+    async fn rewrite(&self, endpoint: &TrackerEndpoint, key: &str, issue: &TrackerIssue) -> Result<()> {
+        self.tracker.update(endpoint, key, issue).await.map_err(|failure| refused(endpoint.kind, &failure))
     }
 
     async fn endpoint(&self, binding: &project_connection::Model, connection: &external_connection::Model) -> Result<TrackerEndpoint> {
@@ -125,15 +147,12 @@ impl TaskTrackerService {
         })
     }
 
-    async fn keep_written(&self, task_id: Id, created: Option<TrackerLink>, fingerprint: String) -> Result<()> {
-        self.keep_link(task_id, |held| {
-            let (issue_key, issue_url) = match created {
-                Some(link) => (Some(link.key), Some(link.url)),
-                None => (held.issue_key.clone(), held.issue_url.clone()),
-            };
-            task_tracker_link::Model { issue_key, issue_url, sync_error: None, synced_fingerprint: Some(fingerprint), ..held }
-        })
-        .await
+    async fn keep_created(&self, task_id: Id, link: TrackerLink) -> Result<()> {
+        self.keep_link(task_id, |held| task_tracker_link::Model { issue_key: Some(link.key), issue_url: Some(link.url), ..held }).await
+    }
+
+    async fn keep_written(&self, task_id: Id, fingerprint: String) -> Result<()> {
+        self.keep_link(task_id, |held| task_tracker_link::Model { sync_error: None, synced_fingerprint: Some(fingerprint), ..held }).await
     }
 
     async fn keep_failure(&self, task_id: Id, failure: String) -> Result<()> {
@@ -171,17 +190,12 @@ fn location_of(kind: ConnectionKind, target: Option<&str>) -> Result<String> {
 }
 
 /// The tracker's refusal is the stored credential or the site, which the person fixes on the Connections page.
-fn failure_message(kind: ConnectionKind, failure: &TrackerFailure) -> String {
-    let name = match kind {
-        ConnectionKind::Jira => "Jira",
-        ConnectionKind::Gitlab => "GitLab",
-        ConnectionKind::Github => "GitHub",
-        ConnectionKind::Kubernetes | ConnectionKind::Grafana | ConnectionKind::Confluence => "The task manager",
-    };
-    match failure {
+fn refused(kind: ConnectionKind, failure: &TrackerFailure) -> RekallError {
+    let name = tracker_name(kind);
+    RekallError::conflict(match failure {
         TrackerFailure::Rejected { status } => format!("{name} rejected the stored credential (HTTP {status}). Replace it on the Connections page."),
         TrackerFailure::Failed { reason } => format!("{name} could not take the issue: {reason}."),
-    }
+    })
 }
 
 #[cfg(test)]

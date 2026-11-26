@@ -13,8 +13,10 @@ import { usePaletteShortcut } from '@/features/search/composables/usePaletteShor
 import { usePaletteStore } from '@/features/search/store/palette.store'
 import UpdateDialog from '@/components/shell/UpdateDialog.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
+import AppToaster from '@/components/ui/AppToaster.vue'
 import ChatDock from '@/features/chat/components/ChatDock.vue'
 import ChatReopenTag from '@/features/chat/components/ChatReopenTag.vue'
+import { usePictureCleanupStore } from '@/features/picture/store/pictureCleanup.store'
 import { fetchDatabaseStatus } from '@/features/settings/api/settings.api'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
@@ -74,6 +76,7 @@ onMounted(async () => {
       void useTokenUsageStore().load().catch((caught: unknown) => toast.notifyError(caught))
       void useVulnerabilityStore().load().catch((caught: unknown) => toast.notifyError(caught))
       void useWorkingSetStore().load().catch((caught: unknown) => toast.notifyError(caught))
+      void usePictureCleanupStore().load().catch((caught: unknown) => toast.notifyError(caught))
       void update.checkAtStartup()
     }
   } catch {
@@ -91,6 +94,7 @@ onUnmounted(() => {
 
 <template>
   <LeaveDialog />
+  <AppToaster />
   <template v-if="status">
     <template v-if="status.status === 'READY'">
       <div class="flex h-full flex-col">

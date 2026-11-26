@@ -19,7 +19,7 @@ impl DocxWriter {
         let mut blocks = DocxBlocks::new();
         let mut elements = Vec::new();
         for (index, part) in document.parts.iter().enumerate() {
-            let read = MarkdownBlocks::read(part, &document.diagrams);
+            let read = MarkdownBlocks::read(part, &document.diagrams, &document.pictures);
             elements.extend(blocks.render_part(&read, index > 0)?);
         }
         let docx = DocxStyles::apply(Docx::new()).header(Self::header(&document.title)).footer(Self::footer());

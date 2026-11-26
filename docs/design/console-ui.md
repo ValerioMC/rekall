@@ -406,6 +406,16 @@ document, where the stylesheet drops the loops and keeps every state change; the
 document's font size; every send back goes through `sendBackGuard`. A session's concurrency, terminal
 command and retention have no home in the server's settings and are not offered.
 
+**Data and backup** is three titled panels: **Unused images** across the whole width, then Backups and Langfuse
+(`PictureCleanupPanel`, `usePictureCleanupStore`). At rest the first is one line saying what it finds and the key
+**Find unused images**; while a run goes on it is a gold progress bar with its percentage; a result is a preview of every
+unused image (thumbnail loaded as it comes into view, file name, folder, size) in a list that scrolls on its own, so
+**Cancel** and **Delete N images** stay under it, the total in the panel's header. Deleting asks first and says the files
+are gone for good. An empty result, the end of a deletion and a failure are that one line again. A run is followed from
+the moment the console loads, so its end raises one toast on whatever screen is open (an error toast on failure), and a
+system notification when the window is hidden or unfocused, under the Notifications switch. Toasts are drawn once, by
+`Bootstrap.vue`, over every screen.
+
 Every screen shares the ledger vocabulary: the status pill, the plan tube, anchors as copy buttons,
 sub-navigation tabs with counts, the step seal and the same motion. Reduced motion drops the loops
 (the running comet, the tube sheen, the orb pulse) and keeps every state change visible.

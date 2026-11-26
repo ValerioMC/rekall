@@ -125,6 +125,7 @@ const ICON_BUTTON =
         empty-text="Nothing written under this draft yet."
         write-prompt="Write the detail"
         :path-root="task.projectRepoFolder"
+        :task-id="task.id"
       />
       <StepSetup :step="step" :task="task">
         <StepSessionField :starts-session="step.startsSession" @choose="$emit('session', $event)" />

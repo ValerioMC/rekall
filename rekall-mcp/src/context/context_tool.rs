@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use rekall_kernel::RekallError;
-use rekall_core::{context::AnchorEntity, context::ContextService, context::{ContextRecord, ContextRenderer}};
+use rekall_core::context::{AnchorEntity, ContextRecord, ContextRenderer, ContextService, SessionPictures};
 use serde_json::Value;
 
 use crate::tool::{Anchor, Arguments};
@@ -9,11 +9,12 @@ use crate::texts;
 
 pub struct ContextTool {
     context: ContextService,
+    pictures: SessionPictures,
 }
 
 impl ContextTool {
-    pub fn new(context: ContextService) -> Self {
-        Self { context }
+    pub fn new(context: ContextService, pictures: SessionPictures) -> Self {
+        Self { context, pictures }
     }
 
     async fn load(&self, anchors: &[Anchor]) -> Result<Vec<ContextRecord>, RekallError> {
@@ -57,7 +58,7 @@ impl McpTool for ContextTool {
         let raw = Arguments::of(arguments).required_string("anchors")?;
         let anchors = Anchor::parse_all(Some(&raw))?;
         match self.load(&anchors).await {
-            Ok(records) => Ok(ContextRenderer.render(&records)),
+            Ok(records) => Ok(self.pictures.appended_to(ContextRenderer.render(&records))),
             Err(RekallError::UnknownAnchor(message)) => Err(ToolError::Failure(message)),
             Err(RekallError::AmbiguousAnchor { message, .. }) => {
                 Err(ToolError::Failure(format!("{message}. Qualify it as `entity:value`.")))

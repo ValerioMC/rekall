@@ -3,6 +3,7 @@
 
 mod base_style;
 mod code_layout;
+mod figure_layout;
 mod flow;
 mod flow_item;
 mod flow_line;

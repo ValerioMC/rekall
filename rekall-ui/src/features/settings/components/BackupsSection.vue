@@ -76,9 +76,7 @@ onMounted(load)
 </script>
 
 <template>
-  <section aria-labelledby="backups-heading" data-testid="backups-section">
-    <h3 id="backups-heading" class="eyebrow mb-2">Backups</h3>
-
+  <section aria-label="Backups" data-testid="backups-section">
     <RestartingOverlay v-if="phase === 'restarting'" />
 
     <p v-else-if="phase === 'timed-out'" class="text-small text-warn">
@@ -93,7 +91,7 @@ onMounted(load)
 
     <template v-else>
       <p class="text-caption leading-relaxed text-text-subtle">
-        A copy of the whole database every {{ status.intervalHours }} hours and before every restore,
+        A copy of the whole database and its pictures every {{ status.intervalHours }} hours and before every restore,
         the newest {{ status.keep }} kept, in
         <span class="break-all font-mono text-text-muted">{{ status.folder }}</span>. Download one to move
         this database to another machine, and restore it there.

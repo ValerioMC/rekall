@@ -1,7 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use rekall_core::connection::{InMemorySecretStore, ScriptedTaskTracker, Secret, SecretStore};
+use rekall_core::connection::{InMemorySecretStore, ScriptedTaskTracker, Secret, SecretStore, TrackerPictureService};
+use rekall_core::picture::InMemoryPictureStore;
 use rekall_core::task::TaskDeletedEvent;
 use rekall_core::Ctx;
 use rekall_kernel::Instant;
@@ -9,6 +10,11 @@ use rekall_store::{company, external_connection, project, project_connection, ta
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use super::*;
+
+fn service(ctx: Ctx, secrets: Arc<InMemorySecretStore>, tracker: Arc<ScriptedTaskTracker>) -> TaskTrackerService {
+    let pictures = TrackerPictureService::new(ctx.clone(), Arc::new(InMemoryPictureStore::new()), tracker.clone());
+    TaskTrackerService::new(ctx, secrets, tracker, pictures)
+}
 
 async fn a_task_of_a_project_with_a_task_manager(ctx: &Ctx) -> Id {
     let now = Instant::now();
@@ -41,7 +47,7 @@ async fn a_created_task_gets_its_issue_in_the_task_manager() {
         secrets.put(&account, &Secret::new("glpat")).unwrap();
     }
     let tracker = Arc::new(ScriptedTaskTracker::new());
-    TaskTrackerRunner::start(&events, TaskTrackerService::new(ctx.clone(), secrets, tracker.clone()));
+    TaskTrackerRunner::start(&events, service(ctx.clone(), secrets, tracker.clone()));
 
     events.publish(TaskCreatedEvent { task_id });
 
@@ -66,7 +72,7 @@ async fn a_deleted_task_has_its_issue_removed_from_the_task_manager() {
         secrets.put(&account, &Secret::new("glpat")).unwrap();
     }
     let tracker = Arc::new(ScriptedTaskTracker::new());
-    TaskTrackerRunner::start(&events, TaskTrackerService::new(ctx.clone(), secrets, tracker.clone()));
+    TaskTrackerRunner::start(&events, service(ctx.clone(), secrets, tracker.clone()));
 
     events.publish(TaskDeletedEvent { project_id, issue_key: Some("7".into()) });
 

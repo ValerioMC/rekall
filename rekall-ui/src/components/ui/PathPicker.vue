@@ -4,8 +4,12 @@ import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'v
 import PathPickerRow from '@/components/ui/path-picker/PathPickerRow.vue'
 import PathPickerStatus from '@/components/ui/path-picker/PathPickerStatus.vue'
 import PathPickerTopBar from '@/components/ui/path-picker/PathPickerTopBar.vue'
+import { PICKER_MODES, type PickerMode } from '@/components/ui/path-picker/picker-mode'
 import { useCaretPlacement, type CaretBox } from '@/composables/useCaretPlacement'
 import { useDirectoryBrowser } from '@/composables/useDirectoryBrowser'
+import PictureAlignmentChoice from '@/features/picture/components/PictureAlignmentChoice.vue'
+import SourcePicturePreview from '@/features/picture/components/SourcePicturePreview.vue'
+import type { PictureAlignment } from '@/features/picture/model/picture'
 import type { DirectoryEntry } from '@/model/filesystem'
 
 export type { CaretBox }
@@ -24,10 +28,11 @@ export type { CaretBox }
  *   server against the folder in view, so nothing here joins or normalises a path.
  *
  * ↵ inserts the highlighted entry, ⌘↵ the folder in view. The footer shows exactly the text that
- * will land, formatted by the editor, so what is inserted is never a surprise. With `foldersOnly`
- * it chooses a folder instead, and files are left out of the list.
+ * will land, formatted by the caller, so what is inserted is never a surprise. The `folder` mode
+ * chooses a folder and leaves files out; the `image` mode lists folders and pictures, only a
+ * picture can be chosen, and the footer says how it is aligned, reached with Tab.
  */
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   /** The project's folder: where the picker opens and what the project button returns to. */
   root: string | null
   /** Where to open instead of the root: the folder the picker was left in last time. */
@@ -36,9 +41,11 @@ const props = defineProps<{
   locate: () => CaretBox | null
   /** The exact text a pick inserts, so the footer can preview it. */
   format: (path: string, directory: boolean) => string
-  /** Chooses a folder rather than inserting a path: files are not listed. */
-  foldersOnly?: boolean
-}>()
+  mode?: PickerMode
+}>(), { mode: 'path' })
+
+/** How the picture about to be chosen is aligned; only the `image` mode offers it. */
+const alignment = defineModel<PictureAlignment>('alignment', { default: 'left' })
 
 const emit = defineEmits<{
   pick: [path: string, directory: boolean]
@@ -55,6 +62,9 @@ const panel = ref<HTMLElement | null>(null)
 const filterField = ref<HTMLInputElement | null>(null)
 const listEl = ref<HTMLElement | null>(null)
 const previewEl = ref<HTMLElement | null>(null)
+const alignmentChoice = ref<InstanceType<typeof PictureAlignmentChoice> | null>(null)
+
+const rules = computed(() => PICKER_MODES[props.mode])
 
 const browser = useDirectoryBrowser({
   root: () => props.root,
@@ -62,25 +72,32 @@ const browser = useDirectoryBrowser({
   onVisit: (folder) => emit('visit', folder),
   onNavigate: () => filterField.value?.focus(),
   onHighlightMoved: () => scrollHighlightedIntoView(),
-  foldersOnly: () => !!props.foldersOnly
+  lists: (entry) => rules.value.lists(entry)
 })
 const { query, parsed, listing, failure, notice, slow, showHidden, highlighted, rows, hiddenCount, current, crumbs, atProject, atHome } =
   browser
 
-const panelStyle = useCaretPlacement(props.locate, () => emit('close'))
+const panelStyle = useCaretPlacement(props.locate, () => emit('close'), PICKER_MODES[props.mode].panel)
 
 const preview = computed<string>(() => {
   const entry = current.value
   if (entry) return props.format(entry.path, entry.directory)
-  return listing.value && !failure.value ? props.format(listing.value.path, true) : ''
+  return rules.value.choosesFolders && listing.value && !failure.value ? props.format(listing.value.path, true) : ''
 })
+const words = computed(() => rules.value.words(current.value))
 
 function insert(entry: DirectoryEntry): void {
   emit('pick', entry.path, entry.directory)
 }
 
 function insertFolderInView(): void {
-  if (listing.value && !failure.value) emit('pick', listing.value.path, true)
+  if (rules.value.choosesFolders && listing.value && !failure.value) emit('pick', listing.value.path, true)
+}
+
+/** ↵ on a row: a mode that cannot choose a folder opens it instead. */
+function choose(entry: DirectoryEntry): void {
+  if (entry.directory && !rules.value.choosesFolders) browser.open(entry)
+  else insert(entry)
 }
 
 /** A click opens a folder and inserts a file. */
@@ -116,15 +133,21 @@ function handlePanelKey(event: KeyboardEvent, mod: boolean, inFilter: boolean): 
   else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') move(event.key === 'ArrowDown' ? 1 : -1)
   else if (event.key === 'PageDown' || event.key === 'PageUp') move((event.key === 'PageDown' ? 1 : -1) * 8)
   else if (event.key === 'Enter') {
-    if (!mod && current.value) insert(current.value)
+    if (!mod && current.value) choose(current.value)
     else insertFolderInView()
   } else return inFilter && handleFilterKey(event)
   return true
 }
 
+/** Tab completes the name; on a picture to choose, it goes to the alignment, which WebKit's own Tab skips. */
+function tabFrom(entry: DirectoryEntry): void {
+  if (entry.directory || rules.value.choosesFolders) browser.complete(entry)
+  else alignmentChoice.value?.focus()
+}
+
 /** The keys that only mean something while typing in the filter. */
 function handleFilterKey(event: KeyboardEvent): boolean {
-  if (event.key === 'Tab' && !event.shiftKey && current.value) browser.complete(current.value)
+  if (event.key === 'Tab' && !event.shiftKey && current.value) tabFrom(current.value)
   else if (event.key === 'ArrowRight' && caretAtEnd() && current.value?.directory) browser.open(current.value)
   else if ((event.key === 'ArrowLeft' || event.key === 'Backspace') && query.value === '') browser.up()
   else return false
@@ -140,8 +163,8 @@ function onKeydown(event: KeyboardEvent): void {
 function onPointerDown(event: PointerEvent): void {
   const target = event.target as Element | null
   if (!target || panel.value?.contains(target)) return
-  // The toolbar button toggles the picker itself; closing here as well would reopen it.
-  if (target.closest?.('[data-path-picker-trigger]')) return
+  // The picker's own button toggles it; closing here as well would reopen it.
+  if (target.closest?.(`[data-path-picker-trigger="${props.mode}"]`)) return
   emit('close')
 }
 
@@ -176,12 +199,16 @@ onUnmounted(() => {
 <template>
   <div
     ref="panel"
-    class="path-picker fixed z-(--z-overlay) flex flex-col overflow-hidden rounded-card border border-border-strong bg-surface shadow-lift"
+    class="path-picker @container fixed z-(--z-overlay) flex flex-col overflow-hidden rounded-card border border-border-strong bg-surface shadow-lift"
     :style="panelStyle"
     role="dialog"
-    :aria-label="foldersOnly ? 'Choose a folder' : 'Insert a path'"
+    :aria-label="rules.title"
     data-testid="path-picker"
   >
+    <header v-if="mode === 'image'" class="flex shrink-0 items-baseline gap-3 border-b border-border px-3 py-2">
+      <h2 class="shrink-0 text-title font-semibold text-text">{{ rules.title }}</h2>
+      <p class="ml-auto min-w-0 truncate text-caption text-text-subtle">PNG, JPEG, GIF, WebP or SVG, up to 10 MB</p>
+    </header>
     <PathPickerTopBar
       :crumbs="crumbs"
       :has-project="!!root"
@@ -210,7 +237,7 @@ onUnmounted(() => {
         autocomplete="off"
         autocapitalize="off"
         spellcheck="false"
-        placeholder="Filter, or type a path: src/  ~/  /"
+        :placeholder="rules.placeholder"
         class="field h-8 w-full rounded-control px-2.5 font-mono text-small text-text"
         :aria-invalid="failure ? 'true' : undefined"
         data-testid="path-picker-filter"
@@ -218,68 +245,77 @@ onUnmounted(() => {
       <span v-if="slow" class="path-progress" role="status" aria-label="Loading folder" />
     </div>
 
-    <div ref="listEl" class="relative min-h-0 flex-1 overflow-y-auto px-1 py-1" data-testid="path-picker-list">
-      <p
-        v-if="notice"
-        class="mx-2 mb-1 mt-0.5 rounded-control bg-warn-soft px-2.5 py-1.5 text-caption leading-snug text-warn"
-        data-testid="path-picker-notice"
-      >
-        {{ notice }}
-      </p>
+    <div class="flex min-h-0 flex-1 flex-col @xl:flex-row">
+      <div ref="listEl" class="relative min-h-0 min-w-0 flex-1 overflow-y-auto px-1 py-1" data-testid="path-picker-list">
+        <p
+          v-if="notice"
+          class="mx-2 mb-1 mt-0.5 rounded-control bg-warn-soft px-2.5 py-1.5 text-caption leading-snug text-warn"
+          data-testid="path-picker-notice"
+        >
+          {{ notice }}
+        </p>
 
-      <div v-if="!listing && !failure" role="status" aria-live="polite" aria-busy="true">
-        <span class="sr-only">Loading</span>
-        <div v-for="index in 7" :key="index" class="flex h-[30px] items-center gap-2.5 pl-4">
-          <div class="skeleton size-3.5" />
-          <div class="skeleton h-2.5" :style="{ width: `${90 + ((index * 37) % 110)}px` }" />
+        <div v-if="!listing && !failure" role="status" aria-live="polite" aria-busy="true">
+          <span class="sr-only">Loading</span>
+          <div v-for="index in 7" :key="index" class="flex h-[30px] items-center gap-2.5 pl-4">
+            <div class="skeleton size-3.5" />
+            <div class="skeleton h-2.5" :style="{ width: `${90 + ((index * 37) % 110)}px` }" />
+          </div>
         </div>
-      </div>
 
-      <PathPickerStatus
-        v-else-if="failure || !listing?.readable || !rows.length"
-        :failure="failure"
-        :unreadable="!!listing && !listing.readable"
-        :needle="parsed.needle"
-        :show-hidden="showHidden"
-        :hidden-count="hiddenCount"
-        @show-hidden="browser.toggleHidden"
-      />
-
-      <ul v-else :id="listId" role="listbox" aria-label="Folders and files" :class="{ 'opacity-60 transition-opacity': slow }">
-        <PathPickerRow
-          v-for="(row, index) in rows"
-          :id="rowId(index)"
-          :key="row.entry.path"
-          :row="row"
-          :highlighted="index === highlighted"
-          @hover="highlighted = index"
-          @activate="activate(row.entry)"
-          @insert="insert(row.entry)"
+        <PathPickerStatus
+          v-else-if="failure || !listing?.readable || !rows.length"
+          :failure="failure"
+          :unreadable="!!listing && !listing.readable"
+          :needle="parsed.needle"
+          :show-hidden="showHidden"
+          :hidden-count="hiddenCount"
+          :chooses-folders="rules.choosesFolders"
+          @show-hidden="browser.toggleHidden"
         />
-      </ul>
+
+        <ul v-else :id="listId" role="listbox" :aria-label="rules.listLabel" :class="{ 'opacity-60 transition-opacity': slow }">
+          <PathPickerRow
+            v-for="(row, index) in rows"
+            :id="rowId(index)"
+            :key="row.entry.path"
+            :row="row"
+            :highlighted="index === highlighted"
+            :mode="mode"
+            @hover="highlighted = index"
+            @activate="activate(row.entry)"
+            @insert="insert(row.entry)"
+          />
+        </ul>
+      </div>
+      <SourcePicturePreview v-if="mode === 'image'" :entry="current" />
     </div>
 
-    <!-- What lands in the markdown, exactly, and the keys that put it there. -->
-    <div class="shrink-0 border-t border-border bg-canvas px-3 pb-2 pt-1.5">
-      <div class="flex min-w-0 items-baseline gap-2">
-        <span class="shrink-0 text-micro text-text-subtle">{{ foldersOnly ? 'Chooses' : 'Inserts' }}</span>
-        <code
-          ref="previewEl"
-          class="path-preview min-w-0 flex-1 overflow-hidden whitespace-nowrap font-mono text-caption text-text-muted"
-          data-testid="path-picker-preview"
-          >{{ preview }}</code
-        >
+    <!-- What lands in the markdown, or which file is copied, and the keys that do it. -->
+    <div class="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border bg-canvas px-3 pb-2 pt-1.5">
+      <div class="min-w-0 flex-1 basis-72">
+        <div class="flex min-w-0 items-baseline gap-2">
+          <span class="shrink-0 text-micro text-text-subtle">{{ words.preview }}</span>
+          <code
+            ref="previewEl"
+            class="path-preview min-w-0 flex-1 overflow-hidden whitespace-nowrap font-mono text-caption text-text-muted"
+            data-testid="path-picker-preview"
+            >{{ preview }}</code
+          >
+        </div>
+        <div class="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-micro text-text-subtle">
+          <span><kbd>↵</kbd> {{ words.enter }}</span>
+          <span v-if="rules.choosesFolders"><kbd>→</kbd> open</span>
+          <span v-if="mode === 'image'"><kbd>⇥</kbd> align</span>
+          <span><kbd>⌫</kbd> up</span>
+          <span v-if="rules.choosesFolders"><kbd>⌘↵</kbd> this folder</span>
+          <span v-if="listing?.truncated" class="text-warn" data-testid="path-picker-truncated">
+            first {{ listing.entries.length.toLocaleString(APP_LOCALE) }} shown
+          </span>
+          <span :class="mode !== 'image' && 'ml-auto'"><kbd>esc</kbd></span>
+        </div>
       </div>
-      <div class="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-micro text-text-subtle">
-        <span><kbd>↵</kbd> {{ foldersOnly ? 'choose' : 'insert' }}</span>
-        <span><kbd>→</kbd> open</span>
-        <span><kbd>⌫</kbd> up</span>
-        <span><kbd>⌘↵</kbd> this folder</span>
-        <span v-if="listing?.truncated" class="text-warn" data-testid="path-picker-truncated">
-          first {{ listing.entries.length.toLocaleString(APP_LOCALE) }} shown
-        </span>
-        <span class="ml-auto"><kbd>esc</kbd></span>
-      </div>
+      <PictureAlignmentChoice v-if="mode === 'image'" ref="alignmentChoice" v-model="alignment" />
     </div>
   </div>
 </template>

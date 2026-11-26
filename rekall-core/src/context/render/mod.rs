@@ -15,3 +15,4 @@ mod decisions;
 mod thread;
 mod flow;
 mod steps;
+mod pictures;

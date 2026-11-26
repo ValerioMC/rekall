@@ -4,7 +4,6 @@
 
 mod command;
 mod service;
-mod support;
 mod view;
 
 pub use service::claude_command_update_service::ClaudeCommandUpdateService;

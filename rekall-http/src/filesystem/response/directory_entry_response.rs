@@ -8,6 +8,7 @@ pub struct DirectoryEntryResponse {
     pub path: String,
     pub directory: bool,
     pub hidden: bool,
+    pub size: Option<u64>,
 }
 
 impl From<DirectoryEntryView> for DirectoryEntryResponse {
@@ -17,6 +18,7 @@ impl From<DirectoryEntryView> for DirectoryEntryResponse {
             path: view.path,
             directory: view.directory,
             hidden: view.hidden,
+            size: view.size,
         }
     }
 }

@@ -5,6 +5,7 @@ import Bootstrap from '@/Bootstrap.vue'
 import { router } from '@/router'
 import { fetchWrapups } from '@/features/wrapup/api/wrapups.api'
 import { useConsoleStore } from '@/stores/console.store'
+import { useToastStore } from '@/stores/toast.store'
 
 /**
  * The boot-time branch: which of the three top-level screens mounts. The screens themselves are
@@ -81,6 +82,16 @@ describe('Bootstrap', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="app-stub"]').exists()).toBe(true)
+  })
+
+  it('draws the toasts itself, so every screen shows them', async () => {
+    fetchDatabaseStatus.mockResolvedValue({ status: 'READY', active: null, databases: [] })
+    const wrapper = await mountBootstrap()
+
+    useToastStore().notify('1 unused image found')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="toast"]').text()).toContain('1 unused image found')
   })
 
   /**

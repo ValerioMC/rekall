@@ -14,8 +14,8 @@ const LISTING: DirectoryListing = {
   home: '/Users/me',
   segments: [{ name: '/', path: '/' }],
   entries: [
-    { name: 'billing', path: `${PROJECT}/billing`, directory: true, hidden: false },
-    { name: 'README.md', path: `${PROJECT}/README.md`, directory: false, hidden: false }
+    { name: 'billing', path: `${PROJECT}/billing`, directory: true, hidden: false, size: null },
+    { name: 'README.md', path: `${PROJECT}/README.md`, directory: false, hidden: false, size: 1 }
   ],
   readable: true,
   truncated: false

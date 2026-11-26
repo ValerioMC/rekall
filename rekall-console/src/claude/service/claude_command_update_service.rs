@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use rekall_core::claude::ClaudeCodeSetup;
 use tracing::{info, warn};
 
-use crate::claude::support::blocking_job::blocking;
+use crate::shared::blocking;
 use crate::claude::view::command_update_state::CommandUpdateState;
 
 /// Replaces the installed `/rk` command files with this build's when they are older, and keeps

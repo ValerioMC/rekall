@@ -2,11 +2,13 @@
 //! `DatabaseBackups` and `DatabaseRestore` ports of `rekall_core::backup`.
 //!
 //! A backup is a consistent copy of the live database written with `VACUUM INTO`, zipped under
-//! the database file's own name: one zip holding one database file.
+//! the database file's own name: one zip holding one database file and, under `images/`, every
+//! picture kept beside it.
 
 mod database_backup_service;
 mod database_location;
 mod database_restore_service;
+mod picture_entries;
 
 pub use database_backup_service::DatabaseBackupService;
 pub use database_location::DatabaseLocation;

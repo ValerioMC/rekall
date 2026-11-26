@@ -189,14 +189,14 @@ The guides describe each area as it behaves today, with its REST routes and prop
 | Review | Accept a claim, send a step back, and keep revisions of a description in a tab beside it (each aimed at the work or the plan), run as numbered passes that a session replies to; the review queue and its notifications | [workflow](docs/guide/workflow.md#description-review) |
 | Terminals | A real `claude` in a pseudo-terminal inside the app, or the same `claude` as a chat window (Settings > Sessions and run queue > Session view); the run queue, which can work up to four tasks at once in git worktrees of their own; the usage meter | [sessions](docs/guide/sessions.md) |
 | Token usage | Tokens Claude Code generated per task and step, read from its transcripts | [sessions](docs/guide/sessions.md#token-usage) |
-| Projects | Page, sections grouped in contexts (with a Reorganize session), components, icons, autoconfigure; connections to GitLab, GitHub, Kubernetes, Jira, Confluence and Grafana shared across companies; a Confluence space that fills a project's description, blueprint and sections; a task manager (GitLab, GitHub or Jira) that receives the project's tasks, and a main branch their work is merged into | [projects](docs/guide/projects.md) |
-| Export | A project's blueprint, pages and components as one PDF or Word file, with their Mermaid diagrams, kept on an Exports page until deleted | [projects](docs/guide/projects.md#exporting) |
+| Projects | Page, sections grouped in contexts (with a Reorganize session), components, icons, autoconfigure; connections to GitLab, GitHub, Kubernetes, Jira, Confluence and Grafana shared across companies; a Confluence space that fills a project's description, blueprint and sections; a task manager (GitLab, GitHub or Jira) that receives the project's tasks and their pictures, and a main branch their work is merged into | [projects](docs/guide/projects.md) |
+| Export | A project's blueprint, pages and components as one PDF or Word file, with their Mermaid diagrams and pictures, kept on an Exports page until deleted | [projects](docs/guide/projects.md#exporting) |
 | Console | Search, notes, tags, skills, the markdown editor, timers | [console](docs/guide/console.md) |
 | Report | Hours per client over a week or a month | [console](docs/guide/console.md#report) |
 | Claude resources | Edit `~/.claude`: instructions, skills, commands, agents, memories, memory review | [claude-resources](docs/guide/claude-resources.md) |
 | Diagrams | Mermaid diagrams linked to code, and walkthroughs the console plays | [diagrams](docs/guide/diagrams.md) |
 | Security | Dependency inventory, critical advisories, assessments, fix tasks | [security](docs/guide/security.md) |
-| Data | The model, context size, notes by reference, backups, older databases | [data](docs/guide/data.md) |
+| Data | The model, context size, notes by reference, backups, unused pictures, older databases | [data](docs/guide/data.md) |
 
 ## Configuration
 
@@ -208,7 +208,7 @@ Properties are passed as `--name=value` arguments or as environment variables in
 | `REKALL_HOME` | `~/.rekall` | Where `config.json` records the database folder |
 | `REKALL_DATABASE_URL` (`rekall.database.url`, or `REKALL_DB_URL`) | the folder in `config.json` | `sqlite:<path>` to a database file, or `sqlite::memory:`, overriding the setup wizard's choice. `spring.datasource.url` is still read, with a deprecation warning |
 
-Notes are stored in plain text in the database file. Credentials kept in them are only as protected as the disk is. A connection's credential is never in the database: it goes to `secrets.json` under `rekall.home`, a file only its owner can read and that is not encrypted.
+Pictures are files in `images/` beside the database, and every backup zip holds them. **Settings > Data and backup** finds the ones no text shows, in the background, previews them and deletes them when you confirm. Notes are stored in plain text in the database file. Credentials kept in them are only as protected as the disk is. A connection's credential is never in the database: it goes to `secrets.json` under `rekall.home`, a file only its owner can read and that is not encrypted.
 
 ## Develop
 
@@ -231,10 +231,10 @@ rekall-kernel/     RekallError, Id, Instant, the string helpers and logged best-
 rekall-store/      SeaORM entities and their state rules, the queries over them and the SQLite migrations, one folder per domain
 rekall-diagram/    the diagram format: Mermaid sheets and their code links, JSON form and validation. No database, no UI
 rekall-core/       business logic and every port: context assembly, the step and review lines, flows (routes and visits), wrapups, notes, time entries, token usage, vulnerabilities
-rekall-console/    the services only the console calls, commands in and views out with no HTTP types: the catalog, notes, tags, connections, graphs, the folder listing, and the thin services over core's ports (terminals, run queue, backups, database folders, update check)
+rekall-console/    the services only the console calls, commands in and views out with no HTTP types: the catalog, notes, tags, connections, graphs, pictures, the folder listing, and the thin services over core's ports (terminals, run queue, backups, database folders, update check)
 rekall-http/       Axum REST API for the UI, one folder per domain: controllers, request and response shapes, and the step event stream; `shared` holds the error body, request extractors and response helpers
 rekall-mcp/        MCP server, on rekall-core and never rekall-http: six tools read, twenty-one write
-rekall-infra/      everything with a process, a file, a socket or outbound HTTP behind it, each implementing a port of rekall-core and serving no route: the in-app terminal (portable-pty), the Claude Code usage meter, the run queue's worker, the transcript reader, the editor for Claude Code's own files (`~/.claude`), the database registry, backups and restores, the restart handle, the release feed, the OS credential store and the HTTP clients
+rekall-infra/      everything with a process, a file, a socket or outbound HTTP behind it, each implementing a port of rekall-core and serving no route: the in-app terminal (portable-pty), the Claude Code usage meter, the run queue's worker, the transcript reader, the editor for Claude Code's own files (`~/.claude`), the database registry, backups and restores, the pictures beside the database, the restart handle, the release feed, the OS credential store and the HTTP clients
 rekall-app/        rekall-server: the local-access guard, the console bundle, the supervisor; builds the infrastructure, injects it and serves everything; `rekall-server guard` is the Claude Code hook command
 rekall-app/desktop the Tauri desktop app over the same server
 rekall-ui/         Vue 3 + Vite frontend

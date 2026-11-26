@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rekall_core::context::SessionPictures;
 use rekall_core::step::{StepLinkView, TaskStepView, TaskStepService, UnstartedStepsView};
 use serde_json::Value;
 
@@ -10,11 +11,12 @@ use crate::tool::{told, Anchor, AnchoredTask, Arguments, QUALIFY_WITH_PROJECT};
 /// without losing what a context leaves out or expands; it writes nothing.
 pub struct StepReadTool {
     steps: TaskStepService,
+    pictures: SessionPictures,
 }
 
 impl StepReadTool {
-    pub fn new(steps: TaskStepService) -> Self {
-        Self { steps }
+    pub fn new(steps: TaskStepService, pictures: SessionPictures) -> Self {
+        Self { steps, pictures }
     }
 }
 
@@ -45,7 +47,7 @@ impl McpTool for StepReadTool {
             .read_unstarted(target.project_label.as_deref(), &target.task_code)
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
-        Ok(report(&read))
+        Ok(self.pictures.appended_to(report(&read)))
     }
 }
 

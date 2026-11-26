@@ -1,6 +1,6 @@
 import { watch } from 'vue'
 import type { Ref } from 'vue'
-import { postNotice } from '@/common/native/notify'
+import { isConsoleInBackground, postNotice } from '@/common/native/notify'
 import type { ReviewItem } from '@/features/catalog/model/review'
 
 /**
@@ -21,8 +21,7 @@ export function useClaimNotifications(queue: Readonly<Ref<readonly ReviewItem[]>
       }
       const arrived = items.filter((item) => !known!.has(item.key))
       known = keys
-      if (arrived.length === 0) return
-      if (document.visibilityState === 'visible' && document.hasFocus()) return
+      if (arrived.length === 0 || !isConsoleInBackground()) return
       void postNotice(noticeFor(arrived))
     },
     { immediate: true }

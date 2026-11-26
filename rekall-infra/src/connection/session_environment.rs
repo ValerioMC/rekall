@@ -11,7 +11,7 @@ pub struct SessionEnvironment {
     /// `git config` entries, as `GIT_CONFIG_KEY_n` / `GIT_CONFIG_VALUE_n` carry them.
     pub git_config: Vec<(String, String)>,
     pub token: Option<String>,
-    /// Passed to `claude` as `--settings`: the session's deny rules.
+    /// Passed to `claude` as `--settings`: what the session may read, and what it may not.
     pub claude_settings: Option<PathBuf>,
 }
 

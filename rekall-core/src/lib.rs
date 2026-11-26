@@ -25,6 +25,7 @@ pub mod flow;
 pub mod guard;
 pub mod inventory;
 pub mod note;
+pub mod picture;
 pub mod queue;
 pub mod review;
 pub mod search;

@@ -14,6 +14,7 @@ import { markComponentReferences } from '@/common/markdown/component-reference'
 import { markMermaidFences } from '@/common/markdown/mermaid-fence'
 import { referenceCompletionIcons } from '@/common/markdown/reference-completion-icon'
 import { livePreview } from '@/common/live-preview/live-preview'
+import { pictureTransfer } from '@/features/picture/lib/picture-transfer'
 
 config({
   // A local instance so md-editor-v3 does not lazy-fetch highlight.js from a CDN.
@@ -36,6 +37,7 @@ config({
           : extension
       ),
     { type: 'livePreview', extension: livePreview() },
+    { type: 'pictureTransfer', extension: pictureTransfer() },
     { type: 'referenceIcons', extension: referenceCompletionIcons() },
     { type: 'tooltipsOnBody', extension: tooltips({ parent: document.body }) },
     // Tab accepts an open suggestion (Enter already does); with none open it falls through to the editor's own Tab.

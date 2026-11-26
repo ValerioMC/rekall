@@ -3,6 +3,7 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
 import FormPanel from '@/components/ui/FormPanel.vue'
+import PictureCleanupPanel from '@/features/picture/components/PictureCleanupPanel.vue'
 import AppearanceSection from '@/features/settings/components/AppearanceSection.vue'
 import BackupsSection from '@/features/settings/components/BackupsSection.vue'
 import { preferredProvider, setPreferredProvider } from '@/common/config/session-launch'
@@ -61,8 +62,9 @@ onUnmounted(() => void claudeConnection.load().catch(() => undefined))
           <TimeUsageSection v-else-if="section === 'time'" />
           <FormPanel v-else-if="section === 'connections'"><ConnectionsSection /></FormPanel>
           <template v-else-if="section === 'data'">
-            <FormPanel><BackupsSection /></FormPanel>
-            <FormPanel><LangfuseSection /></FormPanel>
+            <PictureCleanupPanel class="col-span-full" />
+            <FormPanel title="Backups"><BackupsSection class="p-5" /></FormPanel>
+            <FormPanel title="Langfuse"><LangfuseSection class="p-5" /></FormPanel>
           </template>
           <FormPanel v-else-if="section === 'keyboard'"><KeyboardSection /></FormPanel>
           <FormPanel v-else><VersionSection /></FormPanel>

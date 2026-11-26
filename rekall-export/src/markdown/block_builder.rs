@@ -1,10 +1,11 @@
 use pulldown_cmark::{CodeBlockKind, Event, Tag, TagEnd};
 
-use crate::document::DiagramImage;
+use crate::document::{DiagramImage, ExportPicture};
 use crate::style::DocumentStyle;
 
 use super::mermaid_fence::is_mermaid;
-use super::{Block, InlineRun, ListItem};
+use super::picture_address::PictureAddress;
+use super::{Block, InlineRun, ListItem, PictureBlock};
 
 enum FrameKind {
     Root,
@@ -22,6 +23,11 @@ struct CodeBuffer {
     language: Option<String>,
     mermaid: bool,
     text: String,
+}
+
+struct ImageBuffer {
+    address: String,
+    description: String,
 }
 
 #[derive(Default)]
@@ -42,25 +48,29 @@ struct Emphasis {
 /// item is gathered into a paragraph when the item ends or a nested block starts.
 pub(super) struct BlockBuilder<'a> {
     diagrams: &'a [DiagramImage],
+    pictures: &'a [ExportPicture],
     frames: Vec<Frame>,
     runs: Vec<InlineRun>,
     emphasis: Emphasis,
     heading_level: Option<u8>,
     code: Option<CodeBuffer>,
     table: Option<TableBuilder>,
+    image: Option<ImageBuffer>,
 }
 
 impl<'a> BlockBuilder<'a> {
-    pub(super) fn new(part_heading: &str, diagrams: &'a [DiagramImage]) -> Self {
+    pub(super) fn new(part_heading: &str, diagrams: &'a [DiagramImage], pictures: &'a [ExportPicture]) -> Self {
         let heading = Block::Heading { level: 1, inlines: vec![InlineRun::plain(part_heading)] };
         Self {
             diagrams,
+            pictures,
             frames: vec![Frame { kind: FrameKind::Root, blocks: vec![heading] }],
             runs: Vec::new(),
             emphasis: Emphasis::default(),
             heading_level: None,
             code: None,
             table: None,
+            image: None,
         }
     }
 
@@ -97,6 +107,7 @@ impl<'a> BlockBuilder<'a> {
             Tag::Strong => self.emphasis.bold = true,
             Tag::Emphasis => self.emphasis.italic = true,
             Tag::Link { dest_url, .. } => self.emphasis.link = Some(dest_url.to_string()),
+            Tag::Image { dest_url, .. } => self.image = Some(ImageBuffer { address: dest_url.to_string(), description: String::new() }),
             _ => {}
         }
     }
@@ -116,6 +127,7 @@ impl<'a> BlockBuilder<'a> {
             TagEnd::Strong => self.emphasis.bold = false,
             TagEnd::Emphasis => self.emphasis.italic = false,
             TagEnd::Link => self.emphasis.link = None,
+            TagEnd::Image => self.close_image(),
             _ => {}
         }
     }
@@ -139,7 +151,12 @@ impl<'a> BlockBuilder<'a> {
         }
     }
 
+    /// Text inside a picture is its description, not part of the line.
     fn push_run(&mut self, text: &str, code: bool) {
+        if let Some(image) = self.image.as_mut() {
+            image.description.push_str(text);
+            return;
+        }
         self.runs.push(InlineRun {
             text: text.to_string(),
             bold: self.emphasis.bold,
@@ -160,11 +177,45 @@ impl<'a> BlockBuilder<'a> {
     }
 
     fn flush_paragraph(&mut self) {
-        if self.runs.is_empty() {
-            return;
-        }
         let runs = std::mem::take(&mut self.runs);
-        self.push_block(Block::Paragraph(runs));
+        if runs.iter().any(|run| !run.text.trim().is_empty()) {
+            self.push_block(Block::Paragraph(runs));
+        }
+    }
+
+    /// A picture splits the paragraph it sits in. A heading and a table cell hold text alone.
+    fn close_image(&mut self) {
+        let Some(image) = self.image.take() else { return };
+        let address = PictureAddress::read(&image.address);
+        if address.is_web() {
+            return self.push_web_picture(&image.description, address.path);
+        }
+        if self.heading_level.is_some() || self.table.is_some() {
+            return self.push_run(&image.description, false);
+        }
+        let block = self.picture_block(&address, image.description);
+        self.flush_paragraph();
+        self.push_block(block);
+    }
+
+    fn picture_block(&self, address: &PictureAddress<'_>, description: String) -> Block {
+        match self.pictures.iter().find(|picture| picture.address == address.path) {
+            Some(picture) => Block::Picture(PictureBlock {
+                png: picture.png.clone(),
+                natural_width: picture.natural_width,
+                alignment: address.alignment,
+            }),
+            None => Block::PictureMissing { description },
+        }
+    }
+
+    fn push_web_picture(&mut self, description: &str, address: &str) {
+        if !description.is_empty() {
+            self.push_run(&format!("{description} "), false);
+        }
+        let outer_link = self.emphasis.link.replace(address.to_string());
+        self.push_run(address, false);
+        self.emphasis.link = outer_link;
     }
 
     fn close_heading(&mut self) {

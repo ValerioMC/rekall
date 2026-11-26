@@ -44,6 +44,7 @@ loaded in one call, including its notes.
 | D8 | A task carries one wrapup, and it is a state and not a log | The thing that costs a session its first twenty minutes is reconstructing what the code already does. A note cannot answer that: notes accumulate, and the reader has to synthesise the current state out of them. A wrapup is that synthesis, written once and overwritten thereafter. Its own table, because notes accumulate on a task by construction and "one answer per task" has to be a constraint rather than a convention. See §4.1. |
 | D9 | An export's diagrams are drawn by the console and sent with the request, and its file is stored and downloaded by link | The server has no browser, and the console already draws Mermaid: it draws each fence again on a light palette (`diagram-palette.ts`), takes a PNG and posts `{ source, png }` pairs beside the choice, so `rekall-export` only places pictures it is handed and a fence with none becomes an error paragraph, never a failed export. A finished file is stored in `project_export_file` and the person downloads it from `GET /api/exports/{id}/file`, a plain attachment link, as the desktop shell already saves a backup, so the console handles no blob and an export can be fetched again until it is deleted. |
 | D10 | Every text a session saves for a person opens on a scenario | A session writes with the code loaded, so a step, note or deviation can be accurate and still unreadable to the person who reviews it in the console without the code. `.claude/rk/reader.md` sets one order (scenario, what changes, the parts involved in plain words then code names, terms, the work) and the modes that write such text point to it; the MCP tools that write a task, a step, a note, a deviation or a decision end their descriptions with its short form (`reader!` in `rekall-mcp/src/texts.rs`), so a client that never reads the modes gets it too. A diagram carries the same thing as data: a `Scenario` on `DiagramDocument`, required on every diagram a session writes (`DocumentValidator::validate_generated`) and optional on an imported or older one, and the console opens a walkthrough on it. |
+| D11 | Pictures are files beside the database, addressed by URL in the markdown | The database stays text. A picture is copied to `images/<company>/<project>/...` beside the database file and the markdown holds its address, `/api/images/...`. The address is the picture's identity: renaming or moving a record moves no file, so no link breaks, and the eight characters of the content's hash in the name keep two pictures from overwriting each other. Only a `PicturePath` names a file there, the format is read from the content and never from the extension, and a picture is at most 10 MB. A database that is not a file keeps no pictures. Every backup zip holds them under `images/`, so it restores on its own; the price is that each kept backup repeats every picture, a download reads the zip into memory and an uploaded restore stops at 1 GB. A restore only adds and overwrites pictures, and takes no entry that is not a `PicturePath`. |
 
 Non-goals: multi-user, authentication, remote deployment, vector search.
 
@@ -61,7 +62,7 @@ rekall/
   rekall-console/    the services only the console calls, one folder per domain: commands in, views out, no HTTP types
   rekall-http/       Axum REST routes for the UI, one folder per domain: controllers, request and response shapes and routes; `shared` holds the error body, request extractors and response helpers
   rekall-mcp/        MCP server: six tools read, twenty-one write; a folder per domain holds its tools
-  rekall-infra/      the implementations of core's ports, a folder per capability: the in-app terminal (`pty`), the chat session (`chat`) and the `session` host that routes between the two, the run queue's worker, the usage meter, the transcript reader, the Claude folder editor (`resources`), the Claude Code installer, the shell that runs a step's checks (`check`), the git worktrees of a task (`worktree`), the credential sessions (`connection`), the database registry (`bootstrap`), backups and restores, the restart handle, the release feed and the macOS update installer (`version`), the credential file and the OS credential store it replaced (`secret`), the connection probes, the Jira search, the task manager's REST calls and the runner that creates a new task's issue in it (`tracker`), the GitHub Advisory Database client; it serves no route
+  rekall-infra/      the implementations of core's ports, a folder per capability: the in-app terminal (`pty`), the chat session (`chat`) and the `session` host that routes between the two, the run queue's worker, the usage meter, the transcript reader, the Claude folder editor (`resources`), the Claude Code installer, the shell that runs a step's checks (`check`), the git worktrees of a task (`worktree`), the credential sessions (`connection`), the database registry (`bootstrap`), backups and restores, the restart handle, the release feed and the macOS update installer (`version`), the credential file and the OS credential store it replaced (`secret`), the connection probes, the pictures beside the database (`picture`), the Jira search, the task manager's REST calls and the runner that creates a new task's issue in it (`tracker`), the GitHub Advisory Database client; it serves no route
   rekall-app/        rekall-server: builds the infrastructure and injects it, mounts the HTTP and MCP routers, the local-access guard, serves the built frontend, embedded at compile time
   rekall-app/desktop the Tauri desktop app over the same server, in-process
   rekall-ui/         Vue 3 + Vite (built into rekall-ui/dist, embedded by rekall-app)
@@ -80,9 +81,9 @@ folder per crate. The chain:
    serves HTTP, and `rekall-http` never sees it.
 4. `rekall-app` sees everything: it builds the `rekall-infra` implementations, hands them to
    `rekall-http` in `ApiPorts`, and mounts both routers.
-5. `rekall-diagram` and `rekall-export` depend on no Rekall crate. `rekall-export` takes markdown parts and
-   the pictures of their diagrams and returns the bytes of a PDF or Word file; `rekall-console` calls it and
-   nothing below `rekall-console` does.
+5. `rekall-diagram` and `rekall-export` depend on no Rekall crate. `rekall-export` takes markdown parts, the
+   images of their diagrams and their pictures, and returns the bytes of a PDF or Word file; `rekall-console` calls
+   it and nothing below `rekall-console` does.
 
 `rekall-mcp` lists `rekall-kernel` and `rekall-core` and no other Rekall crate: no entity,
 repository, console service or route is in its reach, and the few `rekall-store` enums its tools
@@ -119,15 +120,16 @@ is found by opening one folder per crate:
 | `check` | the commands a person sets to pass before a claim is accepted, for a whole project or one step, and what each run found; the console writes them, no session can |
 | `decision` | what a person and a session settle about a task before it runs, one record per question: a key, its options, the answer (a changed answer keeps the one it replaced), details added later, the conversation lines behind it, optionally one step; `DecisionService` in `rekall-core` is what every writer calls (a session through `rekall_decision` in `rekall-mcp`, a person editing, adding or removing one by hand through `TaskDecisionService` in `rekall-console`, whose records the context marks as edited by you), the context carries the records in a `<decisions>` block and the task's decisions come before each step's |
 | `deviation` | where a task's work departed from its plan, one record per task and step and apart from its notes: a session writes it (`rekall_deviation`, in `rekall-core` and `rekall-mcp`), the console only reads it, and the context carries it in a `<deviations>` block |
-| `export` | a project's exports as one PDF or Word file: the row that records each (`project_export`, done or failed with the kind of error) and the file's bytes in a table of its own (`project_export_file`), kept until deleted; `ProjectExportService` (`rekall-console`) writes one with `DocxWriter` or `PdfWriter` from `rekall-export`, records a failed write as a `FAILED` row with its kind (`RENDER` or `STORAGE`) and refuses an invalid request without recording it, lists, serves the file, deletes one and clears a company's, a project's or the failed ones |
+| `export` | a project's exports as one PDF or Word file: the row that records each (`project_export`, done or failed with the kind of error) and the file's bytes in a table of its own (`project_export_file`), kept until deleted; `ProjectExportService` (`rekall-console`) asks `PictureService` for the pictures of what is ticked, writes the file with `DocxWriter` or `PdfWriter` from `rekall-export`, records a failed write as a `FAILED` row with its kind (`RENDER` or `STORAGE`) and refuses an invalid request without recording it, lists, serves the file, deletes one and clears a company's, a project's or the failed ones |
 | `feedback` | a task's revisions of its description: the text before and after a saved change, aimed at the work (`IMPLEMENTATION`) or at the plan (`PLAN`, the default on a task with steps), each `PENDING` while it waits, `RUNNING` once Run revision took it into a numbered pass, `APPLIED` when a session replies; a session answers open revisions with `FeedbackService::reply` (`rekall-core`), which also gives unanswered running ones back when its session ends, and the context carries the thread in a `<thread>` block; the console's `FeedbackService` (`rekall-console`) records every saved change of an evaluated task's description as a revision, points a waiting one at the work or the plan with `PATCH /api/feedback/{id}`, starts a pass with `POST /api/tasks/{id}/feedback/passes` (refused while a pass runs) and discards a waiting one; a revision is never typed apart from the description |
 | `dependency` | a task that waits for another task of its project to be accepted: the pair, the cycle rule, and what a task still waits for as the run queue and the context read it; the console writes the pairs, no session can |
-| `connection` | the GitLab instances, GitHub servers, Kubernetes clusters, Jira sites, Confluence sites and Grafana instances projects reach, the companies each is shared with, the projects that bind each, the log of every credential a terminal asked for, the Jira issues a project imports as tasks, the Confluence space a project's description, blueprint and sections are filled from (`ConfluenceSpaces`, the port, `ConfluenceSpaceService` in `rekall-console`, which groups the pages by concept in `confluence_grouping_rules`), the Jira project, Confluence space or GitLab group or project a binding's target is checked against and suggested from (`ConnectionTargetService`, and `GitlabTargetService` over the `GitlabNamespaces` port, implemented by `HttpGitlabNamespaces` in `rekall-infra/src/tracker/`), the task manager a project writes its tasks to (`TaskTracker`, the port, and `TaskTrackerService` in `rekall-core`), and the pull request or merge request of a task's branch on that task manager (`PullRequestHost`, the port, with `GithubPullRequestHost`, `GitlabPullRequestHost` and `ConnectionPullRequestHost`, which picks one by the connection's kind, in `rekall-infra/src/tracker/`) |
+| `connection` | the GitLab instances, GitHub servers, Kubernetes clusters, Jira sites, Confluence sites and Grafana instances projects reach, the companies each is shared with, the projects that bind each, the log of every credential a terminal asked for, the Jira issues a project imports as tasks, the Confluence space a project's description, blueprint and sections are filled from (`ConfluenceSpaces`, the port, `ConfluenceSpaceService` in `rekall-console`, which groups the pages by concept in `confluence_grouping_rules`), the Jira project, Confluence space or GitLab group or project a binding's target is checked against and suggested from (`ConnectionTargetService`, and `GitlabTargetService` over the `GitlabNamespaces` port, implemented by `HttpGitlabNamespaces` in `rekall-infra/src/tracker/`), the task manager a project writes its tasks to (`TaskTracker`, the port, and `TaskTrackerService` in `rekall-core`), the pictures sent there with a task's text (`TrackerPictureService`, §4.7), and the pull request or merge request of a task's branch on that task manager (`PullRequestHost`, the port, with `GithubPullRequestHost`, `GitlabPullRequestHost` and `ConnectionPullRequestHost`, which picks one by the connection's kind, in `rekall-infra/src/tracker/`) |
 | `task` | the task row, and in `rekall-core` and `rekall-mcp` a session creating one, filing it under an epic or replacing its description; the console's task service is in `catalog` |
 | `step`, `flow` | the checklist, and the routes and visits that turn it into a flow |
 | `graph` | a project's deployment graphs and laying one on a task; console-only, so it has no folder in `rekall-core` |
 | `note` | documents, each owned by one task and deleted with it, and how they load (in full or by reference) |
 | `wrapup`, `review`, `timeentry` | the wrapup, the review line, logged time |
+| `picture` | the pictures a markdown text shows, kept as files in `images/` beside the database (D11): `PicturePath` and the `PictureStore` port in `rekall-core`, the `PictureReference` rule that finds them in a markdown text, `PictureService` in `rekall-console`, which names the folder after the owner (a task, a project's blueprint, a page or a component), judges the format by the content and turns a picture into the PNG an export prints, `PictureCleanupService` beside it, which deletes the pictures no text shows (§4.7), and `FolderPictureStore` in `rekall-infra`. Called `picture` so no module shadows the `image` crate; no table behind it: its folder in `rekall-store` holds only the queries that read every text column (`picture_text`) |
 | `commit`, `diagram`, `token`, `search`, `context` | logged commits and what they and the working tree changed, stored diagrams, token usage, search, context assembly and its size |
 | `context_fill` | the last share of its context window a chat held at the end of a turn, per task and per step (`ContextFillService`, the only writer of `context_fill`; the console reads it) |
 | `quick` | the quick task: a task started from one line of text with its session opened at once, accepted without a review when Claude's wrapup lands; console and HTTP only, the acceptance itself is in `review` and `wrapup` |
@@ -140,7 +142,7 @@ is found by opening one folder per crate:
 | `inventory` | what each project is built from: its dependencies at the version each resolves to |
 | `terminal`, `filesystem`, `stream` | the in-app terminals, the folder listing behind the path picker, the event stream the console listens to; console and HTTP only |
 | `vulnerability` | the advisories, the projects they reach, the scan that finds them and what it looks for, a session's verdict and the fix task |
-| `tracker` | the issue a task was written to in its project's task manager, and why the last write failed: the console creates it for a task imported with its issue, `rekall-core`'s `TaskTrackerService` keeps it on every write, with a fingerprint of the content written, and removes the issue when `TaskDeletedEvent` says its task was deleted (`rekall-store` only) |
+| `tracker` | the issue a task was written to in its project's task manager, why the last write failed, and the pictures already uploaded there (`tracker_picture`): the console creates it for a task imported with its issue, `rekall-core`'s `TaskTrackerService` keeps it on every write, with a fingerprint of the content written, and removes the issue when `TaskDeletedEvent` says its task was deleted (`rekall-store` only) |
 | `workingset` | the tasks a person keeps open, in the order they were opened, and the place last seen in each project; saved on the server and read by the console's two-level bar. Only a person opening or closing a task changes it: no session, queue or review does |
 | `telemetry` | where Claude Code's OpenTelemetry traces are sent (a self-hosted Langfuse), and the variables a terminal's `claude` starts with when they are on |
 
@@ -193,15 +195,15 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `claude` | - | `catalog`, `connection`, `flow`, `task` | nothing | `skill` | - |
 | `codex` | - | nothing | nothing | nothing | - |
 | `commit` | `component`, `step`, `task` | `catalog`, `component`, `step`, `task` | - | nothing | nothing |
-| `component` | `catalog` | `catalog`, `connection`, `task` | nothing | nothing | nothing |
-| `connection` | `catalog`, `task` | `task`, `tracker` | `catalog`, `commit`, `component`, `section`, `task` | `catalog`, `section` | - |
-| `context` | - | `catalog`, `commit`, `component`, `connection`, `decision`, `dependency`, `deviation`, `feedback`, `note`, `section`, `step`, `tag`, `task`, `wrapup` | - | nothing | nothing |
+| `component` | `catalog` | `catalog`, `connection`, `task` | nothing | nothing | `context` |
+| `connection` | `catalog`, `task` | `picture`, `task`, `tracker` | `catalog`, `commit`, `component`, `section`, `task` | `catalog`, `section` | - |
+| `context` | - | `catalog`, `commit`, `component`, `connection`, `decision`, `dependency`, `deviation`, `feedback`, `note`, `picture`, `section`, `step`, `tag`, `task`, `wrapup` | - | nothing | nothing |
 | `context_fill` | `step`, `task` | `chat` | - | - | - |
 | `decision` | `task` | `deviation`, `step` | `context`, `deviation`, `step` | nothing | nothing |
 | `dependency` | `task` | `claude` | `queue`, `task` | nothing | - |
 | `deviation` | `task` | `step`, `task` | `task` | nothing | nothing |
 | `diagram` | `catalog`, `task` | `catalog`, `task` | nothing | nothing | nothing |
-| `export` | `catalog` | - | `catalog`, `component`, `section` | nothing | - |
+| `export` | `catalog` | - | `catalog`, `component`, `picture`, `section` | nothing | - |
 | `feedback` | `task` | `task` | `step`, `task`, `wrapup` | nothing | nothing |
 | `filesystem` | - | - | nothing | nothing | - |
 | `flow` | `step`, `task` | `step` | - | `step` | `step` |
@@ -209,14 +211,15 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `guard` | - | nothing | `catalog`, `step`, `task` | nothing | - |
 | `inventory` | `catalog` | `catalog` | - | nothing | `vulnerability` |
 | `note` | `task` | `task` | nothing | nothing | nothing |
+| `picture` | nothing | nothing | `catalog`, `component`, `section`, `task` | nothing | - |
 | `queue` | `task` | `catalog`, `claude`, `dependency`, `task` | nothing | nothing | - |
 | `quick` | - | - | `catalog`, `claude`, `terminal` | `catalog`, `claude` | - |
 | `review` | - | `step`, `task`, `timeentry` | - | - | - |
 | `search` | - | `task` | - | nothing | nothing |
-| `section` | `catalog` | `catalog`, `note` | nothing | nothing | `note` |
+| `section` | `catalog` | `catalog`, `note` | nothing | nothing | `context`, `note` |
 | `settings` | - | nothing | nothing | nothing | - |
 | `skill` | `step`, `tag`, `task` | `claude` | nothing | nothing | - |
-| `step` | `task` | `flow`, `task`, `timeentry` | - | nothing | `commit`, `flow` |
+| `step` | `task` | `flow`, `task`, `timeentry` | - | nothing | `commit`, `context`, `flow` |
 | `stream` | - | - | - | nothing | - |
 | `tag` | `task` | - | nothing | nothing | - |
 | `task` | `catalog`, `note`, `step`, `tag`, `wrapup` | `flow`, `step` | - | - | `flow` |
@@ -350,6 +353,7 @@ Project ──< VulnerabilityExposure >── SecurityAdvisory
 | `task` | `code`, unique across every project | `number` (its place in its project, counted from 1: one past the highest the project holds), `label` (an internal slug, unique per project: the name of its branch and worktree, and what an anchor written before codes existed still names; migration `086-task-code`), `title`, `status`, `description`, `project_id`, `graph_laid_at` (when a deployment graph was laid on it), `release_skipped` (the project's release graph is not laid when the console runs it; migration `054-release-on-run`), `kind` (`TASK` or `EPIC`), `epic_id` (the epic of the same project it belongs to, set null when the epic is deleted; migration `055-epic`), `quick` (started from one line of text; at most one still open or running per project), `auto_accepted` (accepted by Rekall when the wrapup landed, not by a person; cleared when the review line moves again; migration `063-quick-task`) |
 | `task_pull_request` | through its task | `task_id` (the key: one row per task of a project with the pull request flow on, once its work was first claimed), `number` and `url` (the pull request, or GitLab merge request, open for its branch), `failure` (why it was not opened or not merged, cleared by the next move that works), `merged_at` (when the host merged it); deleted with its task (migrations `082-task-pull-request` and `083-pull-request-merged`) |
 | `task_tracker_link` | through its task | `task_id` (the key: one row per task that was ever pushed to its project's task manager, none for one that was not), `issue_key` and `issue_url` (the issue the task manager holds for it), `sync_error` (why the last write there failed, cleared by the next that works), `synced_fingerprint` (a fingerprint of the title and description last written, which says whether the task changed since); deleted with its task (migrations `075-task-manager`, `080-task-tracker-link` and `085-task-tracker-synced-content`) |
+| `tracker_picture` | through its task | `task_id`, `destination` (the repository the picture was uploaded to, or the Jira issue holding the attachment, as a web address) and `picture_path` (under `images/`, without `/api/images/`, so a row is no use of the picture): together the key. `remote_reference` (how the tracker refers to its copy), `created_at`; written once per upload, deleted with its task (migration `096-tracker-picture`) |
 | `document` | through its task | `task_id`, `position` (its place on the task, dense from zero), `title`, `kind`, `body_markdown`, `context_mode`; deleted with its task (migration `084-note-owned-by-task`) |
 | `task_step` | through its task | `task_id`, `title`, `body_markdown`, `done`, `done_at`, `position`, `flow_x`/`flow_y` (where it was dragged on the flow canvas, null for the automatic layout), `max_visits` (how many times a flow may enter it, null for no limit), `starts_session` (whether it opens a fresh Claude session instead of joining the one the step before it ran in), `connection_id` (the company connection it reaches, set when a deployment graph laid it; null when the connection is deleted) |
 | `step_link` | through its task | `task_id`, `from_step_id`, `to_step_id` (null: the route ends the flow), `outcome` unique per `from_step_id`, `position`; deleted with either step |
@@ -494,6 +498,17 @@ the file in `spawn_blocking`, stores it with its row, and on a failed write or i
 its kind and returns an error whose message names the kind; a request refused as invalid (nothing ticked, a blank
 blueprint alone, an item of another project) is not recorded. Diagrams are decision D9.
 
+Pictures (D11) are read by the server. After the texts are loaded, `PictureService` answers a PNG and a natural
+width for every `/api/images/` address in them: an 8-bit PNG as it is, a deeper one, JPEG, WebP and a GIF's first
+frame converted with `image`, and an SVG drawn with `resvg` and this machine's fonts at twice its natural size, at
+most 4096 pixels a side, reading no file it points to. `rekall-export` is handed `{ address, png, naturalWidth }`
+and knows nothing of where they came from: a picture becomes a block of its own, splitting the paragraph it sits in,
+aligned by the address ending `#center` or `#right` (left otherwise), fitted to the width it has and never drawn
+wider than its natural width at 96 pixels to the inch. A table cell and a heading hold text alone, so a picture
+there is its description. An address with no picture handed in prints a "Picture missing" paragraph with the
+description and fails nothing; the service logs why. A web picture is not downloaded: its description and address
+are printed. The PDF keeps every pixel: `printpdf`'s own image shrinking and JPEG recompression are off.
+
 | Route | Does |
 |---|---|
 | `POST /api/projects/{id}/exports` | Makes an export from `format` (`pdf`, `docx`), `blueprint`, `sectionIds`, `componentIds` and `diagrams` (`source` and base64 `png`); answers `201` with the entry. A 64 MB body limit on this route only |
@@ -504,6 +519,67 @@ blueprint alone, an item of another project) is not recorded. Diagrams are decis
 
 The console lists them on `/exports`, a Library screen, grouped by company then project; filters and search run
 over the loaded list and have no route.
+
+### 4.7 Pictures
+
+A picture is a file, not a row (D11). `PictureService` keeps the chosen file, or the bytes of a pasted or
+dropped one, in its owner's folder, `<company>/<project>/` followed by the task's code, `blueprint`,
+`pages/<title>` or `components/<name>`, and names it `<file name>-<hash>.<format>`. A name that leaves no slug
+falls back to the start of the record's id, a file's to `image`. A file already there is written again, so its
+modification time says when it was last asked for. How a picture is aligned is no part of its name: the
+markdown ends the address with `#center` or `#right`, nothing for left, and the console's style sheets draw it.
+A session reads the files themselves: a text it is handed that shows a picture names the folder
+([design/mcp.md](design/mcp.md)), and the session Rekall opens may read it
+([design/terminals.md](design/terminals.md)).
+
+An address means nothing outside this machine, so a task's pictures go to its task manager with the text that shows
+them: the issue a push writes and the body of the task's pull or merge request. `TrackerPictureService` uploads each
+one once per repository, or per Jira issue, remembers it in `tracker_picture` as soon as the tracker takes it, and
+rewrites the text to show the copy, without its alignment ending. A new issue is created with the descriptions of its
+pictures, its key is kept, and it is rewritten once they are uploaded. A refused upload fails the push as any tracker
+failure does, and the description there is left as it was; a picture missing from disk is sent as its description and
+logged.
+
+| Task manager | Upload (`HttpTaskTracker`) | What the text shows |
+|---|---|---|
+| GitHub | `POST https://uploads.github.com/user-attachments/assets`, with the repository's numeric id; nothing is committed | `![description](asset address)` |
+| GitLab | `POST /api/v4/projects/{path}/uploads` | `![description](/uploads/...)` |
+| Jira Data Center | `POST /rest/api/2/issue/{key}/attachments` | `!file name!` |
+| Jira Cloud | `POST /rest/api/3/issue/{key}/attachments` | a link named after the file: showing an attachment inside the description's document format is not documented |
+
+The GitHub endpoint is the one `gh` attaches files with, and the risks of using it are accepted: GitHub does not
+document it, so it can change without notice; it takes a classic or OAuth token with write access to the repository
+(a 404 says the token may not write there); and a GitHub Enterprise Server has no such endpoint, so a text with a
+picture is refused there.
+
+| Route | Does |
+|---|---|
+| `POST /api/images` | Copies the file at `sourcePath` for `owner` (`kind` `TASK`, `BLUEPRINT`, `PAGE` or `COMPONENT`, and `id`; a blueprint is named by its project's id) and answers `201` with its `url`. Not a picture, past 10 MB, not a file or a relative path is `400`, an unknown owner `404`, a database that is not a file `409` |
+| `POST /api/image-uploads?ownerKind=&ownerId=&name=` | The same for a pasted or dropped picture, sent as the request body: `ownerKind` and `ownerId` as `owner` above, `name` the file it came from, `pasted-image` without one. Same answer, content check, 10 MB limit and refusals |
+| `GET /api/images/{path}` | The bytes with their content type, cacheable for good, `nosniff` and same-origin only; an SVG carries a sandboxing `Content-Security-Policy`, so one opened directly runs no script. Anything that is not a picture's path is `404` |
+| `GET /api/image-thumbnail?path=` | A preview of the file at the absolute `path`, for the picker, under the content check and 10 MB limit of an import, else `400`; nothing is copied. PNG, JPEG, WebP and a GIF's first frame come back as a PNG fitting 320 pixels, never enlarged and turned as their EXIF orientation says; an SVG as it is. The headers of `GET /api/images/{path}`, so no other page can embed it and probe your files, but `Cache-Control: private, no-cache` |
+| `POST /api/image-cleanup` | Starts a search for unused pictures, `202`. `409` while a run is under way, while a list waits to be deleted or discarded, or on a database that is not a file |
+| `GET /api/image-cleanup` | The `state` and what it has: `percentage` while `SEARCHING` or `DELETING`; `pictures` (`url`, `folder`, `sizeBytes`) and `totalBytes` when `READY`; `removed`, `freedBytes`, `kept` and `notDeleted` when `FINISHED`; `message` when `FAILED`; nothing more when `IDLE` |
+| `POST /api/image-cleanup/deletion` | Deletes the listed pictures, `202`; `409` without a list |
+| `DELETE /api/image-cleanup` | Discards the list, `204`; `409` without one |
+
+**Unused pictures.** Nothing counts what shows a picture, since many writers save markdown: `PictureCleanupService`
+(`rekall-console`) reads it all. A picture is in use while any text column of any table contains
+`/api/images/<its path>`. The tables and columns come from the schema (`picture_text` in `rekall-store`, leaving out
+SQLite's own tables and the migrations'), so a column added later is read too, and old wrapup versions and earlier step
+passes count as use. `tracker_picture` holds paths without that prefix, so an upload is not a use. One run at a time
+goes on in the background and is kept in memory, so a restart goes back to idle. A search reads 200 rows per read
+transaction, so writing goes on, and reports the rows read over the rows counted when it started; a deletion reports
+the files handled over the files listed. Each change of state, whole percentage or count is a `picture-cleanup` frame
+on the event stream (`PictureCleanupStreamEvent`: `state`, `percentage`, and `count`, the pictures listed or removed).
+
+- Only a file whose path is a `PicturePath` is listed, so nothing else under `images/` is ever deleted, and links are
+  not followed.
+- A file written less than 24 hours ago is never listed: its text may not be saved yet.
+- A deletion removes listed files only, after asking the texts and each file's age again, so a picture linked or
+  written again since the search is kept.
+- A failed read deletes nothing. A file that cannot be deleted is logged and counted, and the others still go.
+- A deletion is for good. It removes the folders left empty, never `images/` itself.
 
 ---
 

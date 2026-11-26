@@ -11,7 +11,7 @@ use rekall_core::connection::{ConnectionAccessService, CredentialDesk, GrafanaCr
 use tracing::{info, warn};
 
 use super::credential_session::CredentialSession;
-use super::guard_rails::settings_document;
+use super::guard_rails::{deny_rules, picture_read_rules, settings_document};
 use super::helper_scripts::{api_wrapper, git_helper, kube_plugin, CredentialRequest, CONFLUENCE_API, GITHUB_API, GITLAB_API, GIT_HELPER, GRAFANA_API, JIRA_API, KUBE_PLUGIN};
 use super::session_kubeconfig::{exec_credential, session_kubeconfig, SessionCluster};
 use super::{CredentialPurpose, HandOut, Refusal, SessionEnvironment};
@@ -23,14 +23,15 @@ const SETTINGS_FILE: &str = "claude-settings.json";
 const CREDENTIAL_HEADER_FILE: &str = "credential-header";
 
 /// Opens a credential session for every terminal whose project binds a connection with a stored
-/// credential, answers its helpers, and closes it with the terminal. The only reader of credentials
-/// outside the console's own services.
+/// credential, answers its helpers, and closes it with the terminal. Every Claude terminal also gets
+/// settings to read the pictures. The only reader of credentials outside the console's own services.
 pub struct CredentialBroker {
     secrets: Arc<dyn SecretStore>,
     access: ConnectionAccessService,
     /// Where the helpers ask, `http://127.0.0.1:<port>`.
     endpoint: String,
     root: PathBuf,
+    pictures: Option<PathBuf>,
     sessions: Mutex<HashMap<Id, Arc<CredentialSession>>>,
 }
 
@@ -38,15 +39,24 @@ impl CredentialBroker {
     /// `root` holds one folder per live session; anything left in it by a Rekall that did not stop cleanly is removed.
     pub fn new(secrets: Arc<dyn SecretStore>, access: ConnectionAccessService, endpoint: String, root: PathBuf) -> Self {
         cleanup::remove_dir_all(&root);
-        Self { secrets, access, endpoint, root, sessions: Mutex::new(HashMap::new()) }
+        Self { secrets, access, endpoint, root, pictures: None, sessions: Mutex::new(HashMap::new()) }
     }
 
-    /// What to add to the terminal's environment, or nothing when no bound connection has a
-    /// credential. The helpers are shell scripts, so a Windows terminal gets none.
+    /// Claude sessions then read the files of the pictures folder without asking.
+    pub fn with_readable_pictures(mut self, folder: Option<PathBuf>) -> Self {
+        self.pictures = folder;
+        self
+    }
+
+    /// What to add to the terminal's environment, or nothing when it needs neither credentials nor
+    /// settings. The helpers are shell scripts, so a Windows terminal gets none.
     pub async fn open(&self, terminal_id: Id, launch: &TerminalLaunch, provider: SessionProvider) -> Result<Option<SessionEnvironment>> {
-        let usable: Vec<TerminalConnection> = launch.connections.iter().filter(|connection| connection.credential_set).cloned().collect();
-        if usable.is_empty() || !cfg!(unix) {
+        if !cfg!(unix) {
             return Ok(None);
+        }
+        let usable: Vec<TerminalConnection> = launch.connections.iter().filter(|connection| connection.credential_set).cloned().collect();
+        if usable.is_empty() {
+            return self.open_for_pictures(terminal_id, provider);
         }
         let folder = self.root.join(terminal_id.to_string());
         create_private_folder(&folder)?;
@@ -72,10 +82,23 @@ impl CredentialBroker {
 
     /// Ends the session: its token stops working and its folder is removed. Idempotent.
     pub fn close(&self, terminal_id: Id) {
-        if let Some(session) = self.sessions().remove(&terminal_id) {
-            cleanup::remove_dir_all(&session.folder);
+        if self.sessions().remove(&terminal_id).is_some() {
             info!(%terminal_id, "Closed a credential session");
         }
+        cleanup::remove_dir_all(&self.root.join(terminal_id.to_string()));
+    }
+
+    /// A Claude session with no credential still needs the settings to read the pictures. Codex's
+    /// sandbox reads them as it is.
+    fn open_for_pictures(&self, terminal_id: Id, provider: SessionProvider) -> Result<Option<SessionEnvironment>> {
+        if provider != SessionProvider::Claude || self.pictures.is_none() {
+            return Ok(None);
+        }
+        let folder = self.root.join(terminal_id.to_string());
+        create_private_folder(&folder)?;
+        let settings = folder.join(SETTINGS_FILE);
+        write_private(&settings, &settings_document(picture_read_rules(self.pictures.as_deref()), Vec::new()))?;
+        Ok(Some(SessionEnvironment { claude_settings: Some(settings), ..SessionEnvironment::default() }))
     }
 
     pub fn has_session(&self, terminal_id: Id) -> bool {
@@ -150,7 +173,8 @@ impl CredentialBroker {
         let connections = &session.connections;
         let endpoint = format!("{}{CREDENTIAL_ENDPOINT_PREFIX}{terminal_id}/credentials", self.endpoint);
         let mut environment = SessionEnvironment { path_prefix: Some(folder.clone()), ..SessionEnvironment::default() };
-        let header_file = prepare_helper_authentication(session, provider, &endpoint, &mut environment)?;
+        let readable = picture_read_rules(self.pictures.as_deref());
+        let header_file = prepare_helper_authentication(session, provider, &endpoint, readable, &mut environment)?;
         let request = CredentialRequest { endpoint: &endpoint, header_file: header_file.as_deref() };
         let clusters = self.clusters_of(connections).await;
         if !clusters.is_empty() {
@@ -228,12 +252,13 @@ fn prepare_helper_authentication(
     session: &CredentialSession,
     provider: SessionProvider,
     endpoint: &str,
+    readable: Vec<String>,
     environment: &mut SessionEnvironment,
 ) -> Result<Option<PathBuf>> {
     match provider {
         SessionProvider::Claude => {
             let settings = session.folder.join(SETTINGS_FILE);
-            write_private(&settings, &settings_document(&session.folder, endpoint))?;
+            write_private(&settings, &settings_document(readable, deny_rules(&session.folder, endpoint)))?;
             environment.claude_settings = Some(settings);
             environment.token = Some(session.token.expose().to_owned());
             Ok(None)

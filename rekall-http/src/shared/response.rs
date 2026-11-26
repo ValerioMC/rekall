@@ -7,6 +7,11 @@ pub fn created<T: Serialize>(body: T) -> Response {
     (StatusCode::CREATED, axum::Json(body)).into_response()
 }
 
+/// `202 Accepted`, for work that goes on after the answer.
+pub fn accepted() -> Response {
+    StatusCode::ACCEPTED.into_response()
+}
+
 /// `204 No Content`.
 pub fn no_content() -> Response {
     StatusCode::NO_CONTENT.into_response()

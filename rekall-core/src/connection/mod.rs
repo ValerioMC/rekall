@@ -5,6 +5,7 @@
 mod event;
 mod model;
 mod port;
+mod rule;
 mod service;
 mod view;
 
@@ -18,6 +19,7 @@ pub use port::credential_desk::CredentialDesk;
 pub use event::credential_access_stream_event::CredentialAccessStreamEvent;
 pub use model::credential_purpose::CredentialPurpose;
 pub use model::github_api_root::github_api_root;
+pub use model::github_upload_root::github_upload_root;
 pub use model::gitlab_namespace::{GitlabNamespace, GitlabNamespaceKind};
 pub use port::gitlab_namespaces::GitlabNamespaces;
 #[cfg(any(test, feature = "testing"))]
@@ -57,6 +59,7 @@ pub use port::secret_store::SecretStore;
 pub use port::scripted_task_tracker::ScriptedTaskTracker;
 pub use port::task_tracker::TaskTracker;
 pub use service::task_tracker_service::TaskTrackerService;
+pub use service::tracker_picture_service::TrackerPictureService;
 pub use model::tracker_endpoint::TrackerEndpoint;
 pub use model::tracker_failure::TrackerFailure;
 pub use model::tracker_issue::TrackerIssue;

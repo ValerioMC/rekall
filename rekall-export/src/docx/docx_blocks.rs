@@ -1,9 +1,8 @@
 use docx_rs::{
-    AlignmentType, BorderType, IndentLevel, LineSpacing, Numbering, NumberingId, Paragraph, ParagraphBorder, ParagraphBorderPosition, ParagraphProperty, Pic,
-    Run, Shading, ShdType, Table, TableBorder, TableBorderPosition, TableBorders, TableCell, TableRow, WidthType,
+    BorderType, IndentLevel, LineSpacing, Numbering, NumberingId, Paragraph, ParagraphBorder, ParagraphBorderPosition, ParagraphProperty, Run, Shading,
+    ShdType, Table, TableBorder, TableBorderPosition, TableBorders, TableCell, TableRow, WidthType,
 };
 
-use crate::image::PngSize;
 use crate::markdown::{Block, InlineRun, ListItem};
 use crate::style::{DocumentStyle, Rgb};
 use crate::ExportError;
@@ -15,18 +14,19 @@ use super::docx_styles::{DocxStyles, BULLET_ABSTRACT_ID, DECIMAL_ABSTRACT_ID, LI
 
 const HAIRLINE_EIGHTHS: usize = 4;
 const QUOTE_RULE_EIGHTHS: usize = 18;
-const ERROR_BORDER_EIGHTHS: usize = 8;
 const QUOTE_INDENT_MM: f64 = 6.0;
 
 /// Turns blocks into Word elements. Every list gets a numbering of its own so that a numbered
-/// list starts at 1, which is why it keeps the numberings it created.
+/// list starts at 1, which is why it keeps the numberings it created. `inset_mm` is how far the
+/// list or quote being written stands in from the margin.
 pub(super) struct DocxBlocks {
     numberings: Vec<Numbering>,
+    pub(super) inset_mm: f64,
 }
 
 impl DocxBlocks {
     pub(super) fn new() -> Self {
-        Self { numberings: Vec::new() }
+        Self { numberings: Vec::new(), inset_mm: 0.0 }
     }
 
     pub(super) fn into_numberings(self) -> Vec<Numbering> {
@@ -61,7 +61,9 @@ impl DocxBlocks {
             Block::Quote(blocks) => Ok(self.quote(blocks, depth)?),
             Block::Rule => Ok(vec![Self::rule()]),
             Block::Diagram { png } => Ok(vec![Self::diagram(png)?]),
-            Block::DiagramFailed => Ok(vec![Self::diagram_failed()]),
+            Block::DiagramFailed => Ok(vec![Self::error_box(DocumentStyle::DIAGRAM_ERROR_TEXT)]),
+            Block::Picture(picture) => Ok(vec![self.picture(picture)?]),
+            Block::PictureMissing { description } => Ok(vec![Self::error_box(&DocumentStyle::missing_picture_text(description))]),
         }
     }
 
@@ -99,10 +101,17 @@ impl DocxBlocks {
                     let paragraph = Paragraph::new().indent(Some(DocxStyles::list_indent(depth)), None, None, None);
                     elements.push(DocxElement::paragraph(DocxInlines::fill(paragraph, inlines, false)));
                 }
-                other => elements.extend(self.render(other, depth)?),
+                other => elements.extend(self.within(DocxStyles::list_indent_mm(depth), |inner| inner.render(other, depth))?),
             }
         }
         Ok(elements)
+    }
+
+    fn within<T>(&mut self, inset_mm: f64, write: impl FnOnce(&mut Self) -> T) -> T {
+        self.inset_mm += inset_mm;
+        let written = write(self);
+        self.inset_mm -= inset_mm;
+        written
     }
 
     fn new_numbering(&mut self, ordered: bool) -> usize {
@@ -159,7 +168,7 @@ impl DocxBlocks {
     }
 
     fn quote(&mut self, blocks: &[Block], depth: usize) -> Result<Vec<DocxElement>, ExportError> {
-        let inner = self.render_all(blocks, depth)?;
+        let inner = self.within(QUOTE_INDENT_MM, |inner| inner.render_all(blocks, depth))?;
         Ok(inner
             .into_iter()
             .map(|element| match element {
@@ -188,34 +197,11 @@ impl DocxBlocks {
         DocxElement::paragraph(Self::edit_property(Paragraph::new(), |property| property.set_border(line)))
     }
 
-    fn diagram(png: &[u8]) -> Result<DocxElement, ExportError> {
-        let size = PngSize::read(png)?;
-        let (width, height) = size.fit(DocumentStyle::TEXT_WIDTH_MM, DocumentStyle::DIAGRAM_MAX_HEIGHT_MM);
-        let picture = Pic::new_with_dimensions(png.to_vec(), size.width, size.height).size(DocxMeasure::emu(width), DocxMeasure::emu(height));
-        let paragraph = Paragraph::new().align(AlignmentType::Center).keep_lines(true).add_run(Run::new().add_image(picture));
-        Ok(DocxElement::paragraph(paragraph))
-    }
-
-    fn diagram_failed() -> DocxElement {
-        let run = Run::new().add_text(DocumentStyle::DIAGRAM_ERROR_TEXT).bold().color(DocumentStyle::ERROR_TEXT_COLOUR.hex());
-        let paragraph = Paragraph::new().align(AlignmentType::Center).add_run(run);
-        let boxed = Self::edit_property(paragraph, |property| {
-            use ParagraphBorderPosition::{Bottom, Left, Right, Top};
-            let bordered = [Top, Left, Bottom, Right].into_iter().fold(property, |property, position| {
-                property.set_border(
-                    ParagraphBorder::new(position).val(BorderType::Single).size(ERROR_BORDER_EIGHTHS).space(6).color(DocumentStyle::ERROR_BORDER.hex()),
-                )
-            });
-            bordered.shading(Self::shading(DocumentStyle::ERROR_BACKGROUND))
-        });
-        DocxElement::paragraph(boxed)
-    }
-
-    fn shading(fill: Rgb) -> Shading {
+    pub(super) fn shading(fill: Rgb) -> Shading {
         Shading::new().shd_type(ShdType::Clear).color("auto").fill(fill.hex())
     }
 
-    fn edit_property(mut paragraph: Paragraph, edit: impl FnOnce(ParagraphProperty) -> ParagraphProperty) -> Paragraph {
+    pub(super) fn edit_property(mut paragraph: Paragraph, edit: impl FnOnce(ParagraphProperty) -> ParagraphProperty) -> Paragraph {
         paragraph.property = edit(std::mem::take(&mut paragraph.property));
         paragraph
     }

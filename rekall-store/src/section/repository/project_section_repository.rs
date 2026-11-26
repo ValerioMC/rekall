@@ -8,6 +8,11 @@ pub async fn find_by_id(db: &impl ConnectionTrait, id: Id) -> Result<Option<Mode
     Ok(Entity::find_by_id(id).one(db).await?)
 }
 
+/// A lookup that must exist: the section, or a 404.
+pub async fn require(db: &impl ConnectionTrait, id: Id) -> Result<Model, RekallError> {
+    find_by_id(db, id).await?.ok_or_else(|| RekallError::not_found("Section", id))
+}
+
 /// A project's sections in the order the console shows them: its contexts in their order, and
 /// inside each the sections in theirs.
 pub async fn list_of_project(db: &impl ConnectionTrait, project_id: Id) -> Result<Vec<Model>, RekallError> {

@@ -20,6 +20,7 @@ pub mod credentials;
 pub mod installer;
 pub mod jira;
 pub mod login_shell;
+pub mod picture;
 pub mod probes;
 pub mod pty;
 pub mod queue;

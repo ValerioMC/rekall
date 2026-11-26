@@ -92,9 +92,11 @@ impl World {
         host: Arc<rekall_core::connection::ScriptedPullRequestHost>,
     ) -> rekall_core::worktree::TaskPullRequestService {
         let ctx = self.services.ctx.clone();
-        let tracker = rekall_core::connection::TaskTrackerService::new(ctx.clone(), self.secrets.clone(), Arc::new(rekall_core::connection::ScriptedTaskTracker::new()));
+        let port = Arc::new(rekall_core::connection::ScriptedTaskTracker::new());
+        let pictures = rekall_core::connection::TrackerPictureService::new(ctx.clone(), Arc::new(rekall_core::picture::InMemoryPictureStore::new()), port.clone());
+        let tracker = rekall_core::connection::TaskTrackerService::new(ctx.clone(), self.secrets.clone(), port, pictures.clone());
         let layout = rekall_core::worktree::WorktreeLayout::new(self.home.path().join("worktrees"));
-        rekall_core::worktree::TaskPullRequestService::new(ctx, tracker, git, host, layout)
+        rekall_core::worktree::TaskPullRequestService::new(ctx, tracker, pictures, git, host, layout)
     }
 
     /// Turns the pull request flow on for `project`, with a GitHub task manager whose credential is stored.

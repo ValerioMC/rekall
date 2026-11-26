@@ -51,6 +51,7 @@ const columnStyle = computed(() => ({ maxWidth: columnMaxWidth(preferences.taskW
             height="100%"
             :page-fullscreen="false"
             :path-root="selectedTask.projectRepoFolder"
+            :picture-owner="{ kind: 'TASK', id: selectedTask.id }"
             :components="projectComponents"
             :connections="projectConnections"
             :tasks="projectTasks"

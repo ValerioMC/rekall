@@ -3,7 +3,7 @@ use tracing::error;
 
 /// Runs blocking work off the async workers. A panic or a cancellation of the job is an internal
 /// error, logged with its cause, never a panic of the caller.
-pub(in crate::claude) async fn blocking<T: Send + 'static>(work: impl FnOnce() -> Result<T> + Send + 'static) -> Result<T> {
+pub(crate) async fn blocking<T: Send + 'static>(work: impl FnOnce() -> Result<T> + Send + 'static) -> Result<T> {
     match tokio::task::spawn_blocking(work).await {
         Ok(outcome) => outcome,
         Err(failure) => {
@@ -14,5 +14,5 @@ pub(in crate::claude) async fn blocking<T: Send + 'static>(work: impl FnOnce() -
 }
 
 #[cfg(test)]
-#[path = "../../../tests/unit/claude/support/blocking_job_tests.rs"]
+#[path = "../../tests/unit/shared/blocking_job_tests.rs"]
 mod tests;

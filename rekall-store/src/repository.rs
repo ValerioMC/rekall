@@ -21,6 +21,7 @@ pub use crate::flow::{repository::step_link_repository as step_link, repository:
 pub use crate::graph::{repository::deployment_graph_repository as deployment_graph, repository::graph_route_repository as graph_route, repository::graph_step_repository as graph_step};
 pub use crate::inventory::repository::project_dependency_repository as project_dependency;
 pub use crate::note::repository::document_repository as document;
+pub use crate::picture::repository::picture_text_repository as picture_text;
 pub use crate::queue::repository::run_queue_repository as run_queue;
 pub use crate::section::repository::{project_section_repository as project_section, section_context_repository as section_context};
 pub use crate::skill::{repository::skill_placement_repository as skill_placement, repository::tag_skill_repository as tag_skill, repository::task_skill_repository as task_skill};
@@ -28,7 +29,7 @@ pub use crate::step::repository::task_step_repository as task_step;
 pub use crate::tag::repository::tag_repository as tag;
 pub use crate::task::repository::task_repository as task;
 pub use crate::telemetry::repository::telemetry_setting_repository as telemetry_setting;
-pub use crate::tracker::repository::{task_pull_request_repository as task_pull_request, task_tracker_link_repository as task_tracker_link};
+pub use crate::tracker::repository::{task_pull_request_repository as task_pull_request, task_tracker_link_repository as task_tracker_link, tracker_picture_repository as tracker_picture};
 pub use crate::timeentry::repository::time_entry_repository as time_entry;
 pub use crate::token::{repository::token_usage_repository as token_usage, repository::transcript_scan_repository as transcript_scan};
 pub use crate::vulnerability::{repository::scan_scope_repository as scan_scope, repository::security_advisory_repository as security_advisory, repository::vulnerability_exposure_repository as vulnerability_exposure};

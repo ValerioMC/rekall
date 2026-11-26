@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::{check, claude, commit, component, context, context_fill, decision, deviation, diagram, feedback, flow, inventory, note, review, search, section, step, task, timeentry, token, vulnerability, wrapup, Ctx};
@@ -30,6 +31,7 @@ pub struct Services {
     pub context_fills: context_fill::ContextFillService,
     pub context: context::ContextService,
     pub renderer: context::ContextRenderer,
+    pub session_pictures: context::SessionPictures,
     pub context_size: context::ContextSizeService,
     pub search: search::SearchService,
     pub commit_references: commit::CommitReferenceService,
@@ -80,7 +82,8 @@ impl Services {
             sections: section::ProjectSectionService::new(ctx.clone()),
             components: component::ProjectComponentService::new(ctx.clone()),
             renderer: context::ContextRenderer,
-            context_size: context::ContextSizeService::new(ctx.clone(), context.clone()),
+            session_pictures: context::SessionPictures::default(),
+            context_size: context::ContextSizeService::new(ctx.clone(), context.clone(), context::SessionPictures::default()),
             search: search::SearchService::new(ctx.clone()),
             task_changes: commit::TaskChangesService::new(ctx.clone()),
             auto_commit: commit::AutoCommitService::new(ctx.clone(), commit_references.clone()),
@@ -101,5 +104,12 @@ impl Services {
             time_entries,
             ctx,
         }
+    }
+
+    /// The texts a session reads then say where their pictures are.
+    pub fn with_pictures_folder(mut self, folder: Option<PathBuf>) -> Self {
+        self.session_pictures = context::SessionPictures::new(folder);
+        self.context_size = context::ContextSizeService::new(self.ctx.clone(), self.context.clone(), self.session_pictures.clone());
+        self
     }
 }

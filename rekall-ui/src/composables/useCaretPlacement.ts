@@ -6,6 +6,12 @@ export interface CaretBox {
   readonly bottom: number
 }
 
+/** The size a popover asks for; it takes less when the window has no room. */
+export interface PanelSize {
+  readonly width: number
+  readonly height: number
+}
+
 interface Placement {
   left: number
   width: number
@@ -14,20 +20,22 @@ interface Placement {
   bottom?: number
 }
 
-const WIDTH = 480
-const HEIGHT = 404
 const MIN_BELOW = 260
 const GUTTER = 8
 const GAP = 6
 
 /**
  * A popover hung from the writing caret: under it when there is room, over it when there is not,
- * kept inside the window, and placed again on every resize and scroll. The height is fixed rather
+ * kept inside the window, and placed again on every resize and scroll. The height is the asked one rather
  * than fitted to the content, so the panel does not jump as a filter narrows a list. A caret that
  * can no longer be measured calls `onLost`.
  */
-export function useCaretPlacement(locate: () => CaretBox | null, onLost: () => void): ComputedRef<Record<string, string | undefined>> {
-  const placement = ref<Placement>({ left: 0, width: WIDTH, height: HEIGHT })
+export function useCaretPlacement(
+  locate: () => CaretBox | null,
+  onLost: () => void,
+  size: PanelSize
+): ComputedRef<Record<string, string | undefined>> {
+  const placement = ref<Placement>({ left: 0, ...size })
 
   function place(): void {
     const caret = locate()
@@ -35,14 +43,14 @@ export function useCaretPlacement(locate: () => CaretBox | null, onLost: () => v
       onLost()
       return
     }
-    const width = Math.min(WIDTH, window.innerWidth - 2 * GUTTER)
+    const width = Math.min(size.width, window.innerWidth - 2 * GUTTER)
     const left = Math.max(GUTTER, Math.min(caret.left - 22, window.innerWidth - width - GUTTER))
     const below = window.innerHeight - caret.bottom - GAP - GUTTER
     const above = caret.top - GAP - GUTTER
     placement.value =
       below >= MIN_BELOW || below >= above
-        ? { left, width, height: Math.min(HEIGHT, below), top: caret.bottom + GAP }
-        : { left, width, height: Math.min(HEIGHT, above), bottom: window.innerHeight - caret.top + GAP }
+        ? { left, width, height: Math.min(size.height, below), top: caret.bottom + GAP }
+        : { left, width, height: Math.min(size.height, above), bottom: window.innerHeight - caret.top + GAP }
   }
 
   onMounted(() => {

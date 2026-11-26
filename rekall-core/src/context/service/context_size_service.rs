@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use rekall_kernel::{jstr, Id, Result};
 use rekall_store::DocumentContextMode;
 
-use crate::context::{ContextRenderer, ContextService};
+use crate::context::{ContextRenderer, ContextService, SessionPictures};
 use crate::component::ComponentReferences;
 use crate::{in_read, Ctx};
 
@@ -15,18 +15,21 @@ pub const CHARACTERS_PER_TOKEN: f64 = 3.5;
 pub struct ContextSizeService {
     ctx: Ctx,
     context: ContextService,
+    pictures: SessionPictures,
 }
 
 impl ContextSizeService {
-    pub fn new(ctx: Ctx, context: ContextService) -> Self {
-        Self { ctx, context }
+    pub fn new(ctx: Ctx, context: ContextService, pictures: SessionPictures) -> Self {
+        Self { ctx, context, pictures }
     }
 
     pub async fn measure(&self, task_id: Id) -> Result<ContextSize> {
         in_read!(&self.ctx, |tx| {
             let renderer = ContextRenderer;
             let records = self.context.for_task_in(&tx, task_id).await?;
-            let total = jstr::len(&renderer.render(&records));
+            let rendered = renderer.render(&records);
+            let pictures = self.pictures.block_for(&rendered);
+            let total = jstr::len(&self.pictures.appended_to(rendered));
             let project = records.first().expect("for_task returns the project and the task");
             let task = records.last().expect("for_task returns the project and the task");
 
@@ -34,6 +37,7 @@ impl ContextSizeService {
                 .with_connections(&task.connection_lookup)
                 .with_tasks(&task.task_lookup);
             let mut parts = Vec::new();
+            add_part(&mut parts, "Pictures folder", &pictures, false);
             add_part(&mut parts, "Components", &renderer.render_components(&project.components), false);
             add_part(&mut parts, "Connections", &renderer.render_connections(&project.connections), false);
             add_part(&mut parts, "Description", &renderer.render_description(task.description.as_deref(), &mut references), false);

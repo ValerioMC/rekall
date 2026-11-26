@@ -6,6 +6,7 @@ mod connection_pull_request_host;
 mod github_pull_request_host;
 mod gitlab_pull_request_host;
 mod http_gitlab_namespaces;
+mod http_picture_upload;
 mod http_task_tracker;
 mod task_tracker_runner;
 

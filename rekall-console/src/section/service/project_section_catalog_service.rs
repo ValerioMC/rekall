@@ -89,7 +89,7 @@ impl ProjectSectionCatalogService {
 
     pub async fn update(&self, id: Id, command: ProjectSectionCommand) -> Result<ProjectSectionView> {
         in_write!(&self.ctx, |tx| {
-            let before = require(&tx, id).await?;
+            let before = repo::project_section::require(tx.db(), id).await?;
             let mut section = before.clone();
             if command.title.is_some() {
                 section.title = rules::title(command.title.as_deref())?;
@@ -108,16 +108,12 @@ impl ProjectSectionCatalogService {
 
     pub async fn delete(&self, id: Id) -> Result<()> {
         in_write!(&self.ctx, |tx| {
-            let section = require(&tx, id).await?;
+            let section = repo::project_section::require(tx.db(), id).await?;
             project_section::Entity::delete_by_id(section.id).exec(tx.db()).await?;
             tx.publish(SectionStreamEvent { project_id: section.project_id });
             Ok::<_, RekallError>(())
         })
     }
-}
-
-async fn require(tx: &Tx, id: Id) -> Result<project_section::Model> {
-    repo::project_section::find_by_id(tx.db(), id).await?.ok_or_else(|| RekallError::not_found("Section", id))
 }
 
 async fn require_title_free(tx: &Tx, project_id: Id, title: &str, except: Option<Id>) -> Result<()> {

@@ -32,6 +32,7 @@ pub mod graph;
 pub mod guard;
 pub mod inventory;
 pub mod note;
+pub mod picture;
 pub mod queue;
 pub mod quick;
 pub mod search;

@@ -20,7 +20,7 @@ use rekall_core::queue::RunQueueService;
 use rekall_core::skill::SkillGroupService;
 use rekall_core::Services;
 
-use rekall_console::{adherence, backup, catalog, chat, check, claude, component, connection, decision, dependency, deviation, diagram, export, feedback, filesystem, graph, guard, note, queue, quick, section, settings, skill, tag, terminal, version, vulnerability, workingset, worktree};
+use rekall_console::{adherence, backup, catalog, chat, check, claude, component, connection, decision, dependency, deviation, diagram, export, feedback, filesystem, graph, guard, note, picture, queue, quick, section, settings, skill, tag, terminal, version, vulnerability, workingset, worktree};
 
 use crate::{ApiPorts, StepEventStream};
 
@@ -105,6 +105,8 @@ pub struct ApiState {
     pub connection_checks: ConnectionCheckService,
     pub backups: backup::BackupService,
     pub database_folders: settings::DatabaseFolderService,
+    pub pictures: picture::PictureService,
+    pub picture_cleanup: picture::PictureCleanupService,
     pub update_check: version::UpdateCheckService,
     pub stream: Arc<StepEventStream>,
 }
@@ -189,6 +191,8 @@ impl ApiState {
         let ctx = services.ctx.clone();
         let Wired { tasks, project_connections, projects, connections, component_catalog, repository_discovery, jira_issues, confluence_spaces, connection_targets, gitlab_targets, task_tracker_sync, vulnerability_fixes, graphs, graph_attach, terminals, quick_tasks } =
             Wired::of(&ctx, &services, &ports);
+        let picture_cleanup = picture::PictureCleanupService::new(ctx.clone(), ports.pictures.clone());
+        let pictures = picture::PictureService::new(ctx.clone(), ports.pictures);
         Self {
             companies: catalog::CompanyService::new(ctx.clone()),
             logos: catalog::CompanyLogoService::new(ctx.clone()),
@@ -204,7 +208,7 @@ impl ApiState {
             section_contexts: section::SectionContextService::new(ctx.clone()),
             section_layout: section::SectionLayoutService::new(ctx.clone()),
             component_catalog,
-            exports: export::ProjectExportService::new(ctx.clone()),
+            exports: export::ProjectExportService::new(ctx.clone(), pictures.clone()),
             checks: check::CheckService::new(ctx.clone()),
             task_dependencies: dependency::TaskDependencyService::new(ctx.clone(), RunQueueService::new(ctx.clone())),
             task_decisions: decision::TaskDecisionService::new(ctx.clone()),
@@ -264,10 +268,12 @@ impl ApiState {
             claude_install: claude::ClaudeInstallService::new(ports.claude_setup),
             guard_protection: claude::GuardProtectionService::new(ports.guard_installer),
             connection_checks: ConnectionCheckService::new(ctx.clone(), ports.secrets, ports.connection_probe),
-            skill_groups: SkillGroupService::new(ctx),
+            skill_groups: SkillGroupService::new(ctx.clone()),
             credential_hand_out: connection::CredentialHandOutService::new(ports.credential_desk),
             backups: backup::BackupService::new(ports.backups, ports.restore),
             database_folders: settings::DatabaseFolderService::new(ports.database_folders, ports.restart),
+            pictures,
+            picture_cleanup,
             update_check: version::UpdateCheckService::new(RUNNING_VERSION, ports.release_feed),
             stream,
         }

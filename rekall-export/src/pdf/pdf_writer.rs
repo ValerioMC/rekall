@@ -11,7 +11,7 @@ pub struct PdfWriter;
 impl PdfWriter {
     pub fn write(document: &ExportDocument) -> Result<Vec<u8>, ExportError> {
         let faces = PdfFaces::load()?;
-        let parts: Vec<Vec<Block>> = document.parts.iter().map(|part| MarkdownBlocks::read(part, &document.diagrams)).collect();
+        let parts: Vec<Vec<Block>> = document.parts.iter().map(|part| MarkdownBlocks::read(part, &document.diagrams, &document.pictures)).collect();
         let mut blocks = PdfBlocks::new(&faces);
         for (index, part) in parts.iter().enumerate() {
             blocks.render_part(part, index == 0)?;

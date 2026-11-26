@@ -4,6 +4,7 @@ use rekall_core::backup::{DatabaseBackups, DatabaseRestore};
 use rekall_core::chat::ChatPipe;
 use rekall_core::claude::{ClaudeCodeSetup, GuardInstaller, ClaudeResources, TerminalHost, TerminalPipe, UsageReader};
 use rekall_core::connection::{ConfluenceSpaces, ConnectionProbe, CredentialDesk, GitlabNamespaces, JiraIssues, SecretStore, TaskTrackerService};
+use rekall_core::picture::PictureStore;
 use rekall_core::queue::QueueRunner;
 use rekall_core::settings::{ApplicationRestart, DatabaseFolders};
 use rekall_core::version::ReleaseFeed;
@@ -31,6 +32,7 @@ pub struct ApiPorts {
     pub backups: Arc<dyn DatabaseBackups>,
     pub restore: Arc<dyn DatabaseRestore>,
     pub database_folders: Arc<dyn DatabaseFolders>,
+    pub pictures: Arc<dyn PictureStore>,
     pub restart: Arc<dyn ApplicationRestart>,
     /// The writer of tasks to their project's task manager, which the runner also drives.
     pub task_tracker: TaskTrackerService,

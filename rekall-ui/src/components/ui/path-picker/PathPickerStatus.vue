@@ -9,6 +9,8 @@ defineProps<{
   needle: string
   showHidden: boolean
   hiddenCount: number
+  /** False when the picker takes pictures only, so ↵ and ⌘↵ never take the folder itself. */
+  choosesFolders: boolean
 }>()
 
 defineEmits<{ 'show-hidden': [] }>()
@@ -23,7 +25,8 @@ defineEmits<{ 'show-hidden': [] }>()
   <div v-else-if="unreadable" class="path-message" data-testid="path-picker-unreadable">
     <p class="text-text-muted">Rekall is not allowed to read this folder.</p>
     <p class="text-text-subtle">
-      macOS keeps some folders private to the apps that own them. <kbd>⌘↵</kbd> still inserts its path.
+      macOS keeps some folders private to the apps that own them.
+      <template v-if="choosesFolders"><kbd>⌘↵</kbd> still inserts its path.</template>
     </p>
   </div>
 
@@ -41,12 +44,16 @@ defineEmits<{ 'show-hidden': [] }>()
       <p class="text-text-muted">Only hidden files in here.</p>
       <p class="text-text-subtle">
         <button type="button" class="focus-ring text-accent hover:underline" @click="$emit('show-hidden')">Show them</button>
-        <kbd class="ml-1">⌘⇧.</kbd>, or <kbd>↵</kbd> to insert the folder itself.
+        <kbd class="ml-1">⌘⇧.</kbd><template v-if="choosesFolders">, or <kbd>↵</kbd> to insert the folder itself.</template>
       </p>
     </template>
-    <template v-else>
+    <template v-else-if="choosesFolders">
       <p class="text-text-muted">This folder is empty.</p>
       <p class="text-text-subtle"><kbd>↵</kbd> inserts the folder itself.</p>
+    </template>
+    <template v-else>
+      <p class="text-text-muted">No pictures in this folder.</p>
+      <p class="text-text-subtle">Only folders and picture files are listed. <kbd>⌫</kbd> goes up.</p>
     </template>
   </div>
 </template>
