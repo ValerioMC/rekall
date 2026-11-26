@@ -100,7 +100,7 @@ function pane(description: string | null = ROUGH) {
   store.selectedTaskId = TASK
   const saveTaskDescription = vi.fn().mockResolvedValue(undefined)
   store.saveTaskDescription = saveTaskDescription
-  const wrapper = mount(DescriptionRewriteButton, { props: { taskId: TASK, anchor: ANCHOR, folder: '/code/vega' }, attachTo: document.body })
+  const wrapper = mount(DescriptionRewriteButton, { props: { taskId: TASK, folder: '/code/vega' }, attachTo: document.body })
   return { wrapper, store, saveTaskDescription }
 }
 
@@ -122,7 +122,7 @@ describe('the rewrite key of the description pane', () => {
     setActivePinia(createPinia())
     vi.resetAllMocks()
     vi.useFakeTimers()
-    openTerminal.mockResolvedValue(liveTerminal())
+    openTerminal.mockResolvedValue({ ...liveTerminal(), mode: 'REWRITE_FIX' })
     sendTerminalInput.mockResolvedValue(undefined)
     closeTerminal.mockReset()
     closeTerminal.mockResolvedValue(undefined)
@@ -153,16 +153,18 @@ describe('the rewrite key of the description pane', () => {
     expect(wrapper.find('[data-testid="description-rewrite-fix"]').exists()).toBe(true)
   })
 
-  it('types the rewrite line into the live session of the task instead of opening another', async () => {
-    useTerminalStore().upsert(liveTerminal())
+  it('routes a rewrite through the server to reuse the live session', async () => {
+    const live = liveTerminal()
+    openTerminal.mockResolvedValue(live)
+    useTerminalStore().upsert(live)
     fetchTask.mockResolvedValue(task(POLISHED))
     const { wrapper } = pane()
 
     await pressFix(wrapper)
     await advance(400)
 
-    expect(openTerminal).not.toHaveBeenCalled()
-    expect(sendTerminalInput).toHaveBeenCalledWith('term-1', `/rk ${ANCHOR} rewrite fix\r`)
+    expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'REWRITE_FIX', provider: 'CLAUDE' }))
+    expect(sendTerminalInput).not.toHaveBeenCalled()
   })
 
   it('closes the session it opened once the new text is in, so the task is released', async () => {

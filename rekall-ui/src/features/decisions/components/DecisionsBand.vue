@@ -23,7 +23,7 @@ const tally = computed(() => describeTally(props.counts))
       </p>
     </div>
     <span class="flex-1" />
-    <p class="text-small text-text-muted whitespace-nowrap">Updates as you talk to Claude, in the terminal or the chat.</p>
+    <p class="text-small text-text-muted whitespace-nowrap">Updates as you talk in your session.</p>
     <SegmentedControl
       v-if="counts.total > 0"
       v-model="view"

@@ -32,7 +32,6 @@ import type { TaskId, TaskStepId } from '@/model/branded'
 const props = withDefaults(
   defineProps<{
     taskId: TaskId
-    anchor: string
     folder: string | null
     stepId?: TaskStepId | null
     missingHint?: string
@@ -62,7 +61,6 @@ const { terminals: openTerminals } = storeToRefs(terminals)
 
 const planTask = usePlanTask(
   () => props.taskId,
-  () => props.anchor,
   () => props.folder,
   PLAN_MISSING_HINT
 )

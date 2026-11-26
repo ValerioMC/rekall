@@ -1,4 +1,5 @@
-import { sessionCommandPrompt } from '@/features/claude/model/session-provider'
+import { ApiError } from '@/api/client'
+import { sessionCommandPrompt, type SessionProvider } from '@/features/claude/model/session-provider'
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 import {
@@ -10,9 +11,15 @@ import {
 } from '@/features/claude/api/terminal.api'
 import { sendMessage } from '@/features/chat/api/chat.api'
 import { awaitRenewedSession } from '@/features/claude/lib/renewed-session'
-import { rkPlanCommand, rkPlanFlowCommand, rkReplanCommand, rkReviseCommand, rkRefineCommand, rkDiscussCommand, rkRewriteCommand } from '@/common/format/rk-command'
-import type { PlanMode, RewriteMode, Terminal } from '@/features/claude/model/terminal'
+import type { PlanMode, RewriteMode, Terminal, TerminalTarget } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId, TerminalId } from '@/model/branded'
+
+interface LaunchConflict {
+  readonly session: Terminal
+  readonly provider: SessionProvider
+  readonly detail: string
+  readonly decide: (retry: boolean) => void
+}
 
 /**
  * In-app terminals: real PTYs running the interactive `claude` TUI, one active at a time. Never
@@ -23,6 +30,7 @@ export const useTerminalStore = defineStore('terminal', () => {
   const activeTerminalId = ref<TerminalId | null>(null)
   const lastOpened = shallowRef<Terminal | null>(null)
   const floatingId = ref<TerminalId | null>(null)
+  const launchConflict = shallowRef<LaunchConflict | null>(null)
 
   const activeTerminal = computed(
     () => terminals.value.find((terminal) => terminal.id === activeTerminalId.value) ?? null
@@ -44,43 +52,63 @@ export const useTerminalStore = defineStore('terminal', () => {
     terminals.value = await fetchTerminals()
   }
 
-  // One live terminal per task: the server reuses a live one, retargets it and types the `/rk`
-  // line into it, so the session reloads the task's latest steps instead of sitting idle.
   async function openForTask(taskId: TaskId, input: OpenTerminalInput): Promise<Terminal> {
-    const opened = settleOpened(await openTerminal({ taskId }, input))
+    const opened = settleOpened(await openWithProvider({ taskId }, input))
     showInTerminalPane(opened)
     return opened
   }
 
   /** A terminal on a project alone, which draws a diagram, inventories or assesses; the server reuses a live one. */
   async function openForProject(projectId: ProjectId, input: OpenTerminalInput): Promise<Terminal> {
-    return settleOpened(await openTerminal({ projectId }, input))
+    return settleOpened(await openWithProvider({ projectId }, input))
   }
 
-  /**
-   * Have a session propose this task's checklist, or its flow, or redesign the steps it has
-   * (`REPLAN`), bending them to a message about what the plan missed, or evaluate the pending
-   * entries of its thread (`REVISE`), or go through it with the person and record its decisions (`REFINE`), or discuss its work still to do (`DISCUSS`), or rewrite its description (`REWRITE_FIX`, `REWRITE_RESTRUCTURE`). A live session on the
-   * task gets the plan line typed into it; without one, a terminal is opened that starts on that
-   * line, so a plan never needs a session already running. Either way it becomes the active one.
-   */
   async function planForTask(
     taskId: TaskId,
-    anchor: string,
     input: Omit<OpenTerminalInput, 'stepId' | 'mode'>,
     mode: PlanMode | RewriteMode = 'PLAN',
     message = ''
   ): Promise<Terminal> {
-    const live = terminalForTask(taskId)
-    if (live) {
-      await sendCommand(live.id, planLine(mode, anchor, message))
-      showInTerminalPane(live)
-      lastOpened.value = live
-      return live
+    return openForTask(taskId, { ...input, mode, request: message.trim() || undefined })
+  }
+
+  async function openWithProvider(target: TerminalTarget, input: OpenTerminalInput): Promise<Terminal> {
+    try {
+      return await openTerminal(target, input)
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 409 || launchConflict.value) throw error
+      const provider = input.provider ?? 'CLAUDE'
+      const sessions = await fetchTerminals().catch(() => {
+        throw error
+      })
+      const session = sessions.find((candidate) => blocksOpening(candidate, target, input))
+      if (!session || launchConflict.value) throw error
+      upsert(session)
+      const retry = await new Promise<boolean>((decide) => {
+        launchConflict.value = { session, provider, detail: error.message, decide }
+      })
+      if (!retry) throw error
+      await close(session.id).catch((failure: unknown) => {
+        if (!(failure instanceof ApiError) || failure.status !== 404) throw failure
+      })
+      return openWithProvider(target, input)
     }
-    const opened = settleOpened(await openTerminal({ taskId }, { ...input, mode, request: message.trim() || undefined }))
-    showInTerminalPane(opened)
-    return opened
+  }
+
+  function blocksOpening(session: Terminal, target: TerminalTarget, input: OpenTerminalInput): boolean {
+    if (!session.live) return false
+    const sameTarget = 'taskId' in target
+      ? session.taskId === target.taskId
+      : session.taskId === null && session.projectId === target.projectId
+    if (!sameTarget) return false
+    const requiresKind = !input.mode || input.mode === 'WORK' || input.mode === 'MERGE'
+    return session.provider !== (input.provider ?? 'CLAUDE') || (requiresKind && session.kind !== (input.kind ?? 'TERMINAL'))
+  }
+
+  function resolveLaunchConflict(retry: boolean): void {
+    const conflict = launchConflict.value
+    launchConflict.value = null
+    conflict?.decide(retry)
   }
 
   /** Lists a session an open request answered with, and tells the chat window about it. */
@@ -99,16 +127,6 @@ export const useTerminalStore = defineStore('terminal', () => {
   /** The terminal pane shows PTY sessions only: a chat session is shown by the chat window. */
   function showInTerminalPane(opened: Terminal): void {
     if (opened.kind === 'TERMINAL') activeTerminalId.value = opened.id
-  }
-
-  function planLine(mode: PlanMode | RewriteMode, anchor: string, message: string): string {
-    if (mode === 'REWRITE_FIX') return rkRewriteCommand(anchor, 'FIX')
-    if (mode === 'REWRITE_RESTRUCTURE') return rkRewriteCommand(anchor, 'RESTRUCTURE')
-    if (mode === 'PLAN_FLOW') return rkPlanFlowCommand(anchor)
-    if (mode === 'REVISE') return rkReviseCommand(anchor)
-    if (mode === 'REFINE') return rkRefineCommand(anchor)
-    if (mode === 'DISCUSS') return rkDiscussCommand(anchor)
-    return mode === 'REPLAN' ? rkReplanCommand(anchor, message) : rkPlanCommand(anchor)
   }
 
   /**
@@ -154,8 +172,10 @@ export const useTerminalStore = defineStore('terminal', () => {
   /** Hand a line to a live session: typed into a terminal's stdin as if pasted there, sent as a message to a chat. */
   async function sendCommand(id: TerminalId, line: string): Promise<void> {
     const session = terminals.value.find((terminal) => terminal.id === id)
-    if (session?.kind === 'CHAT') await sendMessage(id, line)
-    else await sendTerminalInput(id, `${sessionCommandPrompt(session?.provider ?? 'CLAUDE', line)}\r`)
+    if (!session?.live) throw new Error('This session has closed.')
+    const prompt = sessionCommandPrompt(session.provider, line)
+    if (session.kind === 'CHAT') await sendMessage(id, prompt)
+    else await sendTerminalInput(id, `${prompt}\r`)
   }
 
   return {
@@ -164,6 +184,7 @@ export const useTerminalStore = defineStore('terminal', () => {
     activeTerminal,
     lastOpened,
     floatingId,
+    launchConflict,
     terminalForTask,
     upsert,
     load,
@@ -171,6 +192,7 @@ export const useTerminalStore = defineStore('terminal', () => {
     openForProject,
     adoptOpened,
     planForTask,
+    resolveLaunchConflict,
     followNextSession,
     select,
     float,

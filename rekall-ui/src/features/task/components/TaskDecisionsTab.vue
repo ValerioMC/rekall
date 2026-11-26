@@ -15,7 +15,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import type { Task } from '@/features/catalog/model/catalog'
 
 /**
- * The Decisions tab: what was settled about the task before it runs, recorded by Claude as the
+ * The Decisions tab: what was settled about the task before it runs, recorded as the
  * person goes through it in the terminal or the chat. It follows the conversation by itself.
  * It runs parallel to the plan: it adds no count to the header, the tabs or the review queue.
  */
@@ -48,7 +48,7 @@ watch(
   <div class="flex min-h-0 flex-1 flex-col" data-testid="decisions-tab">
     <DecisionsBand v-model="view" :counts="counts">
       <template #actions>
-        <RefineButton :task-id="task.id" :anchor="task.anchor" :folder="task.projectRepoFolder" />
+        <RefineButton :task-id="task.id" :folder="task.projectRepoFolder" />
         <AppButton size="sm" :disabled="adding" data-testid="decision-add" @click="adding = true">Add decision</AppButton>
       </template>
     </DecisionsBand>
@@ -60,7 +60,7 @@ watch(
     <div v-else-if="!adding" class="grid flex-1 place-items-center p-10">
       <AppEmptyState
         title="Nothing recorded yet"
-        description="When you go through the task with Claude in the terminal or the chat, to check what is missing and what could be better, Claude records each question and your answer here. There is nothing to do in this tab."
+        description="Choose Refine to work through open questions with your selected provider. Each question and confirmed answer appears here."
       >
         <p class="max-w-[56ch] text-small text-text-muted">
           Start with <code class="rounded-key bg-surface-raised px-1.5 py-px font-mono text-small text-text-muted">/rk task:{{ task.code }} refine</code>.

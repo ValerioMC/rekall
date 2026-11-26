@@ -14,6 +14,7 @@ import { usePaletteStore } from '@/features/search/store/palette.store'
 import UpdateDialog from '@/components/shell/UpdateDialog.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
+import SessionLaunchConflict from '@/features/claude/components/SessionLaunchConflict.vue'
 import ChatDock from '@/features/chat/components/ChatDock.vue'
 import ChatReopenTag from '@/features/chat/components/ChatReopenTag.vue'
 import { usePictureCleanupStore } from '@/features/picture/store/pictureCleanup.store'
@@ -113,6 +114,7 @@ onUnmounted(() => {
       <ShellDock />
       <CommandPalette v-if="palette.isOpen" />
       <SendBackConfirm />
+      <SessionLaunchConflict />
       <UpdateDialog v-if="update.promptOpen" />
     </template>
     <FirstRunSetup v-else-if="status.status === 'SETUP_NEEDED'" />

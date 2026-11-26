@@ -26,7 +26,7 @@ const MISSING_FOLDER_HINT = "Set this project's folder on its page to run a sess
  * session that cannot start leaves the revisions waiting. The key is offered again only when no
  * pass is running and a revision waits.
  */
-export function useRevisionRun(taskId: () => TaskId, anchor: () => string, folder: () => string | null) {
+export function useRevisionRun(taskId: () => TaskId, folder: () => string | null) {
   const store = useConsoleStore()
   const terminals = useTerminalStore()
   const toast = useToastStore()
@@ -78,10 +78,11 @@ export function useRevisionRun(taskId: () => TaskId, anchor: () => string, folde
       return
     }
     launchPhase.value = 'launching'
+    const target = taskId()
     const starting = run(async () => {
       const input = launchChoices()
-      await terminals.planForTask(taskId(), anchor(), input, 'REVISE')
-      await store.startPass(taskId())
+      await terminals.planForTask(target, input, 'REVISE')
+      await store.startPass(target)
     })
     await pause(TRAVEL_MS)
     launchPhase.value = 'waiting'

@@ -80,14 +80,18 @@ async function openHere(): Promise<void> {
 }
 
 async function restart(): Promise<void> {
-  const task = selectedTask.value
-  const current = activeTerminalId.value
-  if (!task || !current) return
+  const current = activeTerminal.value
+  if (!current?.taskId) return
+  const taskId = current.taskId
   await run(async () => {
-    await terminals.close(current)
-    await terminals.openForTask(task.id, {
-      ...launchChoices(),
-      kind: 'TERMINAL'
+    await terminals.close(current.id)
+    await terminals.openForTask(taskId, {
+      provider: current.provider,
+      skipPermissions: current.skipPermissions,
+      model: current.model ?? undefined,
+      effort: current.effort ?? undefined,
+      stepId: current.stepId,
+      kind: current.kind
     })
   }, 'Terminal restarted')
 }

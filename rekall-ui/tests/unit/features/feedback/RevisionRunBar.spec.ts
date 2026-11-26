@@ -59,7 +59,7 @@ function bar(thread: Feedback[], revisionsShown = false, folder: string | null =
   store.selectedTaskId = TASK
   store.feedbackByTask = { [TASK]: thread }
   const retarget = vi.spyOn(store, 'retargetFeedback').mockResolvedValue()
-  const wrapper = mount(RevisionRunBar, { props: { taskId: TASK, anchor: ANCHOR, folder, revisionsShown } })
+  const wrapper = mount(RevisionRunBar, { props: { taskId: TASK, folder, revisionsShown } })
   return { wrapper, retarget, store }
 }
 
@@ -120,14 +120,16 @@ describe('the bar that runs a waiting revision', () => {
     expect(bar([entry(1)], true).wrapper.find('[data-testid="revision-run-view"]').exists()).toBe(false)
   })
 
-  it('types the revise line into the live session, then starts the pass', async () => {
-    sendTerminalInput.mockResolvedValue(undefined)
-    useTerminalStore().terminals = [terminal()]
+  it('routes revision to the server to reuse a live session, then starts the pass', async () => {
+    const live = terminal()
+    openTerminal.mockResolvedValue(live)
+    useTerminalStore().terminals = [live]
     const { wrapper } = bar([entry(1), entry(2, { kind: 'PLAN' })])
 
     await press(wrapper)
 
-    expect(sendTerminalInput).toHaveBeenCalledWith('term-1', `/rk ${ANCHOR} revise\r`)
+    expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'REVISE', provider: 'CLAUDE' }))
+    expect(sendTerminalInput).not.toHaveBeenCalled()
     expect(startPass).toHaveBeenCalledWith(TASK)
   })
 

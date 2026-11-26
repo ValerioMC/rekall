@@ -86,9 +86,8 @@ impl TerminalMode {
         matches!(self, TerminalMode::Work)
     }
 
-    /// Whether the session only talks the task over, so nothing is marked running for it.
-    pub fn only_discusses(&self) -> bool {
-        matches!(self, TerminalMode::Discuss)
+    pub fn marks_running_in_terminal(&self) -> bool {
+        !matches!(self, TerminalMode::Discuss | TerminalMode::Refine)
     }
 }
 

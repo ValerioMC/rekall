@@ -21,7 +21,7 @@ export function discussedIn(source: DecisionSource): string {
 
 /** Who asked, for the line under the question. */
 export function askedBy(decision: Decision): string {
-  return decision.source === 'PERSON' ? 'You wrote this' : 'Claude asked'
+  return decision.source === 'PERSON' ? 'You wrote this' : 'Asked in the session'
 }
 
 /** The scope tag a row carries when the task has steps: the step it is read at, or the whole task. */

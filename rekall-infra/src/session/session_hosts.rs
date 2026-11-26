@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use rekall_core::claude::{SessionKind, TerminalEnded, TerminalHost, TerminalOpening, TerminalView};
 use rekall_kernel::{Id, RekallError, Result};
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, Mutex};
 use tracing::warn;
 
 use super::EndedBus;
@@ -16,6 +16,7 @@ pub struct SessionHosts {
     chats: Arc<dyn TerminalHost>,
     max_sessions: usize,
     ended: Arc<EndedBus>,
+    opening_gate: Mutex<()>,
 }
 
 impl SessionHosts {
@@ -24,7 +25,7 @@ impl SessionHosts {
         let ended = Arc::new(EndedBus::new());
         forward_ends(terminals.subscribe_ended(), ended.clone());
         forward_ends(chats.subscribe_ended(), ended.clone());
-        Self { terminals, chats, max_sessions, ended }
+        Self { terminals, chats, max_sessions, ended, opening_gate: Mutex::new(()) }
     }
 
     fn host_of_kind(&self, kind: SessionKind) -> &Arc<dyn TerminalHost> {
@@ -38,11 +39,13 @@ impl SessionHosts {
         [&self.terminals, &self.chats].into_iter().find(|host| host.get(id).is_some())
     }
 
-    fn require_room_for(&self, opening: &TerminalOpening) -> Result<()> {
-        let live = self.list();
-        let reuses_a_session = live.iter().any(|view| view.kind == opening.kind && view.target() == opening.target);
-        if reuses_a_session || live.len() < self.max_sessions {
-            return Ok(());
+    fn resolve_kind(&self, opening: &TerminalOpening) -> Result<SessionKind> {
+        let live: Vec<_> = self.list().into_iter().filter(|view| view.live).collect();
+        if let Some(existing) = live.iter().find(|view| view.target() == opening.target) {
+            return opening.kind_for_live_session(existing);
+        }
+        if live.len() < self.max_sessions {
+            return Ok(opening.kind);
         }
         Err(RekallError::conflict(format!(
             "Rekall is already running {} terminals. Close one before opening another.",
@@ -65,8 +68,9 @@ fn forward_ends(mut ends: broadcast::Receiver<TerminalEnded>, bus: Arc<EndedBus>
 
 #[async_trait]
 impl TerminalHost for SessionHosts {
-    async fn open(&self, opening: TerminalOpening) -> Result<TerminalView> {
-        self.require_room_for(&opening)?;
+    async fn open(&self, mut opening: TerminalOpening) -> Result<TerminalView> {
+        let _gate = self.opening_gate.lock().await;
+        opening.kind = self.resolve_kind(&opening)?;
         self.host_of_kind(opening.kind).open(opening).await
     }
 
@@ -98,6 +102,7 @@ impl TerminalHost for SessionHosts {
     }
 
     async fn renew(&self, id: Id) -> Result<TerminalView> {
+        let _gate = self.opening_gate.lock().await;
         match self.host_holding(id) {
             Some(host) => host.renew(id).await,
             None => Err(RekallError::conflict(format!("No session {id} is live to renew."))),

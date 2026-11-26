@@ -134,7 +134,7 @@ impl PtyTerminalManager {
             }
         };
 
-        if !mode.only_discusses() {
+        if mode.marks_running_in_terminal() {
             self.marker.mark_running(launch.task_id, step_id).await;
         }
         info!(terminal_id = %id, %mode, anchors = %launch.anchors, working_dir = %launch.working_dir, "Opened terminal");
@@ -346,10 +346,9 @@ impl PtyTerminalManager {
         info!(terminal_id = %id, code, "Terminal exited");
     }
 
-    /// A discussion marked nothing, so it gives nothing back, unless a later work open put it on a step.
     async fn release_work(&self, terminal: &Terminal) {
         let step_id = terminal.step_id();
-        if terminal.mode.only_discusses() && step_id.is_none() {
+        if !terminal.mode.marks_running_in_terminal() && step_id.is_none() {
             return;
         }
         self.marker.release_running(terminal.launch.task_id, step_id).await;

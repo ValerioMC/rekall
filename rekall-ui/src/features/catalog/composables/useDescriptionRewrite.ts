@@ -5,7 +5,7 @@ import { useToastStore } from '@/stores/toast.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { launchChoices } from '@/common/config/session-launch'
 import type { RewriteMode, RewriteStyle } from '@/features/claude/model/terminal'
-import type { TaskId } from '@/model/branded'
+import type { TaskId, TerminalId } from '@/model/branded'
 
 /** `idle` takes a press; `launching` the session is on its way; `working` it rewrites; `done` the new text has just arrived. */
 export type RewritePhase = 'idle' | 'launching' | 'working' | 'done'
@@ -28,7 +28,7 @@ const MODE_OF_STYLE: Record<RewriteStyle, RewriteMode> = { FIX: 'REWRITE_FIX', R
  * its description changes or its session ends. The text it replaced is held in memory only, for
  * Undo: it is dropped once the person edits and with the task's view.
  */
-export function useDescriptionRewrite(taskId: () => TaskId, anchor: () => string, folder: () => string | null) {
+export function useDescriptionRewrite(taskId: () => TaskId, folder: () => string | null) {
   const store = useConsoleStore()
   const terminals = useTerminalStore()
   const toast = useToastStore()
@@ -86,26 +86,14 @@ export function useDescriptionRewrite(taskId: () => TaskId, anchor: () => string
     return null
   }
 
-  async function launchSession(style: RewriteStyle): Promise<boolean> {
-    const input = launchChoices()
-    const started = await run(async () => {
-      await terminals.planForTask(taskId(), anchor(), input, MODE_OF_STYLE[style])
-      return true
-    })
-    return started === true
-  }
-
-  async function releaseOpenedSession(): Promise<void> {
-    const opened = terminals.terminalForTask(taskId())
-    if (opened) await run(() => terminals.close(opened.id))
-  }
-
-  async function watchForTheNewText(before: string, openedForRewrite: boolean): Promise<void> {
+  async function watchForTheNewText(before: string, openedForRewrite: TerminalId | null): Promise<void> {
     working.value = true
     const rewritten = await run(() => awaitRewrittenDescription(before))
     working.value = false
     if (rewritten === null) return
-    if (openedForRewrite) await releaseOpenedSession()
+    if (openedForRewrite && terminals.terminalForTask(taskId())?.id === openedForRewrite) {
+      await run(() => terminals.close(openedForRewrite))
+    }
     replacedText.value = before
     finished.value = true
     await pause(DONE_HOLD_MS)
@@ -120,13 +108,17 @@ export function useDescriptionRewrite(taskId: () => TaskId, anchor: () => string
       return
     }
     replacedText.value = null
-    const openedForRewrite = terminals.terminalForTask(taskId()) === null
+    const current = terminals.terminalForTask(taskId())
+    const mode = MODE_OF_STYLE[style]
     launching.value = true
-    const starting = launchSession(style)
+    const starting = run(() => terminals.planForTask(taskId(), launchChoices(), mode))
     await pause(TRAVEL_MS)
     const started = await starting
     launching.value = false
-    if (started) await watchForTheNewText(before, openedForRewrite)
+    if (started) {
+      const openedForRewrite = started.id !== current?.id && started.mode === mode
+      await watchForTheNewText(before, openedForRewrite ? started.id : null)
+    }
   }
 
   async function undo(): Promise<void> {

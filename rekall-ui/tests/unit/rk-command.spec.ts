@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { rkCommand, rkDiscussCommand, rkPlanCommand, rkPlanFlowCommand, rkRefineCommand, rkReplanCommand, rkReviseCommand, rkRewriteCommand, rkWrapupCommand } from '@/common/format/rk-command'
+import { rkCommand, rkPlanCommand, rkPlanFlowCommand, rkRefineCommand, rkWrapupCommand } from '@/common/format/rk-command'
 
 /**
  * What the anchor chips put on the clipboard. Four chips read from one function, because four
@@ -16,8 +16,7 @@ describe('rkCommand', () => {
 })
 
 /**
- * The line that has a session propose the task's checklist, typed by "Plan here" and
- * copied by the plan chip on an empty checklist.
+ * The line copied by the plan chip on an empty checklist.
  */
 describe('rkPlanCommand', () => {
   it('appends the plan term to the task anchor', () => {
@@ -28,23 +27,6 @@ describe('rkPlanCommand', () => {
 
   it('stays empty when there is no anchor, rather than a bare plan', () => {
     expect(rkPlanCommand('')).toBe('')
-  })
-})
-
-describe('rkReplanCommand', () => {
-  it('appends the replan term to the task anchor', () => {
-    expect(rkReplanCommand('project:stvv task:env-vars-cv')).toBe('/rk project:stvv task:env-vars-cv replan')
-  })
-
-  it('quotes what the plan missed on the replan line as one escaped line', () => {
-    expect(rkReplanCommand('project:stvv task:env-vars-cv', '  also cover\n"csv"  ')).toBe(
-      '/rk project:stvv task:env-vars-cv replan "also cover \\"csv\\""'
-    )
-    expect(rkReplanCommand('project:stvv task:env-vars-cv', '   ')).toBe('/rk project:stvv task:env-vars-cv replan')
-  })
-
-  it('stays empty when there is no anchor', () => {
-    expect(rkReplanCommand('')).toBe('')
   })
 })
 
@@ -100,27 +82,6 @@ describe('rkWrapupCommand', () => {
   })
 })
 
-describe('rkRewriteCommand', () => {
-  it('asks a session to correct the wording or to restructure the description', () => {
-    expect(rkRewriteCommand('project:vega task:report-builder', 'FIX')).toBe('/rk project:vega task:report-builder rewrite fix')
-    expect(rkRewriteCommand('project:vega task:report-builder', 'RESTRUCTURE')).toBe('/rk project:vega task:report-builder rewrite restructure')
-  })
-
-  it('stays empty when there is no anchor', () => {
-    expect(rkRewriteCommand('', 'FIX')).toBe('')
-  })
-})
-
-describe('rkReviseCommand', () => {
-  it('asks a session to evaluate the pending entries of the task thread', () => {
-    expect(rkReviseCommand('project:vega task:report-builder')).toBe('/rk project:vega task:report-builder revise')
-  })
-
-  it('stays empty when there is no anchor', () => {
-    expect(rkReviseCommand('')).toBe('')
-  })
-})
-
 describe('rkRefineCommand', () => {
   it('asks a session to go through the task and record its decisions', () => {
     expect(rkRefineCommand('project:vega task:report-builder')).toBe('/rk project:vega task:report-builder refine')
@@ -128,15 +89,5 @@ describe('rkRefineCommand', () => {
 
   it('stays empty when there is no anchor', () => {
     expect(rkRefineCommand('')).toBe('')
-  })
-})
-
-describe('rkDiscussCommand', () => {
-  it('asks a session to discuss the task with the person', () => {
-    expect(rkDiscussCommand('project:vega task:report-builder')).toBe('/rk project:vega task:report-builder discuss')
-  })
-
-  it('stays empty when there is no anchor', () => {
-    expect(rkDiscussCommand('')).toBe('')
   })
 })

@@ -6,8 +6,7 @@ import type { Decision } from '@/features/decisions/model/decision'
 
 /**
  * One decision as a row: its state, the question, the answer as it stands, and where it was taken.
- * Opened, it shows the conversation it came from, what Claude offered and why it asked. The row
- * only reads: a correction is told to Claude, or made by hand through the `actions` slot.
+ * Opened, it shows the conversation, the options and why the question was asked.
  */
 defineProps<{ decision: Decision; hasSteps: boolean; opened: boolean; fresh?: boolean }>()
 const emit = defineEmits<{ toggle: [] }>()
@@ -82,7 +81,7 @@ const TAG = 'inline-flex h-[18px] items-center rounded-key border px-1.5 text-mi
               data-testid="decision-line"
             >
               <span class="text-caption font-medium" :class="line.speaker === 'PERSON' ? 'text-session-strong' : 'text-text-subtle'">
-                {{ line.speaker === 'PERSON' ? 'You' : 'Claude' }}
+                {{ line.speaker === 'PERSON' ? 'You' : 'Assistant' }}
                 <time class="block font-mono text-micro font-normal text-text-subtle">{{ timeOf(line.spokenAt) }}</time>
               </span>
               <span class="whitespace-pre-wrap text-text">{{ line.text }}</span>
@@ -91,7 +90,7 @@ const TAG = 'inline-flex h-[18px] items-center rounded-key border px-1.5 text-mi
         </section>
 
         <section v-if="decision.options.length > 0" aria-labelledby="offered-title">
-          <h3 id="offered-title" class="mb-1.5 text-caption font-medium text-text-subtle">What Claude offered</h3>
+          <h3 id="offered-title" class="mb-1.5 text-caption font-medium text-text-subtle">Options</h3>
           <ul class="grid gap-0.5">
             <li
               v-for="option in decision.options"
@@ -118,7 +117,7 @@ const TAG = 'inline-flex h-[18px] items-center rounded-key border px-1.5 text-mi
         aria-label="Context for this decision"
       >
         <div v-if="decision.why !== null">
-          <h4 class="mb-1.5 text-caption font-medium text-text-subtle">Why Claude asks</h4>
+          <h4 class="mb-1.5 text-caption font-medium text-text-subtle">Why this was asked</h4>
           <p class="text-small leading-[1.55] text-text-muted">{{ decision.why }}</p>
         </div>
         <div>
@@ -133,7 +132,7 @@ const TAG = 'inline-flex h-[18px] items-center rounded-key border px-1.5 text-mi
         </div>
         <div v-if="decision.source === 'PERSON'">
           <h4 class="mb-1.5 text-caption font-medium text-text-subtle">{{ SOURCE_LABEL.PERSON }}</h4>
-          <p class="text-small leading-[1.55] text-text-muted">Claude reads this record, so it sees your correction and that it did not come from the conversation.</p>
+          <p class="text-small leading-[1.55] text-text-muted">Sessions see this correction marked as your edit.</p>
         </div>
       </aside>
     </div>

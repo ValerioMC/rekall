@@ -36,7 +36,6 @@ vi.mock('@/features/queue/api/runQueue.api', () => ({
 
 const TASK = 't-1' as TaskId
 const STEP = 's-1' as TaskStepId
-const ANCHOR = 'project:vega task:report-builder'
 
 /** Only what the button reads of a task and a step; the rest of the record plays no part. */
 function checklistTask(): Task {
@@ -106,7 +105,7 @@ function menuLabels(): string[] {
 
 function mountButton(folder: string | null = '/code/vega', stepId: TaskStepId | null = null) {
   useConsoleStore().releaseOnRun = releaseOnRun
-  return mount(OpenTerminalButton, { props: { taskId: TASK, anchor: ANCHOR, folder, stepId } })
+  return mount(OpenTerminalButton, { props: { taskId: TASK, folder, stepId } })
 }
 
 describe('the Run here button', () => {
@@ -312,7 +311,7 @@ describe('the Run here button', () => {
   })
 
   it('walks the menu with the arrow keys straight over the separator', async () => {
-    const wrapper = mount(OpenTerminalButton, { props: { taskId: TASK, anchor: ANCHOR, folder: '/code/vega' }, attachTo: document.body })
+    const wrapper = mount(OpenTerminalButton, { props: { taskId: TASK, folder: '/code/vega' }, attachTo: document.body })
     await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
     const menu = document.body.querySelector<HTMLElement>('[data-testid="run-menu"]')!
     const press = (key: string): string | undefined => {
@@ -447,7 +446,7 @@ describe('planning from the Run here arrow', () => {
 
   function mountPlanning(folder: string | null = '/code/vega') {
     return mount(OpenTerminalButton, {
-      props: { taskId: TASK, anchor: ANCHOR, folder },
+      props: { taskId: TASK, folder },
       global: { stubs: { AppConfirm: true }, renderStubDefaultSlot: true },
       attachTo: document.body
     })
@@ -483,14 +482,15 @@ describe('planning from the Run here arrow', () => {
     expect(openPane).not.toHaveBeenCalled()
   })
 
-  it('types the plan line into the session live on the task', async () => {
-    sendTerminalInput.mockResolvedValue(undefined)
-    useTerminalStore().terminals = [liveTerminal()]
+  it('routes plan to the server when the task already has a session', async () => {
+    const existing = liveTerminal()
+    useTerminalStore().terminals = [existing]
+    openTerminal.mockResolvedValue(existing)
 
     await choose(mountPlanning(null), 'plan-here')
 
-    expect(sendTerminalInput).toHaveBeenCalledWith('term-1', `/rk ${ANCHOR} plan\r`)
-    expect(openTerminal).not.toHaveBeenCalled()
+    expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'PLAN', provider: 'CLAUDE' }))
+    expect(sendTerminalInput).not.toHaveBeenCalled()
   })
 
   it('asks for the project folder instead of planning when there is neither a folder nor a session', async () => {
@@ -531,14 +531,15 @@ describe('planning from the Run here arrow', () => {
     expect(useToastStore().toasts.map((toast) => toast.message)).toContain('Discussing. What you agree lands on the task.')
   })
 
-  it('types the discuss line into the session live on the task', async () => {
-    sendTerminalInput.mockResolvedValue(undefined)
-    useTerminalStore().terminals = [liveTerminal()]
+  it('routes discuss to the server when the task already has a session', async () => {
+    const existing = liveTerminal()
+    useTerminalStore().terminals = [existing]
+    openTerminal.mockResolvedValue(existing)
 
     await choose(mountPlanning(null), 'discuss')
 
-    expect(sendTerminalInput).toHaveBeenCalledWith('term-1', `/rk ${ANCHOR} discuss\r`)
-    expect(openTerminal).not.toHaveBeenCalled()
+    expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'DISCUSS', provider: 'CLAUDE' }))
+    expect(sendTerminalInput).not.toHaveBeenCalled()
   })
 
   it('opens a session in flow mode when Plan a flow is chosen', async () => {

@@ -145,6 +145,57 @@ async fn a_chat_session_streams_its_turns_takes_a_message_and_resumes_from_the_l
 }
 
 #[tokio::test]
+async fn refinement_reuses_a_matching_chat_and_keeps_a_conflicting_prompt_out() {
+    let stubs = tempfile::tempdir().unwrap();
+    let app = chat_app(&stubs).await;
+    let folder = tempfile::tempdir().unwrap();
+    let id = open_chat(&app, folder.path()).await;
+    let task = app.get(&format!("/api/terminals/{id}")).await.str("taskId");
+    let path = format!("/api/tasks/{task}/terminals");
+    let mut events = EventStream::open(&app, &id, None).await;
+    events.until(is_turn_finished).await;
+
+    let refused = app.post(&path, json!({ "provider": "CODEX", "kind": "TERMINAL", "mode": "REFINE" })).await;
+    assert_eq!(refused.status, 409);
+    assert!(refused.str("detail").contains("Claude Code Chat"));
+
+    let reused = app.post(&path, json!({ "provider": "CLAUDE", "kind": "TERMINAL", "mode": "REFINE" })).await;
+    assert_eq!(reused.status, 201);
+    assert_eq!(reused.str("id"), id);
+    assert_eq!(reused.str("kind"), "CHAT");
+
+    let turn = events.until(is_turn_finished).await;
+    assert_eq!(turn[0].event["text"], "/rk task:AL-1 refine");
+    let received = std::fs::read_to_string(stubs.path().join("received.txt")).unwrap();
+    assert_eq!(received.matches("refine").count(), 1);
+    assert_refinement_answer_in_the_ledger(&app, &task).await;
+    assert_eq!(app.get("/api/terminals").await.list().len(), 1);
+    assert_eq!(app.delete(&format!("/api/terminals/{id}")).await.status, 204);
+    app.stop().await;
+}
+
+async fn assert_refinement_answer_in_the_ledger(app: &App, task: &str) {
+    app.call_tool("rekall_decision", json!({
+        "anchors": "task:AL-1",
+        "action": "ask",
+        "key": "region",
+        "question": "Which region should host the service?",
+        "source": "chat"
+    })).await;
+    app.call_tool("rekall_decision", json!({
+        "anchors": "task:AL-1",
+        "action": "answer",
+        "key": "region",
+        "answer": "eu-west-1"
+    })).await;
+
+    let decisions = app.get(&format!("/api/tasks/{task}/decisions")).await;
+    assert_eq!(decisions.status, 200);
+    assert_eq!(decisions.body["decisions"][0]["answer"], "eu-west-1");
+    assert_eq!(decisions.body["decisions"][0]["source"], "CHAT");
+}
+
+#[tokio::test]
 async fn closing_a_chat_session_ends_its_stream_with_the_end_event() {
     let stubs = tempfile::tempdir().unwrap();
     let app = chat_app(&stubs).await;

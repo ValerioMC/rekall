@@ -34,6 +34,18 @@ fn a_refine_request_goes_through_the_task_whatever_else_it_carries() {
 }
 
 #[test]
+fn a_refine_command_retains_the_selected_provider_and_its_options() {
+    let target = TerminalTarget::Task(Id::random());
+    let codex = parsed(r#"{"mode":"REFINE","provider":"CODEX","model":"gpt-test","effort":"high"}"#).command(target).unwrap();
+    let claude = parsed(r#"{"mode":"REFINE","provider":"CLAUDE","kind":"CHAT","model":"sonnet"}"#).command(target).unwrap();
+
+    assert_eq!((codex.target, codex.mode, codex.provider, codex.kind), (target, TerminalMode::Refine, SessionProvider::Codex, SessionKind::Terminal));
+    assert_eq!((codex.model.as_deref(), codex.effort.as_deref(), codex.skip_permissions), (Some("gpt-test"), Some("high"), false));
+    assert_eq!((claude.target, claude.mode, claude.provider, claude.kind), (target, TerminalMode::Refine, SessionProvider::Claude, SessionKind::Chat));
+    assert_eq!(claude.model.as_deref(), Some("sonnet"));
+}
+
+#[test]
 fn a_discuss_request_talks_the_task_over_whatever_else_it_carries() {
     assert_eq!(parsed(r#"{"mode":"DISCUSS"}"#).mode().unwrap(), TerminalMode::Discuss);
     assert_eq!(parsed(r#"{"mode":"DISCUSS","request":"ignored"}"#).mode().unwrap(), TerminalMode::Discuss);

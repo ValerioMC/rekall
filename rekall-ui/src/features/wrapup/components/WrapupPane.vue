@@ -10,14 +10,18 @@ import WrapupFreshnessTag from '@/features/wrapup/components/WrapupFreshnessTag.
 import WrapupVersionsPanel from '@/features/wrapup/components/WrapupVersionsPanel.vue'
 import TaskTitleRow from '@/features/catalog/components/TaskTitleRow.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import { useToastStore } from '@/stores/toast.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useOpenSession } from '@/features/claude/composables/useOpenSession'
 import { useEditorMode } from '@/composables/useEditorMode'
 import { relativeTime } from '@/common/format/relative-time'
 import { rkWrapupCommand } from '@/common/format/rk-command'
+import { preferredProvider } from '@/common/config/session-launch'
+import { SESSION_PROVIDER_LABEL } from '@/features/claude/model/session-provider'
 import { WRAPUP_AUTHOR_LABEL } from '@/features/wrapup/model/wrapup'
 import { isEpic } from '@/features/catalog/model/catalog'
+import type { Terminal } from '@/features/claude/model/terminal'
 
 /** On the task page the title is already above the tabs, so the pane keeps only its actions. */
 defineProps<{ embedded?: boolean }>()
@@ -31,6 +35,21 @@ const { run: runSend, isRunning: sendingWrapupHere } = useAsyncAction()
 
 const liveTerminal = computed(() => terminals.terminalForTask(selectedTask.value?.id ?? null))
 const wrapupHereOpen = ref(false)
+
+function matchingWrapupSession(): Terminal | null {
+  const session = liveTerminal.value
+  if (!session) return null
+  const provider = preferredProvider()
+  if (session.provider === provider) return session
+  useToastStore().notifyError(new Error(
+    `${SESSION_PROVIDER_LABEL[session.provider]} is open on this task. To write a wrapup with ${SESSION_PROVIDER_LABEL[provider]}, first open a session with that provider.`
+  ))
+  return null
+}
+
+function openWrapupHere(): void {
+  if (matchingWrapupSession()) wrapupHereOpen.value = true
+}
 
 const { mode, openFor } = useEditorMode('read')
 const isConfirmingDelete = ref(false)
@@ -99,11 +118,11 @@ async function confirmDelete(): Promise<void> {
 
 async function sendWrapupHere(message: string): Promise<void> {
   const task = selectedTask.value
-  const terminal = liveTerminal.value
+  const terminal = matchingWrapupSession()
   if (!task || !terminal) return
   const sent = await runSend(
     () => terminals.sendCommand(terminal.id, rkWrapupCommand(task.anchor, message)),
-    'Sent to the terminal.'
+    'Sent to the session.'
   )
   if (sent === null) return
   wrapupHereOpen.value = false
@@ -134,7 +153,7 @@ async function sendWrapupHere(message: string): Promise<void> {
           size="sm"
           data-testid="wrapup-here"
           title="Type the wrapup command into the session already running here"
-          @click="wrapupHereOpen = true"
+          @click="openWrapupHere"
         >
           <span
             class="session-caret shrink-0"

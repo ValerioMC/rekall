@@ -3,10 +3,12 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import * as api from '@/features/decisions/api/decisions.api'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import { setPreferredProvider } from '@/common/config/session-launch'
 import TaskDecisionsTab from '@/features/task/components/TaskDecisionsTab.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Task } from '@/features/catalog/model/catalog'
 import { answered, decision, TASK } from './fixtures'
+import { installStorage } from '../../support/memoryStorage'
 
 vi.mock('@/features/decisions/api/decisions.api')
 
@@ -24,6 +26,7 @@ describe('the Decisions tab', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.resetAllMocks()
+    installStorage()
   })
 
   it('says nothing is recorded yet and how to start, with no ledger and no switch', async () => {
@@ -62,7 +65,8 @@ describe('the Decisions tab', () => {
     expect(page.find('[data-testid="decision-ledger"]').exists()).toBe(false)
   })
 
-  it('has a session refine the task from the button, whether or not decisions were recorded', async () => {
+  it.each(['CLAUDE', 'CODEX'] as const)('refines with %s and shows its answer in the task ledger', async (provider) => {
+    setPreferredProvider(provider)
     vi.mocked(api.fetchDecisions).mockResolvedValue({ decisions: [], sessionBlock: '' })
     const planForTask = vi.spyOn(useTerminalStore(), 'planForTask').mockResolvedValue({} as never)
     const page = mountTab()
@@ -70,7 +74,16 @@ describe('the Decisions tab', () => {
 
     await page.get('[data-testid="decision-refine"]').trigger('click')
 
-    expect(planForTask).toHaveBeenCalledWith(TASK, 'task:VG-41', expect.anything(), 'REFINE', '')
+    expect(planForTask).toHaveBeenCalledWith(TASK, expect.objectContaining({ provider }), 'REFINE', '')
+
+    vi.mocked(api.fetchDecisions).mockResolvedValue({
+      decisions: [answered('region', 'eu-west-1')],
+      sessionBlock: '<decisions/>'
+    })
+    await useConsoleStore().loadDecisions(TASK)
+    await settle()
+
+    expect(page.get('[data-testid="decision-ledger"]').text()).toContain('eu-west-1')
   })
 
   it('refuses to start a session when the project has no folder', async () => {

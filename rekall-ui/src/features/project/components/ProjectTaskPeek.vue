@@ -175,7 +175,6 @@ onUnmounted(() => settleTimers.forEach((timer) => window.clearTimeout(timer)))
       <OpenTerminalButton
         v-if="task.status !== 'DONE'"
         :task-id="task.id"
-        :anchor="task.anchor"
         :folder="task.projectRepoFolder"
       />
       <span class="flex-1" />
