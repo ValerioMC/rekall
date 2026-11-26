@@ -14,11 +14,7 @@ export interface AnchoredMenu {
   handleKeydown: (event: KeyboardEvent) => void
 }
 
-export function useAnchoredMenu(
-  anchorElement: () => HTMLElement | null,
-  width: number,
-  options: { onPlace?: () => void; relatedMenu?: () => HTMLElement | null } = {}
-): AnchoredMenu {
+export function useAnchoredMenu(anchorElement: () => HTMLElement | null, width: number): AnchoredMenu {
   const open = ref(false)
   const menu = ref<HTMLElement | null>(null)
   const placement = ref<Record<string, string>>({})
@@ -29,7 +25,6 @@ export function useAnchoredMenu(
     const menuWidth = Math.min(width, window.innerWidth - EDGE * 2)
     const left = Math.max(EDGE, Math.min(box.right - menuWidth, window.innerWidth - menuWidth - EDGE))
     placement.value = { left: `${left}px`, ...verticalPlacement(box, menu.value), width: `${menuWidth}px` }
-    if (options.onPlace) void nextTick(options.onPlace)
   }
 
   function close(returnFocus: boolean): void {
@@ -41,7 +36,6 @@ export function useAnchoredMenu(
   function closeOnOutside(event: Event): void {
     if (!(event.target instanceof Node)) return close(false)
     if (anchorElement()?.contains(event.target) || menu.value?.contains(event.target)) return
-    if (options.relatedMenu?.()?.contains(event.target)) return
     close(false)
   }
 
@@ -93,28 +87,13 @@ function verticalPlacement(box: DOMRect, menu: HTMLElement | null): Record<strin
   return { top: `${box.bottom + GAP}px`, maxHeight: `${below}px` }
 }
 
-export function adjacentMenuPlacement(
-  parent: DOMRect,
-  row: DOMRect,
-  height: number,
-  width: number
-): Record<string, string> | null {
-  const right = parent.right + GAP
-  const left = parent.left - GAP - width
-  const x = right + width <= window.innerWidth - EDGE ? right : left
-  if (x < EDGE) return null
-  const maxHeight = window.innerHeight - EDGE * 2
-  const y = Math.max(EDGE, Math.min(row.top, window.innerHeight - EDGE - Math.min(height, maxHeight)))
-  return { left: `${x}px`, top: `${y}px`, width: `${width}px`, maxHeight: `${window.innerHeight - EDGE - y}px` }
-}
-
 function menuItems(menu: HTMLElement | null): HTMLElement[] {
   if (!menu) return []
   return [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')]
     .filter((item) => item.closest('[role="menu"]') === menu && !item.closest('[hidden]'))
 }
 
-export function focusMenuStart(menu: HTMLElement | null): void {
+function focusMenuStart(menu: HTMLElement | null): void {
   const items = menuItems(menu)
   const initial = items.find((item) => item.hasAttribute('data-menu-initial'))
   const firstAvailable = items.find((item) => item.getAttribute('aria-disabled') !== 'true')
@@ -122,7 +101,7 @@ export function focusMenuStart(menu: HTMLElement | null): void {
   focusMenuItem(menu, first)
 }
 
-export function moveMenuFocus(event: KeyboardEvent, menu: HTMLElement | null): void {
+function moveMenuFocus(event: KeyboardEvent, menu: HTMLElement | null): void {
   const step = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
   if (step === 0) return
   event.preventDefault()

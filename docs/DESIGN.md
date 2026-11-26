@@ -280,11 +280,12 @@ goes in the first, one that needs the machine in the second. The run queue's row
 `RunQueueService` in `rekall-core/src/queue/`, and how skills are grouped is `SkillGroupService` in
 `rekall-core/src/skill/`.
 
-In the console, `SessionProviderMenu` supplies the provider choices for task and step actions,
-Decisions refinement, and the queue task picker. `useAnchoredMenu` places the menu and handles
-keyboard focus outside the scrolling pane. Interactive actions pass the selected provider to the
-session store, which handles conflicts and view fallback. Queue actions save the provider on the item
-and its row displays the saved choice.
+In the console, a task's **Run here** takes its provider from `useRunProvider`: the live session's,
+else the one the task was switched to in this browser, else the Settings default.
+`SessionProviderMenu` supplies the provider choices for Decisions refinement and the queue task
+picker. `useAnchoredMenu` places a menu and handles keyboard focus outside the scrolling pane.
+Interactive actions pass the provider to the session store, which handles conflicts and view
+fallback. Queue actions save the provider on the item and its row displays the saved choice.
 
 ### Adding a field or a capability
 

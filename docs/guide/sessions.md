@@ -7,10 +7,14 @@ interactive sessions. Rekall remembers each provider’s model, reasoning effort
 settings separately. Existing sessions and automatic renewals keep the provider and options they
 started with.
 
-**Run here** and **Start quick task** use the configured provider and session view. Their arrows
-offer **Run with Claude Code** and **Run with Codex**, which apply to that launch and use the
-chosen provider’s settings. If another provider already has a session on the task, Rekall offers
-to show that session or asks for confirmation to close it and retry with your choice.
+**Run here** and **Start quick task** use the configured session view. The two marks beside
+**Run here** are the task's provider switch: pick Claude Code or Codex and the key starts that
+one, with its own settings. The browser remembers the choice for that task; a task never switched
+follows the Settings default. While a session is open on the task the switch stays on its
+provider, and the other mark says to close it first. A provider whose CLI is missing is dimmed.
+The **Run here** keys of the terminal pane and the chat window follow the same choice.
+**Start quick task** uses the Settings default, and its arrow offers **Run with Claude Code**
+and **Run with Codex** for that launch.
 
 For Codex, install the CLI, sign in, and choose **Connect Codex** to register Rekall’s MCP endpoint
 and install the `$rekall` skill. **Model** and **Reasoning effort** use the CLI’s model catalog.
@@ -128,11 +132,13 @@ The queue opens a session on the task, which works the open steps in order, clai
 **Run in queue.** `POST /api/run-queue/runs` adds a task and starts the queue in the same step. An idle queue starts at once; a running, holding or scheduled one only gains the task, which runs when its turn comes. A task left waiting by an earlier **Stop the queue** runs ahead of it, because the queue is armed in order. A task already queued or running is refused with 409.
 
 **More ways to run** opens from the arrow beside **Run here** on a task, preview or step.
-**Run in queue**, **Discuss**, **Plan here** and **Plan a flow** each open provider choices.
-The menu marks the Settings default as **Preferred** and explains unavailable choices. From the
-**Decisions** tab, **Refine** opens the same choices and records answers in that task’s ledger.
-**Plan a flow** is available on tasks with no steps. **Replan** uses the configured provider and
-asks for confirmation when draft or open steps can be replaced.
+**Run in queue**, **Discuss**, **Plan here**, **Plan a flow** and **Replan** use the provider on
+the switch, which the menu names on its first line. When that CLI is missing the menu says so,
+links to its setup in Settings and takes no action. With a session open on the task,
+**Run in queue** warns that it has to be closed before the queue starts the task.
+**Plan a flow** is available on tasks with no steps. **Replan** asks for confirmation when draft
+or open steps can be replaced. From the **Decisions** tab, **Refine** offers a provider choice,
+marking the Settings default as **Preferred**, and records answers in that task’s ledger.
 
 `/api/run-queue` holds the queue: `GET`, `PUT /settings` (`ceilingPercent`, `skipPermissions`, `model`, `effort`, `sessionKind`), `POST /items` (adds without starting), `POST /runs` (`taskId`: adds the task and arms the queue), `DELETE /items/{id}`, `PUT /items/{id}/position`, `POST /clear`, `POST /start` (`startAt` null starts now), `POST /stop`. Each answers with the whole queue, and every change is pushed on the console's event stream as a `run-queue` frame.
 

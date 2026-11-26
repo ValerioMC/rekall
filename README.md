@@ -83,7 +83,7 @@ The per-user setup is written to `target\release\bundle\nsis\Rekall_<version>_x6
 
 Choose **Claude Code** or **Codex** under **Settings > Sessions and run queue > Provider**. Each keeps its own model, reasoning effort and permission settings. **Connect Codex** registers the same MCP endpoint and installs the `$rekall` skill. When both CLIs are installed, the console shows their account usage percentages side by side. [Session settings and limits](docs/guide/sessions.md#provider-settings)
 
-When both CLIs are installed, the arrow beside **Run here** or **Start quick task** lets you choose the provider for that run. The main button uses your default provider. **Run in queue**, **Discuss**, **Plan here**, **Plan a flow** and **Refine** offer a provider choice and mark your default as preferred. Rekall reuses a live session with the matching provider and asks before closing one on a different provider.
+The switch beside **Run here** picks the provider of that task, and the browser remembers it; a task never switched uses your default provider. **Run here** and every entry of its arrow use the provider shown. While a session is open on the task, the switch stays on its provider. The arrow beside **Start quick task** chooses the provider for that run, and **Refine** offers a choice and marks your default as preferred. Rekall reuses a live session with the matching provider and asks before closing one on a different provider.
 
 On macOS and Linux, either provider can use the project’s saved connections from a terminal opened with **Run here**.
 

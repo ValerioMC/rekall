@@ -111,10 +111,9 @@ describe('the entry points', () => {
     const openPane = vi.spyOn(useConsoleStore(), 'openTerminal')
     const button = mount(OpenTerminalButton, { props: { taskId: TASK, folder: '/code/vega' }, attachTo: document.body })
 
+    await button.get(`[data-testid=provider-switch-${provider}]`).trigger('click')
     await button.get('[data-testid=run-menu-arrow]').trigger('click')
     document.body.querySelector<HTMLElement>('[data-testid=plan-here]')?.click()
-    await flushPromises()
-    document.body.querySelector<HTMLElement>(`[data-testid=session-provider-${provider}]`)!.click()
     await flushPromises()
 
     expect(terminalApi.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'PLAN', kind: 'CHAT', provider }))
