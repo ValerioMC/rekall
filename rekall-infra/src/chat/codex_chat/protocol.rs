@@ -1,6 +1,7 @@
+use crate::codex::CodexTokenCounts;
 use std::path::Path;
 
-use rekall_core::chat::{ChatBody, ContextFill, TurnUsage};
+use rekall_core::chat::{ChatBody, ContextFill};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -242,39 +243,15 @@ pub(super) struct TokenUsageUpdated {
 #[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct TokenUsage {
-    pub total: UsageBreakdown,
-    pub last: UsageBreakdown,
+    pub total: CodexTokenCounts,
+    pub last: CodexTokenCounts,
     pub model_context_window: Option<u64>,
-}
-
-#[derive(Clone, Copy, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub(super) struct UsageBreakdown {
-    total_tokens: u64,
-    input_tokens: u64,
-    cached_input_tokens: u64,
-    #[serde(default)]
-    cache_write_input_tokens: u64,
-    output_tokens: u64,
 }
 
 impl TokenUsage {
     pub(super) fn context(self) -> Option<ContextFill> {
         let window_tokens = self.model_context_window.filter(|window| *window > 0)?;
         Some(ContextFill { used_tokens: self.last.total_tokens, window_tokens })
-    }
-}
-
-impl UsageBreakdown {
-    pub(super) fn since(self, previous: Self) -> TurnUsage {
-        let cache_read_input_tokens = self.cached_input_tokens.saturating_sub(previous.cached_input_tokens);
-        let cache_creation_input_tokens = self.cache_write_input_tokens.saturating_sub(previous.cache_write_input_tokens);
-        TurnUsage {
-            input_tokens: self.input_tokens.saturating_sub(previous.input_tokens).saturating_sub(cache_read_input_tokens),
-            cache_creation_input_tokens,
-            cache_read_input_tokens,
-            output_tokens: self.output_tokens.saturating_sub(previous.output_tokens),
-        }
     }
 }
 

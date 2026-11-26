@@ -5,7 +5,7 @@ use std::collections::VecDeque;
 use std::io;
 use std::path::Path;
 
-use rekall_core::chat::{ChatBody, NoticeKind, TurnOutcome};
+use rekall_core::chat::{ChatBody, NoticeKind, TurnOutcome, TurnUsage};
 use rekall_kernel::{Id, RekallError, Result};
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
@@ -17,9 +17,9 @@ use tracing::{debug, warn};
 use self::protocol::{
     Approval, ApprovalParams, ApprovalResolved, Delta, ItemNotification, ReplyResult, RequestId, RetryNotice, RpcError,
     ServerMessage, TextInput, ThreadStart, ThreadStarted, TokenUsage, TokenUsageUpdated, Turn, TurnInterrupt, TurnNotification,
-    TurnStart, TurnStatus, UsageBreakdown,
+    TurnStart, TurnStatus,
 };
-use crate::codex::app_server::AppServer;
+use crate::codex::{app_server::AppServer, CodexTokenCounts};
 use crate::session::SessionOptions;
 
 pub(super) enum CodexInput {
@@ -39,7 +39,7 @@ pub(super) struct CodexChat {
     turn: Option<ActiveTurn>,
     queued: VecDeque<String>,
     approvals: VecDeque<Approval>,
-    previous_usage: UsageBreakdown,
+    previous_usage: CodexTokenCounts,
 }
 
 struct ActiveTurn {
@@ -82,7 +82,7 @@ impl CodexChat {
             turn: None,
             queued: VecDeque::new(),
             approvals: VecDeque::new(),
-            previous_usage: UsageBreakdown::default(),
+            previous_usage: CodexTokenCounts::default(),
         };
         Ok((child, chat))
     }
@@ -303,9 +303,17 @@ impl CodexChat {
     fn finish_turn(&mut self, outcome: TurnOutcome, duration_ms: u64, warning: Option<ChatBody>) -> Vec<ChatBody> {
         let usage = self.turn.take().and_then(|turn| turn.usage);
         let (tokens, context) = usage.map_or_else(Default::default, |usage| {
-            let tokens = usage.total.since(self.previous_usage);
-            self.previous_usage = usage.total;
-            (tokens, usage.context())
+            let tokens = if usage.total.total_tokens >= self.previous_usage.total_tokens {
+                let delta = usage.total.since(self.previous_usage);
+                self.previous_usage = usage.total;
+                delta
+            } else {
+                Default::default()
+            };
+            (TurnUsage {
+                input_tokens: tokens.input, output_tokens: tokens.output,
+                cache_read_input_tokens: tokens.cache_read, cache_creation_input_tokens: tokens.cache_creation,
+            }, usage.context())
         });
         self.approvals.clear();
         let finished = ChatBody::TurnFinished { usage: tokens, duration_ms, outcome, cost_usd: None, context };

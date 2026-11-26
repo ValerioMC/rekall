@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import StepCheckResults from '@/features/check/components/StepCheckResults.vue'
+import ProviderTokenUsage from '@/features/tokens/components/ProviderTokenUsage.vue'
+import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 import CommitReferenceList from '@/features/commits/components/CommitReferenceList.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import type { TaskStep } from '@/features/steps/model/task-step'
@@ -9,11 +11,18 @@ import type { TaskStep } from '@/features/steps/model/task-step'
 const props = defineProps<{ step: TaskStep }>()
 
 const store = useConsoleStore()
+const tokens = useTokenUsageStore()
+const providers = computed(() => tokens.providersOfStep(props.step.id))
 const commits = computed(() => store.stepCommitReferences(props.step.id))
 </script>
 
 <template>
   <StepCheckResults :step="step" />
+
+  <section v-if="providers.length || step.state === 'RUNNING' || step.state === 'CLAIMED' || step.state === 'DONE'" aria-label="Step token usage">
+    <p class="eyebrow">Tokens generated</p>
+    <ProviderTokenUsage :providers="providers" class="mt-1" />
+  </section>
 
   <section v-if="commits.length" data-testid="step-commits">
     <span class="eyebrow">Commits <span class="font-mono">{{ commits.length }}</span></span>

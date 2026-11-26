@@ -15,5 +15,11 @@ const color = computed(() => identityHue(props.task.projectId).base)
 </script>
 
 <template>
-  <TokenTrendChip :task-ids="taskIds" :totals="totals" :color="color" subject="task" />
+  <TokenTrendChip
+    :task-ids="taskIds"
+    :totals="totals"
+    :providers="tokenUsage.providersOfTask(task.id)"
+    :color="color"
+    subject="task"
+  />
 </template>

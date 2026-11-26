@@ -22,7 +22,7 @@ Hover or focus either meter to see its available usage windows and reset times. 
 percentage in **Settings > Time and usage** applies to both rings. Codex limits require a ChatGPT
 login that reports account limits.
 
-Rekall offers guard hooks for both providers. Per-task token attribution uses Claude Code.
+Rekall offers guard hooks and task usage attribution for both providers.
 
 ## Terminal in Rekall
 
@@ -140,20 +140,23 @@ Both add endpoints take `taskId` and an optional `provider` (`CLAUDE` or `CODEX`
 
 ## Token usage
 
-Every task and every step shows the tokens Claude Code generated while working on it: on the task's row in the navigator and on each step of its checklist. A project shows the sum of its tasks wherever it is drawn: its heading in the navigator, its card and page in the catalog, and its group in a calendar day. The figure is output tokens; the tooltip adds the input, cache-write and cache-read tokens read to produce them. A task's figure includes its steps'.
+The task’s token panel and the step’s evidence show generated tokens by provider, with input
+and cache counts in the tooltip. The task total includes its steps. Project and calendar totals
+sum the tasks. When a provider has reported no attributable usage, the panel says so.
 
 Beside the name of a task in its steps, wrapup and terminal panes, and at the right end of the tag and skills line in its description pane, the figure sits with a small sparkline of the last month. A project's heading in the navigator carries the same chip for the sum of its tasks. Click it for the daily trend: the running total of generated tokens, one point per day, over **1 month**, **3 months** or **All**. Move over the chart, or use the arrow keys, to read a day's total and what that day added. The task's title line holds a copy button that puts the task's `/rk project:… task:…` command on the clipboard (the command is in its tooltip). Days are UTC days, as the server cuts them. The tag on a task's description is a badge that opens the list of tags to change it; a task with none shows a dashed **New tag** button, the way skills show **Add a skill**.
 
-The counts come from Claude Code's own session transcripts (`~/.claude/projects/<folder>/<session>.jsonl`, and `<session>/subagents/` for its subagents), read in the background every minute. Only sessions started in a project's folder, or a folder under it, are read, and a transcript is read again only once it has grown. Each model call is charged to what the session was working on when it made it:
+Rekall reads Claude Code transcripts and Codex rollouts about once a minute. It looks in the
+providers’ configured homes for sessions in project folders and task worktrees. A session’s
+reading replaces its previous reading. A Codex thread uses its cumulative counters, so repeated
+records and archived copies do not add usage twice.
 
-- an `/rk` line, or a `rekall_context` call naming one task, puts the session on that task;
-- `rekall_step` with `running` puts it on that step, and with `claimed` or `open` back on the task;
-- a subagent's calls go to what the session was on at the moment they were made;
-- calls before any of these are not Rekall work and are not counted.
+The launch prompt or a Rekall context call identifies the task. Step start moves attribution to
+that step, and a claim moves it back to the task. Counts go to the named task even if its anchor
+belongs to another project. When a step can no longer be resolved, its tokens stay on the task.
 
-The tokens follow the anchors, not the folder: a session in one project's folder working another project's task counts for that task. A task that no longer resolves is not counted; a step that no longer resolves, or is deleted, leaves its tokens on the task. Sessions run in any terminal count, not only those opened from Rekall.
-
-`GET /api/token-usage` returns one tally per task and step, `GET /api/token-usage/daily` one entry per task and day, and the console's event stream carries a task's tallies and days as a `token-usage` frame whenever a read changes them.
+`GET /api/token-usage` returns tallies by task, optional step, and provider. The daily endpoint
+returns task totals by day. The `token-usage` stream refreshes both views after a scan.
 
 | Property | Default | Meaning |
 |---|---|---|

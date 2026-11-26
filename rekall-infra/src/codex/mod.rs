@@ -8,3 +8,6 @@ pub use codex_cli::CodexCli;
 pub use codex_integration::CodexIntegration;
 
 pub(crate) use guard_hooks::{CodexHookReport, HookTrust};
+
+mod token_counts;
+pub(crate) use token_counts::CodexTokenCounts;

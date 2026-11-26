@@ -1,4 +1,4 @@
-//! The tokens Claude Code sessions spent on each task and step. A reader of the transcripts hands
+//! The tokens agent sessions spent on each task and step. A reader of the transcripts hands
 //! a session's spend over as `UnitUsage`; `TokenUsageService` resolves its anchors and keeps one
 //! set of rows per session and day, and the console sums them per step, task and project, and
 //! charts a task's spend day by day.
@@ -15,3 +15,9 @@ pub use service::token_usage_service::TokenUsageService;
 pub use event::token_usage_stream_event::TokenUsageStreamEvent;
 pub use model::unit_usage::UnitUsage;
 pub use model::work_unit::WorkUnit;
+
+const CODEX_SESSION_PREFIX: &str = "codex:";
+
+pub fn codex_session_key(session_id: &str) -> String {
+    format!("{CODEX_SESSION_PREFIX}{session_id}")
+}

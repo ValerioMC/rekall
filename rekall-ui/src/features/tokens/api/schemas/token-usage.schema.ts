@@ -1,9 +1,11 @@
 import { z } from 'zod'
+import { SESSION_PROVIDERS } from '@/features/claude/model/session-provider'
 import { asTaskId, asTaskStepId } from '@/model/branded'
 
 export const TokenTallySchema = z.object({
   taskId: z.string().uuid().transform(asTaskId),
   stepId: z.string().uuid().transform(asTaskStepId).nullable(),
+  provider: z.enum(SESSION_PROVIDERS).default('CLAUDE'),
   inputTokens: z.number().int().nonnegative(),
   outputTokens: z.number().int().nonnegative(),
   cacheCreationTokens: z.number().int().nonnegative(),

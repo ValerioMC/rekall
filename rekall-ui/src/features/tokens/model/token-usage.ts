@@ -1,9 +1,11 @@
 import type { TaskId, TaskStepId } from '@/model/branded'
+import type { SessionProvider } from '@/features/claude/model/session-provider'
 
 /** Every session's tokens on one step, or on its task outside any step, as the server sums them. */
 export interface TokenTally {
   readonly taskId: TaskId
   readonly stepId: TaskStepId | null
+  readonly provider?: SessionProvider
   readonly inputTokens: number
   readonly outputTokens: number
   readonly cacheCreationTokens: number
@@ -39,3 +41,8 @@ export interface TokenTotals {
 }
 
 export const NO_TOKENS: TokenTotals = { generated: 0, input: 0, cacheWrite: 0, cacheRead: 0 }
+
+export interface ProviderTokenTally {
+  readonly provider: SessionProvider
+  readonly totals: TokenTotals
+}

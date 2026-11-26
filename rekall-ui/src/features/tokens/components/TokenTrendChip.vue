@@ -5,7 +5,7 @@ import { describeTokens, formatTokens } from '@/common/format/token-count'
 import { chartGeometry, niceCeiling, trendOf, utcToday, type ChartBox } from '@/features/tokens/lib/token-trend'
 import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 import type { TaskId } from '@/model/branded'
-import type { TokenTotals } from '@/features/tokens/model/token-usage'
+import type { ProviderTokenTally, TokenTotals } from '@/features/tokens/model/token-usage'
 
 /**
  * What a task or a project generated, with the last month as a sparkline. It opens the daily
@@ -14,6 +14,7 @@ import type { TokenTotals } from '@/features/tokens/model/token-usage'
 const props = defineProps<{
   taskIds: readonly TaskId[]
   totals: TokenTotals
+  providers: readonly ProviderTokenTally[]
   color: string
   subject: 'task' | 'project'
 }>()
@@ -82,7 +83,7 @@ onBeforeUnmount(close)
         open ? 'border-border-strong bg-surface-raised text-text' : '',
         totals.generated > 0 ? 'text-text-muted' : 'text-text-subtle'
       ]"
-      :title="describeTokens(totals)"
+      :title="providers.length === 0 ? 'No token usage reported' : describeTokens(totals)"
       aria-haspopup="dialog"
       :aria-expanded="open"
       data-testid="token-chip"
@@ -96,7 +97,7 @@ onBeforeUnmount(close)
           stroke-linejoin="round"
         />
       </svg>
-      {{ formatTokens(totals.generated) }}
+      {{ providers.length === 0 ? '—' : formatTokens(totals.generated) }}
       <svg
         v-if="spark"
         :width="SPARK.width"
@@ -108,7 +109,7 @@ onBeforeUnmount(close)
       >
         <path :d="spark" :stroke="color" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
-      <span class="sr-only">tokens generated, open the daily trend</span>
+      <span class="sr-only">{{ providers.length ? 'tokens generated, open the daily trend' : 'No token usage reported, open the daily trend' }}</span>
     </button>
 
     <Teleport to="body">
@@ -126,6 +127,7 @@ onBeforeUnmount(close)
             :task-ids="taskIds"
             :days="tokenUsage.days"
             :totals="totals"
+            :providers="providers"
             :color="color"
             :subject="subject"
           />

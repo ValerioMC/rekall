@@ -110,7 +110,10 @@ impl Instance {
         let trackers = Trackers { issues: task_tracker.clone(), pictures: tracker_pictures };
         let queue_usage = RunQueueUsage { claude: usage.clone(), codex: codex.clone() };
         let queue = start_queue(config, &ctx, &events, &services, trackers, &sessions.hosts, queue_usage);
-        let transcripts = TranscriptScanner::new(TranscriptFolder::new(claude_config.transcripts_dir.clone()), services.token_usage.clone());
+        let transcripts = TranscriptScanner::with_codex(
+            TranscriptFolder::new(claude_config.transcripts_dir.clone()), services.token_usage.clone(), codex_cli.clone(),
+            config.home.join("worktrees"),
+        );
         let backups = DatabaseBackupService::new(
             database.conn.clone(),
             location,

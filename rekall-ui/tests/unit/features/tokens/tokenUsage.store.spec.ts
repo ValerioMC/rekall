@@ -39,6 +39,23 @@ describe('the token usage store', () => {
     expect(store.ofTask('t1' as TaskId).generated).toBe(12)
   })
 
+  it('reports task and step output by provider and leaves missing data unavailable', async () => {
+    vi.mocked(api.fetchTokenTallies).mockResolvedValue([
+      { ...tally('t1', null, 5), provider: 'CLAUDE' },
+      { ...tally('t1', 's1', 7), provider: 'CODEX' }
+    ])
+    vi.mocked(api.fetchTokenDays).mockResolvedValue([])
+    const store = useTokenUsageStore()
+    await store.load()
+
+    expect(store.ofTask('t1' as TaskId).generated).toBe(12)
+    expect(store.providersOfTask('t1' as TaskId).map(({ provider, totals }) => [provider, totals.generated])).toEqual([
+      ['CLAUDE', 5], ['CODEX', 7]
+    ])
+    expect(store.providersOfStep('s1' as TaskStepId).map(({ provider }) => provider)).toEqual(['CODEX'])
+    expect(store.providersOfStep('s2' as TaskStepId)).toEqual([])
+  })
+
   it('takes a task’s tallies from a stream event in place of the ones it held', async () => {
     vi.mocked(api.fetchTokenTallies).mockResolvedValue([tally('t1', null, 5), tally('t2', null, 3)])
     vi.mocked(api.fetchTokenDays).mockResolvedValue([day('t1', '2026-10-01', 5), day('t2', '2026-10-01', 3)])
