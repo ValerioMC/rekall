@@ -208,6 +208,7 @@ onUnmounted(() => {
             :height="editorHeight"
             grow
             :path-root="repoFolder"
+            :picture-owner="{ kind: 'PAGE', id: section.id }"
             :pages="pages"
             placeholder="Write in markdown. Anything about this project that isn't the blueprint."
             @update:model-value="schedule"
@@ -221,6 +222,7 @@ onUnmounted(() => {
                 readonly
                 :read-settings="false"
                 :path-root="repoFolder"
+                :picture-owner="{ kind: 'PAGE', id: section.id }"
                 :pages="pages"
                 @open-page="emit('openPage', $event)"
               />

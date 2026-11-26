@@ -116,6 +116,7 @@ defineExpose({ toggleMode })
               height="100%"
               :page-fullscreen="false"
               :path-root="selectedTask?.projectRepoFolder"
+              :picture-owner="selectedTask && { kind: 'TASK', id: selectedTask.id }"
               :components="projectComponents"
               :connections="projectConnections"
               :tasks="projectTasks"

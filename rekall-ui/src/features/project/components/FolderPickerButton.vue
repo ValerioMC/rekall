@@ -43,7 +43,7 @@ function choose(folder: string): void {
 </script>
 
 <template>
-  <AppButton ref="button" v-bind="$attrs" size="sm" variant="secondary" data-path-picker-trigger @click="open ? (open = false) : show()">
+  <AppButton ref="button" v-bind="$attrs" size="sm" variant="secondary" data-path-picker-trigger="folder" @click="open ? (open = false) : show()">
     Browse
   </AppButton>
 
@@ -51,7 +51,7 @@ function choose(folder: string): void {
     <Transition name="popover">
       <PathPicker
         v-if="open"
-        folders-only
+        mode="folder"
         :root="root"
         :start="visited"
         :locate="locate"

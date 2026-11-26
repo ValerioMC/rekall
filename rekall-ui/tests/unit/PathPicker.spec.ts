@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import PathPicker from '@/components/ui/PathPicker.vue'
+import type { PickerMode } from '@/components/ui/path-picker/picker-mode'
 import { ApiError } from '@/api/client'
 import type { DirectoryEntry, DirectoryListing } from '@/model/filesystem'
 
@@ -36,6 +37,10 @@ function folder(path: string, names: string[]): DirectoryListing {
 const DISK: Record<string, DirectoryListing> = {
   [PROJECT]: folder(PROJECT, ['.git/', 'docs/', 'src/', '.env', 'README.md', 'package.json']),
   [`${PROJECT}/src`]: folder(`${PROJECT}/src`, ['components/', 'main.ts']),
+  [`${HOME}/Desktop`]: folder(`${HOME}/Desktop`, [
+    'screens/', '.cache.png', 'Login Flow.PNG', 'logo.svg', 'notes.txt', 'photo.jpeg', 'spin.gif', 'tile.webp', 'wide.jpg'
+  ]),
+  [`${HOME}/Desktop/screens`]: folder(`${HOME}/Desktop/screens`, ['readme.md']),
   '/Users/me/code': folder('/Users/me/code', ['app/', 'other/']),
   [HOME]: folder(HOME, ['code/', 'Downloads/'])
 }
@@ -66,7 +71,7 @@ function installStorage(): void {
   })
 }
 
-function mountPicker(props: Partial<{ root: string | null; start: string | null; foldersOnly: boolean }> = {}): VueWrapper {
+function mountPicker(props: Partial<{ root: string | null; start: string | null; mode: PickerMode }> = {}): VueWrapper {
   wrapper = mount(PathPicker, {
     attachTo: document.body,
     props: {
@@ -249,7 +254,7 @@ describe('PathPicker', () => {
   })
 
   it('lists only folders when it is choosing one, and says so', async () => {
-    mountPicker({ foldersOnly: true })
+    mountPicker({ mode: 'folder' })
     await settle()
 
     expect(names()).toEqual(['docs', 'src'])
@@ -257,5 +262,77 @@ describe('PathPicker', () => {
     key({ key: 'ArrowDown' })
     key({ key: 'Enter' })
     expect(wrapper!.emitted('pick')).toEqual([[`${PROJECT}/src`, true]])
+  })
+
+  describe('choosing an image', () => {
+    const DESKTOP = `${HOME}/Desktop`
+
+    function mountImagePicker(start: string = DESKTOP): VueWrapper {
+      return mountPicker({ mode: 'image', start })
+    }
+
+    it('is titled for it and lists folders and picture files only', async () => {
+      mountImagePicker()
+      await settle()
+
+      expect(wrapper!.find('[data-testid="path-picker"]').attributes('aria-label')).toBe('Choose an image')
+      expect(wrapper!.find('h2').text()).toBe('Choose an image')
+      expect(names()).toEqual(['screens', 'Login Flow.PNG', 'logo.svg', 'photo.jpeg', 'spin.gif', 'tile.webp', 'wide.jpg'])
+      expect(wrapper!.findAll('[data-testid="path-picker-picture-glyph"]')).toHaveLength(6)
+    })
+
+    it('opens a folder on Enter instead of inserting it, and offers no folder insert', async () => {
+      mountImagePicker()
+      await settle()
+      expect(wrapper!.find('[data-testid="path-picker-insert-folder"]').exists()).toBe(false)
+      expect(wrapper!.text()).not.toContain('⌘↵')
+
+      key({ key: 'Enter', metaKey: true })
+      key({ key: 'Enter' })
+      await settle()
+
+      expect(wrapper!.emitted('pick')).toBeUndefined()
+      expect(wrapper!.emitted('visit')!.at(-1)).toEqual([`${DESKTOP}/screens`])
+    })
+
+    it('picks the highlighted picture on Enter and names the file it will copy', async () => {
+      mountImagePicker()
+      await settle()
+      key({ key: 'ArrowDown' })
+      await flushPromises()
+
+      expect(wrapper!.text()).toContain('Copies')
+      expect(wrapper!.find('[data-testid="path-picker-preview"]').text()).toBe(`\`${DESKTOP}/Login Flow.PNG\``)
+
+      key({ key: 'Enter' })
+      expect(wrapper!.emitted('pick')).toEqual([[`${DESKTOP}/Login Flow.PNG`, false]])
+    })
+
+    it('says a folder without pictures has none, and takes nothing from it', async () => {
+      mountImagePicker(`${DESKTOP}/screens`)
+      await settle()
+
+      expect(wrapper!.find('[data-testid="path-picker-empty"]').text()).toContain('No pictures in this folder.')
+      key({ key: 'Enter' })
+      key({ key: 'Enter', metaKey: true })
+      expect(wrapper!.emitted('pick')).toBeUndefined()
+      expect(wrapper!.find('[data-testid="path-picker-preview"]').text()).toBe('')
+    })
+
+    it('stays open on a click on its own button and closes on the path button', async () => {
+      mountImagePicker()
+      await settle()
+      const own = document.body.appendChild(document.createElement('button'))
+      own.dataset['pathPickerTrigger'] = 'image'
+      const other = document.body.appendChild(document.createElement('button'))
+      other.dataset['pathPickerTrigger'] = 'path'
+
+      own.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+      expect(wrapper!.emitted('close')).toBeUndefined()
+      other.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+      expect(wrapper!.emitted('close')).toHaveLength(1)
+      own.remove()
+      other.remove()
+    })
   })
 })

@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { splitByRanges, type PathRow } from '@/common/path/path-query'
+import { PICKER_MODES, type PickerMode } from '@/components/ui/path-picker/picker-mode'
 
 /** One folder or file of the folder in view, with the letters the filter matched lit. */
 defineProps<{
   id: string
   row: PathRow
   highlighted: boolean
+  mode: PickerMode
 }>()
 
 defineEmits<{ hover: []; activate: []; insert: [] }>()
@@ -39,6 +41,19 @@ defineEmits<{ hover: []; activate: []; insert: [] }>()
         stroke-linejoin="round"
       />
     </svg>
+    <svg
+      v-else-if="mode === 'image'"
+      class="size-3.5 shrink-0"
+      :class="highlighted ? 'text-accent' : 'text-text-muted'"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+      data-testid="path-picker-picture-glyph"
+    >
+      <rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.5" stroke="currentColor" stroke-width="1.25" />
+      <circle cx="5.5" cy="6.25" r="1.15" fill="currentColor" />
+      <path d="m2.5 11.75 3.4-3.1 2.4 2.15 2.5-2.8 2.7 3" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
     <svg v-else class="size-3.5 shrink-0 text-text-subtle" viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <path
         d="M4 1.75h5.1L12.25 5v8.25c0 .55-.45 1-1 1H4c-.55 0-1-.45-1-1V2.75c0-.55.45-1 1-1Z"
@@ -61,7 +76,10 @@ defineEmits<{ hover: []; activate: []; insert: [] }>()
     </span>
 
     <!-- On the highlighted folder, both of its moves, since a click only does one. -->
-    <span v-if="row.entry.directory && highlighted" class="flex shrink-0 items-center gap-1 text-micro text-text-subtle">
+    <span
+      v-if="row.entry.directory && highlighted && PICKER_MODES[mode].choosesFolders"
+      class="flex shrink-0 items-center gap-1 text-micro text-text-subtle"
+    >
       <button
         type="button"
         tabindex="-1"

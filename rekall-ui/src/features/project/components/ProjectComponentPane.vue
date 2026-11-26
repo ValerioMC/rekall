@@ -243,6 +243,7 @@ onUnmounted(() => {
               :height="editorHeight"
               grow
               :path-root="repoFolder"
+              :picture-owner="{ kind: 'COMPONENT', id: component.id }"
               placeholder="Purpose, interfaces, configuration, how to run it and where a change goes. Tables and mermaid diagrams are drawn."
               @update:model-value="schedule"
             />

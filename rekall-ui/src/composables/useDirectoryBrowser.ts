@@ -23,8 +23,8 @@ export interface DirectoryBrowserOptions {
   onNavigate: () => void
   /** The highlighted row changed by a load, for the caller to scroll it into view. */
   onHighlightMoved: () => void
-  /** Lists folders only, for a caller that is choosing one. */
-  foldersOnly?: () => boolean
+  /** The entries the caller can show: the rest are neither listed nor counted as hidden. */
+  lists: (entry: DirectoryEntry) => boolean
 }
 
 const SLOW_AFTER_MS = 140
@@ -122,12 +122,9 @@ export function useDirectoryBrowser(options: DirectoryBrowserOptions) {
     { immediate: true }
   )
 
-  const rows = computed<PathRow[]>(() => {
-    if (!listing.value || failure.value) return []
-    const entries = options.foldersOnly?.() ? listing.value.entries.filter((entry) => entry.directory) : listing.value.entries
-    return filterEntries(entries, parsed.value.needle, showHidden.value)
-  })
-  const hiddenCount = computed(() => listing.value?.entries.filter((entry) => entry.hidden).length ?? 0)
+  const listed = computed<DirectoryEntry[]>(() => listing.value?.entries.filter(options.lists) ?? [])
+  const rows = computed<PathRow[]>(() => (failure.value ? [] : filterEntries(listed.value, parsed.value.needle, showHidden.value)))
+  const hiddenCount = computed(() => listed.value.filter((entry) => entry.hidden).length)
   const current = computed<DirectoryEntry | null>(() => rows.value[highlighted.value]?.entry ?? null)
 
   watch(rows, (next) => {

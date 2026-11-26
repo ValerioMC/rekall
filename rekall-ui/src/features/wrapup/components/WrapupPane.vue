@@ -258,6 +258,7 @@ async function sendWrapupHere(message: string): Promise<void> {
               v-model="draft"
               height="100%"
               :path-root="selectedTask?.projectRepoFolder"
+              :picture-owner="selectedTask && { kind: 'TASK', id: selectedTask.id }"
               @update:model-value="scheduleSave"
             />
             <AppMarkdownEditor v-else key="read" :model-value="draft" readonly :read-settings="!embedded" />

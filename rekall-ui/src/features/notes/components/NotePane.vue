@@ -157,6 +157,7 @@ async function confirmDelete(): Promise<void> {
               v-model="draft.bodyMarkdown"
               height="100%"
               :path-root="notePathRoot"
+              :picture-owner="selectedDocument && { kind: 'TASK', id: selectedDocument.taskId }"
               @update:model-value="scheduleSave"
             />
             <AppMarkdownEditor v-else key="read" :model-value="draft.bodyMarkdown" readonly :read-settings="false" />
