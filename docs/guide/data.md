@@ -54,7 +54,7 @@ A note most sessions do not need can go **By reference**, switched on the note's
 
 ## Backups
 
-SQLite's `VACUUM INTO` copies the open database, consistently and without stopping it, into a zip in a `backups` folder beside it, and the pictures kept in `images/` go into the same zip under their own paths, uncompressed, so a backup restores on its own. Every backup kept repeats every picture. One is taken when Rekall starts and whenever the newest is older than the interval, checked every hour; **Back up now** in **Settings > Backups** takes one on demand, and every restore takes one first. Only the newest are kept.
+SQLite's `VACUUM INTO` copies the open database, consistently and without stopping it, into a zip in a `backups` folder beside it, and the pictures kept in `images/` go into the same zip under their own paths, uncompressed, so a backup restores on its own. Every backup kept repeats every picture. One is taken when Rekall starts and whenever the newest is older than the interval, checked every hour; **Back up now** in **Settings > Data and backup** takes one on demand, and every restore takes one first. Only the newest are kept.
 
 | Property | Default | Meaning |
 |---|---|---|
@@ -63,6 +63,10 @@ SQLite's `VACUUM INTO` copies the open database, consistently and without stoppi
 | `rekall.backup.keep` | `10` | Backups kept, of every kind together; the oldest go first |
 
 **Restore** on a listed backup, or **Restore from a file…** with a zip from elsewhere, replaces the whole database: the zip has to hold a Rekall SQLite database (`rekall.db`, checked by its header), what is there now is backed up first, the zip's pictures are then written into `images/`, and Rekall restarts on the restored file, migrating it forward if it came from an older version. A restore adds pictures and writes over those of the same path; one that is only on disk stays. Only entries shaped like a picture's path are taken from the zip, and a zip without pictures restores as any other. That round trip is also how a database moves to another machine: **Download** a backup here, restore it there. An in-memory database has no backups. The REST side is `GET` and `POST /api/backups`, `GET /api/backups/{name}`, `POST /api/backups/{name}/restore` and `POST /api/backups/restore` (multipart `file`, up to 1 GB, pictures included). A download reads the whole zip into memory.
+
+## Unused pictures
+
+A picture stays in `images/` after the text showing it is deleted. **Find unused images** in **Settings > Data and backup** searches every stored text in the background while you keep working, then lists the pictures none of them shows, with thumbnail, folder and size. **Delete** removes them for good after a confirmation, and **Cancel** drops the list. A picture written in the last 24 hours is never listed, and one a text shows again by the time you delete is kept. Rekall tells you when the search and the deletion end. How it reads and what it guards against is in [DESIGN §4.7](../DESIGN.md).
 
 ## Older databases
 

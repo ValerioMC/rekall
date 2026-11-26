@@ -3,7 +3,8 @@ import { computed } from 'vue'
 import { splitByRanges, type PathRow } from '@/common/path/path-query'
 import FileGlyph from '@/components/ui/FileGlyph.vue'
 import { PICKER_MODES, type PickerMode } from '@/components/ui/path-picker/picker-mode'
-import SourceThumbnail from '@/features/picture/components/SourceThumbnail.vue'
+import PictureThumbnail from '@/features/picture/components/PictureThumbnail.vue'
+import { sourceThumbnailUrl } from '@/features/picture/api/pictures.api'
 
 /** One folder or file of the folder in view, with the letters the filter matched lit. A picture to choose shows itself. */
 const props = defineProps<{
@@ -34,7 +35,7 @@ const showsPictures = computed(() => props.mode === 'image')
     @mousemove="$emit('hover')"
     @click="$emit('activate')"
   >
-    <SourceThumbnail v-if="showsPictures && !row.entry.directory" :path="row.entry.path" class="size-9 shrink-0" />
+    <PictureThumbnail v-if="showsPictures && !row.entry.directory" :src="sourceThumbnailUrl(row.entry.path)" class="size-9 shrink-0" />
     <!-- Beside thumbnails a folder's glyph takes the same box, so the names stay in one column. -->
     <span v-else :class="showsPictures ? 'grid size-9 shrink-0 place-items-center' : 'contents'">
       <svg

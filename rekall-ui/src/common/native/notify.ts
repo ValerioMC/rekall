@@ -10,7 +10,7 @@ export type { DesktopNotice }
 
 const ENABLED_KEY = 'rekall.notify.claims'
 
-export function claimNotificationsEnabled(): boolean {
+export function notificationsEnabled(): boolean {
   try {
     return window.localStorage.getItem(ENABLED_KEY) !== 'off'
   } catch {
@@ -18,7 +18,7 @@ export function claimNotificationsEnabled(): boolean {
   }
 }
 
-export function setClaimNotificationsEnabled(enabled: boolean): void {
+export function setNotificationsEnabled(enabled: boolean): void {
   try {
     window.localStorage.setItem(ENABLED_KEY, enabled ? 'on' : 'off')
   } catch {
@@ -28,6 +28,11 @@ export function setClaimNotificationsEnabled(enabled: boolean): void {
 function nativeNotify(): ((notice: DesktopNotice) => Promise<boolean>) | null {
   const notify = window.rekallDesktop?.notify
   return typeof notify === 'function' ? notify.bind(window.rekallDesktop) : null
+}
+
+/** True while the window is hidden or another app has the focus. */
+export function isConsoleInBackground(): boolean {
+  return document.visibilityState !== 'visible' || !document.hasFocus()
 }
 
 /** Whether this host can show a notification at all, asked or not. */
@@ -49,7 +54,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
 
 /** Posts the notice if this machine wants them and the host allows it; says whether it did. */
 export async function postNotice(notice: DesktopNotice): Promise<boolean> {
-  if (!claimNotificationsEnabled()) return false
+  if (!notificationsEnabled()) return false
   const native = nativeNotify()
   if (native) return native(notice)
   if (typeof window.Notification !== 'function' || window.Notification.permission !== 'granted') return false

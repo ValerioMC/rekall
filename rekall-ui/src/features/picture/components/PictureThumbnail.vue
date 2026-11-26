@@ -2,13 +2,9 @@
 import { ref } from 'vue'
 import FileGlyph from '@/components/ui/FileGlyph.vue'
 import { useSeen } from '@/composables/useSeen'
-import { sourceThumbnailUrl } from '@/features/picture/api/pictures.api'
 
-/**
- * The preview of a picture file on this machine, asked for once its box has been in view. One that
- * cannot be drawn keeps a plain file glyph.
- */
-withDefaults(defineProps<{ path: string; alt?: string }>(), { alt: '' })
+/** A picture asked for once its box has been in view. One that cannot be drawn keeps a plain file glyph. */
+withDefaults(defineProps<{ src: string; alt?: string }>(), { alt: '' })
 
 const box = ref<HTMLElement | null>(null)
 const seen = useSeen(box)
@@ -20,11 +16,11 @@ const failed = ref(false)
     <FileGlyph v-if="failed" />
     <img
       v-else-if="seen"
-      :src="sourceThumbnailUrl(path)"
+      :src="src"
       :alt="alt"
       class="absolute inset-0 size-full object-scale-down"
       draggable="false"
-      data-testid="source-thumbnail"
+      data-testid="picture-thumbnail"
       @error="failed = true"
     />
   </span>

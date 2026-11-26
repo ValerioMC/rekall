@@ -196,7 +196,7 @@ The guides describe each area as it behaves today, with its REST routes and prop
 | Claude resources | Edit `~/.claude`: instructions, skills, commands, agents, memories, memory review | [claude-resources](docs/guide/claude-resources.md) |
 | Diagrams | Mermaid diagrams linked to code, and walkthroughs the console plays | [diagrams](docs/guide/diagrams.md) |
 | Security | Dependency inventory, critical advisories, assessments, fix tasks | [security](docs/guide/security.md) |
-| Data | The model, context size, notes by reference, backups, older databases | [data](docs/guide/data.md) |
+| Data | The model, context size, notes by reference, backups, unused pictures, older databases | [data](docs/guide/data.md) |
 
 ## Configuration
 
@@ -208,7 +208,7 @@ Properties are passed as `--name=value` arguments or as environment variables in
 | `REKALL_HOME` | `~/.rekall` | Where `config.json` records the database folder |
 | `REKALL_DATABASE_URL` (`rekall.database.url`, or `REKALL_DB_URL`) | the folder in `config.json` | `sqlite:<path>` to a database file, or `sqlite::memory:`, overriding the setup wizard's choice. `spring.datasource.url` is still read, with a deprecation warning |
 
-Pictures are files in `images/` beside the database, and every backup zip holds them. Notes are stored in plain text in the database file. Credentials kept in them are only as protected as the disk is. A connection's credential is never in the database: it goes to `secrets.json` under `rekall.home`, a file only its owner can read and that is not encrypted.
+Pictures are files in `images/` beside the database, and every backup zip holds them. **Settings > Data and backup** finds the ones no text shows, in the background, previews them and deletes them when you confirm. Notes are stored in plain text in the database file. Credentials kept in them are only as protected as the disk is. A connection's credential is never in the database: it goes to `secrets.json` under `rekall.home`, a file only its owner can read and that is not encrypted.
 
 ## Develop
 

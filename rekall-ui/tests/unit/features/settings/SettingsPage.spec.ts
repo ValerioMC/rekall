@@ -14,6 +14,9 @@ vi.mock('@/features/settings/components/VersionSection.vue', () => ({ default: {
 vi.mock('@/features/settings/components/ClaudeCodeSection.vue', () => ({ default: { template: '<div data-testid="claude-section" />' } }))
 vi.mock('@/features/settings/components/CodexSection.vue', () => ({ default: { template: '<div data-testid="codex-settings" />' } }))
 vi.mock('@/features/settings/components/GuardProtectionSection.vue', () => ({ default: { template: '<div />' } }))
+vi.mock('@/features/picture/components/PictureCleanupPanel.vue', () => ({ default: { template: '<section data-testid="picture-cleanup" />' } }))
+vi.mock('@/features/settings/components/BackupsSection.vue', () => ({ default: { template: '<div data-testid="backups-section" />' } }))
+vi.mock('@/features/settings/components/LangfuseSection.vue', () => ({ default: { template: '<div data-testid="langfuse-section" />' } }))
 
 async function mountAt(path: string) {
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/settings/:section?/:topic?', name: 'settings', component: { render: () => null } }, { path: '/:p(.*)*', component: { render: () => null } }] })
@@ -58,6 +61,15 @@ describe('the Settings screen', () => {
 
     expect(page.find('[data-testid="version-section"]').exists()).toBe(true)
     expect(page.get('[data-testid="settings-rail-about"]').attributes('aria-current')).toBe('page')
+  })
+
+  it('opens Data and backup with the unused images above the backups and Langfuse', async () => {
+    const page = await mountAt('/settings/data')
+
+    expect(page.findAll('main [data-testid]').map((part) => part.attributes('data-testid'))).toEqual([
+      'picture-cleanup', 'form-panel', 'backups-section', 'form-panel', 'langfuse-section'
+    ])
+    expect(page.findAll('main h2').map((title) => title.text())).toEqual(['Backups', 'Langfuse'])
   })
 
   it('switches the provider from the shared menu and saves it for new sessions', async () => {

@@ -3,19 +3,19 @@ import { ref } from 'vue'
 import AppCheckbox from '@/components/ui/AppCheckbox.vue'
 import {
   canNotify,
-  claimNotificationsEnabled,
+  notificationsEnabled,
   requestNotificationPermission,
-  setClaimNotificationsEnabled
+  setNotificationsEnabled
 } from '@/common/native/notify'
 
-const enabled = ref(claimNotificationsEnabled())
+const enabled = ref(notificationsEnabled())
 const refused = ref(false)
 const available = canNotify()
 
 // The browser grants permission only from a click, which is why it is asked here and nowhere else.
 async function toggle(value: boolean): Promise<void> {
   enabled.value = value
-  setClaimNotificationsEnabled(value)
+  setNotificationsEnabled(value)
   refused.value = value ? !(await requestNotificationPermission()) : false
 }
 </script>
@@ -25,7 +25,7 @@ async function toggle(value: boolean): Promise<void> {
     <h3 id="notifications-heading" class="eyebrow mb-2">Notifications</h3>
     <AppCheckbox
       :model-value="enabled"
-      label="Tell me when a session claims work while Rekall is in the background"
+      label="Notify me while Rekall is in the background"
       described-by="notifications-hint"
       data-testid="notify-claims"
       @update:model-value="toggle"
@@ -36,8 +36,8 @@ async function toggle(value: boolean): Promise<void> {
         The system refused. Allow notifications for Rekall in its settings, then turn this on again.
       </template>
       <template v-else>
-        A claimed step, or a stepless task whose wrapup claimed it, joins the Review list (the checklist icon in the top
-        bar) either way. Stored on this machine, not in the database.
+        A notification for work a session claims, and for the end of a search or deletion of unused images. Claimed work
+        joins the Review list (the checklist icon in the top bar) either way. Stored on this machine, not in the database.
       </template>
     </p>
   </section>

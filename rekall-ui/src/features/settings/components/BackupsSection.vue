@@ -76,9 +76,7 @@ onMounted(load)
 </script>
 
 <template>
-  <section aria-labelledby="backups-heading" data-testid="backups-section">
-    <h3 id="backups-heading" class="eyebrow mb-2">Backups</h3>
-
+  <section aria-label="Backups" data-testid="backups-section">
     <RestartingOverlay v-if="phase === 'restarting'" />
 
     <p v-else-if="phase === 'timed-out'" class="text-small text-warn">

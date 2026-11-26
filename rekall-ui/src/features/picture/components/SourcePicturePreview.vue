@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { APP_LOCALE } from '@/common/format/app-locale'
-import SourceThumbnail from '@/features/picture/components/SourceThumbnail.vue'
+import { sourceThumbnailUrl } from '@/features/picture/api/pictures.api'
+import PictureThumbnail from '@/features/picture/components/PictureThumbnail.vue'
 import type { DirectoryEntry } from '@/model/filesystem'
 
 /** The highlighted entry of the image picker, large enough to recognise before choosing it. */
@@ -20,7 +21,7 @@ function inKilobytes(bytes: number): string {
     data-testid="picture-preview"
   >
     <template v-if="picture">
-      <SourceThumbnail :key="picture.path" :path="picture.path" :alt="picture.name" class="min-h-0 min-w-0 flex-1" />
+      <PictureThumbnail :key="picture.path" :src="sourceThumbnailUrl(picture.path)" :alt="picture.name" class="min-h-0 min-w-0 flex-1" />
       <figcaption class="w-40 min-w-0 self-end @xl:w-auto @xl:self-auto">
         <p class="truncate font-mono text-small text-text" :title="picture.name">{{ picture.name }}</p>
         <p v-if="picture.size !== null" class="text-caption tabular-nums text-text-subtle" data-testid="picture-preview-size">

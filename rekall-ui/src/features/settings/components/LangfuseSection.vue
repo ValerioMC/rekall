@@ -72,8 +72,6 @@ onMounted(() => void load())
 
 <template>
   <section data-testid="langfuse-section">
-    <p class="mb-3 eyebrow text-caption">Langfuse</p>
-
     <div v-if="loading" class="skeleton h-20 rounded-control" aria-hidden="true" />
 
     <form

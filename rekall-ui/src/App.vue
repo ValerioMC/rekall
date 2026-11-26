@@ -7,7 +7,6 @@ import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import ReviewPage from '@/features/review/components/ReviewPage.vue'
 import TaskPage from '@/features/task/components/TaskPage.vue'
 import RunQueuePanel from '@/features/queue/components/RunQueuePanel.vue'
-import AppToaster from '@/components/ui/AppToaster.vue'
 import ChatDock from '@/features/chat/components/ChatDock.vue'
 import ChatReopenTag from '@/features/chat/components/ChatReopenTag.vue'
 import { useConsoleStore } from '@/stores/console.store'
@@ -171,7 +170,6 @@ onUnmounted(() => {
     <Transition name="dialog">
       <RunQueuePanel v-if="runQueueOpen" @close="runQueue.closePanel()" />
     </Transition>
-    <AppToaster />
   </div>
 </template>
 
