@@ -23,8 +23,7 @@ const ChangedFileSchema = z.object({
   kind: z.enum(['ADDED', 'MODIFIED', 'DELETED', 'RENAMED']),
   binary: z.boolean(),
   additions: z.number().int(),
-  deletions: z.number().int(),
-  hunks: z.array(DiffHunkSchema)
+  deletions: z.number().int()
 })
 
 const CommitChangesSchema = z.object({
@@ -45,4 +44,16 @@ const RepositoryChangesSchema = z.object({
   workingTree: z.object({ truncated: z.boolean(), files: z.array(ChangedFileSchema) }).nullable()
 })
 
-export const TaskChangesSchema = z.object({ repositories: z.array(RepositoryChangesSchema) })
+export const TaskChangesIndexSchema = z.object({
+  snapshotId: z.string().uuid(),
+  repositories: z.array(RepositoryChangesSchema)
+})
+
+export const ChangeFileBatchSchema = z.array(z.object({
+  file: z.object({ componentId: z.string().uuid().nullable(), path: z.string().min(1) }),
+  source: z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('commit'), referenceId: z.string().uuid() }),
+    z.object({ kind: z.literal('working-tree') })
+  ]),
+  hunks: z.array(DiffHunkSchema)
+}))

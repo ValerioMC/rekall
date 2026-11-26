@@ -5,7 +5,7 @@ import type { RepositoryRef, ReviewFile } from '@/features/commits/lib/change-so
 const repository: RepositoryRef = { id: 'project', name: 'vega', position: 0 }
 
 function file(path: string): ReviewFile {
-  return { id: `project::${path}`, repository, path, oldPath: null, kind: 'MODIFIED', binary: false, additions: 1, deletions: 0, hunks: [], sources: [] }
+  return { id: `project::${path}`, repository, path, oldPath: null, kind: 'MODIFIED', binary: false, additions: 1, deletions: 0, sources: [] }
 }
 
 function shape(nodes: readonly TreeNode[]): unknown[] {

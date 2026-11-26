@@ -4,9 +4,12 @@
 use axum::extract::{Path, Query, State};
 use axum::routing::{get, patch, post};
 use axum::{Json, Router};
-use rekall_core::commit::{CommitReferenceView, RecentCommitView, TaskChangesView};
+use rekall_core::commit::{ChangeFileHunksView, CommitReferenceView, RecentCommitView, TaskChangesIndexView, TaskChangesView};
 
-use crate::commit::{CommitReferenceContextRequest, CommitReferenceDiffResponse, CommitReferenceRequest, PickedCommitReferenceRequest, RecentCommitsQuery};
+use crate::commit::{
+    CommitReferenceContextRequest, CommitReferenceDiffResponse, CommitReferenceRequest, PickedCommitReferenceRequest, RecentCommitsQuery,
+    TaskChangesFilesRequest,
+};
 use crate::shared::error::ApiResult;
 use crate::shared::extract::{uuid, JsonBody, OptionalJsonBody, Validator};
 use crate::ApiState;
@@ -18,6 +21,8 @@ pub fn routes() -> Router<ApiState> {
         .route("/api/tasks/{task_id}/recent-commits", get(recent_commits))
         .route("/api/tasks/{task_id}/commit-references", post(record))
         .route("/api/tasks/{task_id}/changes", get(changes))
+        .route("/api/tasks/{task_id}/changes/index", get(changes_index))
+        .route("/api/tasks/{task_id}/changes/files", post(changes_files))
         .route("/api/commit-references/{id}/diff", get(diff))
         .route("/api/commit-references/{id}", patch(set_in_context).delete(delete))
 }
@@ -65,6 +70,20 @@ async fn record(
 /// What the task changed: each logged commit's files and hunks, and the uncommitted working tree.
 async fn changes(State(state): State<ApiState>, Path(task_id): Path<String>) -> ApiResult<Json<TaskChangesView>> {
     Ok(Json(state.task_changes.of_task(uuid("taskId", &task_id)?).await?))
+}
+
+async fn changes_index(State(state): State<ApiState>, Path(task_id): Path<String>) -> ApiResult<Json<TaskChangesIndexView>> {
+    Ok(Json(state.task_changes.index(uuid("taskId", &task_id)?).await?))
+}
+
+async fn changes_files(
+    State(state): State<ApiState>,
+    Path(task_id): Path<String>,
+    JsonBody(request): JsonBody<TaskChangesFilesRequest>,
+) -> ApiResult<Json<Vec<ChangeFileHunksView>>> {
+    let task_id = uuid("taskId", &task_id)?;
+    request.validate()?;
+    Ok(Json(state.task_changes.hunks(task_id, request.snapshot_id, request.scope, &request.files).await?))
 }
 
 async fn diff(State(state): State<ApiState>, Path(id): Path<String>) -> ApiResult<Json<CommitReferenceDiffResponse>> {

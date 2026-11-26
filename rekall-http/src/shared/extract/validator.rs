@@ -13,6 +13,13 @@ impl Validator {
         Self::default()
     }
 
+    pub fn require(mut self, field: &str, valid: bool, message: impl Into<String>) -> Self {
+        if !valid {
+            self.errors.push((field.into(), message.into()));
+        }
+        self
+    }
+
     /// Absent, empty or whitespace only is refused.
     pub fn not_blank(mut self, field: &str, value: Option<&str>) -> Self {
         if jstr::is_null_or_blank(value) {

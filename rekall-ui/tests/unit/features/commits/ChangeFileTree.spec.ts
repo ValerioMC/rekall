@@ -7,7 +7,7 @@ const project: RepositoryRef = { id: 'project', name: 'vega', position: 0 }
 const site: RepositoryRef = { id: 'site', name: 'site', position: 1 }
 
 function file(path: string, repository: RepositoryRef = project): ReviewFile {
-  return { id: `${repository.id}::${path}`, repository, path, oldPath: null, kind: 'MODIFIED', binary: false, additions: 2, deletions: 1, hunks: [], sources: [] }
+  return { id: `${repository.id}::${path}`, repository, path, oldPath: null, kind: 'MODIFIED', binary: false, additions: 2, deletions: 1, sources: [] }
 }
 
 const FILES = [file('core/src/commit/model/a.rs'), file('core/src/commit/model/b.rs'), file('core/src/lib.rs'), file('README.md')]
