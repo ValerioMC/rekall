@@ -22,7 +22,7 @@ Hover or focus either meter to see its available usage windows and reset times. 
 percentage in **Settings > Time and usage** applies to both rings. Codex limits require a ChatGPT
 login that reports account limits.
 
-Rekall’s installed guard hooks and per-task token attribution use Claude Code.
+Rekall offers guard hooks for both providers. Per-task token attribution uses Claude Code.
 
 ## Terminal in Rekall
 
@@ -82,31 +82,22 @@ Each finished turn leaves the share of the context window its last call held, fo
 
 Tokens are counted from the transcripts either way, and the token chip counts a chat session's work. Whether chat spends more or fewer tokens than a terminal has not been measured; `scripts/session_shape.py` compares them by session type, and a first run on a very small sample, with no cold turn on either side, says nothing about cache expiry (see [claude-and-tokens](../design/claude-and-tokens.md)).
 
-## Guard command
+## Worktree protections
 
-`rekall-server guard before-tool` and `rekall-server guard before-stop` are the programs Claude Code
-runs as a `PreToolUse` and a `Stop` hook. Each reads the hook's JSON on standard input, asks the
-running Rekall for the context of the session's folder, and exits 0 to let the action go ahead or 2 to
-block it with the reason on standard error.
+Open **Settings → Sessions → Protections** to install, repair, or remove the hooks for each
+provider. For Codex, open `/hooks` in the Codex terminal, review and trust both Rekall entries,
+then refresh their status in Settings. Start a fresh session after setup.
 
-- On an `auto-commit` project it blocks `git commit`, `git push` and `git add` (also after `&&`, in a
-  subshell or in `sh -c`), because Rekall commits when a step is claimed.
-- On every project it blocks a tool call that names Rekall's credential file, Claude Code's credential
-  file or the credential helpers' endpoint.
-- On `Stop` it blocks while a step of the folder's project is running and unclaimed, once: the next `Stop`
-  goes through so the session can explain why it could not claim.
+- On a project where Rekall commits for you, the hooks block direct `git commit`, `git push`, and
+  `git add` commands. Claiming a step lets Rekall run checks and commit the work.
+- On any project, the hooks block supported tool calls that name protected credential locations.
+- When a session stops with its task’s step still running, the hook gives the exact claim command,
+  such as `/rk task:VE-12 step:2 done`. The provider can continue once. Preparation launches and
+  sessions opened on a project folder without a task receive no step reminder.
 
-It lets the action through, and writes a line to `<rekall.home>/guard.log`, when Rekall does not answer
-within a second, when the input cannot be read or when a command has an unclosed quote. The port is
-`server.port` (`SERVER_PORT`), as for the server. Try it by hand:
-
-```
-echo '{"cwd":"/path/to/project","tool_name":"Bash","tool_input":{"command":"git commit -m x"}}' | rekall-server guard before-tool; echo $?
-```
-
-**Settings, Protections** installs the two hooks into `~/.claude/settings.json` and removes them
-again, keeping every other setting and hook of yours; a settings file that is not valid JSON is shown as
-such and never edited. The design is in [write-safety](../design/write-safety.md).
+Rekall launches the provider with its existing permissions. The hooks let the action through if
+Rekall is unreachable or cannot read the event and log the failure to `<rekall.home>/guard.log`.
+See [write safety](../design/write-safety.md) for hook inputs and configuration paths.
 
 ## Run queue
 

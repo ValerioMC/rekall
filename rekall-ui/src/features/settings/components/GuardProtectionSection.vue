@@ -1,131 +1,132 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { storeToRefs } from 'pinia'
-import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
-import { useGuardProtectionStore } from '@/features/settings/store/guardProtection.store'
+import AppBadge from '@/components/ui/AppBadge.vue'
+import SessionProviderMark from '@/features/claude/components/SessionProviderMark.vue'
+import { SESSION_PROVIDER_LABEL, SESSION_PROVIDERS } from '@/features/claude/model/session-provider'
+import type { SessionProvider } from '@/features/claude/model/session-provider'
 import type { GuardProtectionState } from '@/features/settings/model/guardProtection'
+import { useGuardProtectionStore } from '@/features/settings/store/guardProtection.store'
 import { useToastStore } from '@/stores/toast.store'
-
-const toast = useToastStore()
-const store = useGuardProtectionStore()
-const { protection } = storeToRefs(store)
-const loading = ref(true)
-const working = ref(false)
+import { onMounted, reactive } from 'vue'
 
 interface Presentation {
   readonly tone: 'neutral' | 'safe' | 'warn'
   readonly label: string
+  readonly action?: 'Install' | 'Repair' | 'Refresh'
 }
 
 const PRESENTATION: Readonly<Record<GuardProtectionState, Presentation>> = {
   INSTALLED: { tone: 'safe', label: 'Installed' },
-  NOT_INSTALLED: { tone: 'neutral', label: 'Not installed' },
-  INVALID_SETTINGS: { tone: 'warn', label: 'Settings file not valid' }
+  NOT_INSTALLED: { tone: 'neutral', label: 'Not installed', action: 'Install' },
+  NEEDS_REPAIR: { tone: 'warn', label: 'Needs repair', action: 'Repair' },
+  INVALID_SETTINGS: { tone: 'warn', label: 'Invalid settings', action: 'Refresh' },
+  UNSUPPORTED: { tone: 'warn', label: 'Unavailable', action: 'Refresh' },
+  TRUST_REQUIRED: { tone: 'warn', label: 'Trust required', action: 'Refresh' },
+  DISABLED: { tone: 'warn', label: 'Disabled in Codex', action: 'Refresh' }
 }
 
-const RULES: readonly string[] = [
-  'On a project where Rekall commits for you, git commit, push and add are refused.',
-  "Reading, copying or searching the files where credentials are kept is refused.",
-  'A session cannot end while a step is running and was never claimed.'
-]
+const store = useGuardProtectionStore()
+const toast = useToastStore()
+const pending = reactive<Partial<Record<SessionProvider, 'refresh' | 'install' | 'remove'>>>({})
 
-const presentation = computed<Presentation | null>(() =>
-  protection.value ? PRESENTATION[protection.value.state] : null
-)
+function presentation(provider: SessionProvider): Presentation {
+  const state = store.byProvider[provider]?.state
+  return state ? PRESENTATION[state] : { tone: 'neutral', label: 'Couldn’t read status', action: 'Refresh' }
+}
 
-async function load(): Promise<void> {
-  loading.value = true
+async function run(provider: SessionProvider, action: 'refresh' | 'install' | 'remove'): Promise<void> {
+  if (pending[provider]) return
+  pending[provider] = action
   try {
-    await store.load()
+    if (action === 'install') await store.install(provider)
+    else if (action === 'remove') await store.remove(provider)
+    else await store.load(provider)
   } catch (caught) {
     toast.notifyError(caught)
   } finally {
-    loading.value = false
+    delete pending[provider]
   }
 }
 
-async function change(action: () => Promise<void>, done: string): Promise<void> {
-  working.value = true
-  try {
-    await action()
-    toast.notify(done)
-  } catch (caught) {
-    toast.notifyError(caught)
-  } finally {
-    working.value = false
-  }
-}
-
-const install = (): Promise<void> =>
-  change(() => store.install(), 'Protections installed. A session started from now on is covered.')
-const remove = (): Promise<void> => change(() => store.remove(), 'Protections removed.')
-
-onMounted(() => void load())
+onMounted(() => {
+  for (const provider of SESSION_PROVIDERS) void run(provider, 'refresh')
+})
 </script>
 
 <template>
-  <section data-testid="guard-section">
-    <p class="mb-3 eyebrow text-caption">Protections</p>
+  <section aria-labelledby="guard-heading" data-testid="guard-section">
+    <h2 id="guard-heading" class="mb-3 eyebrow text-caption">Protections</h2>
 
-    <div v-if="loading" class="skeleton h-20 rounded-control" aria-hidden="true" />
-
-    <div v-else-if="protection" class="rounded-control border border-border bg-canvas px-3.5 py-3">
-      <div class="flex items-start justify-between gap-3">
+    <ul class="divide-y divide-border rounded-control border border-border bg-canvas">
+      <li
+        v-for="provider in SESSION_PROVIDERS"
+        :key="provider"
+        class="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 px-3.5 py-3"
+        :data-testid="`guard-provider-${provider}`"
+      >
         <div class="min-w-0 flex-1">
-          <AppBadge :tone="presentation!.tone" dot data-testid="guard-status">
-            {{ presentation!.label }}
-          </AppBadge>
-          <p class="mt-1.5 text-small leading-relaxed text-text-muted">
-            A hook is a small program Claude Code runs by itself, outside the model, just before a tool runs
-            and just before a session ends. If it says no, the action does not happen and the model is told
-            why. A rule written in a prompt can be forgotten; a hook cannot be skipped.
-          </p>
+          <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <SessionProviderMark :provider="provider" />
+            <h3 class="text-small font-semibold text-text">{{ SESSION_PROVIDER_LABEL[provider] }}</h3>
+            <span role="status">
+              <span
+                v-if="pending[provider] === 'refresh' && !store.byProvider[provider]"
+                class="text-caption text-text-subtle"
+              >
+                Checking…
+              </span>
+              <AppBadge v-else :tone="presentation(provider).tone" dot data-testid="guard-status">
+                {{ presentation(provider).label }}
+              </AppBadge>
+            </span>
+          </div>
           <p
-            v-if="protection.problem"
-            class="mt-1.5 text-small leading-relaxed text-warn"
+            v-if="store.byProvider[provider]?.problem"
+            class="mt-2 text-small leading-relaxed text-warn"
             data-testid="guard-problem"
           >
-            {{ protection.problem }}
+            {{ store.byProvider[provider]?.problem }}
           </p>
-          <p class="mt-1 truncate font-mono text-caption text-text-subtle" :title="protection.settingsFile">
-            {{ protection.settingsFile }}
+          <p
+            v-if="store.byProvider[provider]"
+            class="mt-1 truncate font-mono text-caption text-text-subtle"
+            :title="store.byProvider[provider]?.settingsFile"
+          >
+            {{ store.byProvider[provider]?.settingsFile }}
           </p>
         </div>
-        <div class="flex shrink-0 gap-2">
+        <div class="flex flex-wrap gap-2">
           <AppButton
-            v-if="protection.state === 'INSTALLED'"
+            v-if="store.byProvider[provider]?.configured"
             size="sm"
-            variant="secondary"
-            :loading="working"
+            variant="quiet"
+            :loading="pending[provider] === 'remove'"
+            :disabled="Boolean(pending[provider])"
+            :aria-label="`Remove ${SESSION_PROVIDER_LABEL[provider]} protections`"
             data-testid="guard-remove"
-            @click="remove"
+            @click="run(provider, 'remove')"
           >
-            Remove protections
+            Remove
           </AppButton>
           <AppButton
-            v-if="protection.state !== 'INVALID_SETTINGS'"
+            v-if="presentation(provider).action && (store.byProvider[provider] || !pending[provider])"
             size="sm"
-            variant="primary"
-            :loading="working"
-            data-testid="guard-install"
-            @click="install"
+            :loading="Boolean(pending[provider] && pending[provider] !== 'remove')"
+            :disabled="Boolean(pending[provider])"
+            :aria-label="`${presentation(provider).action} ${SESSION_PROVIDER_LABEL[provider]} protections`"
+            data-testid="guard-action"
+            @click="run(provider, presentation(provider).action === 'Refresh' ? 'refresh' : 'install')"
           >
-            {{ protection.state === 'INSTALLED' ? 'Reinstall' : 'Install protections' }}
+            {{ presentation(provider).action }}
           </AppButton>
         </div>
-      </div>
+      </li>
+    </ul>
 
-      <ul class="mt-3 space-y-1 border-t border-border pt-3" data-testid="guard-rules">
-        <li v-for="rule in RULES" :key="rule" class="text-caption leading-relaxed text-text-subtle">
-          {{ rule }}
-        </li>
-      </ul>
-    </div>
-
-    <div v-else class="flex flex-col items-start gap-3 text-small text-text-subtle">
-      <p>Couldn't read the protections.</p>
-      <AppButton size="sm" variant="secondary" @click="load">Retry</AppButton>
-    </div>
+    <ul class="mt-3 space-y-1 text-caption leading-relaxed text-text-subtle" data-testid="guard-rules">
+      <li>Blocks manual Git commits, pushes and staging on projects where Rekall commits for you.</li>
+      <li>Blocks supported tool calls that name protected credential locations.</li>
+      <li>Asks the session once to claim its running step before stopping.</li>
+    </ul>
   </section>
 </template>

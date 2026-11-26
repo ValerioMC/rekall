@@ -8,7 +8,6 @@ use async_trait::async_trait;
 use chrono::TimeDelta;
 use rekall_core::chat::{ChatAttachment, ChatBody, ChatListener, ChatPipe};
 use rekall_core::claude::{session_command_prompt, SessionProvider, TerminalEnded, TerminalHost, TerminalLaunch, TerminalLaunchService, TerminalMode, TerminalOpening, TerminalTarget, TerminalView};
-use rekall_core::telemetry::TelemetrySettingsService;
 use rekall_kernel::{Id, Instant, RekallError, Result};
 use tokio::process::Command;
 use tokio::sync::{broadcast, mpsc};
@@ -17,9 +16,7 @@ use tracing::info;
 use super::chat_command::chat_command;
 use super::chat_process::{spawn_chat_process, spawn_codex_process};
 use super::chat_session::ChatSession;
-use crate::cli::ClaudeCli;
 use crate::config::ClaudeConfig;
-use crate::connection::CredentialBroker;
 use crate::session::{require_folder, spawn_idle_sweep, SessionOptions, EndedBus, SessionLauncher, WorkMarker};
 
 const CLOSE_GRACE: Duration = Duration::from_secs(2);
@@ -46,16 +43,14 @@ impl ChatSessionManager {
     /// a terminal keeps that many bytes of output.
     pub fn new(
         launch_service: TerminalLaunchService,
-        cli: ClaudeCli,
+        launcher: SessionLauncher,
         marker: WorkMarker,
-        broker: Arc<CredentialBroker>,
-        telemetry: TelemetrySettingsService,
         config: &ClaudeConfig,
     ) -> Arc<Self> {
         Arc::new_cyclic(|me| Self {
             me: me.clone(),
             launch_service,
-            launcher: SessionLauncher::new(cli, broker, telemetry),
+            launcher,
             marker,
             ended: EndedBus::new(),
             max_live: config.max_sessions,
@@ -250,7 +245,7 @@ impl TerminalHost for ChatSessionManager {
             SessionProvider::Codex => SessionOptions::codex(skip_permissions, model.as_deref(), effort.as_deref())?,
         };
         let id = Id::random();
-        let environment = self.launcher.environment(id, &launch, &mut options).await?;
+        let environment = self.launcher.environment(id, &launch, mode, &mut options).await?;
         let command = chat_command(&binary, &options, environment, directory);
 
         let session = match self.register(id, launch.clone(), step_id, mode.clone(), options, command, &first_line).await {

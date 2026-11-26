@@ -14,6 +14,7 @@ use std::time::Duration;
 use rekall_core::claude::{ClaudeUsageView, CodexSessionOptions, InMemoryTerminalHost, Limit, SessionKind, SessionProvider, Severity, TerminalHost, UsageReader};
 use rekall_core::queue::{QueueLaunch, QueueRunner, RunQueueService};
 use rekall_infra::chat::ChatSessionManager;
+use rekall_infra::session::SessionLauncher;
 use rekall_infra::cli::{ClaudeCli, EnvironmentSource};
 use rekall_infra::pty::PtyTerminals;
 use rekall_infra::queue::{RunQueueRunner, RunQueueUsage};
@@ -224,7 +225,7 @@ async fn the_shared_hosts_open_both_saved_providers_in_chat() {
     let received = world.home.path().join("received.jsonl");
     let environment = Arc::new(ChatFixtureEnvironment { received: received.clone() });
     let cli = ClaudeCli::new(Some(FAKE_CLAUDE), world.home.path().to_path_buf(), environment);
-    let chats = ChatSessionManager::new(world.services.terminal_launch.clone(), cli, world.work_marker(), world.broker("http://127.0.0.1:0"), world.telemetry(), &config);
+    let chats = ChatSessionManager::new(world.services.terminal_launch.clone(), SessionLauncher::new(cli, world.broker("http://127.0.0.1:0"), world.telemetry()), world.work_marker(), &config);
     let terminals = Arc::new(PtyTerminals::new(world.terminals(8)));
     let hosts = Arc::new(SessionHosts::start(terminals, chats, 8));
     let queue = RunQueueService::new(world.services.ctx.clone());

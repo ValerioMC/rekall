@@ -2,6 +2,7 @@
 //! Code at user scope, clears the copies single folders carry, and installs the `/rk` command.
 
 mod claude_code_installer;
+mod guard_hook_file;
 mod guard_hook_installer;
 mod outcome;
 

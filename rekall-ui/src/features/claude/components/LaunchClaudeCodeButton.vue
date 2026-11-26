@@ -95,6 +95,7 @@ async function launch(): Promise<void> {
       anchors: props.anchors,
       skipPermissions,
       provider,
+      ...(props.taskId ? { taskId: props.taskId } : {}),
       ...(model !== 'default' ? { model } : {}),
       ...(effort !== 'default' ? { effort } : {})
     })

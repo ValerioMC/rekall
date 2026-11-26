@@ -30,7 +30,7 @@ use rekall_infra::probes::HttpConnectionProbe;
 use rekall_infra::pty::{PtyTerminalManager, PtyTerminals, SessionRelay};
 use rekall_infra::queue::{RunQueueRunner, RunQueueUsage};
 use rekall_infra::secret::{FileSecretStore, KeychainSecretStore, SECRETS_FILE};
-use rekall_infra::session::{SessionHosts, WorkMarker};
+use rekall_infra::session::{SessionHosts, SessionLauncher, WorkMarker};
 use rekall_infra::tracker::{ConnectionPullRequestHost, HttpGitlabNamespaces, HttpTaskTracker};
 use rekall_infra::usage::ClaudeUsageService;
 use rekall_infra::version::GithubReleaseFeed;
@@ -160,22 +160,10 @@ pub(super) fn open_sessions(
     )
     .with_readable_pictures(pictures_folder));
     let work_marker = WorkMarker::new(services.steps.clone(), services.review.clone(), services.step_snapshots.clone(), services.feedback.clone());
-    let terminals = PtyTerminalManager::new(
-        services.terminal_launch.clone(),
-        cli.clone(),
-        work_marker.clone(),
-        broker.clone(),
-        TelemetrySettingsService::new(ctx.clone(), secrets.clone()),
-        claude_config,
-    );
-    let chats = ChatSessionManager::new(
-        services.terminal_launch.clone(),
-        cli,
-        work_marker,
-        broker.clone(),
-        TelemetrySettingsService::new(ctx.clone(), secrets.clone()),
-        claude_config,
-    );
+    let launcher = SessionLauncher::new(cli, broker.clone(), TelemetrySettingsService::new(ctx.clone(), secrets.clone()))
+        .with_guard_port(served_port);
+    let terminals = PtyTerminalManager::new(services.terminal_launch.clone(), launcher.clone(), work_marker.clone(), claude_config);
+    let chats = ChatSessionManager::new(services.terminal_launch.clone(), launcher, work_marker, claude_config);
     let pty_terminals = Arc::new(PtyTerminals::new(terminals.clone()));
     let hosts: Arc<dyn TerminalHost> = Arc::new(SessionHosts::start(pty_terminals.clone(), chats.clone(), claude_config.max_sessions));
     Sessions { broker, terminals, chats, pty_terminals, hosts }

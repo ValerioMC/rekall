@@ -1,8 +1,10 @@
 import type { SessionProvider } from '@/features/claude/model/session-provider'
+import type { TaskId } from '@/model/branded'
 
 export interface ClaudeCodeLaunch {
   readonly directory: string
   readonly anchors: string
+  readonly taskId?: TaskId
   readonly skipPermissions: boolean
   readonly provider?: SessionProvider
   readonly model?: string

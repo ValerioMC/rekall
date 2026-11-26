@@ -6,22 +6,22 @@ import {
   removeGuardProtection
 } from '@/features/settings/api/guardProtection.api'
 import type { GuardProtection } from '@/features/settings/model/guardProtection'
+import type { SessionProvider } from '@/features/claude/model/session-provider'
 
-/** Whether Claude Code runs Rekall's guard hooks, as the server reads it from `settings.json`. */
 export const useGuardProtectionStore = defineStore('guardProtection', () => {
-  const protection = ref<GuardProtection | null>(null)
+  const byProvider = ref<Partial<Record<SessionProvider, GuardProtection>>>({})
 
-  async function load(): Promise<void> {
-    protection.value = await fetchGuardProtection()
+  async function load(provider: SessionProvider): Promise<void> {
+    byProvider.value[provider] = await fetchGuardProtection(provider)
   }
 
-  async function install(): Promise<void> {
-    protection.value = await installGuardProtection()
+  async function install(provider: SessionProvider): Promise<void> {
+    byProvider.value[provider] = await installGuardProtection(provider)
   }
 
-  async function remove(): Promise<void> {
-    protection.value = await removeGuardProtection()
+  async function remove(provider: SessionProvider): Promise<void> {
+    byProvider.value[provider] = await removeGuardProtection(provider)
   }
 
-  return { protection, load, install, remove }
+  return { byProvider, load, install, remove }
 })

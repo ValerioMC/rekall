@@ -12,12 +12,9 @@ use chrono::TimeDelta;
 use portable_pty::CommandBuilder;
 use rekall_kernel::{Id, Instant, RekallError, Result};
 use rekall_core::claude::{session_command_prompt, TerminalLaunch, TerminalLaunchService, SessionProvider, TerminalOpening, TerminalTarget};
-use rekall_core::telemetry::TelemetrySettingsService;
 use tokio::sync::broadcast;
 use tracing::info;
 
-use crate::cli::ClaudeCli;
-use crate::connection::CredentialBroker;
 use crate::config::ClaudeConfig;
 
 use super::terminal_command::terminal_command;
@@ -46,15 +43,13 @@ pub struct PtyTerminalManager {
 impl PtyTerminalManager {
     pub fn new(
         launch_service: TerminalLaunchService,
-        cli: ClaudeCli,
+        launcher: SessionLauncher,
         marker: WorkMarker,
-        broker: Arc<CredentialBroker>,
-        telemetry: TelemetrySettingsService,
         config: &ClaudeConfig,
     ) -> Arc<Self> {
         Arc::new(Self {
             launch_service,
-            launcher: SessionLauncher::new(cli, broker, telemetry),
+            launcher,
             marker,
             ended: EndedBus::new(),
             max_live: config.max_sessions,
@@ -123,7 +118,7 @@ impl PtyTerminalManager {
         };
         let binary = self.launcher.require_terminal_cli(provider).await?;
         let id = Id::random();
-        let environment = self.launcher.environment(id, &launch, &mut options).await?;
+        let environment = self.launcher.environment(id, &launch, &mode, &mut options).await?;
         let command = terminal_command(&binary, &options, &prompt, environment, directory);
 
         let terminal = match self.register(id, launch.clone(), step_id, mode.clone(), options, command).await {

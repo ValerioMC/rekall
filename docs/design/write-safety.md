@@ -248,42 +248,33 @@ the endpoint) is not caught, and a session set on extracting a credential can st
 
 ### The guard command
 
-Two rules that a session is only asked to follow have a program behind them: on an `auto-commit`
-project nothing runs `git commit`, `git push` or `git add` by hand, and nothing reads, copies or
-searches where credentials are kept. `rekall-server guard before-tool` and `guard before-stop`
-(`rekall-app/src/guard_command/`) are what Claude Code runs as a `PreToolUse` and a `Stop` hook:
+Claude Code and Codex run Rekall’s guard at `PreToolUse` and `Stop`. On projects where Rekall
+commits on a claim, the guard refuses manual `git commit`, `git push`, and `git add`. It refuses
+supported tool requests that name protected credential locations on any project.
 
-1. Claude Code writes the event to standard input (`cwd`, `tool_name`, `tool_input.command`, `file_path`
-   or `path`, and `stop_hook_active` on a `Stop`). The parser is `HookInput`.
-2. The command asks the running Rekall for `GET /api/guard/context?folder=<cwd>` (one request,
-   one-second timeout, the port from `AppConfig`). `GuardContextService` (`rekall-console`) answers
-   with the project that holds the folder (the innermost wins), its `auto_commit`, the first running
-   step as a number and a task anchor, and the credential locations to protect.
-3. `GuardService::decide` (`rekall-core/src/guard/`) returns `Allow` or `Block { reason }`. Exit code 0
-   lets the action go ahead; exit code 2 blocks it and the reason, on standard error, goes to the model.
+1. The provider sends a JSON event to `rekall-server guard [codex] before-tool|before-stop`.
+   `HookInput` extracts the working directory, the supported shell command, and text arguments.
+2. `GuardContextService` gets the task from the launch scope or matches the working directory to
+   the innermost registered project or task worktree. Preparation launches have no running-step
+   lookup. The loopback request has a one-second timeout and uses the server port from the launch
+   or the local configuration.
+3. `GuardService` decides whether to allow the event. Claude Code reads a refusal on standard error
+   with exit code 2. Codex reads a structured tool denial or stop decision on standard output.
+   A stop refusal names the task anchor and step number. A follow-up stop with
+   `stop_hook_active` proceeds so the session can explain any blocker.
 
-The credential locations are `<rekall.home>/secrets.json`, `~/.claude/.credentials.json` and the
-`/api/terminal/` prefix of the helper endpoint, built by `rekall-infra::secret::protected_references`
-from the same constants the stores and the broker use. A tool call that names one is blocked on every project.
+Protected references come from `rekall-infra::secret::protected_references`. They include
+`<rekall.home>/secrets.json`, `~/.claude/.credentials.json`, and the credential helper API prefix.
+The guard sees the commands and arguments its provider reports. Provider permissions still
+apply. Events that cannot be interpreted or reach Rekall proceed. Hook input and connection
+failures are logged to `<rekall.home>/guard.log`.
 
-The command lets the action through when it cannot decide: an input it cannot parse, a command line with an
-unclosed quote, a Rekall that does not answer. It writes the reason to `<rekall.home>/guard.log`. A guard that failed
-closed would stop every session while the app is shut. A `Stop` that follows a block (`stop_hook_active`) is
-let through, so the session can explain why a step cannot be claimed instead of looping. The hooks reach
-only the first running step of a project, so a second session in the same project is blocked from
-stopping while another session's step is running. They are not a sandbox: a command built from a variable
-or a script that runs git is not recognised.
-
-Settings has a **Protections** section that writes the hooks into `~/.claude/settings.json`
-(`GuardInstaller`, a port of `rekall-core`; `GuardHookInstaller` in `rekall-infra/src/installer/`;
-`GET /api/guard/status`, `POST /api/guard/install`, `POST /api/guard/uninstall`). It adds one
-`PreToolUse` group (matcher `Bash|Read|Edit|Write`) running `<this executable> guard before-tool` and one
-`Stop` group running `guard before-stop`. An entry is Rekall's when its command ends in one of those two
-phrases, so installing twice leaves one of each (and replaces the path after the app moved) and removing
-takes out only those. Every other key and hook is kept, in its order. A file that is not JSON, or whose
-`hooks` have another shape, is refused with a 400 and not touched; the first write keeps
-`settings.json.rekall-backup`; writes go through a temporary file and a rename. The hook runs the same
-executable as the app, so `rekall-server` and the desktop app both answer `guard`.
+**Settings → Sessions → Protections** uses `GuardHookInstaller` to manage both providers via
+`/api/guard/status`, `/api/guard/install`, and `/api/guard/uninstall`. Claude Code uses
+`~/.claude/settings.json` by default. Codex uses `hooks.json` in its configured home and reports
+trust and enablement through `hooks/list`. Users review and trust the Codex entries with
+`/hooks`. Repair replaces Rekall’s entries, and removal preserves other hooks and settings.
+Invalid JSON is left untouched. The first edit keeps a backup, and file replacements are atomic.
 
 The residual risk is real and small: Claude can overwrite one task's wrapup with something
 wrong, or with something that replaces a correction made by hand, and it can mark a step running

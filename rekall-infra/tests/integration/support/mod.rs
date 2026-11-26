@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use rekall_infra::session::SessionLauncher;
 use rekall_infra::cli::{ClaudeCli, EnvironmentSource};
 use rekall_infra::codex::{CodexCli, CodexIntegration};
 use rekall_infra::connection::CredentialBroker;
@@ -163,10 +164,8 @@ impl World {
         let cli = ClaudeCli::new(self.claude.to_str(), self.home.path().to_path_buf(), Arc::new(FixedEnvironment));
         PtyTerminalManager::new(
             self.services.terminal_launch.clone(),
-            cli,
+            SessionLauncher::new(cli, broker, self.telemetry()),
             self.work_marker(),
-            broker,
-            self.telemetry(),
             &config,
         )
     }

@@ -3,6 +3,8 @@ use std::io::Read;
 use std::path::Path;
 use std::sync::Mutex;
 
+use rekall_core::claude::SessionProvider;
+use rekall_core::guard::{GuardScope, GUARD_PORT_ENV, GUARD_SCOPE_ENV};
 use tracing::warn;
 
 use super::context_source::LocalRekall;
@@ -14,30 +16,70 @@ use crate::AppConfig;
 const LOG_FILE: &str = "guard.log";
 const EXIT_USAGE: u8 = 1;
 
-/// The entry point of `guard <event>`; `args` are the process arguments after `guard`. It writes
-/// the reason to standard error itself, since Claude Code reads it there.
 pub async fn execute(args: &[String]) -> u8 {
     let config = AppConfig::from_process(&[]);
     let _logging = log_to_file_in(&config.home);
-    let mode = match args.first().map(|event| event.parse::<GuardMode>()) {
-        Some(Ok(mode)) => mode,
-        Some(Err(failure)) => return usage(&failure),
-        None => return usage("guard needs an event: before-tool or before-stop"),
+    let (provider, event) = match args {
+        [event] => (SessionProvider::Claude, event),
+        [provider, event] if provider == "codex" => (SessionProvider::Codex, event),
+        _ => return usage("guard needs an event: before-tool or before-stop"),
+    };
+    let mode = match event.parse::<GuardMode>() {
+        Ok(mode) => mode,
+        Err(failure) => return usage(&failure),
     };
     let mut input_text = String::new();
     if let Err(failure) = std::io::stdin().read_to_string(&mut input_text) {
         warn!(%failure, "The guard could not read its input and let the action through");
         return EXIT_ALLOW;
     }
-    let outcome = run(mode, &input_text, &LocalRekall::new(config.local_url(config.port))).await;
-    if let Some(reason) = &outcome.reason {
-        eprintln!("{reason}");
+    let port = guard_port_from_process().unwrap_or(config.port);
+    let outcome = run(provider, mode, &input_text, scope_from_process(), &LocalRekall::new(config.local_url(port))).await;
+    if let Some(message) = outcome.stdout {
+        println!("{message}");
+    }
+    if let Some(message) = outcome.stderr {
+        eprintln!("{message}");
     }
     outcome.exit_code
 }
 
+fn guard_port_from_process() -> Option<u16> {
+    match std::env::var(GUARD_PORT_ENV) {
+        Ok(raw) => match raw.parse() {
+            Ok(port) => Some(port),
+            Err(failure) => {
+                warn!(%failure, "The guard received an invalid server port");
+                None
+            }
+        },
+        Err(std::env::VarError::NotPresent) => None,
+        Err(failure) => {
+            warn!(%failure, "The guard could not read its server port");
+            None
+        }
+    }
+}
+
+fn scope_from_process() -> Option<GuardScope> {
+    match std::env::var(GUARD_SCOPE_ENV) {
+        Ok(raw) => match raw.parse() {
+            Ok(scope) => Some(scope),
+            Err(failure) => {
+                warn!(%failure, "The guard received an invalid launch scope");
+                Some(GuardScope::WithoutStep)
+            }
+        },
+        Err(std::env::VarError::NotPresent) => None,
+        Err(failure) => {
+            warn!(%failure, "The guard could not read its launch scope");
+            Some(GuardScope::WithoutStep)
+        }
+    }
+}
+
 fn usage(message: &str) -> u8 {
-    eprintln!("rekall-server guard before-tool|before-stop: {message}");
+    eprintln!("rekall-server guard [codex] before-tool|before-stop: {message}");
     EXIT_USAGE
 }
 

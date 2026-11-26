@@ -12,6 +12,7 @@ use std::time::Duration;
 use rekall_core::chat::{ChatBody, ChatEvent, ChatPipe, RecordingChatListener, TurnOutcome};
 use rekall_core::claude::{SessionKind, SessionProvider, TerminalHost, TerminalMode, TerminalOpening, TerminalTarget};
 use rekall_infra::chat::ChatSessionManager;
+use rekall_infra::session::SessionLauncher;
 use rekall_infra::cli::{ClaudeCli, EnvironmentSource};
 use rekall_infra::ClaudeConfig;
 use rekall_kernel::{Id, RekallError};
@@ -57,10 +58,8 @@ fn chats(world: &World, max_sessions: usize, idle_minutes: u64, behaviour: &[(&s
     let cli = ClaudeCli::new(Some(FAKE_CLAUDE), world.home.path().to_path_buf(), Arc::new(FakeClaudeEnvironment(environment)));
     let manager = ChatSessionManager::new(
         world.services.terminal_launch.clone(),
-        cli,
+        SessionLauncher::new(cli, world.broker("http://127.0.0.1:0"), world.telemetry()),
         world.work_marker(),
-        world.broker("http://127.0.0.1:0"),
-        world.telemetry(),
         &config,
     );
     Chats { manager, received }

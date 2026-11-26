@@ -1,6 +1,5 @@
 pub(super) mod covering_document;
 pub(super) mod codex_session_options;
-pub(super) mod guard_protection;
 pub(super) mod installation;
 pub(super) mod launch_choices;
 pub(super) mod limit;
