@@ -19,6 +19,7 @@ struct GithubPull {
     number: u64,
     html_url: String,
     mergeable: Option<bool>,
+    merged: Option<bool>,
     mergeable_state: Option<String>,
 }
 
@@ -52,13 +53,21 @@ impl GithubPullRequestHost {
     }
 
     async fn read(&self, endpoint: &TrackerEndpoint, number: u64) -> Result<PullRequest, TrackerFailure> {
+        Ok(as_pull_request(self.read_details(endpoint, number).await?))
+    }
+
+    async fn read_details(&self, endpoint: &TrackerEndpoint, number: u64) -> Result<GithubPull, TrackerFailure> {
         let response = checked(self.send(endpoint, Method::GET, &format!("/pulls/{number}"), &[], None).await?).await?;
-        pull_request_of(response).await
+        response.json::<GithubPull>().await.map_err(unreadable)
     }
 
     async fn refusal_of_merge(&self, endpoint: &TrackerEndpoint, pull_request: &PullRequest, response: Response) -> Result<PullRequestMerge, TrackerFailure> {
         let reason = response.json::<Refusal>().await.ok().map(|refusal| said_by(&refusal)).unwrap_or_default();
-        if self.read(endpoint, pull_request.number).await?.mergeability == Mergeability::Conflicting {
+        let current = self.read_details(endpoint, pull_request.number).await?;
+        if current.merged == Some(true) {
+            return Ok(PullRequestMerge::Merged);
+        }
+        if mergeability_of(&current) == Mergeability::Conflicting {
             return Ok(PullRequestMerge::Conflicting);
         }
         Ok(PullRequestMerge::Refused(if reason.is_empty() { "GitHub refused the merge".to_string() } else { reason }))
@@ -126,9 +135,12 @@ fn owner_of(endpoint: &TrackerEndpoint) -> &str {
 }
 
 async fn pull_request_of(response: Response) -> Result<PullRequest, TrackerFailure> {
-    let pull = response.json::<GithubPull>().await.map_err(unreadable)?;
+    response.json::<GithubPull>().await.map(as_pull_request).map_err(unreadable)
+}
+
+fn as_pull_request(pull: GithubPull) -> PullRequest {
     let mergeability = mergeability_of(&pull);
-    Ok(PullRequest { number: pull.number, url: pull.html_url, mergeability })
+    PullRequest { number: pull.number, url: pull.html_url, mergeability }
 }
 
 fn mergeability_of(pull: &GithubPull) -> Mergeability {

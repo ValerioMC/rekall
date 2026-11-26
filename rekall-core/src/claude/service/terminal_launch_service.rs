@@ -2,9 +2,9 @@ use rekall_kernel::{jstr, RekallError, Result};
 use rekall_store::{project, task};
 use rekall_store::repository as repo;
 
-use crate::{in_read, load, Ctx};
+use crate::{in_read, in_write, load, Ctx};
 
-use crate::claude::{TerminalConnection, TerminalLaunch, TerminalTarget};
+use crate::claude::{SessionProvider, TerminalConnection, TerminalLaunch, TerminalTarget};
 
 #[derive(Clone)]
 pub struct TerminalLaunchService {
@@ -14,6 +14,15 @@ pub struct TerminalLaunchService {
 impl TerminalLaunchService {
     pub fn new(ctx: Ctx) -> Self {
         Self { ctx }
+    }
+
+    pub async fn remember_work_provider(&self, task_id: rekall_kernel::Id, provider: SessionProvider) -> Result<()> {
+        in_write!(&self.ctx, |tx| {
+            let before = repo::task::require(tx.db(), task_id).await?;
+            let task = task::Model { last_work_provider: Some(provider), ..before.clone() };
+            repo::update_if_changed(tx.db(), &before, task, self.ctx.now()).await?;
+            Ok(())
+        })
     }
 
     /// The folder is the task's worktree while it has one, else the project's `repo_folder`; a project without one is refused here.

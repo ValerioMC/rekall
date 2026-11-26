@@ -165,7 +165,8 @@ pub(super) fn open_sessions(
     let terminals = PtyTerminalManager::new(services.terminal_launch.clone(), launcher.clone(), work_marker.clone(), claude_config);
     let chats = ChatSessionManager::new(services.terminal_launch.clone(), launcher, work_marker, claude_config);
     let pty_terminals = Arc::new(PtyTerminals::new(terminals.clone()));
-    let hosts: Arc<dyn TerminalHost> = Arc::new(SessionHosts::start(pty_terminals.clone(), chats.clone(), claude_config.max_sessions));
+    let hosts: Arc<dyn TerminalHost> = Arc::new(SessionHosts::start(pty_terminals.clone(), chats.clone(), claude_config.max_sessions)
+        .with_work_provider(services.terminal_launch.clone()));
     Sessions { broker, terminals, chats, pty_terminals, hosts }
 }
 

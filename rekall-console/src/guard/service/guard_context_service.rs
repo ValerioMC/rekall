@@ -1,6 +1,8 @@
 use std::path::Path;
 
-use rekall_core::guard::GuardScope;
+use rekall_core::claude::{Remaining, TaskWorkService};
+use rekall_core::guard::{GuardMerge, GuardScope};
+use rekall_core::worktree::TaskWorktreeService;
 use rekall_core::{in_read, Ctx, Tx};
 use rekall_kernel::{jstr, Result};
 use rekall_store::{project, task};
@@ -13,23 +15,42 @@ use crate::guard::{GuardContextCommand, GuardContextView, RunningStepView};
 pub struct GuardContextService {
     ctx: Ctx,
     protected_credential_references: Vec<String>,
+    worktrees: TaskWorktreeService,
 }
 
 impl GuardContextService {
-    pub fn new(ctx: Ctx, protected_credential_references: Vec<String>) -> Self {
-        Self { ctx, protected_credential_references }
+    pub fn new(ctx: Ctx, protected_credential_references: Vec<String>, worktrees: TaskWorktreeService) -> Self {
+        Self { ctx, protected_credential_references, worktrees }
     }
 
     pub async fn context_of(&self, command: GuardContextCommand) -> Result<GuardContextView> {
+        let merge_branch = match command.scope {
+            Some(GuardScope::ResolveMerge(task_id)) => match self.worktrees.resolution_branch(task_id, Path::new(&command.folder)).await {
+                Ok(branch) => branch,
+                Err(failure) => {
+                    tracing::warn!(%failure, %task_id, "Could not verify the merge worktree");
+                    None
+                }
+            },
+            _ => None,
+        };
         in_read!(&self.ctx, |tx| {
             let launched_task = match command.scope {
-                Some(GuardScope::Work(task_id)) => repo::task::find_by_id(tx.db(), task_id).await?,
+                Some(GuardScope::Work(task_id) | GuardScope::ResolveMerge(task_id)) => repo::task::find_by_id(tx.db(), task_id).await?,
                 _ => None,
             };
             if let Some(task) = launched_task {
                 let project = repo::project::require(tx.db(), task.project_id).await?;
-                let running_step = running_step_of(&tx, &task).await?;
-                return Ok(self.view(Some(project.anchor()), project.auto_commit, running_step));
+                let mut view = self.view(Some(project.anchor()), project.auto_commit, None);
+                if matches!(command.scope, Some(GuardScope::Work(_))) {
+                    view.running_step = running_step_of(&tx, &task).await?;
+                }
+                if let Some(branch) = merge_branch {
+                    if TaskWorkService::read_in(&tx, task.id).await?.remaining == Remaining::Accepted {
+                        view.merge = Some(GuardMerge { branch, pull_request: project.pull_request_flow });
+                    }
+                }
+                return Ok(view);
             }
             let projects = repo::project::list_in_catalog_order(tx.db()).await?;
             let worktrees = repo::task::list_with_worktree(tx.db()).await?;
@@ -48,6 +69,7 @@ impl GuardContextService {
         GuardContextView {
             project_anchor,
             auto_commit,
+            merge: None,
             running_step,
             protected_credential_references: self.protected_credential_references.clone(),
         }

@@ -7,6 +7,7 @@ import ShellDock from '@/components/shell/ShellDock.vue'
 import AppHeaderChrome from '@/components/shell/AppHeaderChrome.vue'
 import LeaveDialog from '@/components/shell/LeaveDialog.vue'
 import SendBackConfirm from '@/features/review/components/SendBackConfirm.vue'
+import { subscribeToFrame } from '@/common/stream/consoleEventStream'
 import { usePreferenceEffects } from '@/features/settings/composables/usePreferenceEffects'
 import CommandPalette from '@/features/search/components/CommandPalette.vue'
 import { usePaletteShortcut } from '@/features/search/composables/usePaletteShortcut'
@@ -56,6 +57,7 @@ usePreferenceEffects()
 useWorkingSetFollowsRoute()
 
 let refreshing = false
+let stopPullRequestUpdates: (() => void) | undefined
 
 async function refreshWhatChangedElsewhere(): Promise<void> {
   if (refreshing || status.value?.status !== 'READY') return
@@ -75,6 +77,9 @@ onMounted(async () => {
     status.value = await fetchDatabaseStatus()
     if (status.value.status === 'READY') {
       await store.load()
+      stopPullRequestUpdates = subscribeToFrame('pull-request', () => {
+        void store.refreshTasks().catch((caught: unknown) => toast.notifyError(caught))
+      })
       void terminals.load()
       void useClaudeConnectionStore().load().catch(() => undefined)
       void useClaudeCommandUpdateStore().load().catch(() => undefined)
@@ -94,6 +99,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  stopPullRequestUpdates?.()
   window.removeEventListener('focus', refreshWhatChangedElsewhere)
   document.removeEventListener('visibilitychange', refreshWhatChangedElsewhere)
 })

@@ -103,7 +103,7 @@ impl World {
 
     pub fn pull_requests_over(
         &self,
-        git: Arc<rekall_core::worktree::ScriptedWorktreeHost>,
+        git: Arc<dyn rekall_core::worktree::WorktreeHost>,
         host: Arc<rekall_core::connection::ScriptedPullRequestHost>,
     ) -> rekall_core::worktree::TaskPullRequestService {
         let ctx = self.services.ctx.clone();

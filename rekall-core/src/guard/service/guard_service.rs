@@ -3,7 +3,7 @@ use tracing::warn;
 use crate::guard::model::guard_context::GuardContext;
 use crate::guard::model::guard_event::GuardEvent;
 use crate::guard::model::guard_verdict::GuardVerdict;
-use crate::guard::rule::shell_command::git_subcommands;
+use crate::guard::rule::shell_command::{git_subcommands, is_resolution_command};
 
 const SUBCOMMANDS_REKALL_RUNS: [&str; 3] = ["commit", "push", "add"];
 
@@ -41,6 +41,9 @@ fn credential_access_refusal(input_texts: &[String], context: &GuardContext) -> 
 
 fn manual_git_refusal(command: &str, context: &GuardContext) -> Option<String> {
     if !context.auto_commit {
+        return None;
+    }
+    if context.merge.as_ref().is_some_and(|merge| is_resolution_command(command, &merge.branch, merge.pull_request)) {
         return None;
     }
     let subcommands = match git_subcommands(command) {

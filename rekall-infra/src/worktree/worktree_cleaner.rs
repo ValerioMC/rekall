@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use rekall_core::claude::{Remaining, SessionKind, TaskWorkService, TerminalHost, TerminalMode, TerminalOpening, TerminalTarget};
+use rekall_core::claude::{Remaining, SessionKind, SessionProvider, TaskWorkService, TerminalHost, TerminalMode, TerminalOpening, TerminalTarget};
 use rekall_core::review::TaskReviewEvent;
 use rekall_core::step::StepStreamEvent;
 use rekall_core::worktree::{Merge, PullRequestLanding, Release, TaskPullRequestService, TaskWorktreeService};
@@ -33,14 +33,13 @@ impl WorktreeCleaner {
                     received = bus.recv() => match received {
                         Ok(event) => {
                             if let Some(task_id) = task_moved_by(&event) {
-                                cleaner.open_pull_request(task_id).await;
-                                cleaner.clean_if_accepted(task_id).await;
+                                cleaner.process(task_id).await;
                             }
                         }
                         Err(RecvError::Lagged(_)) => continue,
                         Err(RecvError::Closed) => return,
                     },
-                    _ = clock.tick() => cleaner.follow_resolutions().await,
+                    _ = clock.tick() => cleaner.retry().await,
                 }
             }
         });
@@ -63,6 +62,27 @@ struct Cleaner {
 }
 
 impl Cleaner {
+    async fn process(&mut self, task_id: Id) {
+        self.open_pull_request(task_id).await;
+        self.clean_if_accepted(task_id).await;
+    }
+
+    async fn retry(&mut self) {
+        self.follow_resolutions().await;
+        let candidates = match self.pull_requests.retry_candidates().await {
+            Ok(tasks) => tasks,
+            Err(failure) => {
+                warn!(%failure, "Could not check pending pull requests");
+                return;
+            }
+        };
+        for task_id in candidates {
+            if !matches!(self.resolutions.get(&task_id), Some(Resolution::Running(_))) {
+                self.process(task_id).await;
+            }
+        }
+    }
+
     async fn open_pull_request(&self, task_id: Id) {
         if let Err(failure) = self.pull_requests.open_if_claimed(task_id).await {
             warn!(%failure, %task_id, "Could not look for the pull request of a claimed task");
@@ -87,7 +107,11 @@ impl Cleaner {
                 self.close_task(task_id).await;
                 self.finish(task_id).await;
             }
-            Ok(PullRequestLanding::AlreadyMerged | PullRequestLanding::NothingToMerge) => self.finish(task_id).await,
+            Ok(PullRequestLanding::AlreadyMerged) => {
+                self.close_task(task_id).await;
+                self.finish(task_id).await;
+            }
+            Ok(PullRequestLanding::NothingToMerge) => self.finish(task_id).await,
             Ok(PullRequestLanding::Conflicting { base }) => self.resolve_conflict(task_id, "the pull request conflicts with its base branch", TerminalMode::MergePullRequest { base }).await,
             Ok(PullRequestLanding::Refused(reason)) => warn!(%reason, %task_id, "Accepted task's pull request was not merged; the worktree stays"),
             Err(failure) => warn!(%failure, %task_id, "Could not merge the pull request of an accepted task; it is tried again when the task moves"),
@@ -120,10 +144,27 @@ impl Cleaner {
             return;
         }
         warn!(%reason, %task_id, "Accepted task's branch conflicts; a merge session resolves it");
-        let resolution = match self.terminals.open(merge_opening(task_id, mode)).await {
+        let provider = match self.worktrees.last_work_provider(task_id).await {
+            Ok(provider) => provider.unwrap_or_default(),
+            Err(failure) => {
+                warn!(%failure, %task_id, "Could not read the task's work provider");
+                return;
+            }
+        };
+        if let Some(session) = self.terminals.work_session_for(task_id) {
+            self.terminals.close(session.id, "The accepted branch needs a merge session.").await;
+        }
+        let is_pull_request = matches!(mode, TerminalMode::MergePullRequest { .. });
+        let resolution = match self.terminals.open(merge_opening(task_id, provider, mode)).await {
             Ok(session) => Resolution::Running(session.id),
             Err(failure) => {
                 warn!(%failure, %task_id, "Could not open a session to resolve the conflict");
+                if is_pull_request {
+                    let reason = format!("The pull request conflicts. Could not open {} to resolve it: {}", provider.label(), failure.message());
+                    if let Err(failure) = self.pull_requests.record_failure(task_id, reason).await {
+                        warn!(%failure, %task_id, "Could not keep why the merge session failed to open");
+                    }
+                }
                 Resolution::Abandoned
             }
         };
@@ -171,11 +212,11 @@ impl Cleaner {
     }
 }
 
-fn merge_opening(task_id: Id, mode: TerminalMode) -> TerminalOpening {
+fn merge_opening(task_id: Id, provider: SessionProvider, mode: TerminalMode) -> TerminalOpening {
     TerminalOpening {
         target: TerminalTarget::Task(task_id),
         step_id: None,
-        provider: Default::default(),
+        provider,
         skip_permissions: false,
         model: None,
         effort: None,

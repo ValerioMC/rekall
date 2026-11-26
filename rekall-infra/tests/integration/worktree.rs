@@ -378,3 +378,132 @@ async fn a_branch_outside_the_layout_is_never_pushed() {
     assert!(world.host.push_branch(&world.project, "main").await.is_err());
 }
 
+
+#[cfg(unix)]
+mod pull_request_lifecycle {
+    use super::*;
+    use std::future::Future;
+    use std::os::unix::fs::PermissionsExt;
+    use std::time::Duration;
+
+    use rekall_core::claude::{InMemoryTerminalHost, SessionKind, SessionProvider, TerminalHost, TerminalMode, TerminalOpening, TerminalTarget};
+    use rekall_core::commit::StepClaim;
+    use rekall_core::connection::{PullRequestMerge, ScriptedPullRequestHost};
+    use rekall_core::step::StepEdit;
+    use rekall_core::worktree::{PullRequestLanding, TaskWorktreeService};
+    use rekall_infra::session::SessionHosts;
+    use rekall_infra::worktree::WorktreeCleaner;
+    use rekall_store::{repository as repo, TaskStatus, TaskStepState};
+    use sea_orm::{ActiveModelTrait, IntoActiveModel, Set};
+
+    #[tokio::test]
+    async fn both_providers_publish_each_commit_and_close_only_after_a_clean_accepted_merge() {
+        for provider in [SessionProvider::Claude, SessionProvider::Codex] {
+            exercise_lifecycle(provider).await;
+        }
+    }
+
+    async fn exercise_lifecycle(provider: SessionProvider) {
+        let repository = world();
+        let remote = repository._folder.path().join("origin.git");
+        git(&repository.project, &["init", "--bare", remote.to_str().unwrap()]);
+        git(&repository.project, &["remote", "add", "origin", remote.to_str().unwrap()]);
+        git(&repository.project, &["push", "origin", "main"]);
+        let reject_push = remote.join("hooks/pre-receive");
+        fs::write(&reject_push, "#!/bin/sh\necho fixture-push-rejected >&2\nexit 1\n").unwrap();
+        fs::set_permissions(&reject_push, fs::Permissions::from_mode(0o755)).unwrap();
+
+        let db = crate::support::world().await;
+        let mut project = db.project("vega", Some(&repository.project)).await;
+        project.auto_commit = true;
+        let mut update = project.clone().into_active_model();
+        update.auto_commit = Set(true);
+        update.update(db.db()).await.unwrap();
+        db.run_pull_request_flow(&project).await;
+        let task = db.task(&project, "report").await;
+        let first = db.step(&task, "First", 0, TaskStepState::Open).await;
+        let second = db.step(&task, "Second", 1, TaskStepState::Open).await;
+        let layout = WorktreeLayout::new(db.home.path().join("worktrees"));
+        let host = Arc::new(GitWorktreeHost::new(layout.clone()));
+        let worktrees = TaskWorktreeService::new(db.services.ctx.clone(), host.clone(), layout);
+        let checkout = worktrees.ensure(task.id).await.unwrap();
+        let sessions = SessionHosts::start(Arc::new(InMemoryTerminalHost::new()), Arc::new(InMemoryTerminalHost::new()), 4)
+            .with_work_provider(db.services.terminal_launch.clone());
+        let opened = sessions.open(TerminalOpening {
+            target: TerminalTarget::Task(task.id), step_id: None, provider, kind: SessionKind::Chat,
+            mode: TerminalMode::Work, skip_permissions: false, model: None, effort: None,
+        }).await.unwrap();
+        sessions.close(opened.id, "Reopen after restart.").await;
+
+        let pull_host = Arc::new(ScriptedPullRequestHost::new());
+        let pull_requests = db.pull_requests_over(host, pull_host.clone());
+        claim(&db, &task, &checkout, "1", "first.txt").await;
+        pull_requests.open_if_claimed(task.id).await.unwrap();
+        let refused = repo::task_pull_request::find_of_task(db.db(), task.id).await.unwrap().unwrap();
+        assert!(refused.awaiting_push());
+        assert!(refused.failure.unwrap().contains("fixture-push-rejected"));
+        assert!(pull_host.opened().is_empty());
+        assert_eq!(git(&checkout, &["rev-list", "--count", "main..HEAD"]), "1");
+
+        fs::remove_file(reject_push).unwrap();
+        let fresh_sessions = Arc::new(InMemoryTerminalHost::new());
+        WorktreeCleaner::start(&db.events, db.services.task_work.clone(), worktrees, pull_requests.clone(), fresh_sessions.clone(), Duration::from_millis(50));
+        wait_for(|| async { pull_host.opened().len() == 1 }).await;
+        assert_eq!(git(&remote, &["rev-list", "--count", "main..rekall/report"]), "1");
+        assert_eq!(pull_requests.merge_accepted(task.id).await.unwrap(), PullRequestLanding::NothingToMerge);
+
+        claim(&db, &task, &checkout, "2", "second.txt").await;
+        wait_for(|| async {
+            let saved = repo::task_pull_request::find_of_task(db.db(), task.id).await.unwrap().unwrap();
+            saved.published_version == 2
+        }).await;
+        assert_eq!(git(&remote, &["rev-list", "--count", "main..rekall/report"]), "2");
+        assert_eq!(pull_host.opened().len(), 1);
+
+        fs::write(checkout.join("unsaved"), "kept").unwrap();
+        for step in [first, second] {
+            db.services.steps.edit(step.id, StepEdit { done: Some(true), ..StepEdit::default() }).await.unwrap();
+        }
+        wait_for(|| async {
+            repo::task_pull_request::find_of_task(db.db(), task.id).await.unwrap()
+                .and_then(|saved| saved.failure).is_some_and(|reason| reason.contains("unsaved changes"))
+        }).await;
+        assert!(checkout.join("unsaved").exists());
+        assert!(pull_host.merged().is_empty());
+        assert_ne!(repo::task::require(db.db(), task.id).await.unwrap().status, TaskStatus::Done);
+
+        pull_host.merge_answers_with(PullRequestMerge::Conflicting);
+        fs::remove_file(checkout.join("unsaved")).unwrap();
+        wait_for(|| async { fresh_sessions.has_live_for(task.id) }).await;
+        let openings = fresh_sessions.openings();
+        assert_eq!(openings[0].provider, provider);
+        assert_eq!(openings[0].mode, TerminalMode::MergePullRequest { base: "main".into() });
+
+        pull_host.merge_answers_with(PullRequestMerge::Merged);
+        wait_for(|| async { !checkout.exists() }).await;
+        assert_eq!(repo::task::require(db.db(), task.id).await.unwrap().status, TaskStatus::Done);
+        assert_eq!((pull_host.opened().len(), pull_host.merged()), (1, vec![1]));
+        assert_eq!(git(&repository.project, &["rev-list", "--count", "main..rekall/report"]), "2");
+    }
+
+    async fn claim(db: &crate::support::World, task: &rekall_store::task::Model, checkout: &Path, step: &str, file: &str) {
+        let moved = db.services.flow.transition(None, &task.code, Some(step), TaskStepState::Running, None, None).await.unwrap();
+        db.services.step_snapshots.take(task.id, Some(moved.step.id)).await;
+        fs::write(checkout.join(file), file).unwrap();
+        let (_, outcome) = db.services.auto_commit.claim_step(&db.services.flow, StepClaim {
+            project_label: None, task_code: &task.code, step, outcome: None, report: None, message: None,
+        }).await.unwrap();
+        assert_eq!(outcome.status, rekall_core::commit::AutoCommitStatus::Committed);
+    }
+
+    async fn wait_for<Check: FnMut() -> Pending, Pending: Future<Output = bool>>(mut check: Check) {
+        tokio::time::timeout(Duration::from_secs(8), async {
+            while !check().await {
+                tokio::time::sleep(Duration::from_millis(30)).await;
+            }
+        }).await.unwrap();
+    }
+}
+
+#[cfg(unix)]
+mod support;

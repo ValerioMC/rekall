@@ -218,7 +218,7 @@ impl ApiState {
             task_branches: worktree::TaskBranchService::new(ports.task_worktrees.clone()),
             adherence: adherence::PlanAdherenceService::new(ctx.clone()),
             graphs,
-            guard_context: guard::GuardContextService::new(ctx.clone(), ports.protected_credential_references.clone()),
+            guard_context: guard::GuardContextService::new(ctx.clone(), ports.protected_credential_references.clone(), ports.task_worktrees.clone()),
             graph_attach,
             connections,
             connection_credentials: connection::ConnectionCredentialService::new(ctx.clone(), ports.secrets.clone()),

@@ -19,6 +19,7 @@ fn context(auto_commit: bool, running_step_number: Option<u32>) -> FakeRekall {
     FakeRekall(Ok(GuardContextResponse {
         project_anchor: Some("project:vega".into()),
         auto_commit,
+        merge: None,
         running_step: running_step_number.map(|number| RunningStepResponse { number, task_anchor: "task:VE-12".into() }),
         protected_credential_references: vec![CREDENTIAL_FILE.into()],
     }))

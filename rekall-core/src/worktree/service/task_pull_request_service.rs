@@ -9,11 +9,12 @@ use rekall_store::{task, task_pull_request, TaskKind};
 use sea_orm::{ActiveModelTrait, IntoActiveModel, Set};
 use tracing::{info, warn};
 
-use crate::claude::{Remaining, TaskWorkService};
+use crate::claude::{Remaining, TaskWork, TaskWorkService};
 use crate::commit::GitRepositoryInspector;
 use crate::connection::{PullRequest, PullRequestHost, PullRequestMerge, TaskTrackerService, TrackerEndpoint, TrackerFailure, TrackerPictureService, Mergeability};
 use crate::worktree::rule::request_noun::request_noun;
-use crate::worktree::{pull_request_body, PullRequestLanding, PushOutcome, StepCommit, WorktreeHost, WorktreeLayout};
+use crate::worktree::PullRequestChanged;
+use crate::worktree::{pull_request_body, PullRequestLanding, PushOutcome, StepCommit, Worktree, WorktreeHost, WorktreeLayout};
 use crate::{in_read, in_write, load, Ctx};
 
 /// What a claimed task of a project with the pull request flow on needs sent to the remote.
@@ -24,6 +25,7 @@ struct Claim {
     body: String,
     issue_key: Option<String>,
     held_number: Option<i64>,
+    version: i64,
 }
 
 /// What the project of an accepted task holds for its pull request.
@@ -32,6 +34,7 @@ struct Landing {
     project_folder: Option<String>,
     main_branch: Option<String>,
     branch: String,
+    worktree_folder: Option<String>,
     pull_request: Option<task_pull_request::Model>,
     issue_key: Option<String>,
 }
@@ -68,14 +71,39 @@ impl TaskPullRequestService {
         match self.deliver(&claim).await {
             Ok(Some(pull_request)) => {
                 info!(%task_id, number = pull_request.number, "A task's pull request is open");
-                self.keep_pull_request(task_id, pull_request).await
+                self.keep_delivery(task_id, claim.version, Some(pull_request)).await
             }
-            Ok(None) => self.keep_failure(task_id, None).await,
+            Ok(None) => self.keep_delivery(task_id, claim.version, None).await,
             Err(failure) => {
                 warn!(%failure, %task_id, "A task's pull request could not be opened");
                 self.keep_failure(task_id, Some(failure.message().to_string())).await
             }
         }
+    }
+
+    pub async fn retry_candidates(&self) -> Result<Vec<Id>> {
+        in_read!(&self.ctx, |tx| {
+            let mut candidates = Vec::new();
+            for task in repo::task::list_with_worktree(tx.db()).await? {
+                let project = load::project_of(tx.db(), &task).await?;
+                if !project.pull_request_flow {
+                    continue;
+                }
+                let held = repo::task_pull_request::find_of_task(tx.db(), task.id).await?;
+                let work = TaskWorkService::read_in(&tx, task.id).await?;
+                if held.as_ref().is_some_and(|request| request.awaiting_push())
+                    || (held.as_ref().is_none_or(|request| request.number.is_none()) && has_claim(&work))
+                    || (work.remaining == Remaining::Accepted && task.status != rekall_store::TaskStatus::Done)
+                {
+                    candidates.push(task.id);
+                }
+            }
+            Ok(candidates)
+        })
+    }
+
+    pub async fn record_failure(&self, task_id: Id, reason: String) -> Result<()> {
+        self.keep_failure(task_id, Some(reason)).await
     }
 
     /// Merges the accepted task's pull request with a merge commit, closes its issue and deletes its branch on the remote. A merge the
@@ -87,10 +115,19 @@ impl TaskPullRequestService {
         if held.merged_at.is_some() {
             return Ok(PullRequestLanding::AlreadyMerged);
         }
+        if held.awaiting_push() {
+            return Ok(PullRequestLanding::Refused(held.failure.unwrap_or_else(|| "The latest claim is waiting to be pushed.".into())));
+        }
         let Some(number) = held.number.and_then(|number| u64::try_from(number).ok()) else {
             let reason = held.failure.unwrap_or_else(|| "No pull request was opened for this task.".to_string());
             return Ok(PullRequestLanding::Refused(reason));
         };
+        if let (Some(folder), Some(project_folder)) = (&landing.worktree_folder, &landing.project_folder) {
+            let worktree = Worktree { folder: folder.into(), project_folder: project_folder.into(), branch: landing.branch.clone() };
+            if worktree.folder.is_dir() && self.worktrees.status(&worktree).await?.has_unsaved_changes {
+                return self.refuse_merge(task_id, "The task worktree has unsaved changes. The branch stays open.".into()).await;
+            }
+        }
         let pull_request = PullRequest { number, url: held.url.unwrap_or_default(), mergeability: Mergeability::Unknown };
         let endpoint = match self.tracker.endpoint_of_project(landing.project_id).await {
             Ok(Some(endpoint)) => endpoint,
@@ -111,6 +148,7 @@ impl TaskPullRequestService {
             }
             Ok(PullRequestMerge::Conflicting) => {
                 let base = self.base_of(landing.project_folder.as_deref().unwrap_or_default(), landing.main_branch.as_deref()).await?;
+                self.keep_failure(task_id, Some(format!("The {} conflicts with {base}.", request_noun(endpoint.kind)))).await?;
                 Ok(PullRequestLanding::Conflicting { base })
             }
             Ok(PullRequestMerge::Refused(reason)) => self.refuse_merge(task_id, format!("The {} was not merged: {reason}", request_noun(endpoint.kind))).await,
@@ -156,10 +194,13 @@ impl TaskPullRequestService {
             if !project.pull_request_flow {
                 return Ok(None);
             }
-            let pull_request = repo::task_pull_request::find_of_task(tx.db(), task_id).await?;
+            let pull_request = match TaskWorkService::read_in(&tx, task_id).await?.remaining {
+                Remaining::Accepted => repo::task_pull_request::find_of_task(tx.db(), task_id).await?,
+                _ => None,
+            };
             let issue_key = repo::task_tracker_link::find_of_task(tx.db(), task_id).await?.and_then(|link| link.issue_key);
             let branch = self.layout.branch_for(&task.label)?;
-            Ok(Some(Landing { project_id: project.id, project_folder: project.repo_folder, main_branch: project.main_branch, branch, pull_request, issue_key }))
+            Ok(Some(Landing { project_id: project.id, project_folder: project.repo_folder, main_branch: project.main_branch, branch, worktree_folder: task.worktree_folder, pull_request, issue_key }))
         })
     }
 
@@ -171,15 +212,20 @@ impl TaskPullRequestService {
             }
             let project = load::project_of(tx.db(), &task).await?;
             let Some(project_folder) = project.repo_folder.clone().filter(|folder| !jstr::is_blank(folder)) else { return Ok(None) };
-            let held_number = repo::task_pull_request::find_of_task(tx.db(), task_id).await?.and_then(|held| held.number);
-            let remaining = TaskWorkService::read_in(&tx, task_id).await?.remaining;
-            if !project.pull_request_flow || !awaits_push(remaining, held_number) {
+            if !project.pull_request_flow {
                 return Ok(None);
             }
+            let held = repo::task_pull_request::find_of_task(tx.db(), task_id).await?;
+            let work = TaskWorkService::read_in(&tx, task_id).await?;
+            if !awaits_push(&work, held.as_ref()) {
+                return Ok(None);
+            }
+            let held_number = held.as_ref().and_then(|held| held.number);
+            let version = held.map_or(0, |held| held.delivery_version);
             let issue_key = repo::task_tracker_link::find_of_task(tx.db(), task_id).await?.and_then(|link| link.issue_key);
             let commits = step_commits_of(tx.db(), task_id).await?;
             let body = pull_request_body(task.description.as_deref(), issue_key.as_deref(), &commits);
-            Ok(Some(Claim { task, project_folder, main_branch: project.main_branch, body, issue_key, held_number }))
+            Ok(Some(Claim { task, project_folder, main_branch: project.main_branch, body, issue_key, held_number, version }))
         })
     }
 
@@ -189,7 +235,8 @@ impl TaskPullRequestService {
         if claim.held_number.is_some() {
             return Ok(None);
         }
-        let Some(endpoint) = self.tracker.endpoint_of_project(claim.task.project_id).await? else { return Ok(None) };
+        let endpoint = self.tracker.endpoint_of_project(claim.task.project_id).await?
+            .ok_or_else(|| RekallError::conflict("The project needs a task manager to open a pull request."))?;
         let base = self.base_of(&claim.project_folder, claim.main_branch.as_deref()).await?;
         let body = self.pictures.send(&endpoint, claim.task.id, claim.issue_key.as_deref(), &claim.body).await?;
         let opened = self.hosts.open(&endpoint, &branch, &base, &claim.task.title, &body).await;
@@ -211,9 +258,18 @@ impl TaskPullRequestService {
         status.branch.ok_or_else(|| RekallError::illegal("Name this project's main branch: its folder is not on a branch to open pull requests against."))
     }
 
-    async fn keep_pull_request(&self, task_id: Id, pull_request: PullRequest) -> Result<()> {
-        let number = i64::try_from(pull_request.number).map_err(|failure| RekallError::internal(InternalFailure::Integrity, failure))?;
-        self.keep(task_id, |held| task_pull_request::Model { number: Some(number), url: Some(pull_request.url), failure: None, ..held }).await
+    async fn keep_delivery(&self, task_id: Id, version: i64, pull_request: Option<PullRequest>) -> Result<()> {
+        let number = pull_request.as_ref().map(|request| i64::try_from(request.number))
+            .transpose().map_err(|failure| RekallError::internal(InternalFailure::Integrity, failure))?;
+        self.keep(task_id, |mut held| {
+            if let Some(request) = pull_request {
+                held.number = number;
+                held.url = Some(request.url);
+            }
+            held.published_version = held.published_version.max(version);
+            held.failure = None;
+            held
+        }).await
     }
 
     async fn keep_merged(&self, task_id: Id) -> Result<()> {
@@ -233,7 +289,7 @@ impl TaskPullRequestService {
             let task = load::task_or_unknown(tx.db(), task_id).await?;
             let now = self.ctx.now();
             let existing = repo::task_pull_request::find_of_task(tx.db(), task_id).await?;
-            let held = existing.clone().unwrap_or(task_pull_request::Model { task_id, number: None, url: None, failure: None, merged_at: None, created_at: now, updated_at: now });
+            let held = existing.clone().unwrap_or_else(|| task_pull_request::Model::empty(task_id, now));
             let changed = change(held.clone());
             if existing.as_ref() == Some(&changed) || (existing.is_none() && changed == held) {
                 return Ok(());
@@ -242,19 +298,26 @@ impl TaskPullRequestService {
             let mut stamped = task.into_active_model();
             stamped.updated_at = Set(now);
             stamped.update(tx.db()).await?;
+            tx.publish(PullRequestChanged { task_id });
             Ok(())
         })
     }
 }
 
-/// A claimed task is pushed. An accepted one is only while it has no pull request: after that the
-/// branch is the host's to merge and delete, and pushing it again would bring it back.
-fn awaits_push(remaining: Remaining, held_number: Option<i64>) -> bool {
-    match remaining {
-        Remaining::Claimed => true,
-        Remaining::Accepted => held_number.is_none(),
-        Remaining::Open => false,
+fn awaits_push(work: &TaskWork, held: Option<&task_pull_request::Model>) -> bool {
+    if !has_claim(work) {
+        return false;
     }
+    match held {
+        None => true,
+        Some(request) if request.merged_at.is_some() => false,
+        Some(request) => request.awaiting_push() || request.number.is_none()
+            || (request.delivery_version == 0 && work.remaining == Remaining::Claimed),
+    }
+}
+
+fn has_claim(work: &TaskWork) -> bool {
+    work.settled_steps > 0 || work.remaining != Remaining::Open
 }
 
 async fn step_commits_of(db: &impl sea_orm::ConnectionTrait, task_id: Id) -> Result<Vec<StepCommit>> {

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rekall_core::claude::{SessionKind, TerminalEnded, TerminalHost, TerminalOpening, TerminalView};
+use rekall_core::claude::{SessionKind, TerminalEnded, TerminalHost, TerminalLaunchService, TerminalOpening, TerminalView};
 use rekall_kernel::{Id, RekallError, Result};
 use tokio::sync::{broadcast, Mutex};
 use tracing::warn;
@@ -17,6 +17,7 @@ pub struct SessionHosts {
     max_sessions: usize,
     ended: Arc<EndedBus>,
     opening_gate: Mutex<()>,
+    work_provider: Option<TerminalLaunchService>,
 }
 
 impl SessionHosts {
@@ -25,7 +26,29 @@ impl SessionHosts {
         let ended = Arc::new(EndedBus::new());
         forward_ends(terminals.subscribe_ended(), ended.clone());
         forward_ends(chats.subscribe_ended(), ended.clone());
-        Self { terminals, chats, max_sessions, ended, opening_gate: Mutex::new(()) }
+        Self { terminals, chats, max_sessions, ended, opening_gate: Mutex::new(()), work_provider: None }
+    }
+
+    pub fn with_work_provider(mut self, launches: TerminalLaunchService) -> Self {
+        self.work_provider = Some(launches);
+        self
+    }
+
+    async fn remember_work_provider(&self, session: &TerminalView) {
+        let (Some(service), Some(task_id)) = (&self.work_provider, session.task_id) else { return };
+        if let Err(failure) = service.remember_work_provider(task_id, session.provider).await {
+            warn!(%failure, %task_id, "Could not remember the task's work provider");
+        }
+    }
+
+    async fn require_work_directory(&self, opening: &TerminalOpening) -> Result<()> {
+        let Some(service) = &self.work_provider else { return Ok(()) };
+        let Some(existing) = self.list().into_iter().find(|view| view.live && view.target() == opening.target) else { return Ok(()) };
+        let launch = service.resolve(opening.target).await?;
+        if existing.working_dir != launch.working_dir {
+            return Err(RekallError::conflict("This session is open outside the task worktree. Close it to run in the task worktree."));
+        }
+        Ok(())
     }
 
     fn host_of_kind(&self, kind: SessionKind) -> &Arc<dyn TerminalHost> {
@@ -71,7 +94,15 @@ impl TerminalHost for SessionHosts {
     async fn open(&self, mut opening: TerminalOpening) -> Result<TerminalView> {
         let _gate = self.opening_gate.lock().await;
         opening.kind = self.resolve_kind(&opening)?;
-        self.host_of_kind(opening.kind).open(opening).await
+        let is_work = opening.mode.follows_steps();
+        if is_work {
+            self.require_work_directory(&opening).await?;
+        }
+        let session = self.host_of_kind(opening.kind).open(opening).await?;
+        if is_work {
+            self.remember_work_provider(&session).await;
+        }
+        Ok(session)
     }
 
     fn list(&self) -> Vec<TerminalView> {

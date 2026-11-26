@@ -11,7 +11,7 @@ import type { TaskId } from '@/model/branded'
  * offers no action. Drawn only while the branch exists. `signature` changes whenever the task's
  * work moves, so the figures are read again.
  */
-const props = defineProps<{ taskId: TaskId; signature: string }>()
+const props = defineProps<{ taskId: TaskId; signature: string; deliveryFailure?: string | null }>()
 
 const store = useTaskBranchStore()
 const { run } = useAsyncAction()
@@ -47,5 +47,8 @@ watch(
     </details>
 
     <p class="mt-2 text-caption text-text-subtle" data-testid="branch-worktree">{{ worktreeText(branch) }}</p>
+    <p v-if="deliveryFailure" role="status" class="mt-2 break-words text-small text-warn" data-testid="branch-delivery-failure">
+      {{ deliveryFailure }}
+    </p>
   </div>
 </template>

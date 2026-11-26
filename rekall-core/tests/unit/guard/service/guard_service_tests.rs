@@ -5,6 +5,7 @@ const CREDENTIAL_FILE: &str = "/home/dev/.rekall/credentials.json";
 fn context(auto_commit: bool) -> GuardContext {
     GuardContext {
         auto_commit,
+        merge: None,
         running_step: None,
         protected_credential_references: vec![CREDENTIAL_FILE.into(), "/api/terminal/".into()],
     }
@@ -105,4 +106,22 @@ fn stopping_is_blocked_only_while_a_step_is_running_and_names_it() {
 
     assert!(reason.contains("Step 4") && reason.contains("/rk task:VE-12 step:4 done"), "{reason}");
     assert_eq!(GuardService::decide(&GuardEvent::BeforeStop, &context(false)), GuardVerdict::Allow);
+}
+
+#[test]
+fn merging_allows_only_the_designated_branch_operations() {
+    let mut context = context(true);
+    context.merge = Some(crate::guard::GuardMerge { branch: "rekall/ve-12".into(), pull_request: true });
+
+    for command in ["git add -- src/main.rs", "git commit --no-edit", "git push origin rekall/ve-12"] {
+        assert_eq!(GuardService::decide(&shell(command), &context), GuardVerdict::Allow);
+    }
+    for command in [
+        "git -C /other add -A", "cd /other && git commit --no-edit", "git push origin main",
+        "git push --force origin rekall/ve-12", "git push origin +rekall/ve-12",
+    ] {
+        assert!(is_blocked(&GuardService::decide(&shell(command), &context)), "{command}");
+    }
+    context.merge.as_mut().unwrap().pull_request = false;
+    assert!(is_blocked(&GuardService::decide(&shell("git push origin rekall/ve-12"), &context)));
 }

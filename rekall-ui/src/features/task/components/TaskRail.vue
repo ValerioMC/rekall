@@ -111,7 +111,7 @@ function toggle(): void {
       </TaskRailGroup>
       <TaskRailGroup v-show="showsGit" label="Git" glyph="git">
         <template #aside>{{ commitCount || '' }}</template>
-        <TaskBranchPanel :task-id="task.id" :signature="signature" />
+        <TaskBranchPanel :task-id="task.id" :signature="signature" :delivery-failure="task.pullRequestFailure" />
         <CommitReferenceRail
           v-if="commitCount"
           :key="task.id"

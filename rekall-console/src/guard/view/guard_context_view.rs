@@ -6,6 +6,7 @@ use super::running_step_view::RunningStepView;
 pub struct GuardContextView {
     pub project_anchor: Option<String>,
     pub auto_commit: bool,
+    pub merge: Option<rekall_core::guard::GuardMerge>,
     pub running_step: Option<RunningStepView>,
     pub protected_credential_references: Vec<String>,
 }

@@ -99,6 +99,17 @@ Rekall launches the provider with its existing permissions. The hooks let the ac
 Rekall is unreachable or cannot read the event and log the failure to `<rekall.home>/guard.log`.
 See [write safety](../design/write-safety.md) for hook inputs and configuration paths.
 
+## Task pull requests
+
+For a project with pull request flow enabled, Run here and Run in queue work in the task’s
+worktree. Each successful claim commits and pushes to the same branch. The first push opens a
+pull request. Later pushes update the commits on that request. The task’s Git and review
+surfaces show push and merge failures while Rekall retries.
+
+After you accept the task, Rekall merges through the host and closes the task on success.
+Conflicting work opens a merge session with the provider recorded for the task. Rekall
+keeps a dirty worktree and releases the clean checkout after a successful merge.
+
 ## Run queue
 
 The run queue works through a list of tasks until everything on it is claimed. Each task opens in the queue's configured view, Chat or Terminal, using its saved provider. It opens from the dial next to the usage meter in the top bar, or `q`. The dial is also its status: three bars when idle, a clock hand at the start time when scheduled, an orbiting comet with `2/5` while running, and a ring stopped at the ceiling with the time it resumes while holding. When the running task has a checklist the comet becomes a ring of one slice per step: claimed steps filled, the current one lighter and pulsing, the rest hairline (a flow's not-needed steps have no slice, and above 12 steps the ring is one arc filled in proportion). When the top bar has room for it (a wide window) the figure adds `step 3/6`, and the tooltip always reads in full, for example "Run queue: running Report, task 2 of 5, step 3 of 6". A strand of beads shows each task in the run.

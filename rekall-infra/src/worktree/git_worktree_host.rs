@@ -114,7 +114,7 @@ impl WorktreeHost for GitWorktreeHost {
     async fn remove(&self, worktree: &Worktree) -> Result<()> {
         self.layout.require_folder(&worktree.folder)?;
         let target = worktree.folder.to_string_lossy();
-        self.git(&worktree.project_folder, &["worktree", "remove", "--force", &target], REMOVE_TIMEOUT).await?;
+        self.git(&worktree.project_folder, &["worktree", "remove", &target], REMOVE_TIMEOUT).await?;
         Ok(())
     }
 

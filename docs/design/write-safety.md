@@ -266,7 +266,9 @@ supported tool requests that name protected credential locations on any project.
 Protected references come from `rekall-infra::secret::protected_references`. They include
 `<rekall.home>/secrets.json`, `~/.claude/.credentials.json`, and the credential helper API prefix.
 The guard sees the commands and arguments its provider reports. Provider permissions still
-apply. Events that cannot be interpreted or reach Rekall proceed. Hook input and connection
+apply. An accepted task’s merge session can stage resolved files and finish its merge commit in
+the registered worktree on the task branch. For a pull request, only a plain push of that branch
+to `origin` is allowed by the merge exception. Events that cannot be interpreted or reach Rekall proceed. Hook input and connection
 failures are logged to `<rekall.home>/guard.log`.
 
 **Settings → Sessions → Protections** uses `GuardHookInstaller` to manage both providers via

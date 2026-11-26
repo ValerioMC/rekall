@@ -31,23 +31,36 @@ impl FlowService {
         report: Option<&str>,
     ) -> Result<FlowMove> {
         in_write!(&self.ctx, |tx| {
-            let task = load::resolve_task(tx.db(), project_label, task_label).await?;
-            let is_flow = self.links.is_flow_in(&tx, task.id).await?;
-            let outcome = outcome_for(is_flow, target, outcome)?;
-            let report = report_for(is_flow, target, report)?;
-            let started = self.is_start_in(&tx, task.id, step_ref, target).await?;
-            let moved = self.steps.transition_in(&tx, &task, step_ref, target).await?;
-            let route = match (is_flow, target) {
-                (true, TaskStepState::Running) => {
-                    self.visits.enter_in(&tx, &moved).await?;
-                    None
-                }
-                (true, TaskStepState::Claimed) => Some(self.leave_by(&tx, &moved, outcome.as_deref(), report).await?),
-                _ => None,
-            };
-            self.steps.publish_in(&mut tx, task.id).await?;
-            Ok(FlowMove { step: self.steps.view_in(&tx, &moved).await?, route, started })
+            self.transition_in(&mut tx, project_label, task_label, step_ref, target, outcome, report).await
         })
+    }
+
+    pub(crate) async fn transition_in(
+        &self,
+        tx: &mut Tx,
+        project_label: Option<&str>,
+        task_label: &str,
+        step_ref: Option<&str>,
+        target: TaskStepState,
+        outcome: Option<&str>,
+        report: Option<&str>,
+    ) -> Result<FlowMove> {
+        let task = load::resolve_task(tx.db(), project_label, task_label).await?;
+        let is_flow = self.links.is_flow_in(tx, task.id).await?;
+        let outcome = outcome_for(is_flow, target, outcome)?;
+        let report = report_for(is_flow, target, report)?;
+        let started = self.is_start_in(tx, task.id, step_ref, target).await?;
+        let moved = self.steps.transition_in(tx, &task, step_ref, target).await?;
+        let route = match (is_flow, target) {
+            (true, TaskStepState::Running) => {
+                self.visits.enter_in(tx, &moved).await?;
+                None
+            }
+            (true, TaskStepState::Claimed) => Some(self.leave_by(tx, &moved, outcome.as_deref(), report).await?),
+            _ => None,
+        };
+        self.steps.publish_in(tx, task.id).await?;
+        Ok(FlowMove { step: self.steps.view_in(tx, &moved).await?, route, started })
     }
 
     async fn is_start_in(&self, tx: &Tx, task_id: Id, step_ref: Option<&str>, target: TaskStepState) -> Result<bool> {

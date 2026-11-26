@@ -42,6 +42,7 @@ pub async fn run(
 fn context_of(response: GuardContextResponse) -> GuardContext {
     GuardContext {
         auto_commit: response.auto_commit,
+        merge: response.merge,
         running_step: response.running_step.map(|step| GuardRunningStep { number: step.number, task_anchor: step.task_anchor }),
         protected_credential_references: response.protected_credential_references,
     }

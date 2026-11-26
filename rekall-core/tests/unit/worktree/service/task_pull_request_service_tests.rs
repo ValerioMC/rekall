@@ -156,7 +156,14 @@ impl World {
     async fn with_pull_request(&self, label: &str) -> task::Model {
         let task = self.claimed_task(label).await;
         self.service.open_if_claimed(task.id).await.unwrap();
+        self.accept(&task).await;
         task
+    }
+
+    async fn accept(&self, task: &task::Model) {
+        let mut accepted = task.clone();
+        accepted.mark_review_state(TaskStepState::Done);
+        accepted.into_active_model().reset_all().update(&self.ctx.db).await.unwrap();
     }
 }
 
@@ -232,6 +239,7 @@ async fn a_task_whose_pull_request_never_opened_is_refused_with_the_reason_it_fa
     let task = world.claimed_task("report").await;
     world.git.refuse_push("rekall/report", "remote: Permission denied");
     world.service.open_if_claimed(task.id).await.unwrap();
+    world.accept(&task).await;
 
     let landing = world.service.merge_accepted(task.id).await.unwrap();
 

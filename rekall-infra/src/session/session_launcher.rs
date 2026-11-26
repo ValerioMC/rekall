@@ -100,6 +100,7 @@ pub fn require_folder(launch: &TerminalLaunch) -> Result<&Path> {
 fn guard_scope(task_id: Option<Id>, mode: &TerminalMode) -> GuardScope {
     match task_id {
         Some(task_id) if mode.follows_steps() => GuardScope::Work(task_id),
+        Some(task_id) if matches!(mode, TerminalMode::Merge | TerminalMode::MergePullRequest { .. }) => GuardScope::ResolveMerge(task_id),
         _ => GuardScope::WithoutStep,
     }
 }

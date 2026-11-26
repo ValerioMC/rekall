@@ -6,7 +6,7 @@ use rekall_store::{task, WrapupAuthor};
 use rekall_store::repository as repo;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
-use crate::commit::{AutoCommitOutcome, GitRepositoryInspector};
+use crate::commit::{AutoCommitOutcome, AutoCommitService, GitRepositoryInspector};
 use crate::review::TaskReviewService;
 use crate::{in_read, in_write, load, text_rule, Ctx, Tx};
 
@@ -86,6 +86,22 @@ impl WrapupService {
         in_write!(&self.ctx, |tx| {
             let task = load::resolve_task(tx.db(), project_label, task_label).await?;
             self.write_in(&mut tx, task, body, author, head).await
+        })
+    }
+
+    pub async fn write_claim_by_anchor(
+        &self, project_label: Option<&str>, task_code: &str, body: &str, commit: &AutoCommitService, message: Option<&str>,
+    ) -> Result<(Written, AutoCommitOutcome)> {
+        let folder = in_read!(&self.ctx, |tx| {
+            let task = load::resolve_task(tx.db(), project_label, task_code).await?;
+            project_folder_of(&tx, &task).await
+        })?;
+        let head = self.head_in(folder).await;
+        in_write!(&self.ctx, |tx| {
+            let task = load::resolve_task(tx.db(), project_label, task_code).await?;
+            let written = self.write_in(&mut tx, task.clone(), Some(body), WrapupAuthor::Claude, head).await?;
+            let outcome = commit.commit_wrapup_in(&mut tx, &task, message).await?;
+            Ok((written, outcome))
         })
     }
 

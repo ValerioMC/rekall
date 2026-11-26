@@ -138,7 +138,7 @@ is found by opening one folder per crate:
 | `chat` | the shared conversation and approval events (`ChatEvent`) and ports (`ChatPipe`, `ChatListener`) in `rekall-core`. In `rekall-infra`, `StreamParser` reads Claude Code’s stream JSON and `CodexChat` uses the Codex app-server transport over stdio. `ChatSessionManager` keeps their event journal and session lifecycle, and `SessionHosts` routes openings to Chat or Terminal. The `chat` service and routes handle input and event replay. The `terminal` routes open, list and close either kind. |
 | `backup`, `settings`, `version` | the backups of the open database and restoring one, the registered database folders and the restart onto another, the update check; no table behind them, so no folder in `rekall-store` |
 | `guard` | shared rules for the Claude Code and Codex hooks. They refuse manual Git and credential access and remind a session once to claim its own running step. The guard port manages each provider’s hook entries and reports Codex trust. |
-| `worktree` | a project's second working folder on a branch of its own, one per task, started from and merged into the project's main branch: the port `WorktreeHost`, the names and the safety rules of `WorktreeLayout`, the porcelain listing and the reclaiming of worktrees a crash left; `rekall-infra` runs git; for a project with `pull_request_flow` on, `PullRequestFlowService` guards the switch and `TaskPullRequestService` pushes the branch (`WorktreeHost::push_branch`), opens the request through `PullRequestHost` and merges it on acceptance, then closes the issue and deletes the remote branch, the only writer of `task_pull_request`; `TaskWorktreeService::requires_branch` decides which tasks live on a branch (a project with a folder and a task manager, never a quick task) and every session that works one, whether the run queue, `TerminalService` or `TaskBranchService::start` (for the desktop's external terminal) makes it first; a merged task is closed with `close_merged`; `rekall-core` only |
+| `worktree` | a project's second working folder on a branch of its own, one per task, started from and merged into the project's main branch: the port `WorktreeHost`, the names and the safety rules of `WorktreeLayout`, the porcelain listing and the reclaiming of worktrees a crash left; `rekall-infra` runs git; for a project with `pull_request_flow` on, `PullRequestFlowService` guards the switch and `TaskPullRequestService` pushes the branch (`WorktreeHost::push_branch`), opens the request through `PullRequestHost` and merges it on acceptance, then closes the issue and deletes the remote branch, and records delivery progress and failures on `task_pull_request`; `TaskWorktreeService::requires_branch` decides which tasks live on a branch (a project with a folder and a task manager, never a quick task) and every session that works one, whether the run queue, `TerminalService` or `TaskBranchService::start` (for the desktop's external terminal) makes it first; a merged task is closed with `close_merged`. Claim and wrapup transactions stage delivery after auto-commit. The cleaner retries unpublished revisions and accepted requests. The task retains its last work provider for conflict resolution. |
 | `inventory` | what each project is built from: its dependencies at the version each resolves to |
 | `terminal`, `filesystem`, `stream` | the in-app terminals, the folder listing behind the path picker, the event stream the console listens to; console and HTTP only |
 | `vulnerability` | the advisories, the projects they reach, the scan that finds them and what it looks for, a session's verdict and the fix task |
@@ -194,7 +194,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `chat` | - | `claude` | `claude` | nothing | - |
 | `claude` | - | `catalog`, `connection`, `flow`, `task` | nothing | `skill` | - |
 | `codex` | - | nothing | nothing | nothing | - |
-| `commit` | `component`, `step`, `task` | `catalog`, `component`, `step`, `task` | - | nothing | nothing |
+| `commit` | `component`, `step`, `task` | `catalog`, `component`, `flow`, `step`, `task` | - | nothing | nothing |
 | `component` | `catalog` | `catalog`, `connection`, `task` | nothing | nothing | `context` |
 | `connection` | `catalog`, `task` | `picture`, `task`, `tracker` | `catalog`, `commit`, `component`, `section`, `task` | `catalog`, `section` | - |
 | `context` | - | `catalog`, `commit`, `component`, `connection`, `decision`, `dependency`, `deviation`, `feedback`, `note`, `picture`, `section`, `step`, `tag`, `task`, `wrapup` | - | nothing | nothing |
@@ -208,7 +208,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `filesystem` | - | - | nothing | nothing | - |
 | `flow` | `step`, `task` | `step` | - | `step` | `step` |
 | `graph` | `catalog`, `flow`, `step` | - | `catalog`, `flow`, `step`, `task` | `step` | - |
-| `guard` | - | nothing | `catalog`, `step`, `task` | nothing | - |
+| `guard` | - | nothing | `catalog`, `claude`, `step`, `task`, `worktree` | nothing | - |
 | `inventory` | `catalog` | `catalog` | - | nothing | `vulnerability` |
 | `note` | `task` | `task` | nothing | nothing | nothing |
 | `picture` | nothing | nothing | `catalog`, `component`, `section`, `task` | nothing | - |

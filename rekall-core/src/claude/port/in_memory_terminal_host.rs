@@ -96,7 +96,10 @@ impl InMemoryTerminalHost {
 #[async_trait]
 impl TerminalHost for InMemoryTerminalHost {
     async fn open(&self, opening: TerminalOpening) -> Result<TerminalView> {
-        let view = Self::session_on(opening.target, opening.kind);
+        let view = TerminalView {
+            provider: opening.provider, mode: opening.mode.clone(), step_id: opening.step_id,
+            ..Self::session_on(opening.target, opening.kind)
+        };
         self.openings.lock().expect("never poisoned").push(opening);
         self.sessions().push(view.clone());
         Ok(view)
@@ -131,7 +134,7 @@ impl TerminalHost for InMemoryTerminalHost {
     async fn renew(&self, id: Id) -> Result<TerminalView> {
         let old = self.close(id, "renewed").await.ok_or_else(|| RekallError::conflict(format!("No session {id} to renew.")))?;
         self.renewed.lock().expect("never poisoned").push(id);
-        let renewed = Self::session_on(old.target(), old.kind);
+        let renewed = TerminalView { id: Id::random(), ..old };
         self.sessions().push(renewed.clone());
         Ok(renewed)
     }

@@ -9,6 +9,8 @@ use super::running_step_response::RunningStepResponse;
 pub struct GuardContextResponse {
     pub project_anchor: Option<String>,
     pub auto_commit: bool,
+    #[serde(default)]
+    pub merge: Option<rekall_core::guard::GuardMerge>,
     pub running_step: Option<RunningStepResponse>,
     pub protected_credential_references: Vec<String>,
 }
@@ -18,6 +20,7 @@ impl From<GuardContextView> for GuardContextResponse {
         Self {
             project_anchor: view.project_anchor,
             auto_commit: view.auto_commit,
+            merge: view.merge,
             running_step: view.running_step.map(Into::into),
             protected_credential_references: view.protected_credential_references,
         }

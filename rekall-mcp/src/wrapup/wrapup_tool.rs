@@ -72,9 +72,9 @@ impl McpTool for WrapupTool {
         let checks_passed = admit(report, texts::WRAPUP_LEFT_AS_IT_WAS)?;
 
         // The transport stamps the author: anything arriving over MCP was written by Claude.
-        let written = self
+        let (written, committed) = self
             .wrapups
-            .write_by_anchor(target.project_label.as_deref(), &target.task_code, Some(&body), WrapupAuthor::Claude)
+            .write_claim_by_anchor(target.project_label.as_deref(), &target.task_code, &body, &self.auto_commit, commit_message.as_deref())
             .await
             .map_err(|e| told(e, QUALIFY_WITH_PROJECT))?;
 
@@ -99,7 +99,6 @@ impl McpTool for WrapupTool {
             out.push_str(&nudge);
         }
 
-        let committed = self.auto_commit.after_wrapup(written.wrapup.task_id, commit_message.as_deref()).await?;
         if !committed.off() {
             out.push_str("\n\n");
             out.push_str(&committed.describe());
