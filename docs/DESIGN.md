@@ -520,6 +520,7 @@ asked for.
 |---|---|
 | `POST /api/images` | Copies the file at `sourcePath` for `owner` (`kind` `TASK`, `BLUEPRINT`, `PAGE` or `COMPONENT`, and `id`; a blueprint is named by its project's id) and answers `201` with its `url`. Not a picture, past 10 MB, not a file or a relative path is `400`, an unknown owner `404`, a database that is not a file `409` |
 | `GET /api/images/{path}` | The bytes with their content type, cacheable for good, `nosniff` and same-origin only; an SVG carries a sandboxing `Content-Security-Policy`, so one opened directly runs no script. Anything that is not a picture's path is `404` |
+| `GET /api/image-thumbnail?path=` | A preview of the file at the absolute `path`, for the picker, under the content check and 10 MB limit of an import, else `400`; nothing is copied. PNG, JPEG, WebP and a GIF's first frame come back as a PNG fitting 320 pixels, never enlarged and turned as their EXIF orientation says; an SVG as it is. The headers of `GET /api/images/{path}`, so no other page can embed it and probe your files, but `Cache-Control: private, no-cache` |
 
 ---
 

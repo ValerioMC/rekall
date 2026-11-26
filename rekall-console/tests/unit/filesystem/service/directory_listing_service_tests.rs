@@ -42,6 +42,8 @@ fn folders_come_first_then_files_each_by_name_ignoring_case_hidden_ones_flagged(
     let hidden: Vec<&str> = listing.entries.iter().filter(|e| e.hidden).map(|e| e.name.as_str()).collect();
     assert_eq!(hidden, [".env.local"]);
     assert_eq!(listing.entries[0].path, fixture.path("project/Docs"));
+    let sizes: Vec<Option<u64>> = listing.entries.iter().map(|e| e.size).collect();
+    assert_eq!(sizes, [None, None, Some(0), Some(0), Some(1)]);
     assert!(listing.readable);
     assert!(!listing.truncated);
 }

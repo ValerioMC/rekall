@@ -11,7 +11,7 @@ import {
 import type { DirectoryEntry } from '@/model/filesystem'
 
 function entry(name: string, directory = false, hidden = name.startsWith('.')): DirectoryEntry {
-  return { name, path: `/p/${name}`, directory, hidden }
+  return { name, path: `/p/${name}`, directory, hidden, size: directory ? null : 1 }
 }
 
 describe('splitPathQuery', () => {

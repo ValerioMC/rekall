@@ -218,3 +218,31 @@ async fn reading_a_missing_picture_or_something_that_is_not_one_is_not_found() {
         assert!(matches!(world.service.read(path).await, Err(RekallError::NotFound(_))), "{path}");
     }
 }
+
+#[tokio::test]
+async fn a_thumbnail_is_drawn_from_the_chosen_file_and_nothing_is_kept() {
+    let world = world().await;
+    let mut photo = std::io::Cursor::new(Vec::new());
+    image::RgbImage::new(900, 600).write_to(&mut photo, image::ImageFormat::Png).unwrap();
+    world.store.sources.lock().unwrap().insert("/home/me/photo.png".into(), photo.into_inner());
+
+    let thumbnail = world.service.thumbnail("/home/me/photo.png").await.unwrap();
+
+    let drawn = image::load_from_memory(&thumbnail.bytes).unwrap();
+    assert_eq!((drawn.width(), drawn.height()), (320, 213));
+    assert_eq!(*world.store.writes.lock().unwrap(), 0);
+}
+
+#[tokio::test]
+async fn a_thumbnail_is_refused_for_what_an_import_refuses() {
+    let world = world().await;
+    let mut huge = PNG.to_vec();
+    huge.resize(10 * 1024 * 1024 + 1, 0);
+    world.store.sources.lock().unwrap().insert("/home/me/huge.png".into(), huge);
+    world.store.sources.lock().unwrap().insert("/home/me/notes.png".into(), b"only text".to_vec());
+
+    for source in ["/home/me/huge.png", "/home/me/notes.png", "/home/me/gone.png"] {
+        let refusal = world.service.thumbnail(source).await.unwrap_err();
+        assert!(matches!(refusal, RekallError::IllegalArgument(_)), "{source}: {refusal}");
+    }
+}

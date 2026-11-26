@@ -7,8 +7,10 @@ use rekall_kernel::{RekallError, Result};
 
 use crate::picture::rule::picture_content::{self, MAX_PICTURE_BYTES};
 use crate::picture::rule::picture_naming;
+use crate::picture::rule::picture_thumbnail;
 use crate::picture::support::owner_folder;
 use crate::picture::{ImportedPictureView, PictureFileView, PictureImportCommand};
+use crate::shared::blocking;
 
 #[derive(Clone)]
 pub struct PictureService {
@@ -29,6 +31,14 @@ impl PictureService {
         let path = PicturePath::parse(&format!("{folder}/{}", picture_naming::file_name(source, &bytes, format)))?;
         self.store.write(&path, &bytes).await?;
         Ok(ImportedPictureView { url: path.address() })
+    }
+
+    /// A preview of a file the person is browsing, under the size and content rules of an import.
+    /// Nothing is copied.
+    pub async fn thumbnail(&self, source_path: &str) -> Result<PictureFileView> {
+        let bytes = self.store.read_source(Path::new(source_path), MAX_PICTURE_BYTES).await?;
+        let format = picture_content::format_of(&bytes)?;
+        blocking(move || picture_thumbnail::of(bytes, format)).await
     }
 
     pub async fn read(&self, relative: &str) -> Result<PictureFileView> {

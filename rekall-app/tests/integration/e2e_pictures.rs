@@ -63,3 +63,32 @@ async fn an_imported_png_and_svg_are_copied_beside_the_database_and_served_with_
 
     app.stop().await;
 }
+
+async fn thumbnail_of(app: &App, name: &str, bytes: &[u8]) -> reqwest::Response {
+    let source = app.folder.path().join(name);
+    std::fs::write(&source, bytes).unwrap();
+    let url = app.url("/api/image-thumbnail");
+    app.client.get(url).query(&[("path", source.to_str().unwrap())]).send().await.unwrap()
+}
+
+#[tokio::test]
+async fn a_file_being_browsed_is_previewed_under_the_headers_of_a_kept_picture() {
+    let app = app().await;
+
+    let svg = thumbnail_of(&app, "Logo & mark.svg", SVG).await;
+    assert_eq!(svg.status(), 200);
+    assert_eq!(header(&svg, "content-type"), Some("image/svg+xml"));
+    assert_eq!(header(&svg, "content-security-policy"), Some(SVG_POLICY));
+    assert_eq!(header(&svg, "cache-control"), Some("private, no-cache"));
+    assert_eq!(header(&svg, "x-content-type-options"), Some("nosniff"));
+    assert_eq!(header(&svg, "cross-origin-resource-policy"), Some("same-origin"));
+    assert_eq!(svg.bytes().await.unwrap().as_ref(), SVG);
+
+    assert_eq!(thumbnail_of(&app, "notes.png", b"only text").await.status(), 400);
+    assert_eq!(app.get("/api/image-thumbnail").await.status, 400);
+    assert_eq!(app.get("/api/image-thumbnail?path=relative.png").await.status, 400);
+    assert!(!app.folder.path().join("db/images").exists());
+
+    app.stop().await;
+}
+

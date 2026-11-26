@@ -7,6 +7,7 @@ import PathPickerTopBar from '@/components/ui/path-picker/PathPickerTopBar.vue'
 import { PICKER_MODES, type PickerMode } from '@/components/ui/path-picker/picker-mode'
 import { useCaretPlacement, type CaretBox } from '@/composables/useCaretPlacement'
 import { useDirectoryBrowser } from '@/composables/useDirectoryBrowser'
+import SourcePicturePreview from '@/features/picture/components/SourcePicturePreview.vue'
 import type { DirectoryEntry } from '@/model/filesystem'
 
 export type { CaretBox }
@@ -70,7 +71,7 @@ const browser = useDirectoryBrowser({
 const { query, parsed, listing, failure, notice, slow, showHidden, highlighted, rows, hiddenCount, current, crumbs, atProject, atHome } =
   browser
 
-const panelStyle = useCaretPlacement(props.locate, () => emit('close'))
+const panelStyle = useCaretPlacement(props.locate, () => emit('close'), PICKER_MODES[props.mode].panel)
 
 const preview = computed<string>(() => {
   const entry = current.value
@@ -186,7 +187,7 @@ onUnmounted(() => {
 <template>
   <div
     ref="panel"
-    class="path-picker fixed z-(--z-overlay) flex flex-col overflow-hidden rounded-card border border-border-strong bg-surface shadow-lift"
+    class="path-picker @container fixed z-(--z-overlay) flex flex-col overflow-hidden rounded-card border border-border-strong bg-surface shadow-lift"
     :style="panelStyle"
     role="dialog"
     :aria-label="rules.title"
@@ -232,47 +233,50 @@ onUnmounted(() => {
       <span v-if="slow" class="path-progress" role="status" aria-label="Loading folder" />
     </div>
 
-    <div ref="listEl" class="relative min-h-0 flex-1 overflow-y-auto px-1 py-1" data-testid="path-picker-list">
-      <p
-        v-if="notice"
-        class="mx-2 mb-1 mt-0.5 rounded-control bg-warn-soft px-2.5 py-1.5 text-caption leading-snug text-warn"
-        data-testid="path-picker-notice"
-      >
-        {{ notice }}
-      </p>
+    <div class="flex min-h-0 flex-1 flex-col @xl:flex-row">
+      <div ref="listEl" class="relative min-h-0 min-w-0 flex-1 overflow-y-auto px-1 py-1" data-testid="path-picker-list">
+        <p
+          v-if="notice"
+          class="mx-2 mb-1 mt-0.5 rounded-control bg-warn-soft px-2.5 py-1.5 text-caption leading-snug text-warn"
+          data-testid="path-picker-notice"
+        >
+          {{ notice }}
+        </p>
 
-      <div v-if="!listing && !failure" role="status" aria-live="polite" aria-busy="true">
-        <span class="sr-only">Loading</span>
-        <div v-for="index in 7" :key="index" class="flex h-[30px] items-center gap-2.5 pl-4">
-          <div class="skeleton size-3.5" />
-          <div class="skeleton h-2.5" :style="{ width: `${90 + ((index * 37) % 110)}px` }" />
+        <div v-if="!listing && !failure" role="status" aria-live="polite" aria-busy="true">
+          <span class="sr-only">Loading</span>
+          <div v-for="index in 7" :key="index" class="flex h-[30px] items-center gap-2.5 pl-4">
+            <div class="skeleton size-3.5" />
+            <div class="skeleton h-2.5" :style="{ width: `${90 + ((index * 37) % 110)}px` }" />
+          </div>
         </div>
-      </div>
 
-      <PathPickerStatus
-        v-else-if="failure || !listing?.readable || !rows.length"
-        :failure="failure"
-        :unreadable="!!listing && !listing.readable"
-        :needle="parsed.needle"
-        :show-hidden="showHidden"
-        :hidden-count="hiddenCount"
-        :chooses-folders="rules.choosesFolders"
-        @show-hidden="browser.toggleHidden"
-      />
-
-      <ul v-else :id="listId" role="listbox" :aria-label="rules.listLabel" :class="{ 'opacity-60 transition-opacity': slow }">
-        <PathPickerRow
-          v-for="(row, index) in rows"
-          :id="rowId(index)"
-          :key="row.entry.path"
-          :row="row"
-          :highlighted="index === highlighted"
-          :mode="mode"
-          @hover="highlighted = index"
-          @activate="activate(row.entry)"
-          @insert="insert(row.entry)"
+        <PathPickerStatus
+          v-else-if="failure || !listing?.readable || !rows.length"
+          :failure="failure"
+          :unreadable="!!listing && !listing.readable"
+          :needle="parsed.needle"
+          :show-hidden="showHidden"
+          :hidden-count="hiddenCount"
+          :chooses-folders="rules.choosesFolders"
+          @show-hidden="browser.toggleHidden"
         />
-      </ul>
+
+        <ul v-else :id="listId" role="listbox" :aria-label="rules.listLabel" :class="{ 'opacity-60 transition-opacity': slow }">
+          <PathPickerRow
+            v-for="(row, index) in rows"
+            :id="rowId(index)"
+            :key="row.entry.path"
+            :row="row"
+            :highlighted="index === highlighted"
+            :mode="mode"
+            @hover="highlighted = index"
+            @activate="activate(row.entry)"
+            @insert="insert(row.entry)"
+          />
+        </ul>
+      </div>
+      <SourcePicturePreview v-if="mode === 'image'" :entry="current" />
     </div>
 
     <!-- What lands in the markdown, or which file is copied, and the keys that do it. -->

@@ -1,3 +1,4 @@
+import type { PanelSize } from '@/composables/useCaretPlacement'
 import { isPictureFileName } from '@/features/picture/lib/picture-file'
 import type { DirectoryEntry } from '@/model/filesystem'
 
@@ -14,6 +15,7 @@ export interface PickerModeRules {
   readonly title: string
   readonly placeholder: string
   readonly listLabel: string
+  readonly panel: PanelSize
   readonly lists: (entry: DirectoryEntry) => boolean
   /** False when a folder is only the way to a file: ↵ opens it. */
   readonly choosesFolders: boolean
@@ -22,12 +24,14 @@ export interface PickerModeRules {
 
 const ANY_PATH = 'Filter, or type a path: src/  ~/  /'
 const EVERYTHING_LABEL = 'Folders and files'
+const LIST_PANEL: PanelSize = { width: 480, height: 404 }
 
 export const PICKER_MODES: Readonly<Record<PickerMode, PickerModeRules>> = {
   path: {
     title: 'Insert a path',
     placeholder: ANY_PATH,
     listLabel: EVERYTHING_LABEL,
+    panel: LIST_PANEL,
     lists: () => true,
     choosesFolders: true,
     words: () => ({ preview: 'Inserts', enter: 'insert' })
@@ -36,6 +40,7 @@ export const PICKER_MODES: Readonly<Record<PickerMode, PickerModeRules>> = {
     title: 'Choose a folder',
     placeholder: ANY_PATH,
     listLabel: EVERYTHING_LABEL,
+    panel: LIST_PANEL,
     lists: (entry) => entry.directory,
     choosesFolders: true,
     words: () => ({ preview: 'Chooses', enter: 'choose' })
@@ -44,6 +49,7 @@ export const PICKER_MODES: Readonly<Record<PickerMode, PickerModeRules>> = {
     title: 'Choose an image',
     placeholder: 'Filter, or type a path: ~/Desktop/  /',
     listLabel: 'Folders and pictures',
+    panel: { width: 760, height: 520 },
     lists: (entry) => entry.directory || isPictureFileName(entry.name),
     choosesFolders: false,
     words: (current) => {

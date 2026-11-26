@@ -1,6 +1,6 @@
 //! Lists one folder on this machine for the path picker in the markdown editor.
 //!
-//! It reads names only, never contents, and it lives in rekall-console so it stays out of the MCP
+//! It reads names and file sizes, never contents, and it lives in rekall-console so it stays out of the MCP
 //! tools' reach: browsing the disk is something the console does for the person typing, not
 //! something a session is handed. The server is loopback-only (the local-access guard), so the
 //! reach is the reach of the person already sitting at the machine.
@@ -9,6 +9,7 @@
 //! and anything else is taken relative to the folder the picker is standing in. That is what
 //! lets someone type `src/comp` or `~/Downl` into the picker's filter and land in the right place.
 
+use std::fs::Metadata;
 use std::io;
 use std::path::{Component, Path, PathBuf};
 
@@ -128,11 +129,13 @@ fn read_entries(folder: &Path) -> (Vec<DirectoryEntryView>, bool) {
 }
 
 fn entry(child: &Path, name: &str) -> DirectoryEntryView {
+    let found = std::fs::metadata(child).ok();
     DirectoryEntryView {
         name: name.to_string(),
         path: text(child),
-        directory: child.is_dir(),
+        directory: found.as_ref().is_some_and(Metadata::is_dir),
         hidden: is_hidden(child, name),
+        size: found.filter(Metadata::is_file).map(|file| file.len()),
     }
 }
 

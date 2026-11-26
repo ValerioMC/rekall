@@ -3,7 +3,7 @@ use std::sync::Arc;
 use rekall_core::claude::{ClaudeCodeSetup, Installation};
 use rekall_kernel::Result;
 
-use crate::claude::support::blocking_job::blocking;
+use crate::shared::blocking;
 
 /// Whether Claude Code knows Rekall, and the install that makes it so. Both run a process, so
 /// each runs off the async workers.

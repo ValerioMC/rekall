@@ -21,7 +21,8 @@ function folder(path: string, names: string[]): DirectoryListing {
     name: name.replace(/\/$/, ''),
     path: `${path}/${name.replace(/\/$/, '')}`,
     directory: name.endsWith('/'),
-    hidden: name.startsWith('.')
+    hidden: name.startsWith('.'),
+    size: name.endsWith('/') ? null : 245_760
   }))
   return {
     path,
@@ -278,7 +279,6 @@ describe('PathPicker', () => {
       expect(wrapper!.find('[data-testid="path-picker"]').attributes('aria-label')).toBe('Choose an image')
       expect(wrapper!.find('h2').text()).toBe('Choose an image')
       expect(names()).toEqual(['screens', 'Login Flow.PNG', 'logo.svg', 'photo.jpeg', 'spin.gif', 'tile.webp', 'wide.jpg'])
-      expect(wrapper!.findAll('[data-testid="path-picker-picture-glyph"]')).toHaveLength(6)
     })
 
     it('opens a folder on Enter instead of inserting it, and offers no folder insert', async () => {
@@ -334,5 +334,104 @@ describe('PathPicker', () => {
       own.remove()
       other.remove()
     })
+  })
+})
+
+describe('PathPicker thumbnails', () => {
+  const DESKTOP = `${HOME}/Desktop`
+  const watched = new Map<Element, IntersectionObserverCallback>()
+
+  class FakeIntersectionObserver {
+    constructor(private readonly callback: IntersectionObserverCallback) {}
+    observe(target: Element): void {
+      watched.set(target, this.callback)
+    }
+    disconnect(): void {
+      for (const [target, callback] of watched) if (callback === this.callback) watched.delete(target)
+    }
+  }
+
+  function scrollTo(element: Element): void {
+    const entry = { isIntersecting: true, target: element } as unknown as IntersectionObserverEntry
+    watched.get(element)?.([entry], {} as IntersectionObserver)
+  }
+
+  async function showEverything(): Promise<void> {
+    for (const element of [...watched.keys()]) scrollTo(element)
+    await flushPromises()
+  }
+
+  function rowThumbnails(): string[] {
+    return wrapper!.findAll('[data-testid="path-picker-row"] img').map((image) => image.attributes('src') ?? '')
+  }
+
+  const thumbnailOf = (name: string): string => `/api/image-thumbnail?path=${encodeURIComponent(`${DESKTOP}/${name}`)}`
+
+  beforeEach(() => {
+    watched.clear()
+    vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver)
+  })
+
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('asks for a thumbnail only once its row is in view', async () => {
+    mountPicker({ mode: 'image', start: DESKTOP })
+    await settle()
+    expect(rowThumbnails()).toEqual([])
+
+    const second = wrapper!.findAll('[data-testid="path-picker-row"]')[1]!.find('span').element
+    scrollTo(second)
+    await flushPromises()
+
+    expect(rowThumbnails()).toEqual([expect.stringContaining(thumbnailOf('Login Flow.PNG'))])
+  })
+
+  it('gives every picture row a thumbnail and folders none', async () => {
+    mountPicker({ mode: 'image', start: DESKTOP })
+    await settle()
+    await showEverything()
+
+    expect(rowThumbnails()).toHaveLength(6)
+    expect(wrapper!.findAll('[data-testid="path-picker-row"]')[0]!.find('img').exists()).toBe(false)
+  })
+
+  it('shows the highlighted picture large, with its size, and follows the arrows', async () => {
+    mountPicker({ mode: 'image', start: DESKTOP })
+    await settle()
+    const preview = (): string => wrapper!.find('[data-testid="picture-preview"]').text()
+    expect(preview()).toContain('Open the folder to see its pictures.')
+
+    key({ key: 'ArrowDown' })
+    await flushPromises()
+    await showEverything()
+    expect(preview()).toContain('Login Flow.PNG')
+    expect(wrapper!.find('[data-testid="picture-preview-size"]').text()).toBe('240 KB')
+    expect(wrapper!.find('[data-testid="picture-preview"] img').attributes('src')).toContain(thumbnailOf('Login Flow.PNG'))
+
+    key({ key: 'ArrowDown' })
+    await flushPromises()
+    await showEverything()
+    expect(wrapper!.find('[data-testid="picture-preview"] img').attributes('src')).toContain(thumbnailOf('logo.svg'))
+  })
+
+  it('shows a plain file glyph for a file that cannot be drawn', async () => {
+    mountPicker({ mode: 'image', start: DESKTOP })
+    await settle()
+    await showEverything()
+    const row = wrapper!.findAll('[data-testid="path-picker-row"]')[1]!
+
+    await row.find('img').trigger('error')
+
+    expect(row.find('img').exists()).toBe(false)
+    expect(row.find('[data-testid="file-glyph"]').exists()).toBe(true)
+  })
+
+  it.each(['path', 'folder'] as const)('draws no thumbnail and no preview in %s mode', async (mode) => {
+    mountPicker({ mode, start: DESKTOP })
+    await settle()
+    await showEverything()
+
+    expect(wrapper!.find('img').exists()).toBe(false)
+    expect(wrapper!.find('[data-testid="picture-preview"]').exists()).toBe(false)
   })
 })

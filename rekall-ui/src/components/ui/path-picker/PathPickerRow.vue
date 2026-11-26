@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { splitByRanges, type PathRow } from '@/common/path/path-query'
+import FileGlyph from '@/components/ui/FileGlyph.vue'
 import { PICKER_MODES, type PickerMode } from '@/components/ui/path-picker/picker-mode'
+import SourceThumbnail from '@/features/picture/components/SourceThumbnail.vue'
 
-/** One folder or file of the folder in view, with the letters the filter matched lit. */
-defineProps<{
+/** One folder or file of the folder in view, with the letters the filter matched lit. A picture to choose shows itself. */
+const props = defineProps<{
   id: string
   row: PathRow
   highlighted: boolean
@@ -11,6 +14,8 @@ defineProps<{
 }>()
 
 defineEmits<{ hover: []; activate: []; insert: [] }>()
+
+const showsPictures = computed(() => props.mode === 'image')
 </script>
 
 <template>
@@ -18,51 +23,38 @@ defineEmits<{ hover: []; activate: []; insert: [] }>()
     :id="id"
     role="option"
     :aria-selected="highlighted"
-    class="path-row group/row flex h-[30px] cursor-pointer items-center gap-2.5 rounded-control pl-3.5 pr-1.5"
-    :class="[highlighted ? 'selected-row' : 'hover:bg-surface-hover', row.entry.hidden && 'opacity-60']"
+    class="path-row group/row flex cursor-pointer items-center gap-2.5 rounded-control pr-1.5"
+    :class="[
+      showsPictures ? 'h-11 pl-1.5' : 'h-[30px] pl-3.5',
+      highlighted ? 'selected-row' : 'hover:bg-surface-hover',
+      row.entry.hidden && 'opacity-60'
+    ]"
     :data-directory="row.entry.directory"
     data-testid="path-picker-row"
     @mousemove="$emit('hover')"
     @click="$emit('activate')"
   >
-    <svg
-      v-if="row.entry.directory"
-      class="size-3.5 shrink-0"
-      :class="highlighted ? 'text-accent' : 'text-text-muted'"
-      viewBox="0 0 16 16"
-      aria-hidden="true"
-    >
-      <path
-        d="M1.75 4.25c0-.55.45-1 1-1h3.1l1.4 1.5h6c.55 0 1 .45 1 1v6.5c0 .55-.45 1-1 1H2.75c-.55 0-1-.45-1-1v-8Z"
-        fill="currentColor"
-        fill-opacity="0.16"
-        stroke="currentColor"
-        stroke-width="1.25"
-        stroke-linejoin="round"
-      />
-    </svg>
-    <svg
-      v-else-if="mode === 'image'"
-      class="size-3.5 shrink-0"
-      :class="highlighted ? 'text-accent' : 'text-text-muted'"
-      viewBox="0 0 16 16"
-      fill="none"
-      aria-hidden="true"
-      data-testid="path-picker-picture-glyph"
-    >
-      <rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.5" stroke="currentColor" stroke-width="1.25" />
-      <circle cx="5.5" cy="6.25" r="1.15" fill="currentColor" />
-      <path d="m2.5 11.75 3.4-3.1 2.4 2.15 2.5-2.8 2.7 3" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-    </svg>
-    <svg v-else class="size-3.5 shrink-0 text-text-subtle" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path
-        d="M4 1.75h5.1L12.25 5v8.25c0 .55-.45 1-1 1H4c-.55 0-1-.45-1-1V2.75c0-.55.45-1 1-1Z"
-        stroke="currentColor"
-        stroke-width="1.25"
-        stroke-linejoin="round"
-      />
-      <path d="M9 1.9V5.1h3.1" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" />
-    </svg>
+    <SourceThumbnail v-if="showsPictures && !row.entry.directory" :path="row.entry.path" class="size-9 shrink-0" />
+    <!-- Beside thumbnails a folder's glyph takes the same box, so the names stay in one column. -->
+    <span v-else :class="showsPictures ? 'grid size-9 shrink-0 place-items-center' : 'contents'">
+      <svg
+        v-if="row.entry.directory"
+        class="size-3.5 shrink-0"
+        :class="highlighted ? 'text-accent' : 'text-text-muted'"
+        viewBox="0 0 16 16"
+        aria-hidden="true"
+      >
+        <path
+          d="M1.75 4.25c0-.55.45-1 1-1h3.1l1.4 1.5h6c.55 0 1 .45 1 1v6.5c0 .55-.45 1-1 1H2.75c-.55 0-1-.45-1-1v-8Z"
+          fill="currentColor"
+          fill-opacity="0.16"
+          stroke="currentColor"
+          stroke-width="1.25"
+          stroke-linejoin="round"
+        />
+      </svg>
+      <FileGlyph v-else />
+    </span>
 
     <span
       class="min-w-0 flex-1 truncate font-mono text-small"

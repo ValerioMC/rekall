@@ -3,7 +3,7 @@ use std::sync::Arc;
 use rekall_core::claude::{GuardInstaller, GuardProtection};
 use rekall_kernel::Result;
 
-use crate::claude::support::blocking_job::blocking;
+use crate::shared::blocking;
 
 /// Whether Claude Code runs the guard hooks, and the writes that add or remove them. Each reads or
 /// writes a file, so each runs off the async workers.

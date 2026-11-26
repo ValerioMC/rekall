@@ -5,6 +5,8 @@ export interface DirectoryEntry {
   readonly directory: boolean
   /** A dotfile, or a file the platform marks hidden. */
   readonly hidden: boolean
+  /** In bytes; null for a folder. */
+  readonly size: number | null
 }
 
 /** One crumb of the breadcrumb, from the filesystem root down to the listed folder. */
