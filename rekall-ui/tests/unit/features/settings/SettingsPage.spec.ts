@@ -72,23 +72,25 @@ describe('the Settings screen', () => {
     expect(page.findAll('main h2').map((title) => title.text())).toEqual(['Backups', 'Langfuse'])
   })
 
-  it('switches the provider from the shared menu and saves it for new sessions', async () => {
+  it('opens Sessions with what both providers share above a column for each', async () => {
     const page = await mountAt('/settings/sessions')
-    const trigger = page.get('button#session-provider')
 
-    expect(trigger.text()).toBe('Claude Code')
-    expect(page.find('[data-testid="claude-section"]').exists()).toBe(true)
+    expect(page.find('main [data-testid="shared-session-settings"]').exists()).toBe(true)
+    expect(page.findAll('[data-testid="provider-columns"] > div').map((column) => column.attributes('data-testid'))).toEqual([
+      'claude-section', 'codex-settings'
+    ])
+  })
 
-    await trigger.trigger('click')
-    const menu = page.get('[role="menu"][aria-label="Provider"]')
-    expect(trigger.attributes('aria-expanded')).toBe('true')
-    expect(menu.get('[aria-current="true"]').text()).toBe('Claude Code')
+  it('saves the default provider for new sessions and keeps both columns open', async () => {
+    const page = await mountAt('/settings/sessions')
+    const choice = page.get('[data-testid="default-provider"]')
+    expect(choice.get('[data-testid="segment-CLAUDE"]').attributes('aria-pressed')).toBe('true')
 
-    await menu.findAll('[role="menuitem"]')[1]!.trigger('click')
-    expect(trigger.attributes('aria-expanded')).toBe('false')
-    expect(trigger.text()).toBe('Codex')
-    expect(page.find('[data-testid="codex-settings"]').exists()).toBe(true)
+    await choice.get('[data-testid="segment-CODEX"]').trigger('click')
+
     expect(preferredProvider()).toBe('CODEX')
+    expect(page.find('[data-testid="claude-section"]').exists()).toBe(true)
+    expect(page.find('[data-testid="codex-settings"]').exists()).toBe(true)
   })
 
   it('changes behaviour from Appearance: the density Work reads and the motion on the document', async () => {

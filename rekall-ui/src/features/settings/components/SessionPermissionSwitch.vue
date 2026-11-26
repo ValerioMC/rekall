@@ -8,10 +8,10 @@ const descriptionId = useId()
 </script>
 
 <template>
-  <div class="mt-3 flex items-start gap-3 border-t border-border pt-3">
+  <div class="flex items-start gap-3 border-t border-border px-5 py-3.5">
     <div class="min-w-0 flex-1">
-      <p class="text-small text-text">{{ label }}</p>
-      <p :id="descriptionId" class="mt-0.5 text-caption leading-relaxed text-text-subtle">
+      <p class="text-body font-medium text-text">{{ label }}</p>
+      <p :id="descriptionId" class="mt-1 break-words text-small leading-relaxed text-text-subtle">
         <slot />
       </p>
     </div>

@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AppCatalogHeader from '@/features/catalog/components/AppCatalogHeader.vue'
 import FormPanel from '@/components/ui/FormPanel.vue'
 import PictureCleanupPanel from '@/features/picture/components/PictureCleanupPanel.vue'
 import AppearanceSection from '@/features/settings/components/AppearanceSection.vue'
 import BackupsSection from '@/features/settings/components/BackupsSection.vue'
-import { preferredProvider, setPreferredProvider } from '@/common/config/session-launch'
 import CodexSection from '@/features/settings/components/CodexSection.vue'
-import SessionProviderSection from '@/features/settings/components/SessionProviderSection.vue'
+import SharedSessionSection from '@/features/settings/components/SharedSessionSection.vue'
 import ClaudeCodeSection from '@/features/settings/components/ClaudeCodeSection.vue'
 import ConnectionsSection from '@/features/settings/components/ConnectionsSection.vue'
 import DatabaseSection from '@/features/settings/components/DatabaseSection.vue'
@@ -28,9 +27,6 @@ import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnecti
 /** Settings at `/settings/:section?/:topic?`: a grouped rail beside the section open; Help takes a topic from the rail. */
 const route = useRoute()
 const claudeConnection = useClaudeConnectionStore()
-const provider = ref(preferredProvider())
-watch(provider, setPreferredProvider, { flush: 'sync' })
-
 const section = computed(() => settingsSectionOf(typeof route.params.section === 'string' ? route.params.section : undefined))
 const helpTopic = computed(() => helpContextOf(typeof route.params.topic === 'string' ? route.params.topic : undefined).id)
 
@@ -51,10 +47,12 @@ onUnmounted(() => void claudeConnection.load().catch(() => undefined))
           <AppearanceSection v-else-if="section === 'appearance'" />
           <ReviewSection v-else-if="section === 'review'" />
           <template v-else-if="section === 'sessions'">
-            <FormPanel class="overflow-visible"><SessionProviderSection v-model="provider" /></FormPanel>
-            <FormPanel v-if="provider === 'CLAUDE'"><ClaudeCodeSection /></FormPanel>
-            <FormPanel v-else><CodexSection /></FormPanel>
-            <FormPanel><GuardProtectionSection /></FormPanel>
+            <SharedSessionSection class="col-span-full" />
+            <div class="col-span-full grid gap-4 min-[1100px]:grid-cols-2" data-testid="provider-columns">
+              <ClaudeCodeSection />
+              <CodexSection />
+            </div>
+            <GuardProtectionSection class="col-span-full" />
           </template>
           <FormPanel v-else-if="section === 'notifications'"><NotificationsSection /></FormPanel>
           <TimeUsageSection v-else-if="section === 'time'" />

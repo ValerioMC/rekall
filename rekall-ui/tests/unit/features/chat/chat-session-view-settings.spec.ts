@@ -1,45 +1,33 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import ClaudeCodeSection from '@/features/settings/components/ClaudeCodeSection.vue'
+import SharedSessionSection from '@/features/settings/components/SharedSessionSection.vue'
 import QueueSettingsAside from '@/features/queue/components/QueueSettingsAside.vue'
 import { preferredSessionKind } from '@/common/config/claude-launch'
 import { installStorage } from '../../support/memoryStorage'
 
 vi.mock('@/features/claude/api/claude.api', () => ({
-  fetchClaudeInstallation: vi.fn().mockResolvedValue({
-    status: 'CONNECTED',
-    endpoint: 'http://localhost:47355/mcp',
-    registeredUrl: 'http://localhost:47355/mcp',
-    folderScoped: [],
-    commandInstalled: true,
-    cliPath: '/bin/claude',
-    manualCommand: ''
-  }),
-  installClaudeIntegration: vi.fn(),
   fetchClaudeUsage: vi.fn().mockResolvedValue({ status: 'UNAVAILABLE', limits: [], fetchedAt: '' })
 }))
 
-describe('Settings > Claude Code > Session view', () => {
+describe('Settings > Both providers > Session view', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     installStorage()
   })
 
   it('offers the terminal and the chat, marks the chat experimental, and keeps the choice', async () => {
-    const section = mount(ClaudeCodeSection)
-    await flushPromises()
-
-    const terminal = section.get('[data-testid=claude-session-view-terminal]')
-    const chat = section.get('[data-testid=claude-session-view-chat]')
-    expect(terminal.attributes('aria-checked')).toBe('true')
+    const section = mount(SharedSessionSection)
+    const view = section.get('[data-testid=session-view]')
+    const terminal = view.get('[data-testid=segment-terminal]')
+    const chat = view.get('[data-testid=segment-chat]')
+    expect(terminal.attributes('aria-pressed')).toBe('true')
     expect(chat.text()).toBe('Chat (experimental)')
-    expect(section.get('[data-testid=claude-session-view]').text()).toContain('selected provider')
 
     await chat.trigger('click')
 
-    expect(chat.attributes('aria-checked')).toBe('true')
-    expect(terminal.attributes('aria-checked')).toBe('false')
+    expect(chat.attributes('aria-pressed')).toBe('true')
+    expect(terminal.attributes('aria-pressed')).toBe('false')
     expect(preferredSessionKind()).toBe('chat')
   })
 })

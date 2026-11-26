@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppButton from '@/components/ui/AppButton.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
+import FormPanel from '@/components/ui/FormPanel.vue'
 import SessionProviderMark from '@/features/claude/components/SessionProviderMark.vue'
 import { SESSION_PROVIDER_LABEL, SESSION_PROVIDERS } from '@/features/claude/model/session-provider'
 import type { SessionProvider } from '@/features/claude/model/session-provider'
@@ -54,14 +55,12 @@ onMounted(() => {
 </script>
 
 <template>
-  <section aria-labelledby="guard-heading" data-testid="guard-section">
-    <h2 id="guard-heading" class="mb-3 eyebrow text-caption">Protections</h2>
-
-    <ul class="divide-y divide-border rounded-control border border-border bg-canvas">
+  <FormPanel title="Protections" aria-label="Protections" data-testid="guard-section">
+    <ul class="divide-y divide-border">
       <li
         v-for="provider in SESSION_PROVIDERS"
         :key="provider"
-        class="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 px-3.5 py-3"
+        class="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 px-5 py-3.5"
         :data-testid="`guard-provider-${provider}`"
       >
         <div class="min-w-0 flex-1">
@@ -123,10 +122,10 @@ onMounted(() => {
       </li>
     </ul>
 
-    <ul class="mt-3 space-y-1 text-caption leading-relaxed text-text-subtle" data-testid="guard-rules">
+    <ul class="space-y-1 border-t border-border px-5 py-3 text-small leading-relaxed text-text-subtle" data-testid="guard-rules">
       <li>Blocks manual Git commits, pushes and staging on projects where Rekall commits for you.</li>
       <li>Blocks supported tool calls that name protected credential locations.</li>
       <li>Asks the session once to claim its running step before stopping.</li>
     </ul>
-  </section>
+  </FormPanel>
 </template>
