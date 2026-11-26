@@ -8,7 +8,10 @@ import type { TaskStep, TaskStepState } from '@/features/steps/model/task-step'
 import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
 
 const postNotice = vi.fn(async () => true)
-vi.mock('@/common/native/notify', () => ({ postNotice: (...args: unknown[]) => postNotice(...(args as [])) }))
+vi.mock('@/common/native/notify', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  postNotice: (...args: unknown[]) => postNotice(...(args as []))
+}))
 
 function task(id: string, title: string, review: Partial<Pick<Task, 'reviewState' | 'reviewActive' | 'claimedAt'>> = {}): Task {
   return {

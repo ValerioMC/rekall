@@ -70,7 +70,8 @@ async fn a_pane_gets_ready_then_output_sends_input_and_hears_the_end() {
     assert_eq!(ready["workingDir"], folder.path().to_string_lossy().as_ref());
 
     let mut seen = String::new();
-    read_until(&mut socket, &mut seen, "ARGS:--model sonnet /rk task:AL-1").await;
+    read_until(&mut socket, &mut seen, "claude-settings.json /rk task:AL-1").await;
+    assert!(seen.contains("ARGS:--model sonnet --settings "), "{seen}");
 
     socket.send(Message::Binary(b"typed\n".to_vec().into())).await.unwrap();
     read_until(&mut socket, &mut seen, "GOT:typed").await;
