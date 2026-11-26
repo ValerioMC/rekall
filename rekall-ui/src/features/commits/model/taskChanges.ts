@@ -28,7 +28,6 @@ export interface ChangedFile {
   readonly binary: boolean
   readonly additions: number
   readonly deletions: number
-  readonly hunks: readonly DiffHunk[]
 }
 
 /** What one commit logged against the task changed; `available` is false when no patch could be read for it. */
@@ -58,6 +57,22 @@ export interface RepositoryChanges {
 }
 
 /** The repositories the task touched, the project's own folder first. */
-export interface TaskChanges {
+export interface TaskChangesIndex {
+  readonly snapshotId: string
   readonly repositories: readonly RepositoryChanges[]
+}
+
+export interface ChangeFileKey {
+  readonly componentId: string | null
+  readonly path: string
+}
+
+export type ChangeFileSource =
+  | { readonly kind: 'commit'; readonly referenceId: string }
+  | { readonly kind: 'working-tree' }
+
+export interface ChangeFileHunks {
+  readonly file: ChangeFileKey
+  readonly source: ChangeFileSource
+  readonly hunks: readonly DiffHunk[]
 }

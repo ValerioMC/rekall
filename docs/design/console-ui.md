@@ -331,8 +331,11 @@ detail, then the setup: skills, the session (Join the session above or New sessi
 for a draft from a proposed flow, its routes, read-only. The dock holds Delete draft and Promote to the
 plan, which waits for a detail. A task with only drafts has no overview, so its first draft is open.
 
-**Changes** reads what the sessions changed in the application as a code review (`TaskChangesTab`,
-data from `GET /api/tasks/{id}/changes`). A track along the top picks what is compared: **All changes**
+**Changes** reads what the sessions changed in the application as a code review (`TaskChangesTab`).
+The first read gets the file index from `GET /api/tasks/{id}/changes/index`. While it settles, the
+panel stays quiet for 200 ms, then shows a loading message if the read is still pending. A clean
+task shows the empty state, and a failed first read offers **Try again**. A track along the top picks
+what is compared: **All changes**
 (each file as the logged commits left it), a **repository** (only when the task changed more than
 one), a **step** (the commits logged against it), one **commit**, or a **working tree** a session has
 not committed yet (indigo, with a pulsing dot), one per repository. A file tree on
@@ -343,7 +346,12 @@ the arrow keys move through the rows and open or close a folder;
 a file the scope does not touch stays listed as "not in this" and opens All changes when pressed.
 With several repositories the tree and the column open each group with the repository's name and
 its own totals; with one, nothing is added. Files are told apart by repository and path.
-The column on the right is one continuous diff with a sticky header per file: **Split** (old file
+The column on the right loads up to eight files at a time from `POST /api/tasks/{id}/changes/files`.
+The index supplies the whole tree and scope totals up front. Scrolling near the end or pressing
+**Show more** fetches the next window, and selecting a file fetches its own window directly.
+A failed batch can be retried in place. Batches read the same captured patches as their index.
+If that snapshot expires, the panel keeps the visible diffs while it reads a fresh index and
+replaces the requested windows. Each file has a sticky header: **Split** (old file
 beside new) or **Unified**, real old and new line numbers, the words an edit changed marked inside
 a changed line, and keyword and comment weight with no new palette. In All changes and a step each hunk
 carries a chip with the commit, step and subject that made it, and pressing it reads that single

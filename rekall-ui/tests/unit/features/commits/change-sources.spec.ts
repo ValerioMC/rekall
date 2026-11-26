@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  attachFileHunks,
   changeSources,
   otherChanges,
   repositoriesOf,
@@ -9,11 +10,12 @@ import {
   sourcesInScope,
   totalsOf
 } from '@/features/commits/lib/change-sources'
-import type { ChangedFile, RepositoryChanges, TaskChanges } from '@/features/commits/model/taskChanges'
+import type { ChangedFile, RepositoryChanges, TaskChangesIndex } from '@/features/commits/model/taskChanges'
 import type { TaskStepId } from '@/model/branded'
 
 const stepOne = 's1' as TaskStepId
 const stepTwo = 's2' as TaskStepId
+const snapshotId = '6b2f1c3a-0000-4000-8000-000000000002'
 
 function file(path: string, kind: ChangedFile['kind'], additions: number, deletions: number): ChangedFile {
   return {
@@ -22,8 +24,7 @@ function file(path: string, kind: ChangedFile['kind'], additions: number, deleti
     kind,
     binary: false,
     additions,
-    deletions,
-    hunks: [{ oldStart: 1, oldLines: deletions, newStart: 1, newLines: additions, context: '', lines: [] }]
+    deletions
   }
 }
 
@@ -74,8 +75,8 @@ const SITE: RepositoryChanges = {
   ],
   workingTree: { truncated: false, files: [file('site.txt', 'MODIFIED', 1, 1)] }
 }
-const CHANGES: TaskChanges = { repositories: [PROJECT] }
-const TWO_REPOSITORIES: TaskChanges = { repositories: [PROJECT, SITE] }
+const CHANGES: TaskChangesIndex = { snapshotId, repositories: [PROJECT] }
+const TWO_REPOSITORIES: TaskChangesIndex = { snapshotId, repositories: [PROJECT, SITE] }
 
 describe('changeSources', () => {
   it('lists the commits oldest first and the working tree last', () => {
@@ -84,7 +85,7 @@ describe('changeSources', () => {
 
   it('has no working tree source when the tree is clean', () => {
     expect(
-      changeSources({ repositories: [{ ...PROJECT, workingTree: null }] }).map((source) => source.kind)
+      changeSources({ snapshotId, repositories: [{ ...PROJECT, workingTree: null }] }).map((source) => source.kind)
     ).toEqual(['commit', 'commit'])
   })
 })
@@ -113,12 +114,12 @@ describe('sourcesInScope', () => {
 describe('reviewFiles', () => {
   const files = reviewFiles(changeSources(CHANGES))
 
-  it('merges a file touched twice into one entry holding both hunks in order', () => {
+  it('merges metadata for a file touched twice and keeps both sources in order', () => {
     const merged = files.find((entry) => entry.path === 'src/a.ts')
 
     expect(merged?.additions).toBe(5)
     expect(merged?.deletions).toBe(3)
-    expect(merged?.hunks.map((attributed) => attributed.source.id)).toEqual(['c1', 'c2'])
+    expect(merged?.sources.map((source) => source.id)).toEqual(['c1', 'c2'])
   })
 
   it('sorts the files by path', () => {
@@ -128,6 +129,7 @@ describe('reviewFiles', () => {
   it('reads a file deleted by its last change as deleted', () => {
     const removed = reviewFiles(
       changeSources({
+        snapshotId,
         repositories: [
           {
             ...PROJECT,
@@ -142,6 +144,25 @@ describe('reviewFiles', () => {
     )
 
     expect(removed[0]?.kind).toBe('DELETED')
+  })
+})
+
+describe('attachFileHunks', () => {
+  it('matches hunks by repository, path and source, retaining source order from the index', () => {
+    const review = reviewFiles(changeSources(TWO_REPOSITORIES))
+    const hunk = { oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, context: '', lines: [] }
+    const projectFile = { componentId: null, path: 'src/a.ts' }
+    const siteFile = { componentId: SITE_ID, path: 'src/a.ts' }
+    const diffs = attachFileHunks(review, [
+      { file: projectFile, source: { kind: 'commit', referenceId: 'c2' }, hunks: [hunk] },
+      { file: siteFile, source: { kind: 'commit', referenceId: 'c3' }, hunks: [hunk] },
+      { file: projectFile, source: { kind: 'commit', referenceId: 'c1' }, hunks: [hunk] },
+      { file: { componentId: SITE_ID, path: 'site.txt' }, source: { kind: 'working-tree' }, hunks: [hunk] }
+    ])
+
+    expect(diffs.find((file) => file.id === 'project::src/a.ts')?.hunks.map(({ source }) => source.id)).toEqual(['c1', 'c2'])
+    expect(diffs.find((file) => file.id === `${SITE_ID}::src/a.ts`)?.hunks.map(({ source }) => source.id)).toEqual(['c3'])
+    expect(diffs.find((file) => file.id === `${SITE_ID}::site.txt`)?.hunks.map(({ source }) => source.id)).toEqual([`working-tree:${SITE_ID}`])
   })
 })
 

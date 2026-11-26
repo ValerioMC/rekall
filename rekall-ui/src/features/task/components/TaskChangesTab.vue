@@ -11,10 +11,8 @@ import ChangeScopeHeader from '@/features/commits/components/ChangeScopeHeader.v
 import ChangeScopeTrack from '@/features/commits/components/ChangeScopeTrack.vue'
 import ChangedFileSection from '@/features/commits/components/ChangedFileSection.vue'
 import { useChangeReview } from '@/features/commits/composables/useChangeReview'
-import { useGrowingWindow } from '@/features/commits/composables/useGrowingWindow'
 import { useTaskChanges } from '@/features/commits/composables/useTaskChanges'
 import {
-  changeSources,
   otherChanges,
   repositoriesOf,
   reviewFiles,
@@ -48,24 +46,26 @@ const LAYOUTS: readonly SegmentOption<DiffLayout>[] = [
   { value: 'unified', label: 'Unified' }
 ]
 const SCROLL_MARGIN = 12
-const FILE_BATCH = 8
 const LOAD_AHEAD = 800
 
 const route = useRoute()
 const router = useRouter()
 const store = useConsoleStore()
 const { selectedTaskSteps, selectedTaskCommitReferences } = storeToRefs(store)
-const { changes, status, failure, showLoading, reload } = useTaskChanges(
-  () => props.task.id,
-  () => selectedTaskCommitReferences.value.length
-)
 const review = useChangeReview()
 
 const routedCommit = computed(() => (typeof route.query.commit === 'string' ? route.query.commit : null))
-const scope = ref<ChangeScope>(routedCommit.value === null ? ALL_CHANGES : { kind: 'commit', referenceId: routedCommit.value })
+const scope = ref<ChangeScope>(scopeFromRoute())
+const { sources, scopedFiles, status, failure, showLoading, reload, trailingBatch, visibleBatches, requestBatch, requestFile } = useTaskChanges(
+  () => props.task.id,
+  () => selectedTaskCommitReferences.value.map((reference) => reference.id).sort().join(','),
+  scope
+)
 const layout = ref<DiffLayout>('split')
 const current = ref<string | null>(null)
+const jumpTarget = ref<string | null>(null)
 const column = ref<HTMLElement | null>(null)
+let programmaticScrollTop: number | undefined
 
 const steps = computed<readonly StepRef[]>(() =>
   selectedTaskSteps.value
@@ -74,27 +74,20 @@ const steps = computed<readonly StepRef[]>(() =>
 )
 const stepNumbers = computed(() => new Map<TaskStepId, number>(steps.value.map((step) => [step.id, step.number])))
 const stepTitles = computed(() => new Map<TaskStepId, string>(steps.value.map((step) => [step.id, step.title])))
-const sources = computed(() => (changes.value === null ? [] : changeSources(changes.value)))
 const groups = computed(() => scopeGroups(sources.value, steps.value))
 const repositories = computed(() => repositoriesOf(sources.value))
 const severalRepositories = computed(() => repositories.value.length > 1)
 const workingTrees = computed(() => sources.value.filter((source) => source.kind === 'working-tree'))
 const allFiles = computed(() => reviewFiles(sources.value))
 const scopedSources = computed(() => sourcesInScope(sources.value, scope.value))
-const scopedFiles = computed(() => reviewFiles(scopedSources.value))
 const scopedById = computed(
   () => new Map<string, ReviewFile>(scopedFiles.value.map((file) => [file.id, file]))
 )
 const totals = computed(() => totalsOf(scopedFiles.value))
-const {
-  shown: shownFileCount,
-  remaining: unshownFileCount,
-  showMore: showMoreFiles,
-  showThrough: showFilesThrough,
-  reset: resetShownFiles
-} = useGrowingWindow(() => scopedFiles.value.length, FILE_BATCH)
-const shownFiles = computed(() => scopedFiles.value.slice(0, shownFileCount.value))
-const nextBatchSize = computed(() => Math.min(unshownFileCount.value, FILE_BATCH))
+const repositoryTotals = computed(() => new Map(repositories.value.map((repository) => [
+  repository.id,
+  totalsOf(scopedFiles.value.filter((file) => file.repository.id === repository.id))
+])))
 const inContextIds = computed(
   () => new Set(selectedTaskCommitReferences.value.filter((reference) => reference.inContext).map((reference) => reference.id))
 )
@@ -108,29 +101,32 @@ watch(
   () => props.task.id,
   () => {
     review.reset()
-    resetShownFiles()
-    scope.value = ALL_CHANGES
+    scope.value = scopeFromRoute()
+    jumpTarget.value = null
     current.value = null
   }
 )
 
-watch(sources, (now) => {
-  const stillThere = scope.value.kind === 'all' || scope.value.kind === 'step' || sourcesInScope(now, scope.value).length > 0
-  if (!stillThere) scope.value = ALL_CHANGES
-})
+function scopeFromRoute(): ChangeScope {
+  return routedCommit.value === null ? ALL_CHANGES : { kind: 'commit', referenceId: routedCommit.value }
+}
 
-function scrollToTop(): void {
-  column.value?.scrollTo({ top: 0 })
+function scrollColumn(top: number): void {
+  const element = column.value
+  if (!element) return
+  element.scrollTo({ top })
+  programmaticScrollTop = element.scrollTop
 }
 
 function selectScope(next: ChangeScope): void {
   if (sameScope(scope.value, next)) return
   scope.value = next
-  resetShownFiles()
+  jumpTarget.value = null
   current.value = null
   void nextTick(() => {
+    if (jumpTarget.value !== null) return
     current.value = scopedFiles.value[0]?.id ?? null
-    scrollToTop()
+    scrollColumn(0)
   })
 }
 
@@ -150,25 +146,34 @@ function openSource(sourceId: string): void {
   if (source) selectScope(scopeOfSource(source))
 }
 
-function showFile(fileId: string): void {
-  if (!scopedById.value.has(fileId)) {
-    scope.value = ALL_CHANGES
-    resetShownFiles()
-  }
-  showFilesThrough(scopedFiles.value.findIndex((file) => file.id === fileId))
-  void nextTick(() => {
-    const target = column.value?.querySelector<HTMLElement>(`[data-file-id="${CSS.escape(fileId)}"]`)
-    if (!target || !column.value) return
-    current.value = fileId
-    column.value.scrollTo({ top: target.offsetTop - SCROLL_MARGIN })
-  })
+function scrollToFile(): void {
+  const fileId = jumpTarget.value
+  const element = column.value
+  if (fileId === null || !element) return
+  const target = Array.from(element.querySelectorAll<HTMLElement>('[data-file-id]')).find(
+    (section) => section.dataset.fileId === fileId
+  )
+  if (!target) return
+  current.value = fileId
+  jumpTarget.value = null
+  scrollColumn(target.offsetTop - SCROLL_MARGIN)
 }
+
+async function showFile(fileId: string): Promise<void> {
+  if (!scopedById.value.has(fileId)) scope.value = ALL_CHANGES
+  current.value = fileId
+  jumpTarget.value = fileId
+  await nextTick()
+  if (jumpTarget.value === fileId) requestFile(fileId)
+}
+
+watch([visibleBatches, jumpTarget], scrollToFile, { flush: 'post' })
 
 function stepFile(direction: 1 | -1): void {
   const ids = scopedFiles.value.map((file) => file.id)
   const at = current.value === null ? -1 : ids.indexOf(current.value)
   const next = ids[Math.min(Math.max(at + direction, 0), ids.length - 1)]
-  if (next !== undefined) showFile(next)
+  if (next !== undefined) void showFile(next)
 }
 
 function followScroll(): void {
@@ -183,15 +188,24 @@ function followScroll(): void {
 
 function showMoreFilesNearEnd(): void {
   const element = column.value
-  if (!element || unshownFileCount.value === 0) return
+  const batch = trailingBatch.value
+  if (!element || !batch || batch.state) return
   if (element.scrollHeight - element.scrollTop - element.clientHeight > LOAD_AHEAD) return
-  showMoreFiles()
-  void nextTick(showMoreFilesNearEnd)
+  requestBatch(batch.start)
 }
 
 function onColumnScroll(): void {
-  followScroll()
+  const previousProgrammaticTop = programmaticScrollTop
+  programmaticScrollTop = undefined
+  if (column.value?.scrollTop === previousProgrammaticTop) return
+  if (jumpTarget.value === null) followScroll()
   showMoreFilesNearEnd()
+}
+
+function reloadChanges(): void {
+  current.value = null
+  jumpTarget.value = null
+  void reload()
 }
 
 const KEY_ACTIONS: Readonly<Record<string, () => void>> = {
@@ -225,13 +239,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
       <div class="flex flex-col items-center gap-3 text-center">
         <p class="text-body font-medium text-text">The changes could not be read.</p>
         <p class="max-w-md text-small text-text-muted">{{ failure }}</p>
-        <AppButton size="sm" @click="reload">Try again</AppButton>
+        <AppButton size="sm" @click="reloadChanges">Try again</AppButton>
       </div>
     </div>
 
     <div v-else-if="sources.length === 0" class="px-6 py-8" data-testid="changes-empty">
       <AppEmptyState title="Nothing has changed yet" description="Log a commit against this task, or let a session work on it: its commits and the files it is writing appear here.">
-        <AppButton size="sm" @click="reload">Reload</AppButton>
+        <AppButton size="sm" @click="reloadChanges">Reload</AppButton>
       </AppEmptyState>
     </div>
 
@@ -252,7 +266,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
           <span><kbd>v</kbd> viewed</span>
           <span><kbd>u</kbd> layout</span>
         </p>
-        <AppButton variant="quiet" size="sm" data-testid="changes-reload" @click="reload">Reload</AppButton>
+        <AppButton variant="quiet" size="sm" data-testid="changes-reload" @click="reloadChanges">Reload</AppButton>
         <SegmentedControl v-model="layout" :options="LAYOUTS" label="Diff layout" size="sm" />
       </div>
 
@@ -286,38 +300,46 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
           >
             This change has no file to show.
           </p>
-          <template v-for="(file, index) in shownFiles" :key="file.id">
-            <ChangeRepositoryBand
-              v-if="severalRepositories && file.repository.id !== shownFiles[index - 1]?.repository.id"
-              :repository="file.repository"
-              :totals="totalsOf(scopedFiles.filter((other) => other.repository.id === file.repository.id))"
-            />
-            <ChangedFileSection
-              :file="file"
-              :layout="layout"
-              :scope="scope"
-              :viewed="review.isViewed(file.id)"
-              :shut="review.isShut(file.id)"
-              :current="current === file.id"
-              :other-changes="
-                scope.kind === 'commit' || scope.kind === 'working-tree'
-                  ? otherChanges(file, sources, scopedSources)
-                  : []
-              "
-              :step-numbers="stepNumbers"
-              @toggle-viewed="review.toggleViewed(file.id)"
-              @toggle-shut="review.toggleShut(file.id)"
-              @open-source="openSource"
-            />
+          <template v-for="batch in visibleBatches" :key="batch.start">
+            <template v-if="batch.state?.kind === 'ready'">
+              <template v-for="(file, index) in batch.state.files" :key="file.id">
+                <ChangeRepositoryBand
+                  v-if="severalRepositories && ((index === 0 && !batch.continuesPrevious) || file.repository.id !== scopedFiles[batch.start + index - 1]?.repository.id)"
+                  :repository="file.repository"
+                  :totals="repositoryTotals.get(file.repository.id)!"
+                />
+                <ChangedFileSection
+                  :file="file"
+                  :layout="layout"
+                  :scope="scope"
+                  :viewed="review.isViewed(file.id)"
+                  :shut="review.isShut(file.id)"
+                  :current="current === file.id"
+                  :other-changes="
+                    scope.kind === 'commit' || scope.kind === 'working-tree'
+                      ? otherChanges(file, sources, scopedSources)
+                      : []
+                  "
+                  :step-numbers="stepNumbers"
+                  @toggle-viewed="review.toggleViewed(file.id)"
+                  @toggle-shut="review.toggleShut(file.id)"
+                  @open-source="openSource"
+                />
+              </template>
+            </template>
+            <div v-else class="mx-6 mb-10 mt-5 flex min-h-8 items-center justify-center gap-3">
+              <p v-if="batch.state?.kind === 'pending'" role="status" class="text-small text-text-subtle" data-testid="changes-batch-loading">
+                Loading file diffs…
+              </p>
+              <div v-else-if="batch.state?.kind === 'failed'" class="flex flex-wrap items-center justify-center gap-3" data-testid="changes-batch-failed">
+                <p role="alert" class="text-small text-text-muted">{{ batch.state.message }}</p>
+                <AppButton size="sm" @click="requestBatch(batch.start)">Try again</AppButton>
+              </div>
+              <div v-else data-testid="changes-show-more">
+                <AppButton size="sm" @click="requestBatch(batch.start)">Show {{ batch.size }} more {{ batch.size === 1 ? 'file' : 'files' }}</AppButton>
+              </div>
+            </div>
           </template>
-          <div
-            v-if="unshownFileCount > 0"
-            class="mx-6 mb-10 mt-5 flex items-center justify-center gap-3"
-            data-testid="changes-show-more"
-          >
-            <AppButton size="sm" @click="showMoreFiles">Show {{ nextBatchSize }} more {{ nextBatchSize === 1 ? 'file' : 'files' }}</AppButton>
-            <span class="text-caption text-text-subtle">{{ unshownFileCount }} not shown yet</span>
-          </div>
         </div>
       </div>
     </template>

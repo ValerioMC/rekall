@@ -1,5 +1,5 @@
 import { PROJECT_REPOSITORY_ID, type ChangeScope } from '@/features/commits/model/changeScope'
-import type { ChangedFile, DiffHunk, TaskChanges } from '@/features/commits/model/taskChanges'
+import type { ChangedFile, ChangeFileHunks, DiffHunk, TaskChangesIndex } from '@/features/commits/model/taskChanges'
 import type { TaskStepState } from '@/features/steps/model/task-step'
 import type { TaskStepId } from '@/model/branded'
 
@@ -30,7 +30,7 @@ export interface AttributedHunk {
   readonly source: ChangeSource
 }
 
-/** One file as the review shows it: the hunks of every source in scope that touched it, oldest first. */
+/** One file as the review lists it, with every source in scope that touched it. */
 export interface ReviewFile {
   /** The repository and the path together: two repositories can both have a `README.md`. */
   readonly id: string
@@ -41,12 +41,15 @@ export interface ReviewFile {
   readonly binary: boolean
   readonly additions: number
   readonly deletions: number
-  readonly hunks: readonly AttributedHunk[]
   readonly sources: readonly ChangeSource[]
 }
 
+export interface ReviewFileDiff extends ReviewFile {
+  readonly hunks: readonly AttributedHunk[]
+}
+
 /** Every commit of every repository, oldest first, then each repository's working tree when it holds changes. */
-export function changeSources(changes: TaskChanges): readonly ChangeSource[] {
+export function changeSources(changes: TaskChangesIndex): readonly ChangeSource[] {
   const commits: ChangeSource[] = []
   const workingTrees: ChangeSource[] = []
   changes.repositories.forEach((repository, position) => {
@@ -117,7 +120,7 @@ export function sourcesInScope(sources: readonly ChangeSource[], scope: ChangeSc
   return sources.filter((source) => source.id === scope.referenceId)
 }
 
-/** The files of `sources` by repository and path, each with its hunks in source order. */
+/** The files of `sources` by repository and path, with counts from every matching source. */
 export function reviewFiles(sources: readonly ChangeSource[]): readonly ReviewFile[] {
   const byId = new Map<
     string,
@@ -127,34 +130,31 @@ export function reviewFiles(sources: readonly ChangeSource[]): readonly ReviewFi
       file: ChangedFile
       last: ChangedFile
       sources: ChangeSource[]
-      hunks: AttributedHunk[]
       additions: number
       deletions: number
     }
   >()
   for (const source of sources) {
     for (const file of source.files) {
-      const id = fileIdOf(source.repository, file.path)
+      const id = fileIdOf(source.repository.id, file.path)
       const entry = byId.get(id) ?? {
         id,
         repository: source.repository,
         file,
         last: file,
         sources: [],
-        hunks: [],
         additions: 0,
         deletions: 0
       }
       entry.last = file
       entry.sources.push(source)
-      entry.hunks.push(...file.hunks.map((hunk) => ({ hunk, source })))
       entry.additions += file.additions
       entry.deletions += file.deletions
       byId.set(id, entry)
     }
   }
   return [...byId.values()]
-    .map<ReviewFile>(({ id, repository, file, last, sources: touching, hunks, additions, deletions }) => ({
+    .map<ReviewFile>(({ id, repository, file, last, sources: touching, additions, deletions }) => ({
       id,
       repository,
       path: file.path,
@@ -163,14 +163,32 @@ export function reviewFiles(sources: readonly ChangeSource[]): readonly ReviewFi
       binary: file.binary,
       additions,
       deletions,
-      hunks,
       sources: touching
     }))
     .sort((a, b) => a.repository.position - b.repository.position || a.path.localeCompare(b.path))
 }
 
-function fileIdOf(repository: RepositoryRef, path: string): string {
-  return `${repository.id}::${path}`
+function fileIdOf(repositoryId: string, path: string): string {
+  return `${repositoryId}::${path}`
+}
+
+export function attachFileHunks(files: readonly ReviewFile[], entries: readonly ChangeFileHunks[]): readonly ReviewFileDiff[] {
+  const hunksByFile = new Map<string, Map<string, readonly DiffHunk[]>>()
+  for (const entry of entries) {
+    const repositoryId = entry.file.componentId ?? PROJECT_REPOSITORY_ID
+    const fileId = fileIdOf(repositoryId, entry.file.path)
+    const sourceId = entry.source.kind === 'commit' ? entry.source.referenceId : `working-tree:${repositoryId}`
+    const hunks = hunksByFile.get(fileId) ?? new Map<string, readonly DiffHunk[]>()
+    hunks.set(sourceId, entry.hunks)
+    hunksByFile.set(fileId, hunks)
+  }
+  return files.map((file) => {
+    const hunks = hunksByFile.get(file.id)
+    return {
+      ...file,
+      hunks: file.sources.flatMap((source) => (hunks?.get(source.id) ?? []).map((hunk) => ({ hunk, source })))
+    }
+  })
 }
 
 export interface ChangeTotals {

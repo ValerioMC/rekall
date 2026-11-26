@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import DiffHunkRows from '@/features/commits/components/DiffHunkRows.vue'
 import HunkOrigin from '@/features/commits/components/HunkOrigin.vue'
 import { languageOf } from '@/features/commits/lib/code-tokens'
-import type { OtherChange, ReviewFile } from '@/features/commits/lib/change-sources'
+import type { OtherChange, ReviewFileDiff } from '@/features/commits/lib/change-sources'
 import type { ChangeScope, DiffLayout } from '@/features/commits/model/changeScope'
 import type { TaskStepId } from '@/model/branded'
 
@@ -13,7 +13,7 @@ import type { TaskStepId } from '@/model/branded'
  * other commits touched it.
  */
 const props = defineProps<{
-  file: ReviewFile
+  file: ReviewFileDiff
   layout: DiffLayout
   scope: ChangeScope
   viewed: boolean
