@@ -1,3 +1,4 @@
+import { createPinia } from 'pinia'
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import QueueOrderRow from '@/features/queue/components/QueueOrderRow.vue'
@@ -36,7 +37,7 @@ function mountSection(...items: RunQueueItem[]) {
   const queue: RunQueue = { ...EMPTY_RUN_QUEUE, items }
   return mount(QueueOrderSection, {
     props: { queue, progress: runProgress(queue), busy: false },
-    global: { stubs: { QueueTaskPicker: true } }
+    global: { plugins: [createPinia()], stubs: { QueueTaskPicker: true } }
   })
 }
 

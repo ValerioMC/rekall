@@ -7,10 +7,10 @@ interactive sessions. Rekall remembers each provider’s model, reasoning effort
 settings separately. Existing sessions and automatic renewals keep the provider and options they
 started with.
 
-When both CLIs are installed, open the arrow beside **Run here** on a task or **Start quick task**
-after entering a description. Choose **Run with Claude Code** or **Run with Codex**. The choice
-applies to that launch and uses the provider's saved model, reasoning effort and permissions.
-Close any open session on the task before switching its provider.
+**Run here** and **Start quick task** use the configured provider and session view. Their arrows
+offer **Run with Claude Code** and **Run with Codex**, which apply to that launch and use the
+chosen provider’s settings. If another provider already has a session on the task, Rekall offers
+to show that session or asks for confirmation to close it and retry with your choice.
 
 For Codex, install the CLI, sign in, and choose **Connect Codex** to register Rekall’s MCP endpoint
 and install the `$rekall` skill. **Model** and **Reasoning effort** use the CLI’s model catalog.
@@ -22,8 +22,7 @@ Hover or focus either meter to see its available usage windows and reset times. 
 percentage in **Settings > Time and usage** applies to both rings. Codex limits require a ChatGPT
 login that reports account limits.
 
-Unattended queue runs, Rekall’s installed guard hooks and per-task token attribution use
-Claude Code.
+Rekall’s installed guard hooks and per-task token attribution use Claude Code.
 
 ## Terminal in Rekall
 
@@ -113,7 +112,7 @@ such and never edited. The design is in [write-safety](../design/write-safety.md
 
 The run queue works through a list of tasks until everything on it is claimed. Each task opens in the queue's configured view, Chat or Terminal, using its saved provider. It opens from the dial next to the usage meter in the top bar, or `q`. The dial is also its status: three bars when idle, a clock hand at the start time when scheduled, an orbiting comet with `2/5` while running, and a ring stopped at the ceiling with the time it resumes while holding. When the running task has a checklist the comet becomes a ring of one slice per step: claimed steps filled, the current one lighter and pulsing, the rest hairline (a flow's not-needed steps have no slice, and above 12 steps the ring is one arc filled in proportion). When the top bar has room for it (a wide window) the figure adds `step 3/6`, and the tooltip always reads in full, for example "Run queue: running Report, task 2 of 5, step 3 of 6". A strand of beads shows each task in the run.
 
-- **Order.** Add tasks by typing a title, label or anchor. Waiting tasks move up and down or come off. The running one stays until you stop the queue, and finished ones stay as the record of the run until **Clear finished**. A task with a checklist shows `n of m steps` under its title, which opens a plain list of its steps with their state and the current one marked; the running task's list is open, the others start collapsed. A step a flow never needed reads "Not needed" and does not count in `m`. A finished task says why: "Claimed, waiting for your review", or "Flow finished, 3 steps not needed". The status line under the header says which step is being worked.
+- **Order.** Find a task by title, label or anchor, then choose Claude Code or Codex. Each row shows its saved provider. Waiting tasks move up and down or come off. The running one stays until you stop the queue, and finished ones stay as the record of the run until **Clear finished**. A task with a checklist shows `n of m steps` under its title, which opens a plain list of its steps with their state and the current one marked; the running task's list is open, the others start collapsed. A step a flow never needed reads "Not needed" and does not count in `m`. A finished task says why: "Claimed, waiting for your review", or "Flow finished, 3 steps not needed". The status line under the header says which step is being worked.
 - **Parallel sessions.** One to four tasks at once; one (the default) works them in turn, in the project's folder, exactly as before. From two on, every task the queue starts first gets a git worktree of its own: a second working folder of the same repository on a `rekall/<task-label>` branch, under `<Rekall home>/worktrees/<project>/<task-label>`, so two sessions never overwrite each other's files. The session, its "Done when" checks, the snapshot at `running` and the commit on claim all work in that folder, and the commit lands on that branch. Nothing merges while the task is under review; when you accept the task its branch is merged into the branch checked out in the project folder (see the workflow guide). Two tasks that depend on each other never run together, and the usage ceiling is checked before each new task starts, against the saved provider's account usage. A worktree git refuses leaves its task waiting with the reason (`Could not make a worktree: …`) while the others go on; start the queue again to retry. **Stop** closes every open session and puts their items back at the head. After a restart, a task whose worktree folder is gone forgets it (its branch and commits stay), and a worktree no task names is removed when it has nothing unsaved and left alone when it has.
 - **Dependencies.** A task that depends on another (see Dependencies in the workflow guide) is skipped while that one is not accepted: the queue starts the first waiting task whose dependencies are all accepted, whatever the order they were added in. An item that waits reads `Waiting for task:…`, and says when that task is only claimed and waits for your review. Adding a task without the one it depends on shows a warning on its row; the queue never adds it for you. When every waiting task depends on an unaccepted one, the queue stops (`IDLE`) and each waiting item carries what it waits for as its detail. Accept the task it waits for and start the queue again.
 - **When.** **Start now**, or **At a time** for a schedule. Rekall has to be running then: the queue runs inside it.
@@ -126,7 +125,12 @@ The queue opens a session on the task, which works the open steps in order, clai
 
 **Run in queue.** `POST /api/run-queue/runs` adds a task and starts the queue in the same step. An idle queue starts at once; a running, holding or scheduled one only gains the task, which runs when its turn comes. A task left waiting by an earlier **Stop the queue** runs ahead of it, because the queue is armed in order. A task already queued or running is refused with 409.
 
-In the console it is the arrow on the right of **Run here**, on a task's description and on its checklist: the arrow opens a menu of names with an icon each, in two groups split by a line. The first runs the work: **Run with Claude Code** and **Run with Codex** when both CLIs are installed, and **Run in queue**, which asks the same questions as the main key (the project folder, something left to run) and then says either "Running now in the queue" or "Queued, N ahead". The second prepares it: [**Discuss**](workflow.md#planning), always there, **Plan here**, **Plan a flow** (only while the task has no steps) and **Replan** (only while it has a draft or an open step). Where there is no room under the arrow, as from a step's keys at the foot of the page, the menu opens above it. The arrow does nothing while the key is working.
+**More ways to run** opens from the arrow beside **Run here** on a task, preview or step.
+**Run in queue**, **Discuss**, **Plan here** and **Plan a flow** each open provider choices.
+The menu marks the Settings default as **Preferred** and explains unavailable choices. From the
+**Decisions** tab, **Refine** opens the same choices and records answers in that task’s ledger.
+**Plan a flow** is available on tasks with no steps. **Replan** uses the configured provider and
+asks for confirmation when draft or open steps can be replaced.
 
 `/api/run-queue` holds the queue: `GET`, `PUT /settings` (`ceilingPercent`, `skipPermissions`, `model`, `effort`, `sessionKind`), `POST /items` (adds without starting), `POST /runs` (`taskId`: adds the task and arms the queue), `DELETE /items/{id}`, `PUT /items/{id}/position`, `POST /clear`, `POST /start` (`startAt` null starts now), `POST /stop`. Each answers with the whole queue, and every change is pushed on the console's event stream as a `run-queue` frame.
 

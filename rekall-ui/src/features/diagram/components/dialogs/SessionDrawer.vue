@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import SessionProviderMark from '@/features/claude/components/SessionProviderMark.vue'
+import { SESSION_PROVIDER_LABEL } from '@/features/claude/model/session-provider'
 import TerminalScreen from '@/features/claude/components/TerminalScreen.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
 import { sessionTitle } from '@/common/format/session-title'
@@ -38,6 +40,10 @@ function onKeydown(event: KeyboardEvent): void {
       <span class="min-w-0 flex-1">
         <span class="block truncate text-small font-semibold text-text">{{ title }}</span>
         <span class="block truncate font-mono text-micro text-anchor/80">{{ terminal.anchors }}</span>
+      </span>
+      <span class="inline-flex shrink-0 items-center gap-1.5 text-caption text-text-muted">
+        <SessionProviderMark :provider="terminal.provider" :size="12" />
+        {{ SESSION_PROVIDER_LABEL[terminal.provider] }}
       </span>
       <span class="text-caption text-text-subtle" role="status">{{ connected ? 'connected' : ended ?? 'connecting' }}</span>
       <button class="key-danger focus-ring inline-flex h-7 items-center rounded-key px-2.5 text-caption" data-testid="session-stop" @click="emit('stop')">Stop</button>

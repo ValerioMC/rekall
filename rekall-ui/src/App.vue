@@ -6,14 +6,10 @@ import ConsoleHeader from '@/components/console/ConsoleHeader.vue'
 import RecordDialog from '@/features/catalog/components/RecordDialog.vue'
 import ReviewPage from '@/features/review/components/ReviewPage.vue'
 import TaskPage from '@/features/task/components/TaskPage.vue'
-import RunQueuePanel from '@/features/queue/components/RunQueuePanel.vue'
 import ChatDock from '@/features/chat/components/ChatDock.vue'
 import ChatReopenTag from '@/features/chat/components/ChatReopenTag.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useDeviationsStore } from '@/features/deviations/store/deviations.store'
-import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
-import { useClaudeCommandUpdateStore } from '@/features/claude/store/claudeCommandUpdate.store'
-import { useCodexStore } from '@/features/codex/store/codex.store'
 import { useChatDockArea } from '@/features/chat/composables/useChatDockArea'
 import { useChatWindowShown } from '@/features/chat/composables/useChatWindowShown'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
@@ -37,7 +33,6 @@ const onReview = computed(() => route.name === 'review')
 const { selectedTaskId, selectedTask, paneFocus, reviewQueue, isLoading } = storeToRefs(store)
 const runQueue = useRunQueueStore()
 const deviations = useDeviationsStore()
-const { panelOpen: runQueueOpen } = storeToRefs(runQueue)
 const { isModalOpen } = useModalGate()
 const noteArea = ref<HTMLElement | null>(null)
 useChatDockArea(noteArea, true)
@@ -63,9 +58,6 @@ useQueueSessionSync()
 useClaimNotifications(reviewQueue, isLoading)
 useConsoleLocation()
 
-const claudeConnection = useClaudeConnectionStore()
-const claudeCommandUpdate = useClaudeCommandUpdateStore()
-const codex = useCodexStore()
 const router = useRouter()
 
 /** `/console` hosts the terminal and nothing else: a task shown on any other pane is on its page. */
@@ -117,20 +109,8 @@ function onKeydown(event: KeyboardEvent): void {
   }
 }
 
-/** The warning on the Settings key is a hint: a registration that cannot be read stays silent. */
-async function refreshClaudeConnection(): Promise<void> {
-  await Promise.all([
-    claudeConnection.load().catch(() => undefined),
-    claudeCommandUpdate.load().catch(() => undefined)
-  ])
-}
-
 onMounted(() => {
   window.addEventListener('keydown', onKeydown)
-  // The beacon needs the queue from the first paint; the SSE feed only carries changes.
-  void runQueue.load().catch(() => undefined)
-  void refreshClaudeConnection()
-  void codex.loadSetup().catch(() => undefined)
 })
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown)
@@ -166,9 +146,6 @@ onUnmounted(() => {
       <RecordDialog v-if="taskEditor.editing.value" :draft="taskEditor.editing.value" @close="taskEditor.close()" />
     </Transition>
     <Transition name="dialog">
-    </Transition>
-    <Transition name="dialog">
-      <RunQueuePanel v-if="runQueueOpen" @close="runQueue.closePanel()" />
     </Transition>
   </div>
 </template>

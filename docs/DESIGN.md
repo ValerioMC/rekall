@@ -9,7 +9,7 @@ hands them to the chosen session provider over MCP. A session can write the wrap
 a task, which is what that task's implementation currently looks like, and the state of a step,
 which it can move from open to running to claimed. The last tick, done, is a person's.
 The console uses the saved provider by default and lets a person override it for a single task
-launch when both CLIs are installed. The launch uses the chosen provider's saved options.
+launch. The menus show availability and use the chosen provider's saved options.
 
 ---
 
@@ -279,6 +279,12 @@ usage meter, the transcripts, `~/.claude`, the Claude Code installer. A rule tha
 goes in the first, one that needs the machine in the second. The run queue's rows and moves are
 `RunQueueService` in `rekall-core/src/queue/`, and how skills are grouped is `SkillGroupService` in
 `rekall-core/src/skill/`.
+
+In the console, `SessionProviderMenu` supplies the provider choices for task and step actions,
+Decisions refinement, and the queue task picker. `useAnchoredMenu` places the menu and handles
+keyboard focus outside the scrolling pane. Interactive actions pass the selected provider to the
+session store, which handles conflicts and view fallback. Queue actions save the provider on the item
+and its row displays the saved choice.
 
 ### Adding a field or a capability
 

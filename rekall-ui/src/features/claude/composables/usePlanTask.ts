@@ -8,6 +8,7 @@ import type { SessionProvider } from '@/features/claude/model/session-provider'
 import type { TaskId } from '@/model/branded'
 
 export interface PlanTask {
+  isRunning: Ref<boolean>
   isConfirmingReplan: Ref<boolean>
   missedMessage: Ref<string>
   start: (mode: PlanMode, provider?: SessionProvider) => void
@@ -72,5 +73,5 @@ export function usePlanTask(
     return 'Planning. Its proposals land here.'
   }
 
-  return { isConfirmingReplan, missedMessage, start, confirmReplan, cancelReplan }
+  return { isRunning, isConfirmingReplan, missedMessage, start, confirmReplan, cancelReplan }
 }

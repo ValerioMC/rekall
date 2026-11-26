@@ -12,8 +12,7 @@ import StepSeal from '@/features/steps/components/StepSeal.vue'
 import RunMenuArrow from '@/features/claude/components/RunMenuArrow.vue'
 import ReplanConfirm from '@/features/claude/components/ReplanConfirm.vue'
 import { usePlanTask } from '@/features/claude/composables/usePlanTask'
-import { useSessionProviderChoice } from '@/features/claude/composables/useSessionProviderChoice'
-import type { RunMenuAction } from '@/features/claude/model/runMenu'
+import type { RunMenuAction, RunMenuSelection } from '@/features/claude/model/runMenu'
 import { SESSION_PROVIDERS, type SessionProvider } from '@/features/claude/model/session-provider'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { queuePlacement } from '@/features/queue/model/runQueue'
@@ -55,7 +54,6 @@ const toast = useToastStore()
 const runQueue = useRunQueueStore()
 const { run } = useAsyncAction()
 const { releaseBeforeRun } = useReleaseOnRun()
-const canChooseProvider = useSessionProviderChoice()
 const { tasks, steps } = storeToRefs(console_)
 const { terminals: openTerminals } = storeToRefs(terminals)
 
@@ -84,14 +82,14 @@ const phase = computed<ButtonPhase>(() => {
   if (launchPhase.value !== 'idle') return launchPhase.value
   return atWork.value || handingOff.value ? 'working' : 'idle'
 })
-const busy = computed(() => preparing.value || phase.value !== 'idle')
+const busy = computed(() => preparing.value || planTask.isRunning.value || phase.value !== 'idle')
 /** The key sits pressed in while the seal stamps and for as long as Claude works. */
 const pressed = computed(() => phase.value === 'done' || phase.value === 'working')
 
 const taskSteps = computed(() => steps.value.filter((step) => step.taskId === props.taskId))
 const replaceableSteps = computed(() => taskSteps.value.filter((step) => step.state === 'DRAFT' || step.state === 'OPEN').length)
 const runActions = computed<readonly RunMenuAction[]>(() => [
-  ...(ready.value && canChooseProvider.value ? SESSION_PROVIDERS : []),
+  ...(ready.value ? SESSION_PROVIDERS : []),
   'RUN_IN_QUEUE'
 ])
 const prepareActions = computed<readonly RunMenuAction[]>(() => [
@@ -158,27 +156,33 @@ async function launch(provider?: SessionProvider): Promise<void> {
   }
 }
 
-async function runInQueue(): Promise<void> {
+async function runInQueue(provider: SessionProvider): Promise<void> {
   if (busy.value) return
   if (!ready.value) {
     toast.notifyError(new Error(props.missingHint))
     return
   }
-  await releaseBeforeRun(props.taskId)
-  const task = tasks.value.find((candidate) => candidate.id === props.taskId) ?? null
-  if (nothingToRun(task, steps.value, props.stepId)) {
-    toast.notifyError(new Error(NOTHING_TO_RUN_MESSAGE))
-    return
+  preparing.value = true
+  try {
+    await releaseBeforeRun(props.taskId)
+    const task = tasks.value.find((candidate) => candidate.id === props.taskId) ?? null
+    if (nothingToRun(task, steps.value, props.stepId)) {
+      toast.notifyError(new Error(NOTHING_TO_RUN_MESSAGE))
+      return
+    }
+    const queued = await run(() => runQueue.runInQueue(props.taskId, provider))
+    if (queued === null) return
+    toast.notify(queuePlacement(runQueue.queue, props.taskId, provider))
+  } finally {
+    preparing.value = false
   }
-  const queued = await run(() => runQueue.runInQueue(props.taskId))
-  if (queued === null) return
-  toast.notify(queuePlacement(runQueue.queue, props.taskId))
 }
 
-function chooseFromMenu(action: RunMenuAction): void {
-  if (action === 'CLAUDE' || action === 'CODEX') void launch(action)
-  else if (action === 'RUN_IN_QUEUE') void runInQueue()
-  else planTask.start(action)
+function chooseFromMenu(selection: RunMenuSelection): void {
+  if (selection.action === 'REPLAN') planTask.start(selection.action)
+  else if (selection.action === 'RUN') void launch(selection.provider)
+  else if (selection.action === 'RUN_IN_QUEUE') void runInQueue(selection.provider)
+  else planTask.start(selection.action, selection.provider)
 }
 
 onBeforeUnmount(() => {
@@ -275,6 +279,7 @@ onBeforeUnmount(() => {
       }}</span>
     </button>
     <RunMenuArrow
+      :task-id="taskId"
       :ready="ready"
       :pressed="pressed"
       :busy="busy"

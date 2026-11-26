@@ -43,7 +43,7 @@ describe('the run queue API', () => {
     const added = await enqueueTask(taskId, 'CODEX')
     const run = await runTaskInQueue(taskId, 'CODEX')
 
-    const request = { method: 'POST', body: { taskId, provider: 'CODEX', codexOptions } }
+    const request = { method: 'POST', retry: 0, body: { taskId, provider: 'CODEX', codexOptions } }
     expect(client).toHaveBeenNthCalledWith(1, '/api/run-queue/items', request)
     expect(client).toHaveBeenNthCalledWith(2, '/api/run-queue/runs', request)
     expect(added.items[0]).toMatchObject({ provider: 'CODEX', codexOptions })
@@ -55,7 +55,7 @@ describe('the run queue API', () => {
 
     const queue = await enqueueTask(taskId, 'CLAUDE')
 
-    expect(client).toHaveBeenCalledWith('/api/run-queue/items', { method: 'POST', body: { taskId, provider: 'CLAUDE' } })
+    expect(client).toHaveBeenCalledWith('/api/run-queue/items', { method: 'POST', retry: 0, body: { taskId, provider: 'CLAUDE' } })
     expect(queue.items[0]).toMatchObject({ provider: 'CLAUDE', codexOptions: null })
   })
 })

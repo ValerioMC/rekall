@@ -249,7 +249,7 @@ async function sendWrapupHere(message: string): Promise<void> {
 
           <p class="text-small text-text-muted">
             Copy the anchor above, append <span class="font-mono text-anchor">wrapup</span>, and
-            run it at the end of a session to have Claude write it, or
+            run it at the end of a session to have the session write it, or
             <button
               class="focus-ring rounded-key text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
               data-testid="write-wrapup-by-hand"
@@ -257,7 +257,7 @@ async function sendWrapupHere(message: string): Promise<void> {
             >
               write it yourself
             </button>
-            . Claude replaces what you write the next time it runs that command.
+            . The session replaces what you write the next time it runs that command.
           </p>
         </div>
       </div>

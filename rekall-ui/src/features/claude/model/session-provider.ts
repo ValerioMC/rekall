@@ -1,3 +1,5 @@
+import type { SessionKind } from '@/features/claude/model/terminal'
+
 export const SESSION_PROVIDERS = ['CLAUDE', 'CODEX'] as const
 
 export type SessionProvider = (typeof SESSION_PROVIDERS)[number]
@@ -22,4 +24,8 @@ export function sessionCommandPrompt(provider: SessionProvider, line: string): s
     return `Use the ${SESSION_WORKFLOW_LABEL.CODEX} skill with this exact argument line: ${line.slice('/rk '.length)}`
   }
   return line
+}
+
+export function sessionViewLabel(kind: SessionKind): string {
+  return kind === 'CHAT' ? 'Chat' : 'Terminal'
 }

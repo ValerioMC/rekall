@@ -25,11 +25,11 @@ function queueTaskRequest(taskId: TaskId, provider: SessionProvider): QueueTaskR
 }
 
 export function enqueueTask(taskId: TaskId, provider: SessionProvider): Promise<RunQueue> {
-  return queueCall('/items', { method: 'POST', body: queueTaskRequest(taskId, provider) })
+  return queueCall('/items', { method: 'POST', retry: 0, body: queueTaskRequest(taskId, provider) })
 }
 
 export function runTaskInQueue(taskId: TaskId, provider: SessionProvider): Promise<RunQueue> {
-  return queueCall('/runs', { method: 'POST', body: queueTaskRequest(taskId, provider) })
+  return queueCall('/runs', { method: 'POST', retry: 0, body: queueTaskRequest(taskId, provider) })
 }
 
 export function dequeueItem(itemId: RunQueueItemId): Promise<RunQueue> {

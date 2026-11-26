@@ -1,5 +1,5 @@
 import { APP_LOCALE } from '@/common/format/app-locale'
-import type { SessionProvider } from '@/features/claude/model/session-provider'
+import { SESSION_PROVIDER_LABEL, type SessionProvider } from '@/features/claude/model/session-provider'
 import type { SessionKind } from '@/features/claude/model/terminal'
 import type { TaskId } from '@/model/branded'
 
@@ -258,13 +258,14 @@ export function suggestedStart(now: number = Date.now()): string {
 }
 
 /** What the person is told after queueing `taskId`: running at once, or how many places wait ahead of it. */
-export function queuePlacement(queue: RunQueue, taskId: TaskId): string {
-  const item = queue.items.find((candidate) => candidate.taskId === taskId)
-  if (!item) return 'Queued'
-  if (item.state === 'RUNNING') return 'Running now in the queue'
+export function queuePlacement(queue: RunQueue, taskId: TaskId, provider: SessionProvider): string {
+  const item = [...queue.items].reverse().find((candidate) => candidate.taskId === taskId)
+  const label = SESSION_PROVIDER_LABEL[item?.provider ?? provider]
+  if (!item) return `Queued with ${label}`
+  if (item.state === 'RUNNING') return `Running with ${label}`
   const ahead = queue.items.filter(
     (candidate) =>
       candidate.position < item.position && (candidate.state === 'QUEUED' || candidate.state === 'RUNNING')
   ).length
-  return `Queued, ${ahead} ahead`
+  return `Queued with ${label} · ${ahead} ahead`
 }

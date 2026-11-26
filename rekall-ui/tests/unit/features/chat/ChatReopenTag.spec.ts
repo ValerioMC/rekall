@@ -76,7 +76,7 @@ describe('ChatReopenTag', () => {
     const tag = mount(ChatReopenTag).get('[data-testid=chat-reopen-tag]')
 
     expect(tag.attributes('data-status')).toBe('idle')
-    expect(tag.attributes('aria-label')).toBe('Open the chat, Claude is idle')
+    expect(tag.attributes('aria-label')).toBe('Open Claude Code Chat, idle')
     expect(tag.find('[data-testid=task-activity-mark]').exists()).toBe(false)
   })
 
@@ -87,7 +87,7 @@ describe('ChatReopenTag', () => {
     const tag = mount(ChatReopenTag).get('[data-testid=chat-reopen-tag]')
 
     expect(tag.attributes('data-status')).toBe('working')
-    expect(tag.attributes('aria-label')).toBe('Open the chat, Claude is working')
+    expect(tag.attributes('aria-label')).toBe('Open Claude Code Chat, working')
     expect(tag.get('[data-testid=task-activity-mark]').attributes('data-activity')).toBe('WORKING')
   })
 
@@ -99,7 +99,7 @@ describe('ChatReopenTag', () => {
     const tag = mount(ChatReopenTag).get('[data-testid=chat-reopen-tag]')
 
     expect(tag.attributes('data-status')).toBe('waiting')
-    expect(tag.attributes('aria-label')).toBe('Open the chat, waiting for your answer')
+    expect(tag.attributes('aria-label')).toBe('Open Claude Code Chat, waiting for your answer')
     expect(tag.get('[data-testid=chat-reopen-label]').text()).toBe('Needs your answer')
     expect(tag.classes()).toContain('bg-accent')
     expect(tag.find('[data-testid=chat-reopen-ping]').exists()).toBe(true)
@@ -120,7 +120,7 @@ describe('ChatReopenTag', () => {
     const tag = mount(ChatReopenTag).get('[data-testid=chat-reopen-tag]')
 
     expect(tag.attributes('data-status')).toBe('ended')
-    expect(tag.attributes('aria-label')).toBe('Open the chat, the session has ended')
+    expect(tag.attributes('aria-label')).toBe('Open Claude Code Chat, ended')
     expect(tag.classes()).toContain('border-dashed')
   })
 })

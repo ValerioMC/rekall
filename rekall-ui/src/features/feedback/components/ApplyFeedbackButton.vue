@@ -76,7 +76,7 @@ const leaving = computed(() => props.phase === 'launching' || props.phase === 'w
       </svg>
     </span>
 
-    <span class="sr-only" aria-live="polite">{{ phase === 'done' ? 'Revision finished' : phase === 'working' ? 'Claude is working' : '' }}</span>
+    <span class="sr-only" aria-live="polite">{{ phase === 'done' ? 'Revision finished' : phase === 'working' ? 'Session is working' : '' }}</span>
   </button>
 </template>
 

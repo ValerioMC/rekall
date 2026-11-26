@@ -306,6 +306,7 @@ vi.mock('@/features/queue/api/runQueue.api', () => {
     effort: null,
     holdUntil: null,
     holdReason: null,
+    sessionKind: 'TERMINAL',
     items: [],
     updatedAt: '2026-09-23T10:00:00Z'
   }

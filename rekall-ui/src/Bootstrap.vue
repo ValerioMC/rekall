@@ -20,6 +20,9 @@ import ChatReopenTag from '@/features/chat/components/ChatReopenTag.vue'
 import { usePictureCleanupStore } from '@/features/picture/store/pictureCleanup.store'
 import { fetchDatabaseStatus } from '@/features/settings/api/settings.api'
 import { useConsoleStore } from '@/stores/console.store'
+import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
+import { useClaudeCommandUpdateStore } from '@/features/claude/store/claudeCommandUpdate.store'
+import { useCodexStore } from '@/features/codex/store/codex.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useUpdateStore } from '@/features/settings/store/update.store'
 import { useToastStore } from '@/stores/toast.store'
@@ -73,6 +76,9 @@ onMounted(async () => {
     if (status.value.status === 'READY') {
       await store.load()
       void terminals.load()
+      void useClaudeConnectionStore().load().catch(() => undefined)
+      void useClaudeCommandUpdateStore().load().catch(() => undefined)
+      void useCodexStore().loadSetup().catch(() => undefined)
       // Opened only once the database is there: the store's stream would otherwise retry forever.
       void useTokenUsageStore().load().catch((caught: unknown) => toast.notifyError(caught))
       void useVulnerabilityStore().load().catch((caught: unknown) => toast.notifyError(caught))

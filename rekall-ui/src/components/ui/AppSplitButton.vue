@@ -8,6 +8,7 @@ export interface SplitButtonOption<OptionId extends string> {
   readonly id: OptionId
   readonly label: string
   readonly hint?: string
+  readonly disabled?: boolean
 }
 
 /**
@@ -44,9 +45,10 @@ function arrowElement(): HTMLElement | null {
 
 const { open, menu, placement, toggle, close, handleKeydown } = useAnchoredMenu(arrowElement, MENU_WIDTH)
 
-function choose(id: Id): void {
+function choose(option: SplitButtonOption<Id>): void {
+  if (option.disabled) return
   close(true)
-  emit('choose', id)
+  emit('choose', option.id)
 }
 </script>
 
@@ -101,7 +103,7 @@ function choose(id: Id): void {
       ref="menu"
       role="menu"
       :aria-label="menuLabel"
-      class="fixed z-[var(--z-popover)] rounded-card border border-border-strong bg-surface-raised p-1 shadow-lift"
+      class="fixed z-[var(--z-popover)] overflow-y-auto rounded-card border border-border-strong bg-surface-raised p-1 shadow-lift"
       :style="placement"
       data-testid="split-button-menu"
       @keydown="handleKeydown"
@@ -111,9 +113,11 @@ function choose(id: Id): void {
         :key="option.id"
         type="button"
         role="menuitem"
+        tabindex="-1"
+        :aria-disabled="option.disabled || undefined"
         class="focus-ring flex w-full cursor-pointer flex-col items-start gap-0.5 rounded-control px-2.5 py-2 text-left transition-colors hover:bg-surface"
         :data-testid="`split-button-option-${option.id}`"
-        @click="choose(option.id)"
+        @click="choose(option)"
       >
         <span class="flex items-center gap-2 text-small font-medium text-text">
           <slot :id="option.id" name="option-mark" />

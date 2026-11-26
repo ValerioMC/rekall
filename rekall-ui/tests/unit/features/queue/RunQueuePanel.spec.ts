@@ -4,6 +4,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import RunQueuePanel from '@/features/queue/components/RunQueuePanel.vue'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import type { Terminal } from '@/features/claude/model/terminal'
 import { useConsoleStore } from '@/stores/console.store'
 import {
   EMPTY_RUN_QUEUE,
@@ -179,7 +181,7 @@ describe('the run queue panel', () => {
     await wrapper.find('[data-testid="run-queue-stop"]').trigger('click')
     await flushPromises()
 
-    expect(document.body.textContent).toContain('Closes the Claude session working on Report a')
+    expect(document.body.textContent).toContain('Closes the Claude Code session working on Report a')
     expect(api.stopRunQueue).not.toHaveBeenCalled()
 
     const confirm = Array.from(document.body.querySelectorAll('button')).find(
@@ -194,7 +196,7 @@ describe('the run queue panel', () => {
 
   it('adds a task picked by typing, and does not offer one already waiting', async () => {
     const current = queue({ items: [item('a', 'QUEUED')] })
-    api.enqueueTask.mockResolvedValue(queue(current))
+    api.enqueueTask.mockResolvedValue(queue({ items: [...current.items, { ...item('z', 'QUEUED'), provider: 'CODEX' }] }))
     setActivePinia(createPinia())
     const wrapper = await mountPanel(current)
     useConsoleStore().tasks = [
@@ -211,7 +213,33 @@ describe('the run queue panel', () => {
 
     await input.trigger('keydown', { key: 'Enter' })
     await flushPromises()
-    expect(api.enqueueTask).toHaveBeenCalledWith('t-z', 'CLAUDE')
+    expect(api.enqueueTask).not.toHaveBeenCalled()
+    const provider = document.querySelector<HTMLButtonElement>('[data-testid="session-provider-CODEX"]')!
+    provider.click()
+    provider.click()
+    await flushPromises()
+
+    expect(api.enqueueTask).toHaveBeenCalledTimes(1)
+    expect(api.enqueueTask).toHaveBeenCalledWith('t-z', 'CODEX')
+    expect(wrapper.findAll('[data-testid="run-queue-provider"]').map((row) => row.text())).toEqual(['Claude Code', 'Codex'])
+    wrapper.unmount()
+  })
+
+  it('identifies the session that blocked a queued task', async () => {
+    const blocked = {
+      ...item('a', 'FAILED'),
+      provider: 'CODEX' as const,
+      detail: 'Claude Code Chat is already open on this task. Close it and queue the task again.'
+    }
+    const wrapper = await mountPanel(queue({ items: [blocked] }))
+    useTerminalStore().terminals = [{
+      taskId: blocked.taskId, provider: 'CLAUDE', kind: 'CHAT', live: true
+    } as Terminal]
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="run-queue-provider"]').text()).toBe('Codex')
+    expect(wrapper.get('[data-testid="run-queue-reason"]').text()).toContain('Claude Code Chat')
+    expect(wrapper.findAll('button').some((button) => button.text() === 'Open Claude Code Chat')).toBe(true)
     wrapper.unmount()
   })
 

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import OpenTerminalButton from '@/features/claude/components/OpenTerminalButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useToastStore } from '@/stores/toast.store'
@@ -8,6 +8,7 @@ import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import { setPreferredEffort, setPreferredModel, setPreferredSessionKind, setSkipsPermissions } from '@/common/config/claude-launch'
 import { preferredProvider, setCodexEffort, setCodexModel, setPreferredProvider } from '@/common/config/session-launch'
+import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
 import { useCodexStore } from '@/features/codex/store/codex.store'
 import { installStorage } from '../../support/memoryStorage'
 import { installBothSessionProviders } from '../../support/sessionProviders'
@@ -95,9 +96,21 @@ function queueWith(items: RunQueueItem[]): RunQueue {
   return { ...EMPTY_RUN_QUEUE, state: 'RUNNING', items, updatedAt: '2026-09-23T10:00:05Z' }
 }
 
-async function chooseRunInQueue(wrapper: ReturnType<typeof mountButton>): Promise<void> {
+function menuButton(testid: string): HTMLButtonElement {
+  return document.body.querySelector<HTMLButtonElement>(`[data-testid="${testid}"]`)!
+}
+
+async function chooseRunInQueue(
+  wrapper: ReturnType<typeof mountButton>,
+  provider: Terminal['provider'] = 'CLAUDE'
+): Promise<void> {
   await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
-  document.body.querySelector<HTMLElement>('[data-testid="run-in-queue"]')?.click()
+  menuButton('run-in-queue').click()
+  await flushPromises()
+  expect(runTaskInQueue).not.toHaveBeenCalled()
+  const choice = menuButton(`session-provider-${provider}`)
+  choice.click()
+  choice.click()
   await flushPromises()
 }
 
@@ -107,7 +120,11 @@ function menuLabels(): string[] {
 
 function mountButton(folder: string | null = '/code/vega', stepId: TaskStepId | null = null) {
   useConsoleStore().releaseOnRun = releaseOnRun
-  return mount(OpenTerminalButton, { props: { taskId: TASK, folder, stepId } })
+  return mount(OpenTerminalButton, {
+    props: { taskId: TASK, folder, stepId },
+    attachTo: document.body,
+    global: { stubs: { RouterLink: RouterLinkStub } }
+  })
 }
 
 describe('the Run here button', () => {
@@ -285,17 +302,41 @@ describe('the Run here button', () => {
     expect(button.attributes('data-phase')).toBe('idle')
   })
 
-  it('opens a menu from the arrow with the ways to run and to prepare, each a name with no description', async () => {
+  it.each([false, true])('explains unavailable providers and focuses a selectable row when possible (%s)', async (both) => {
     installBothSessionProviders()
+    setPreferredProvider('CODEX')
     useCodexStore().setup = { status: 'CLI_MISSING' }
+    const claude = useClaudeConnectionStore()
+    if (both) claude.installation = { ...claude.installation!, status: 'CLI_MISSING' }
     const wrapper = mountButton()
 
     await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
+    menuButton('discuss').click()
+    await flushPromises()
 
-    const menu = document.body.querySelector('[data-testid="run-menu"]')
-    expect(menuLabels()).toEqual(['Run in queue', 'Discuss', 'Plan here', 'Plan a flow'])
-    expect(menu?.querySelectorAll('[role="menuitem"] svg')).toHaveLength(4)
-    expect(wrapper.get('[data-testid="run-menu-arrow"]').attributes('aria-haspopup')).toBe('menu')
+    const codex = menuButton('session-provider-CODEX')
+    const claudeRow = menuButton('session-provider-CLAUDE')
+    expect(codex.getAttribute('aria-disabled')).toBe('true')
+    expect(codex.textContent).toContain('Preferred')
+    expect(codex.textContent).toContain('Codex CLI is not installed.')
+    expect(claudeRow.getAttribute('aria-disabled')).toBe(both ? 'true' : null)
+    expect(document.activeElement).toBe(claudeRow)
+    codex.click()
+    expect(openTerminal).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('shows the live provider and view before requesting a different provider', async () => {
+    useTerminalStore().terminals = [{ ...terminal(), kind: 'CHAT', mode: 'DISCUSS' }]
+    openTerminal.mockResolvedValue({ ...terminal(), provider: 'CODEX' })
+    const wrapper = mountButton()
+
+    await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
+    menuButton('discuss').click()
+    await flushPromises()
+
+    expect(menuButton('session-provider-CODEX').textContent).toContain('Claude Code Chat is open on this task.')
+    expect(openTerminal).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
@@ -305,7 +346,7 @@ describe('the Run here button', () => {
 
     await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
 
-    const rows = [...document.body.querySelector('[data-testid="run-menu"]')!.children].map((row) =>
+    const rows = [...document.body.querySelector('[data-testid="run-menu"]')!.firstElementChild!.children].map((row) =>
       row.getAttribute('role') === 'separator' ? '---' : row.textContent?.trim()
     )
     expect(rows).toEqual(['Run with Claude Code', 'Run with Codex', 'Run in queue', '---', 'Discuss', 'Plan here', 'Plan a flow'])
@@ -321,10 +362,45 @@ describe('the Run here button', () => {
       return document.activeElement?.textContent?.trim()
     }
 
-    expect(document.activeElement?.textContent?.trim()).toBe('Run in queue')
+    menuButton('run-in-queue').focus()
     expect(press('ArrowDown')).toBe('Discuss')
     expect(press('ArrowUp')).toBe('Run in queue')
-    expect(press('ArrowUp')).toBe('Plan a flow')
+    expect(press('ArrowUp')).toBe('Run with Codex')
+    wrapper.unmount()
+  })
+
+  it('walks into a provider submenu and returns focus with Left, Escape and Tab', async () => {
+    setPreferredProvider('CODEX')
+    const wrapper = mountButton()
+    const trigger = wrapper.get('[data-testid="run-menu-arrow"]')
+    await trigger.trigger('click')
+    const root = document.body.querySelector<HTMLElement>('[data-testid="run-menu"]')!
+    const action = menuButton('discuss')
+    root.getBoundingClientRect = () => new DOMRect(120, 100, 200, 220)
+    action.getBoundingClientRect = () => new DOMRect(124, 200, 192, 32)
+    action.focus()
+    action.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }))
+    await flushPromises()
+
+    const providers = () => document.body.querySelector<HTMLElement>('[role="menu"][aria-label="Discuss"]')!
+    const codex = menuButton('session-provider-CODEX')
+    expect(document.activeElement).toBe(codex)
+    providers().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }))
+    expect(document.activeElement).toBe(menuButton('session-provider-CLAUDE'))
+    providers().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }))
+    await flushPromises()
+    expect(document.activeElement).toBe(action)
+
+    action.click()
+    await flushPromises()
+    providers().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await flushPromises()
+    expect(document.activeElement).toBe(action)
+    root.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab' }))
+    await flushPromises()
+    expect(document.activeElement).toBe(trigger.element)
+    expect(document.body.querySelector('[data-testid="run-menu"]')).toBeNull()
+    expect(openTerminal).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
@@ -366,16 +442,17 @@ describe('the Run here button', () => {
     wrapper.unmount()
   })
 
-  it('queues the task without opening a terminal and says it runs now', async () => {
-    runTaskInQueue.mockResolvedValue(queueWith([queueItem(TASK, 0, 'RUNNING')]))
+  it.each(['CLAUDE', 'CODEX'] as const)('queues once with %s and identifies the provider in feedback', async (provider) => {
+    runTaskInQueue.mockResolvedValue(queueWith([{ ...queueItem(TASK, 0, 'RUNNING'), provider }]))
     const toast = useToastStore()
     const wrapper = mountButton()
 
-    await chooseRunInQueue(wrapper)
+    await chooseRunInQueue(wrapper, provider)
 
-    expect(runTaskInQueue).toHaveBeenCalledWith(TASK, 'CLAUDE')
+    expect(runTaskInQueue).toHaveBeenCalledTimes(1)
+    expect(runTaskInQueue).toHaveBeenCalledWith(TASK, provider)
     expect(openTerminal).not.toHaveBeenCalled()
-    expect(toast.toasts[0]?.message).toBe('Running now in the queue')
+    expect(toast.toasts[0]?.message).toBe(`Running with ${provider === 'CODEX' ? 'Codex' : 'Claude Code'}`)
     wrapper.unmount()
   })
 
@@ -389,7 +466,7 @@ describe('the Run here button', () => {
 
     await chooseRunInQueue(wrapper)
 
-    expect(toast.toasts[0]?.message).toBe('Queued, 2 ahead')
+    expect(toast.toasts[0]?.message).toBe('Queued with Claude Code · 2 ahead')
     wrapper.unmount()
   })
 
@@ -449,14 +526,24 @@ describe('planning from the Run here arrow', () => {
   function mountPlanning(folder: string | null = '/code/vega') {
     return mount(OpenTerminalButton, {
       props: { taskId: TASK, folder },
-      global: { stubs: { AppConfirm: true }, renderStubDefaultSlot: true },
+      global: { stubs: { AppConfirm: true, RouterLink: RouterLinkStub }, renderStubDefaultSlot: true },
       attachTo: document.body
     })
   }
 
-  async function choose(wrapper: ReturnType<typeof mountPlanning>, testid: string): Promise<void> {
+  async function choose(
+    wrapper: ReturnType<typeof mountPlanning>,
+    testid: string,
+    provider: Terminal['provider'] = 'CLAUDE'
+  ): Promise<void> {
     await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
-    document.body.querySelector<HTMLElement>(`[data-testid="${testid}"]`)?.click()
+    menuButton(testid).click()
+    await flushPromises()
+    if (testid === 'replan') return
+    expect(openTerminal).not.toHaveBeenCalled()
+    const choice = menuButton(`session-provider-${provider}`)
+    choice.click()
+    choice.click()
     await flushPromises()
   }
 
@@ -465,6 +552,7 @@ describe('planning from the Run here arrow', () => {
   }
 
   beforeEach(() => {
+    installStorage()
     setActivePinia(createPinia())
     openTerminal.mockReset()
     sendTerminalInput.mockReset()
@@ -510,7 +598,7 @@ describe('planning from the Run here arrow', () => {
       console_.steps = steps
       const wrapper = mountPlanning()
       await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
-      const labels = menuLabels()
+      const labels = menuLabels().filter((label) => !label.startsWith('Run with'))
       wrapper.unmount()
       document.body.innerHTML = ''
       return labels
@@ -550,6 +638,24 @@ describe('planning from the Run here arrow', () => {
     await choose(mountPlanning(), 'plan-flow')
 
     expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'PLAN_FLOW' }))
+  })
+
+  it.each([
+    ['discuss', 'DISCUSS'],
+    ['plan-here', 'PLAN'],
+    ['plan-flow', 'PLAN_FLOW']
+  ] as const)('dispatches %s once with an explicit Codex override', async (testid, mode) => {
+    setPreferredProvider('CLAUDE')
+    openTerminal.mockResolvedValue({ ...terminal(), provider: 'CODEX' })
+
+    await choose(mountPlanning(), testid, 'CODEX')
+
+    expect(openTerminal).toHaveBeenCalledTimes(1)
+    expect(openTerminal).toHaveBeenCalledWith(
+      { taskId: TASK },
+      expect.objectContaining({ mode, provider: 'CODEX' })
+    )
+    expect(preferredProvider()).toBe('CLAUDE')
   })
 
   describe('replanning', () => {
