@@ -5,6 +5,11 @@ export function sessionTitle(terminal: Pick<Terminal, 'taskTitle' | 'projectLabe
   return terminal.taskTitle ?? projectWorkTitle(terminal.mode, terminal.projectLabel)
 }
 
+/** The task a session runs on, or its project when it runs on none. */
+export function sessionSubject(terminal: Pick<Terminal, 'taskTitle' | 'projectLabel'>): string {
+  return terminal.taskTitle ?? `Project ${terminal.projectLabel}`
+}
+
 function projectWorkTitle(mode: Terminal['mode'], projectLabel: string): string {
   switch (mode) {
     case 'INVENTORY':

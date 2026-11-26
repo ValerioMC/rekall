@@ -6,7 +6,7 @@ import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TimeEntry } from '@/features/time/model/time-entry'
 import type { Wrapup } from '@/features/wrapup/model/wrapup'
 import type { TagSkill, TaskSkill } from '@/features/skills/model/skill-assignment'
-import type { CompanyId, DocumentId, ProjectId, TaskId, TaskStepId } from '@/model/branded'
+import type { CompanyId, DocumentId, ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 import type { PaneFocus } from '@/model/console-location'
 
 export type SaveState = 'saved' | 'unsaved' | 'saving'
@@ -38,6 +38,8 @@ export function createConsoleState() {
     paneFocus: ref<PaneFocus>('note'),
     /** The step whose deviation the deviation pane reads. */
     selectedDeviationStep: ref<number | null>(null),
+    /** The chat on no task the chat pane shows while no task is selected. */
+    projectChatId: ref<TerminalId | null>(null),
     /** A step something outside the steps pane asked to see; the pane opens it and clears this. */
     stepToOpen: ref<TaskStepId | null>(null)
   }

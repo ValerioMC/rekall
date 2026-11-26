@@ -20,6 +20,7 @@ function tabs(
       project: VEGA,
       tasks: TASKS,
       currentTaskId,
+      listShown: currentTaskId === null,
       activities,
       tallies,
       reviewCounts,

@@ -24,6 +24,7 @@ import { useDeviationsStore } from '@/features/deviations/store/deviations.store
 import { useTokenUsageStore } from '@/features/tokens/store/tokenUsage.store'
 import { useConsoleStore } from '@/stores/console.store'
 import { asTaskId } from '@/model/branded'
+import { isSessionPane } from '@/model/console-location'
 
 /**
  * A task as a page at `/task/:id/:tab`. The route names the task: it is selected in the console
@@ -83,11 +84,11 @@ watch(
 )
 
 // Search and the review queue still select a task and a pane in the store; the page follows to
-// that task, on the tab that shows the pane. The terminal pane is the console's, never a tab.
+// that task, on the tab that shows the pane. A full-size session is the console's, never a tab.
 watch(
   () => [store.selectedTaskId, store.paneFocus] as const,
   ([selected, pane]) => {
-    if (selected === null || pane === 'terminal') return
+    if (selected === null || isSessionPane(pane)) return
     const wanted = tabOfPane(pane)
     if (selected === taskId.value && (wanted === null || wanted === tab.value)) return
     void router.push({ name: 'task', params: { id: selected, tab: wanted ?? 'description' } })

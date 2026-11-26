@@ -20,7 +20,7 @@ export function taskTabOf(segment: string | undefined): TaskTab {
   return TASK_TABS.find((tab) => tab === segment) ?? 'description'
 }
 
-/** The tab that shows what a console pane showed; a note or the terminal names no tab. */
+/** The tab that shows what a console pane showed; a note or a session pane names no tab. */
 export function tabOfPane(pane: PaneFocus): TaskTab | null {
   if (pane === 'wrapup') return 'wrapup'
   if (pane === 'description') return 'description'

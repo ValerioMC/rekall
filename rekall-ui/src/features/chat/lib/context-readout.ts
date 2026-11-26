@@ -7,7 +7,11 @@ export function contextPercent(context: TurnContext): number {
   return Math.min(100, Math.round((context.usedTokens / context.windowTokens) * 100))
 }
 
-export function describeContext(context: TurnContext): string {
+export function contextTokens(context: TurnContext): string {
   const format = (count: number): string => count.toLocaleString(APP_LOCALE)
-  return `${format(context.usedTokens)} of ${format(context.windowTokens)} tokens of the context window`
+  return `${format(context.usedTokens)} of ${format(context.windowTokens)} tokens`
+}
+
+export function describeContext(context: TurnContext): string {
+  return `${contextTokens(context)} of the context window`
 }

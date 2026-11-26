@@ -18,8 +18,8 @@ const isCommand = computed(() => props.role === 'user' && props.text.startsWith(
 </script>
 
 <template>
-  <div v-if="role === 'user'" class="flex justify-end" data-testid="chat-message" data-role="user">
-    <div class="max-w-[85%] rounded-card bg-surface-raised px-3 py-2">
+  <div v-if="role === 'user'" class="flex justify-end @min-[560px]/talk:mt-3" data-testid="chat-message" data-role="user">
+    <div class="max-w-[85%] rounded-card bg-surface-raised px-3 py-2 @min-[560px]/talk:max-w-[80%]">
       <p v-if="isCommand" class="mb-0.5 text-micro font-semibold tracking-wide text-text-subtle uppercase">command</p>
       <p class="text-body whitespace-pre-wrap break-words text-text" :class="isCommand && 'font-mono text-small'">{{ text }}</p>
     </div>
@@ -27,7 +27,7 @@ const isCommand = computed(() => props.role === 'user' && props.text.startsWith(
 
   <div
     v-else
-    class="max-w-[65ch]"
+    class="max-w-[65ch] @min-[560px]/talk:max-w-[68ch]"
     data-testid="chat-message"
     data-role="assistant"
     aria-live="polite"

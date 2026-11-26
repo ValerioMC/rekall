@@ -237,17 +237,16 @@ describe('showing a chat session', () => {
     scope.stop()
   })
 
-  it('shows a chat session from the dock in the window on its task, not in the terminal pane', () => {
+  it('shows a chat session from the dock full-size on its task, not in the terminal pane', () => {
     const console = useConsoleStore()
-    const selectTask = vi.spyOn(console, 'selectTask')
-    const openPane = vi.spyOn(console, 'openTerminal')
+    const openTerminal = vi.spyOn(console, 'openTerminal')
     const open = effectScope().run(() => useOpenSession())!
 
     open(chatSession())
 
-    expect(selectTask).toHaveBeenCalledWith(TASK)
+    expect([console.selectedTaskId, console.paneFocus]).toEqual([TASK, 'chat'])
     expect(useChatStore().activeChatId).toBe(CHAT_ID)
-    expect(openPane).not.toHaveBeenCalled()
+    expect(openTerminal).not.toHaveBeenCalled()
   })
 })
 

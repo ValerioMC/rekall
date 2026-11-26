@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { chatStatus, composerState } from '@/features/chat/lib/chat-status'
 import { describePermission } from '@/features/chat/lib/describe-permission'
 import { matchingCommands } from '@/features/chat/lib/slash-commands'
-import { stepChip } from '@/features/chat/lib/step-chip'
+import { sessionStep, stepChip } from '@/features/chat/lib/step-chip'
 import { emptyTimeline } from '@/features/chat/lib/timeline'
 import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TaskStepId } from '@/model/branded'
@@ -69,5 +69,22 @@ describe('stepChip', () => {
     expect(stepChip('s1' as TaskStepId, checklist)).toBe('Step 1 of 5 · session covers steps 1 to 2')
     expect(stepChip('s4' as TaskStepId, checklist)).toBe('Step 4 of 5 · session covers steps 3 to 5')
     expect(stepChip('s1' as TaskStepId, steps(false, true))).toBe('Step 1 of 2')
+  })
+})
+
+describe('sessionStep', () => {
+  it('names the step by its number and title, with the steps its session covers', () => {
+    const checklist = steps(false, false, true, false, false)
+
+    expect(sessionStep('s4' as TaskStepId, checklist)).toEqual({
+      name: `Step 4 · ${checklist[3]!.title}`,
+      coverage: 'session covers steps 3 to 5'
+    })
+    expect(sessionStep('s1' as TaskStepId, steps(false, true))?.coverage).toBeNull()
+  })
+
+  it('names nothing for a session on no step or on a step it cannot find', () => {
+    expect(sessionStep(null, steps(false))).toBeNull()
+    expect(sessionStep('s9' as TaskStepId, steps(false))).toBeNull()
   })
 })

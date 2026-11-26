@@ -119,11 +119,11 @@ defineExpose({ focus, clear })
 </script>
 
 <template>
-  <div class="relative shrink-0 border-t border-border bg-surface px-4 py-3 max-[420px]:px-3">
+  <div class="relative">
     <ul
       v-if="commands.length > 0"
       :id="listId"
-      class="absolute inset-x-4 bottom-[calc(100%-4px)] z-(--z-overlay) overflow-hidden rounded-card border border-border-strong bg-surface-raised p-1 shadow-modal"
+      class="absolute inset-x-0 bottom-[calc(100%+4px)] z-(--z-overlay) overflow-hidden rounded-card border border-border-strong bg-surface-raised p-1 shadow-modal"
       role="listbox"
       aria-label="Commands"
       data-testid="chat-commands"
@@ -147,7 +147,7 @@ defineExpose({ focus, clear })
       <textarea
         ref="field"
         v-model="text"
-        class="field min-w-0 flex-1 resize-none rounded-control px-3 py-2 font-sans text-body leading-relaxed"
+        class="field min-w-0 flex-1 resize-none rounded-control px-3 py-2 font-sans text-body leading-normal @min-[560px]/talk:min-h-14"
         :rows="rows"
         :disabled="locked"
         :aria-label="`Message to ${SESSION_PROVIDER_LABEL[provider]}`"
@@ -161,13 +161,37 @@ defineExpose({ focus, clear })
         @input="onInput"
         @keydown="onKeydown"
       />
-      <AppButton v-if="state === 'working'" variant="danger" :disabled="stopping" data-testid="chat-stop" @click="emit('stop')">
+      <AppButton
+        v-if="state === 'working'"
+        variant="danger"
+        class="@min-[560px]/talk:h-9 @min-[560px]/talk:px-4"
+        :disabled="stopping"
+        data-testid="chat-stop"
+        @click="emit('stop')"
+      >
         {{ stopping ? 'Stopping…' : 'Stop' }}
       </AppButton>
-      <AppButton variant="primary" :disabled="!canSend" :loading="sending" data-testid="chat-send" @click="submit">Send</AppButton>
+      <AppButton
+        variant="primary"
+        class="@min-[560px]/talk:h-9 @min-[560px]/talk:px-4"
+        :disabled="!canSend"
+        :loading="sending"
+        data-testid="chat-send"
+        @click="submit"
+      >
+        Send
+      </AppButton>
     </div>
 
-    <p :id="`${listId}-hint`" class="mt-1.5 text-micro text-text-subtle" aria-live="polite" data-testid="chat-hint">{{ hint }}</p>
-    <p v-if="error" class="mt-1 text-caption text-danger" role="alert" data-testid="chat-send-error">{{ error }}</p>
+    <p v-if="error" class="mt-1.5 text-caption text-danger" role="alert" data-testid="chat-send-error">{{ error }}</p>
+    <!-- The dock keeps the bottom left corner: where the column reaches it, the hint moves right. -->
+    <p
+      :id="`${listId}-hint`"
+      class="mt-1.5 text-micro text-text-subtle @max-[1100px]/talk:mt-1 @max-[1100px]/talk:flex @max-[1100px]/talk:min-h-10 @max-[1100px]/talk:items-center @max-[1100px]/talk:justify-end @max-[1100px]/talk:pl-[140px] @max-[1100px]/talk:text-right"
+      aria-live="polite"
+      data-testid="chat-hint"
+    >
+      {{ hint }}
+    </p>
   </div>
 </template>

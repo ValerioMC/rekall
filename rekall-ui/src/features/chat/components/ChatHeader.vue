@@ -2,12 +2,14 @@
 import { computed, ref } from 'vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
-import AppConfirm from '@/components/ui/AppConfirm.vue'
 import ChatSessionReadout from './ChatSessionReadout.vue'
+import ChatStatusBadge from './ChatStatusBadge.vue'
+import ChatStopButton from './ChatStopButton.vue'
 import TerminalConnectionChips from '@/features/connection/components/TerminalConnectionChips.vue'
 import SessionProviderMark from '@/features/claude/components/SessionProviderMark.vue'
 import { SESSION_PROVIDER_LABEL } from '@/features/claude/model/session-provider'
 import { stepChip } from '@/features/chat/lib/step-chip'
+import { sessionSubject } from '@/common/format/session-title'
 import type { ChatStatus } from '@/features/chat/lib/chat-status'
 import type { TurnContext } from '@/features/chat/model/chat-event'
 import type { TaskStep } from '@/features/steps/model/task-step'
@@ -36,27 +38,10 @@ const emit = defineEmits<{
   stop: []
 }>()
 
-interface StatusLook {
-  readonly label: string
-  readonly tone: string
-  readonly pulses: boolean
-}
-
-const STATUS_LOOKS: Readonly<Record<ChatStatus, StatusLook>> = {
-  connecting: { label: 'connecting', tone: 'text-accent', pulses: false },
-  working: { label: 'working', tone: 'text-safe', pulses: true },
-  idle: { label: 'idle', tone: 'text-safe', pulses: false },
-  waiting: { label: 'waiting for approval', tone: 'text-warn', pulses: true },
-  reconnecting: { label: 'reconnecting', tone: 'text-warn', pulses: false },
-  ended: { label: 'ended', tone: 'text-text-subtle', pulses: false }
-}
-
 const switcherOpen = ref(false)
-const confirmingStop = ref(false)
 
-const look = computed(() => STATUS_LOOKS[props.status])
 const providerLabel = computed(() => SESSION_PROVIDER_LABEL[props.session.provider])
-const title = computed(() => props.session.taskTitle ?? `Project ${props.session.projectLabel}`)
+const title = computed(() => sessionSubject(props.session))
 const step = computed(() => stepChip(props.session.stepId, props.steps))
 
 function selectTask(): void {
@@ -66,11 +51,6 @@ function selectTask(): void {
 function switchTo(terminal: Terminal): void {
   switcherOpen.value = false
   emit('switch', terminal.id)
-}
-
-function confirmStop(): void {
-  confirmingStop.value = false
-  emit('stop')
 }
 
 function onSwitcherKeydown(event: KeyboardEvent): void {
@@ -99,18 +79,7 @@ function onSwitcherKeydown(event: KeyboardEvent): void {
             {{ title }}
           </button>
           <h2 v-else class="min-w-0 truncate text-title font-semibold text-text">{{ title }}</h2>
-          <span
-            class="inline-flex shrink-0 items-center gap-1.5 rounded-key bg-surface-raised px-2 py-0.5 text-micro font-semibold tracking-[0.02em]"
-            :class="look.tone"
-            data-testid="chat-status"
-            :data-status="status"
-          >
-            <span v-if="look.pulses" class="relative grid size-2 place-items-center" aria-hidden="true">
-              <span class="absolute inline-flex size-2 animate-ping rounded-full bg-current/50" />
-              <span class="relative inline-flex size-1.5 rounded-full bg-current" />
-            </span>
-            {{ look.label }}
-          </span>
+          <ChatStatusBadge :status="status" />
         </div>
         <p class="truncate font-mono text-micro text-anchor/80">{{ session.anchors }}</p>
       </div>
@@ -165,9 +134,7 @@ function onSwitcherKeydown(event: KeyboardEvent): void {
             <path d="M2.5 2.5 6 6l-3.5 3.5M6.5 2.5 10 6 6.5 9.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </AppButton>
-        <AppButton variant="danger" size="sm" data-testid="chat-stop-session" @click="confirmingStop = true">
-          Stop session
-        </AppButton>
+        <ChatStopButton :session="session" @stop="emit('stop')" />
       </div>
     </div>
 
@@ -181,15 +148,5 @@ function onSwitcherKeydown(event: KeyboardEvent): void {
       <TerminalConnectionChips :terminal-id="session.id" :project-id="session.projectId" :connections="session.connections" />
       <ChatSessionReadout class="ml-auto" :context="context" :cost="cost" />
     </div>
-
-    <AppConfirm
-      v-if="confirmingStop"
-      title="Stop this session?"
-      :body="`${providerLabel} stops where it is. The conversation stays in the provider’s history.`"
-      :blast="session.anchors"
-      confirm-label="Stop session"
-      @cancel="confirmingStop = false"
-      @confirm="confirmStop"
-    />
   </header>
 </template>

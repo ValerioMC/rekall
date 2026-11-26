@@ -67,9 +67,10 @@ Every screen is a page header, optional tabs and a body, and the body is always 
 The routes that exist today keep their paths: the redesign changes what a screen shows, not where it
 lives. `/` is no screen of its own: it goes to the project list, and `/review` and `/settings`
 are new. A ledger row, a card and the sheet open the task page at `/task/:id/description`; a note in view
-is part of the path (`/task/:id/notes/:noteId`). `/console` is the terminal host and nothing else: the terminal key on a task's tab and a deep link to a
-terminal show the session there (the dock and the run queue's **Watch session** float it above the dock instead), and a visit with no terminal open goes on to the task page of the task
-in view, or to the project list. The notes list, the steps, wrapup, description and deviation panes of the old
+is part of the path (`/task/:id/notes/:noteId`). `/console` hosts one full-size session, a terminal or a chat, and nothing else: the terminal key
+on a task's tab and a deep link show a terminal there (the dock and the run queue's **Watch session** float it above the dock instead), the sessions
+list and **Watch session** show a [chat](#the-full-size-chat) there, and a visit with neither goes on to the task page of the task in view, or to the
+project list. The notes list, the steps, wrapup, description and deviation panes of the old
 console are gone; their tabs are on the task page.
 
 ### The grouped menu
@@ -95,12 +96,12 @@ its Notes tab, a step hit its Plan with the step open. It is how a person change
 
 A two-level bar under the header, mounted once in `Bootstrap.vue`, for moving between the tasks a
 person keeps open, across projects, and between a project's task list and its tasks
-(`features/workingset`, `WorkingSetBar`). It shows on a task page, on a project page and on the
-terminal view while at least one task is open, and nowhere else (Settings, the Calendar, Companies,
-a `/console` that shows no terminal and the rest leave it and the set alone). The terminal view is
-`/console` with a task's terminal in the pane (`useTerminalPaneShown`): the bar marks that task and
-its project, the terminal fills the area under it, and a task that is not open has no tab marked and
-is not added.
+(`features/workingset`, `WorkingSetBar`). It shows on a task page, on a project page and on a
+full-size session while at least one task is open, and nowhere else (Settings, the Calendar,
+Companies and the rest leave it and the set alone). A full-size session is `/console` with a task's
+terminal in the pane (`useTerminalPaneShown`) or a chat in it (`useChatPaneShown`): the bar marks
+that task and its project, the session fills the area under it, and a task that is not open has no
+tab marked and is not added. A chat on no task marks its project and no task tab, and not "All tasks".
 
 - **Level 1, `WorkingSetProjectTabs`:** one tab per project with an open task, grouped under its
   company's name, each with the project mark, the count of its open tasks and, in amber, the count
@@ -115,7 +116,7 @@ is not added.
   status: moving bars in bright indigo while a step is running or the task's chat turn is working;
   still bars in indigo once a step was claimed or done, or a session is open on the task; short
   grey bars when nothing happened. Under reduced motion the working bars sit at three heights.
-  Only the chat the window follows reports a turn, so a task whose session is elsewhere shows
+  Only the chat on screen or followed by the window reports a turn, so a task whose session is elsewhere shows
   working from a running step alone. The key, the counter and the mark never shrink; only the
   title does, and a tab with the key may be 28px wider.
 - **The terminal key** (mockup `.impeccable/mocks/terminal-tab/index.html`) is a button of its own
@@ -531,34 +532,50 @@ The calendar (`CalendarPage`, `CalendarDayCell`) heads each day with its total a
 its length is the day against an eight-hour day, its segments the projects largest first
 (`common/calendar/day-shares.ts`). An eighth column totals each week; today wears an amber ring.
 
+## The full-size chat
+
+A chat session (a headless `claude` or Codex app server, see [terminals.md](terminals.md)) has no
+terminal to draw, so the console draws its events. Everything lives in
+`rekall-ui/src/features/chat/`. The store folds each event into a timeline by `seq` (`foldEvent`,
+idempotent, so a reconnect that replays an event changes nothing), and one `EventSource` per followed
+session (`useChatEvents`) feeds it. A chat never becomes the terminal pane's active session; that pane
+and the Diagrams and Security drawers list terminals only.
+
+A chat opened through the shared opener (`useOpenSession`: the sessions list, **Watch session**, a
+quick task, a wrapup line, a vulnerability fix, **Open** in "A session is already open") fills the area
+under the working-set bar at `/console` (`ChatPane`, mockup
+`.impeccable/mocks/chat-tab/index.html`). The URL names a task's chat by its task and a chat on no
+task by its session (`chat=…`), so a reload and Back work for both.
+
+- **Title row.** The task's title, which leads to its page (the project's name, leading nowhere, for
+  a chat on no task), the status, the provider and anchors, **Other N sessions** (the other live
+  chats; switching moves the bar's mark) and **Stop session**. A stopped task chat leaves the empty
+  view; a stopped chat on no task goes to its project's page.
+- **Facts** (`ChatSessionFacts`): step, model, permissions, connections, context and cost, in a
+  272 px column from 1060 px of width and in one strip under the title below that.
+- **Conversation.** A column of 748 px at most, with the approval card and the message field pinned
+  under it. Where the column reaches the dock (under 1100 px) the field's hint moves right.
+- **Empty.** The view reads the session list when it appears and when the task changes. A task with no
+  chat reads "No chat session on this task" with **Run here**, and shows the terminal view if that
+  opens a terminal. A chat on no task that left the list reads "This chat session has closed".
+
 ## The chat window
 
-A chat session (a headless `claude`, see [terminals.md](terminals.md)) is shown in a window docked
-beside the page, not in the terminal pane: there is no terminal to draw, so the window draws the
-session's events. Everything lives in `rekall-ui/src/features/chat/`. The store folds each event into
-a timeline by `seq` (`foldEvent`, idempotent, so a reconnect that replays an event changes nothing),
-and one `EventSource` per followed session (`useChatEvents`) feeds it. A chat never becomes the
-terminal pane's active session; that pane and the Diagrams and Security drawers list terminals only.
+On every page but the console a chat is also shown in a window over the page, which shares the full
+view's conversation, actions and **Run here** (`ChatConversation`, `useShownChat`, `ChatRunHere`). It
+has three modes (`chatDock.store`): `overlay`, `full` when expanded, and `hidden`. Its width runs from
+360 to 720 px and is remembered with the hidden flag, per viewer, in `localStorage`. It belongs to a
+task: it shows only on the task its session runs on (or on the one that asked for it with no session
+yet), and disappears when another task is selected (`useChatWindowShown`, `chat.sessionFor`). A
+session on no task, such as one generating a diagram for a project, stays on screen. A chat opened
+from a button brings itself to the window (`useRevealOpenedChat`).
 
-The window docks in one of four modes (`chatDock.store`): `inline` beside the note pane while the note
-keeps 360 px, `overlay` when it would not, `full` when expanded, and `hidden`. Its width runs from
-360 to 720 px and is remembered with the hidden flag, per viewer, in `localStorage`. On any page
-but the console it always overlays. It belongs to a task: it shows only on the task its session
-runs on (or on the one that asked for it with no session yet), and disappears when another task is
-selected (`useChatWindowShown`, `chat.sessionFor`). A session on no task, such as one generating a
-diagram for a project, stays on screen. A chat opened from a button brings itself to the window
-(`useRevealOpenedChat`).
-
-`ChatDock` owns the window's motion, in the console layout and over a page alike. Hiding slides the
-window to the right edge it came from in `--motion-move`, and reopening slides it back; a hide
-reversed half-way turns back from where it is, because the state sits on the window as `data-state`
-and the motion is a CSS transition. Docked beside the note pane, the window gives its room back
-through a negative right margin, so its text does not reflow and the note pane follows it; over a
-page or expanded it translates and fades. Once shown the window stays mounted while hidden, inert and
-out of the tab order, so the draft and the scroll position survive a hide; focus moves to the note
-pane when the window hides, and the Hide key carries a chevron pointing at the edge it goes to. Under
-reduced motion it cuts. On `/console` with no terminal, the
-console waits for the slide before it leaves for the task page.
+`ChatDock` owns the window's motion. Hiding slides the window to the right edge it came from in
+`--motion-move`, and reopening slides it back; a hide reversed half-way turns back from where it is,
+because the state sits on the window as `data-state` and the motion is a CSS transition. Once shown
+the window stays mounted while hidden, inert and out of the tab order, so the draft and the scroll
+position survive a hide; the Hide key carries a chevron pointing at the edge it goes to. Under reduced
+motion it cuts.
 
 While the window is hidden and the selected task has a session, `ChatReopenTag` is the way back: a
 round button at the bottom right that slides in from the edge as the window leaves. It reads the

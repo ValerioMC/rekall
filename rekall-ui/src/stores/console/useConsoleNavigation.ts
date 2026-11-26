@@ -1,5 +1,5 @@
 import { computed } from 'vue'
-import type { CompanyId, DocumentId, ProjectId, TaskId, TaskStepId } from '@/model/branded'
+import type { CompanyId, DocumentId, ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 import type { ConsoleLocation, PaneFocus } from '@/model/console-location'
 import { isEpic } from '@/features/catalog/model/catalog'
 import type { SearchHit } from '@/features/search/model/search'
@@ -17,14 +17,21 @@ export function useConsoleNavigation(
 ) {
   const { tasks, documents, scopeCompany, scopeProject, selectedTaskId, selectedDocId, paneFocus, selectedDeviationStep } =
     state
-  const { stepToOpen } = state
+  const { stepToOpen, projectChatId } = state
 
   const location = computed<ConsoleLocation>(() => ({
     taskId: selectedTaskId.value,
     documentId: selectedDocId.value,
     pane: paneFocus.value,
-    deviationStep: paneFocus.value === 'deviation' ? selectedDeviationStep.value : null
+    deviationStep: paneFocus.value === 'deviation' ? selectedDeviationStep.value : null,
+    chatId: paneFocus.value === 'chat' && selectedTaskId.value === null ? projectChatId.value : null
   }))
+
+  /** The chat pane has a chat to answer for: a task in view, or a chat on no task. */
+  const chatInPane = computed(() => {
+    if (paneFocus.value !== 'chat') return false
+    return selectedTaskId.value === null ? projectChatId.value !== null : selected.selectedTask.value !== null
+  })
 
   function selectTask(id: TaskId): void {
     selectedTaskId.value = id
@@ -64,8 +71,17 @@ export function useConsoleNavigation(
     selectedTaskId.value = taskId
     selectedDocId.value = documentId
     selectedDeviationStep.value = target.deviationStep
-    paneFocus.value = taskId === null || (target.pane === 'deviation' && target.deviationStep === null) ? 'note' : target.pane
+    projectChatId.value = target.chatId
+    paneFocus.value = paneToShow(target, taskId)
     return location.value
+  }
+
+  /** A task pane needs its task and the deviation one its step; the chat pane also opens on a chat of no task. */
+  function paneToShow(target: ConsoleLocation, taskId: TaskId | null): PaneFocus {
+    if (target.pane === 'chat' && target.taskId === null && target.chatId !== null) return 'chat'
+    if (taskId === null) return 'note'
+    if (target.pane === 'deviation' && target.deviationStep === null) return 'note'
+    return target.pane
   }
 
   function setScope(company: CompanyId | null, project: ProjectId | null = null): void {
@@ -85,6 +101,15 @@ export function useConsoleNavigation(
   function openPane(pane: TaskPane): void {
     if (selectedTaskId.value === null) return
     paneFocus.value = pane
+  }
+
+  /** A chat on no task takes the console with no task in view, so none is marked as its own. */
+  function openProjectChat(id: TerminalId): void {
+    selectedTaskId.value = null
+    selectedDocId.value = null
+    selectedDeviationStep.value = null
+    projectChatId.value = id
+    paneFocus.value = 'chat'
   }
 
   /** Brings a deviation into view on its own pane; the pane steps between the task's deviations. */
@@ -128,6 +153,7 @@ export function useConsoleNavigation(
 
   return {
     location,
+    chatInPane,
     selectTask,
     selectDocument,
     showLocation,
@@ -136,6 +162,8 @@ export function useConsoleNavigation(
     openDeviation,
     closeDeviation,
     openTerminal: () => openPane('terminal'),
+    openChat: () => openPane('chat'),
+    openProjectChat,
     openStep,
     clearStepToOpen,
     openSearchHit

@@ -52,6 +52,7 @@ beforeEach(() => {
     history: createWebHistory(),
     routes: [
       { path: '/', name: 'console', component: ConsoleHost },
+      { path: '/task', name: 'task', component: ConsoleHost },
       { path: '/projects', name: 'projects', component: { render: () => h('div') } }
     ]
   })
@@ -124,6 +125,22 @@ describe('the console location in the history', () => {
     await settle()
 
     expect([store.selectedTaskId, store.paneFocus]).toEqual([retry, 'wrapup'])
+  })
+
+  it('reads an entry again when the console is entered back from a page that showed another task', async () => {
+    await openConsoleAt('/')
+    store.selectTask(report)
+    store.openWrapup()
+    await settle()
+    await router.push('/task')
+    await settle()
+    store.selectTask(retry)
+    await settle()
+
+    router.back()
+    await settle()
+
+    expect([store.selectedTaskId, store.paneFocus]).toEqual([report, 'wrapup'])
   })
 
   it('records nothing while the reader is on another screen', async () => {

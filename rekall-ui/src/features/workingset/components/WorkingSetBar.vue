@@ -9,6 +9,7 @@ import { useWorkingSetNavigation } from '@/features/workingset/composables/useWo
 import { reviewCountsByTask } from '@/features/workingset/lib/review-counts'
 import { stepTally, taskActivity } from '@/features/workingset/lib/task-activity'
 import { useWorkingSetStore } from '@/features/workingset/store/workingSet.store'
+import { useChatPaneShown } from '@/features/chat/composables/useChatPaneShown'
 import { useChatStore } from '@/features/chat/store/chat.store'
 import { useOpenSessionInPane } from '@/features/claude/composables/useOpenSessionInPane'
 import { useTerminalPaneShown } from '@/features/claude/composables/useTerminalPaneShown'
@@ -20,7 +21,7 @@ import type { TaskId } from '@/model/branded'
 
 /**
  * The two-level bar under the header: the projects with open tasks, then the open tasks of the
- * project in view. It shows on a task page, a project page and the terminal view while something
+ * project in view. It shows on a task page, a project page and a full-size session while something
  * is open, and marks the project and task on screen, however they were reached.
  */
 const route = useRoute()
@@ -30,6 +31,7 @@ const chat = useChatStore()
 const terminals = useTerminalStore()
 const { taskInView, projectIdInView, placeToVisit, visit } = useWorkingSetNavigation()
 const terminalShown = useTerminalPaneShown()
+const chatShown = useChatPaneShown()
 const openInPane = useOpenSessionInPane()
 
 const reviewCounts = computed(() => reviewCountsByTask(reviewQueue.value))
@@ -42,7 +44,9 @@ const tallies = computed(() => new Map<TaskId, StepTally>(tasksInView.value.map(
 const terminalTaskIds = computed(
   () => new Set<TaskId>(tasksInView.value.filter((task) => terminals.liveTerminalForTask(task.id)).map((task) => task.id))
 )
-const onBarPage = computed(() => route.name === 'task' || route.name === 'project-detail' || terminalShown.value)
+const onBarPage = computed(
+  () => route.name === 'task' || route.name === 'project-detail' || terminalShown.value || chatShown.value
+)
 const shown = computed(() => onBarPage.value && workingSet.groups.length > 0)
 
 useWorkingSetKeys()
@@ -86,6 +90,7 @@ async function close(taskId: TaskId): Promise<void> {
       :project="groupInView.project"
       :tasks="groupInView.tasks"
       :current-task-id="taskInView?.id ?? null"
+      :list-shown="route.name === 'project-detail'"
       :activities="activities"
       :tallies="tallies"
       :review-counts="reviewCounts"

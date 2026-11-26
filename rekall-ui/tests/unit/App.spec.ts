@@ -8,6 +8,8 @@ import { mountWithHeaderChrome } from './support/mountWithHeaderChrome'
 import type { Company, Project, Task } from '@/features/catalog/model/catalog'
 import type * as CodexApi from '@/features/codex/api/codex.api'
 import { useTaskEditor } from '@/features/catalog/composables/useTaskEditor'
+import { fetchTerminals } from '@/features/claude/api/terminal.api'
+import { chatSession } from './features/chat/support'
 import type { RekallDocument } from '@/features/notes/model/document'
 import type { TaskStep } from '@/features/steps/model/task-step'
 import type { Wrapup } from '@/features/wrapup/model/wrapup'
@@ -164,6 +166,11 @@ vi.mock('@/features/claude/api/terminal.api', () => ({
   openTerminal: vi.fn(),
   closeTerminal: vi.fn()
 }))
+
+vi.mock('@/features/chat/composables/useChatEvents', async () => {
+  const { ref } = await import('vue')
+  return { useChatEvents: () => ({ connected: ref(true), reconnecting: ref(false) }) }
+})
 
 vi.mock('@xterm/xterm', () => ({
   Terminal: class {
@@ -403,6 +410,43 @@ describe('the console', () => {
 
     expect(document.body.querySelector('[data-testid="run-queue-panel"]')).not.toBeNull()
     wrapper.unmount()
+  })
+
+  describe('the console route', () => {
+    afterEach(() => void vi.mocked(fetchTerminals).mockResolvedValue([]))
+
+    async function mountSessionAt(path: string) {
+      const wrapper = await mountConsole(path)
+      await vi.dynamicImportSettled()
+      await flushPromises()
+      return wrapper
+    }
+
+    it('shows the chat of a task full-size, with no window beside it', async () => {
+      vi.mocked(fetchTerminals).mockResolvedValue([chatSession({ taskId: validator, anchors: 'task:PR-1' })])
+
+      const wrapper = await mountSessionAt(`/console?mode=tasks&task=${validator}&pane=chat`)
+
+      expect(router.currentRoute.value.name).toBe('console')
+      expect(wrapper.find('[data-testid="chat-input"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="chat-window"]').exists()).toBe(false)
+    })
+
+    it('shows a chat on no task full-size, named in the URL by its session and in the header by its project', async () => {
+      vi.mocked(fetchTerminals).mockResolvedValue([chatSession({ taskId: null, anchors: 'project:vega' })])
+
+      const wrapper = await mountSessionAt('/console?mode=tasks&pane=chat&chat=chat-1')
+
+      expect(router.currentRoute.value.query).toEqual({ mode: 'tasks', pane: 'chat', chat: 'chat-1' })
+      expect(wrapper.find('[data-testid="chat-input"]').exists()).toBe(true)
+      expect(wrapper.get('[data-testid="anchor-location"]').text()).toContain('project:vega')
+    })
+
+    it('leaves for the task page when neither a terminal nor a chat is shown', async () => {
+      await mountConsole(`/console?mode=tasks&task=${validator}`)
+
+      expect(router.currentRoute.value.fullPath).toBe(`/task/${validator}`)
+    })
   })
 
   describe('creating, editing and deleting a record', () => {

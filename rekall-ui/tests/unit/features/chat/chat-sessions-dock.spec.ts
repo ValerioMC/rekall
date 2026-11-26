@@ -72,13 +72,14 @@ describe('chat sessions in the sessions dock', () => {
     expect(panel.find('[data-testid=terminal-dock-group-project]').exists()).toBe(true)
   })
 
-  it('opens a chat row in the chat window and closes it through the shared close call', async () => {
+  it('opens a chat row full-size and closes it through the shared close call', async () => {
     const terminals = useTerminalStore()
     terminals.upsert(chatSession())
     const panel = mount(TerminalSessionsPanel, { global: { stubs: { TerminalConnectionChips: true } } })
 
     await panel.get('[data-testid=terminal-dock-jump]').trigger('click')
     expect(useChatStore().activeChatId).toBe(CHAT_ID)
+    expect(useConsoleStore().paneFocus).toBe('chat')
 
     await panel.get('[data-testid=terminal-dock-stop]').trigger('click')
     await Promise.resolve()

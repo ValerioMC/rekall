@@ -16,6 +16,7 @@ const props = defineProps<{
   project: Project
   tasks: readonly Task[]
   currentTaskId: TaskId | null
+  listShown: boolean
   activities: ReadonlyMap<TaskId, TaskActivity>
   tallies: ReadonlyMap<TaskId, StepTally>
   reviewCounts: ReadonlyMap<TaskId, number>
@@ -68,8 +69,8 @@ function tallyTitle(task: Task): string {
       type="button"
       role="tab"
       class="focus-ring relative flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap pl-2.5 pr-3.5 font-medium transition-colors duration-(--motion-quick) hover:bg-surface hover:text-text"
-      :class="currentTaskId === null ? 'text-text after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-accent' : 'text-text-muted'"
-      :aria-selected="currentTaskId === null"
+      :class="listShown ? 'text-text after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-accent' : 'text-text-muted'"
+      :aria-selected="listShown"
       data-testid="working-set-all-tasks"
       @click="selectList"
     >

@@ -193,6 +193,40 @@ describe('the working-set bar', () => {
     })
   })
 
+  describe('on the chat view', () => {
+    it('shows both rows and marks the selected task', async () => {
+      useConsoleStore().selectTask(T2)
+      useConsoleStore().openChat()
+
+      const { bar } = await barAt('/console')
+
+      expect(bar.findAll('[data-testid="working-set-project"]')).toHaveLength(2)
+      expect(markedTasks(bar)).toEqual(['false', 'true'])
+    })
+
+    it('shows the project of a chat on no task, marking no tab', async () => {
+      useTerminalStore().terminals = [{ id: 'chat-9' as TerminalId, taskId: null, projectId: ATLAS, kind: 'CHAT', live: true } as Terminal]
+      useConsoleStore().openProjectChat('chat-9' as TerminalId)
+
+      const { bar } = await barAt('/console')
+
+      expect(bar.get('[data-testid="working-set-tasks"]').attributes('aria-label')).toBe('Atlas tasks')
+      expect(markedTasks(bar)).toEqual(['false'])
+      expect(bar.get('[data-testid="working-set-all-tasks"]').attributes('aria-selected')).toBe('false')
+    })
+
+    it('goes back to the task page when the marked tab is pressed', async () => {
+      useConsoleStore().selectTask(T2)
+      useConsoleStore().openChat()
+      const { bar, router } = await barAt('/console')
+
+      await bar.findAll('[data-testid="working-set-task"]')[1]?.trigger('click')
+      await flushPromises()
+
+      expect(router.currentRoute.value.fullPath).toBe('/task/t2/description')
+    })
+  })
+
   describe('the terminal key of a task', () => {
     it.each(['/task/t2/description', '/task/t1/description', '/projects/vega'])('shows its terminal from %s', async (path) => {
       liveTerminalOn(T1)
