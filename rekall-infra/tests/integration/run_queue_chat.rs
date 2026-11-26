@@ -5,17 +5,28 @@
 
 mod support;
 
+use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use rekall_core::claude::{ClaudeUsageView, InMemoryTerminalHost, Limit, SessionKind, Severity, TerminalHost, UsageReader};
+use rekall_core::claude::{ClaudeUsageView, CodexSessionOptions, InMemoryTerminalHost, Limit, SessionKind, SessionProvider, Severity, TerminalHost, UsageReader};
 use rekall_core::queue::{QueueLaunch, QueueRunner, RunQueueService};
-use rekall_infra::queue::RunQueueRunner;
+use rekall_infra::chat::ChatSessionManager;
+use rekall_infra::cli::{ClaudeCli, EnvironmentSource};
+use rekall_infra::pty::PtyTerminals;
+use rekall_infra::queue::{RunQueueRunner, RunQueueUsage};
+use rekall_infra::session::SessionHosts;
+use rekall_infra::ClaudeConfig;
 use rekall_kernel::Instant;
 use rekall_store::{task, task_step, RunQueueItemState, RunQueueState, TaskStepState};
 use sea_orm::{ActiveModelTrait, IntoActiveModel};
 use support::{eventually, world, World};
+
+const FAKE_CLAUDE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/fake_claude.sh");
+const CLAUDE_REPLY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/chat/plain_reply.jsonl");
+const FAKE_CODEX: &str = include_str!("../fixtures/fake_codex_chat.sh");
 
 /// Reads 10 % of the session limit, and counts how often it was asked.
 #[derive(Default)]
@@ -56,7 +67,7 @@ async fn harness(world: &World) -> Harness {
     let runner = RunQueueRunner::start(
         queue.clone(),
         host.clone(),
-        usage.clone(),
+        RunQueueUsage { claude: usage.clone(), codex: world.codex() },
         world.services.task_work.clone(),
         world.services.steps.clone(),
         world.worktrees().0,
@@ -182,4 +193,72 @@ async fn a_chat_session_waiting_on_a_permission_prompt_is_a_running_item_that_sa
     harness.host.awaiting_permission(session, false);
     eventually("the item to stop saying it waits", || async { item_states(&harness.queue).await[0].1.is_none() }).await;
     assert_eq!(item_states(&harness.queue).await[0].0, RunQueueItemState::Running);
+}
+
+struct ChatFixtureEnvironment {
+    received: PathBuf,
+}
+
+#[async_trait::async_trait]
+impl EnvironmentSource for ChatFixtureEnvironment {
+    async fn current(&self) -> HashMap<String, String> {
+        HashMap::from([
+            ("PATH".into(), "/usr/bin:/bin".into()),
+            ("FAKE_CLAUDE_FIXTURE".into(), CLAUDE_REPLY.into()),
+            ("FAKE_CLAUDE_RECEIVED".into(), self.received.to_string_lossy().into_owned()),
+            ("FAKE_CODEX_RECEIVED".into(), self.received.to_string_lossy().into_owned()),
+        ])
+    }
+}
+
+#[tokio::test]
+async fn the_shared_hosts_open_both_saved_providers_in_chat() {
+    let world = world().await;
+    world.install_codex(FAKE_CODEX);
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let claude = world.task(&project, "claude").await;
+    let codex = world.task(&project, "codex").await;
+    world.step(&claude, "Only", 0, TaskStepState::Open).await;
+    world.step(&codex, "Only", 0, TaskStepState::Open).await;
+    let config = ClaudeConfig { home: world.home.path().to_path_buf(), ..ClaudeConfig::default() };
+    let received = world.home.path().join("received.jsonl");
+    let environment = Arc::new(ChatFixtureEnvironment { received: received.clone() });
+    let cli = ClaudeCli::new(Some(FAKE_CLAUDE), world.home.path().to_path_buf(), environment);
+    let chats = ChatSessionManager::new(world.services.terminal_launch.clone(), cli, world.work_marker(), world.broker("http://127.0.0.1:0"), world.telemetry(), &config);
+    let terminals = Arc::new(PtyTerminals::new(world.terminals(8)));
+    let hosts = Arc::new(SessionHosts::start(terminals, chats, 8));
+    let queue = RunQueueService::new(world.services.ctx.clone());
+    let runner = RunQueueRunner::start(
+        queue.clone(),
+        hosts.clone(),
+        RunQueueUsage { claude: Arc::new(CountedUsage::default()), codex: world.codex() },
+        world.services.task_work.clone(),
+        world.services.steps.clone(),
+        world.worktrees().0,
+        &world.events,
+        rekall_core::system_clock(),
+        Duration::from_millis(100),
+        Duration::from_millis(50),
+    );
+    queue.update_settings(None, true, Some("sonnet"), Some("low"), SessionKind::Chat, 1).await.unwrap();
+    queue.add(claude.id, QueueLaunch::default()).await.unwrap();
+    queue.add(codex.id, QueueLaunch {
+        provider: SessionProvider::Codex,
+        codex_options: Some(CodexSessionOptions::new(false, Some("gpt-test"), Some("high")).unwrap()),
+    }).await.unwrap();
+    runner.start(&queue, None).await.unwrap();
+
+    eventually("the Claude chat prompt", || async { std::fs::read_to_string(&received).is_ok_and(|lines| lines.contains("/rk task:AL-1")) }).await;
+    let first = hosts.list().pop().unwrap();
+    assert_eq!((first.provider, first.kind), (SessionProvider::Claude, SessionKind::Chat));
+    assert!(first.skip_permissions);
+    claim(&world, "claude", "Only").await;
+
+    eventually("the Codex chat prompt", || async {
+        std::fs::read_to_string(&received).is_ok_and(|lines| lines.contains("Use the $rekall skill with this exact argument line: task:AL-2"))
+    }).await;
+    let second = hosts.list().pop().unwrap();
+    assert_eq!((second.provider, second.kind), (SessionProvider::Codex, SessionKind::Chat));
+    assert_eq!((second.model.as_deref(), second.effort.as_deref(), second.skip_permissions), (Some("gpt-test"), Some("high"), false));
+    runner.stop().await.unwrap();
 }

@@ -28,7 +28,7 @@ use rekall_infra::jira::HttpJiraIssues;
 use rekall_infra::login_shell::LoginShellEnvironment;
 use rekall_infra::probes::HttpConnectionProbe;
 use rekall_infra::pty::{PtyTerminalManager, PtyTerminals, SessionRelay};
-use rekall_infra::queue::RunQueueRunner;
+use rekall_infra::queue::{RunQueueRunner, RunQueueUsage};
 use rekall_infra::secret::{FileSecretStore, KeychainSecretStore, SECRETS_FILE};
 use rekall_infra::session::{SessionHosts, WorkMarker};
 use rekall_infra::tracker::{ConnectionPullRequestHost, HttpGitlabNamespaces, HttpTaskTracker};
@@ -200,7 +200,7 @@ pub(super) fn start_queue(
     services: &Services,
     trackers: Trackers,
     sessions: &Arc<dyn TerminalHost>,
-    usage: &Arc<dyn UsageReader>,
+    usage: RunQueueUsage,
 ) -> QueueParts {
     let claude_config = &config.claude;
     let queue = RunQueueService::new(ctx.clone());
@@ -212,7 +212,7 @@ pub(super) fn start_queue(
     let runner = RunQueueRunner::start(
         queue.clone(),
         sessions.clone(),
-        usage.clone(),
+        usage,
         services.task_work.clone(),
         services.steps.clone(),
         worktrees.clone(),

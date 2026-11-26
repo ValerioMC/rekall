@@ -10,6 +10,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use rekall_infra::cli::{ClaudeCli, EnvironmentSource};
+use rekall_infra::codex::{CodexCli, CodexIntegration};
 use rekall_infra::connection::CredentialBroker;
 use rekall_core::claude::TerminalListener;
 use rekall_infra::pty::PtyTerminalManager;
@@ -74,6 +75,19 @@ pub async fn world() -> World {
 }
 
 impl World {
+    pub fn install_codex(&self, script: &str) {
+        let home_bin = self.home.path().join(".local/bin");
+        std::fs::create_dir_all(&home_bin).unwrap();
+        let codex = home_bin.join("codex");
+        std::fs::write(&codex, script).unwrap();
+        std::fs::set_permissions(&codex, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+
+    pub fn codex(&self) -> Arc<CodexIntegration> {
+        let cli = CodexCli::new(self.home.path().to_path_buf(), Arc::new(FixedEnvironment));
+        Arc::new(CodexIntegration::new(cli, "http://127.0.0.1:0/mcp".into()))
+    }
+
     /// A worktree service over a scripted git, with its folders under this world's `home`.
     pub fn worktrees(&self) -> (rekall_core::worktree::TaskWorktreeService, Arc<rekall_core::worktree::ScriptedWorktreeHost>) {
         let host = Arc::new(rekall_core::worktree::ScriptedWorktreeHost::new());

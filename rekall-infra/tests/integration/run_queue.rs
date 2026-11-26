@@ -5,12 +5,14 @@
 mod support;
 
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use rekall_core::queue::{QueueLaunch, QueueRunner, RunQueueFrame, RunQueueService};
-use rekall_core::claude::StepProgressState;
-use rekall_infra::queue::RunQueueRunner;
-use rekall_core::claude::{ClaudeUsageView, Limit, SessionKind, Severity, UsageReader};
+use rekall_core::claude::{StepProgressState, TerminalMode, TerminalOpening, TerminalTarget, TerminalView};
+use rekall_core::codex::{CodexClient, CodexModel, CodexSetup, CodexUsage, CodexUsageWindow};
+use rekall_infra::queue::{RunQueueRunner, RunQueueUsage};
+use rekall_core::claude::{ClaudeUsageView, CodexSessionOptions, Limit, SessionKind, SessionProvider, Severity, UsageReader};
 use rekall_kernel::Instant;
 use rekall_core::flow::RouteTarget;
 use rekall_store::{RunQueueItemState, RunQueueState, TaskStepState};
@@ -51,16 +53,21 @@ struct Harness {
 
 fn harness(world: &World, usage: ClaudeUsageView) -> Harness {
     let queue = RunQueueService::new(world.services.ctx.clone());
+    let usage = RunQueueUsage { claude: Arc::new(FixedUsage(Mutex::new(usage))), codex: world.codex() };
+    terminal_runner(world, queue, usage, rekall_core::system_clock())
+}
+
+fn terminal_runner(world: &World, queue: RunQueueService, usage: RunQueueUsage, clock: rekall_core::Clock) -> Harness {
     let terminals = world.terminals(8);
     let runner = RunQueueRunner::start(
         queue.clone(),
         Arc::new(rekall_infra::pty::PtyTerminals::new(terminals.clone())),
-        Arc::new(FixedUsage(Mutex::new(usage))),
+        usage,
         world.services.task_work.clone(),
         world.services.steps.clone(),
         world.worktrees().0,
         &world.events,
-        rekall_core::system_clock(),
+        clock,
         Duration::from_millis(100),
         Duration::from_millis(50),
     );
@@ -69,6 +76,240 @@ fn harness(world: &World, usage: ClaudeUsageView) -> Harness {
 
 async fn item_states(queue: &RunQueueService) -> Vec<(RunQueueItemState, Option<String>)> {
     queue.view().await.unwrap().items.into_iter().map(|item| (item.state, item.detail)).collect()
+}
+
+#[tokio::test]
+async fn a_mixed_queue_dispatches_each_terminal_with_its_own_options() {
+    let world = world().await;
+    world.install_codex(support::STUB_CLAUDE);
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let claude = world.task(&project, "claude").await;
+    world.step(&claude, "Only", 0, TaskStepState::Open).await;
+    let codex = world.task(&project, "codex").await;
+    let harness = harness(&world, reading(10.0));
+    harness.queue.update_settings(None, true, Some("sonnet"), Some("low"), SessionKind::Terminal, 1).await.unwrap();
+    harness.queue.add(claude.id, QueueLaunch::default()).await.unwrap();
+    harness.queue.add(codex.id, codex_launch()).await.unwrap();
+    harness.runner.start(&harness.queue, None).await.unwrap();
+
+    eventually("Claude's terminal", || async { harness.terminals.has_live_terminal_for(claude.id) }).await;
+    let first = harness.terminals.list().pop().unwrap();
+    assert_eq!((first.provider, first.kind), (SessionProvider::Claude, SessionKind::Terminal));
+    assert_eq!((first.model.as_deref(), first.effort.as_deref(), first.skip_permissions), (Some("sonnet"), Some("low"), true));
+    claim(&world, "claude", "Only").await;
+
+    eventually("Codex's terminal", || async { harness.terminals.has_live_terminal_for(codex.id) }).await;
+    let second = harness.terminals.list().pop().unwrap();
+    assert_eq!(second.kind, SessionKind::Terminal);
+    assert_codex_options(&second);
+    harness.runner.stop().await.unwrap();
+}
+
+fn codex_launch() -> QueueLaunch {
+    QueueLaunch {
+        provider: SessionProvider::Codex,
+        codex_options: Some(CodexSessionOptions::new(false, Some("gpt-test"), Some("high")).unwrap()),
+    }
+}
+
+fn assert_codex_options(session: &TerminalView) {
+    assert_eq!(session.provider, SessionProvider::Codex);
+    assert_eq!((session.model.as_deref(), session.effort.as_deref(), session.skip_permissions), (Some("gpt-test"), Some("high"), false));
+}
+
+#[tokio::test]
+async fn codex_renews_then_keeps_its_saved_options_after_stop_and_start() {
+    let world = world().await;
+    world.install_codex(support::STUB_CLAUDE);
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "grouped").await;
+    let first = world.step(&task, "Backend", 0, TaskStepState::Open).await;
+    let second = world.step(&task, "Frontend", 1, TaskStepState::Open).await;
+    world.services.step_bindings.begin_session(second.id, true).await.unwrap();
+    let harness = harness(&world, reading(10.0));
+    harness.queue.add(task.id, codex_launch()).await.unwrap();
+    harness.runner.start(&harness.queue, None).await.unwrap();
+    eventually("the first Codex session", || async { harness.terminals.has_live_terminal_for(task.id) }).await;
+    let original = harness.terminals.list()[0].id;
+
+    claim(&world, "grouped", "Backend").await;
+    eventually("the renewed Codex session", || async {
+        harness.terminals.list().iter().any(|session| session.live && session.id != original)
+    }).await;
+    let renewed = harness.terminals.list().pop().unwrap();
+    assert_codex_options(&renewed);
+
+    harness.runner.stop().await.unwrap();
+    harness.runner.start(&harness.queue, None).await.unwrap();
+    eventually("the restarted Codex session", || async { harness.terminals.has_live_terminal_for(task.id) }).await;
+    let restarted = harness.terminals.list().pop().unwrap();
+    assert_ne!(renewed.id, restarted.id);
+    assert_codex_options(&restarted);
+    assert_eq!(world.step_state(&task, &first).await, TaskStepState::Claimed);
+    assert_eq!(world.step_state(&task, &second).await, TaskStepState::Open);
+    harness.runner.stop().await.unwrap();
+}
+
+#[tokio::test]
+async fn codex_dispatches_from_the_saved_item_after_file_database_recovery() {
+    let world = world().await;
+    world.install_codex(support::STUB_CLAUDE);
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "interrupted").await;
+    let first = world.step(&task, "First", 0, TaskStepState::Claimed).await;
+    let second = world.step(&task, "Second", 1, TaskStepState::Open).await;
+    let queue = RunQueueService::new(world.services.ctx.clone());
+    let waiting = queue.add(task.id, codex_launch()).await.unwrap();
+    queue.start(None).await.unwrap();
+    queue.mark_item(waiting.items[0].id, RunQueueItemState::Running, None).await.unwrap();
+
+    let reopened = rekall_store::open(world.database.path.as_deref().unwrap()).await.unwrap();
+    let recovered_queue = RunQueueService::new(rekall_core::Ctx::new(reopened.conn, world.events.clone()));
+    let usage = RunQueueUsage { claude: Arc::new(FixedUsage(Mutex::new(reading(10.0)))), codex: world.codex() };
+    let recovered = terminal_runner(&world, recovered_queue, usage, rekall_core::system_clock());
+
+    eventually("the recovered Codex session", || async { recovered.terminals.has_live_terminal_for(task.id) }).await;
+    assert_codex_options(&recovered.terminals.list()[0]);
+    assert_eq!(world.step_state(&task, &first).await, TaskStepState::Claimed);
+    assert_eq!(world.step_state(&task, &second).await, TaskStepState::Open);
+    recovered.runner.stop().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_missing_codex_cli_fails_its_item_even_with_a_usage_ceiling() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let missing = world.task(&project, "codex").await;
+    let next = world.task(&project, "claude").await;
+    let harness = harness(&world, reading(10.0));
+    harness.queue.update_settings(Some(80), false, None, None, SessionKind::Terminal, 1).await.unwrap();
+    harness.queue.add(missing.id, codex_launch()).await.unwrap();
+    harness.queue.add(next.id, QueueLaunch::default()).await.unwrap();
+    harness.runner.start(&harness.queue, None).await.unwrap();
+
+    eventually("Claude after the unavailable Codex item", || async { harness.terminals.has_live_terminal_for(next.id) }).await;
+    let (state, detail) = &item_states(&harness.queue).await[0];
+    assert_eq!(*state, RunQueueItemState::Failed);
+    assert!(detail.as_deref().unwrap().contains("Codex CLI was not found"));
+    harness.runner.stop().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_queued_provider_leaves_an_existing_session_on_the_task_alone() {
+    let world = world().await;
+    world.install_codex(support::STUB_CLAUDE);
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let harness = harness(&world, reading(10.0));
+    let existing = harness.terminals.open(TerminalOpening {
+        target: TerminalTarget::Task(task.id),
+        step_id: None,
+        provider: SessionProvider::Claude,
+        skip_permissions: false,
+        model: None,
+        effort: None,
+        mode: TerminalMode::Work,
+        kind: SessionKind::Terminal,
+    }).await.unwrap();
+    harness.queue.add(task.id, codex_launch()).await.unwrap();
+    harness.runner.start(&harness.queue, None).await.unwrap();
+
+    eventually("the queue item to fail on the conflict", || async {
+        item_states(&harness.queue).await[0].0 == RunQueueItemState::Failed
+    }).await;
+    assert!(item_states(&harness.queue).await[0].1.as_deref().unwrap().contains("Claude Code Terminal is already open"));
+    assert_eq!(harness.terminals.list()[0].id, existing.id);
+    harness.terminals.close(existing.id, "Test finished").await.unwrap();
+}
+
+struct CodexReading {
+    usage: Mutex<CodexUsage>,
+    refreshes: AtomicUsize,
+}
+
+impl CodexReading {
+    fn set(&self, used_percent: f64, resets_at: Instant) {
+        *self.usage.lock().unwrap() = CodexUsage::Ok {
+            primary: Some(CodexUsageWindow {
+                used_percent,
+                resets_at: Some(resets_at.epoch_millis() / 1000),
+                window_duration_mins: Some(300),
+            }),
+            secondary: None,
+        };
+    }
+}
+
+#[async_trait::async_trait]
+impl CodexClient for CodexReading {
+    async fn usage(&self, refresh: bool) -> CodexUsage {
+        if refresh {
+            self.refreshes.fetch_add(1, Ordering::Relaxed);
+        }
+        self.usage.lock().unwrap().clone()
+    }
+
+    async fn models(&self) -> rekall_kernel::Result<Vec<CodexModel>> {
+        unreachable!()
+    }
+
+    async fn setup(&self) -> rekall_kernel::Result<CodexSetup> {
+        unreachable!()
+    }
+
+    async fn install(&self) -> rekall_kernel::Result<CodexSetup> {
+        unreachable!()
+    }
+}
+
+#[tokio::test]
+async fn codex_usage_controls_dispatch_and_the_hold_at_a_claim_boundary() {
+    let world = world().await;
+    world.install_codex(support::STUB_CLAUDE);
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "grouped").await;
+    let first = world.step(&task, "First", 0, TaskStepState::Open).await;
+    let next = world.step(&task, "Next", 1, TaskStepState::Open).await;
+    world.services.step_bindings.begin_session(next.id, true).await.unwrap();
+    let queue = RunQueueService::new(world.services.ctx.clone());
+    let clock = Arc::new(Mutex::new(Instant::now()));
+    let read_clock = clock.clone();
+    let codex = Arc::new(CodexReading { usage: Mutex::new(CodexUsage::Unavailable), refreshes: AtomicUsize::new(0) });
+    let usage = RunQueueUsage { claude: Arc::new(FixedUsage(Mutex::new(reading(92.0)))), codex: codex.clone() };
+    let harness = terminal_runner(&world, queue, usage, Arc::new(move || *read_clock.lock().unwrap()));
+    harness.queue.update_settings(Some(80), false, None, None, SessionKind::Terminal, 1).await.unwrap();
+    harness.queue.add(task.id, codex_launch()).await.unwrap();
+    harness.runner.start(&harness.queue, None).await.unwrap();
+
+    let hold_until = expect_codex_hold(&harness, "Codex usage can't be read").await;
+    assert_eq!(harness.terminals.live_count(), 0);
+    codex.set(15.0, hold_until.plus_seconds(120));
+    *clock.lock().unwrap() = hold_until;
+    eventually("Codex running despite Claude's higher usage", || async { harness.terminals.has_live_terminal_for(task.id) }).await;
+    let original = harness.terminals.list()[0].id;
+
+    codex.set(95.0, hold_until.plus_seconds(120));
+    claim(&world, "grouped", "First").await;
+    let resume_at = expect_codex_hold(&harness, "Codex primary window is at 95%").await;
+    assert_eq!(harness.terminals.live_count(), 0);
+    codex.set(10.0, resume_at.plus_seconds(600));
+    *clock.lock().unwrap() = resume_at;
+    eventually("Codex resuming at the next step", || async { harness.terminals.has_live_terminal_for(task.id) }).await;
+    let resumed = harness.terminals.list().pop().unwrap();
+    assert_ne!(resumed.id, original);
+    assert_codex_options(&resumed);
+    assert_eq!(codex.refreshes.load(Ordering::Relaxed), 2);
+    assert_eq!(world.step_state(&task, &first).await, TaskStepState::Claimed);
+    assert_eq!(world.step_state(&task, &next).await, TaskStepState::Open);
+    harness.runner.stop().await.unwrap();
+}
+
+async fn expect_codex_hold(harness: &Harness, reason: &str) -> Instant {
+    eventually("the queue held for Codex", || async { harness.queue.view().await.unwrap().state == RunQueueState::Holding }).await;
+    let held = harness.queue.view().await.unwrap();
+    assert!(held.hold_reason.as_deref().unwrap().starts_with(reason));
+    assert_eq!(held.items[0].state, RunQueueItemState::Queued);
+    held.hold_until.unwrap()
 }
 
 #[tokio::test]

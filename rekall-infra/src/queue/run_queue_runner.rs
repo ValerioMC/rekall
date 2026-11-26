@@ -1,15 +1,15 @@
 //! Works through the run queue, `parallel_sessions` tasks at a time (one unless the queue says
-//! otherwise), each in a `claude` terminal of its own, and from two on in a git worktree of its own.
+//! otherwise), each in a session of its own, and from two on in a git worktree of its own.
 //!
 //! Every decision runs on one task, so the runner's memory of the item in hand needs no lock: a
 //! clock tick every `rekall.run-queue.tick-seconds`, and a nudge from every step move, review move
 //! and terminal end on the task it is running. The line for each item:
 //!
 //! 1. Take the first waiting item. None left: the queue goes idle.
-//! 2. Check the usage ceiling. At or over it: hold until the window resets.
+//! 2. Check the saved provider's usage ceiling. At or over it: hold until the window resets.
 //! 3. Nothing open on the task: skip it. A terminal someone else has open on it, a missing folder
 //!    or CLI: fail it with the reason, and go on.
-//! 4. Open a terminal on the task, which types `/rk` with its anchors.
+//! 4. Open the saved provider in the configured session view on the task.
 //! 5. Every claim is a step boundary, and the ceiling is checked again there. Over it: the
 //!    terminal closes, the item waits again at the head, and the queue holds.
 //! 6. Nothing left open, or a flow at its end: the item is finished, its terminal closed, and the
@@ -34,8 +34,8 @@ use tokio::sync::broadcast::{self, error::RecvError};
 use tokio::sync::{mpsc, oneshot};
 
 use super::run_queue_worker::{Command, Worker, WorkerParts};
+use super::RunQueueUsage;
 use rekall_core::queue::{QueueRunner, RunQueueService, RunQueueView};
-use rekall_core::claude::UsageReader;
 
 /// The handle the rest of the application drives the queue through. Every call is a command to
 /// the worker, which decides on one at a time.
@@ -51,7 +51,7 @@ impl RunQueueRunner {
     pub fn start(
         queue: RunQueueService,
         terminals: Arc<dyn TerminalHost>,
-        usage: Arc<dyn UsageReader>,
+        usage: RunQueueUsage,
         work: TaskWorkService,
         steps: TaskStepService,
         worktrees: TaskWorktreeService,

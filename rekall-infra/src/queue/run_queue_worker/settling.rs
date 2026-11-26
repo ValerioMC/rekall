@@ -4,11 +4,10 @@
 use rekall_kernel::{Id, Result};
 use rekall_store::RunQueueItemState;
 use rekall_core::claude::TaskWork;
-use rekall_core::queue::Snapshot;
 use tracing::{info, warn};
 
 use super::review::finished;
-use super::super::usage_ceiling::{self, Verdict};
+use super::super::usage_ceiling::Verdict;
 use super::{Active, Worker};
 
 impl Worker {
@@ -20,7 +19,7 @@ impl Worker {
         let current = self.forget(generation).expect("checked above");
         self.close_session(current.clone(), "The run queue moved on to the next task.").await;
         self.queue.mark_item(current.item_id, outcome, Some(reason)).await?;
-        self.advance().await
+        self.advance(false).await
     }
 
     /// At the ceiling on a step boundary: close the session, put the item back at the head, hold.
@@ -59,15 +58,7 @@ impl Worker {
                     .await?;
             }
         }
-        self.advance().await
-    }
-
-    pub(super) async fn ceiling(&self, snapshot: &Snapshot) -> Verdict {
-        if snapshot.ceiling_percent.is_none() {
-            return Verdict::go();
-        }
-        let reading = self.usage.current().await;
-        usage_ceiling::check(Some(&reading), snapshot.ceiling_percent, snapshot.model.as_deref(), (self.clock)())
+        self.advance(false).await
     }
 
     /// Close the item's terminal and put back any step its session had marked running: the next

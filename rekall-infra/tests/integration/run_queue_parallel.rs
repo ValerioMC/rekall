@@ -12,7 +12,7 @@ use rekall_core::queue::{QueueLaunch, QueueRunner, RunQueueService};
 use rekall_core::step::StepEdit;
 use rekall_core::connection::{PullRequestMerge, ScriptedPullRequestHost};
 use rekall_core::worktree::{ScriptedWorktreeHost, TaskPullRequestService, TaskWorktreeService};
-use rekall_infra::queue::RunQueueRunner;
+use rekall_infra::queue::{RunQueueRunner, RunQueueUsage};
 use rekall_infra::worktree::WorktreeCleaner;
 use rekall_kernel::Instant;
 use rekall_store::{task, task_dependency, RunQueueItemState, RunQueueState, TaskStepState};
@@ -59,7 +59,7 @@ async fn harness(world: &World, parallel: i32) -> Harness {
     let runner = RunQueueRunner::start(
         queue.clone(),
         Arc::new(rekall_infra::pty::PtyTerminals::new(terminals.clone())),
-        Arc::new(FixedUsage(Mutex::new(reading(10.0)))),
+        RunQueueUsage { claude: Arc::new(FixedUsage(Mutex::new(reading(10.0)))), codex: world.codex() },
         world.services.task_work.clone(),
         world.services.steps.clone(),
         worktrees,

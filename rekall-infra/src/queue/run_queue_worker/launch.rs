@@ -2,8 +2,8 @@
 //! on an item that runs.
 
 use rekall_kernel::{RekallError, Result};
-use rekall_store::RunQueueItemState;
-use rekall_core::claude::{Remaining, TaskWork, TerminalMode, TerminalOpening, TerminalTarget};
+use rekall_store::{RunQueueItemState, SessionProvider};
+use rekall_core::claude::{Remaining, SessionKind, TaskWork, TerminalMode, TerminalOpening, TerminalTarget, TerminalView};
 use rekall_core::queue::{RunQueueItemView, Snapshot};
 use tracing::{info, warn};
 
@@ -21,35 +21,16 @@ impl Worker {
         if !before.has_work() {
             return self.queue.mark_item(item.id, RunQueueItemState::Skipped, Some(nothing_open(&before))).await;
         }
-        if self.terminals.has_live_for(item.task_id) {
-            return self
-                .queue
-                .mark_item(
-                    item.id,
-                    RunQueueItemState::Failed,
-                    Some("A terminal was already open on this task. Close it and queue the task again."),
-                )
-                .await;
+        if let Some(existing) = self.terminals.list().into_iter().find(|session| session.live && session.task_id == Some(item.task_id)) {
+            let reason = live_session_conflict(&existing);
+            return self.queue.mark_item(item.id, RunQueueItemState::Failed, Some(&reason)).await;
         }
         if self.works_on_its_own_branch(&item, snapshot.parallel_sessions).await {
             if let Err(refused) = self.worktrees.ensure(item.task_id).await {
                 return self.park(&item, &refused).await;
             }
         }
-        let opened = match self
-            .terminals
-            .open(TerminalOpening {
-                target: TerminalTarget::Task(item.task_id),
-                step_id: None,
-                provider: Default::default(),
-                skip_permissions: snapshot.skip_permissions,
-                model: snapshot.model.clone(),
-                effort: snapshot.effort.clone(),
-                mode: TerminalMode::Work,
-                kind: snapshot.session_kind,
-            })
-            .await
-        {
+        let opened = match self.terminals.open(queue_opening(&item, snapshot)).await {
             Ok(opened) => opened,
             Err(refused @ (RekallError::Conflict(_) | RekallError::IllegalArgument(_) | RekallError::UnknownAnchor(_))) => {
                 return self.queue.mark_item(item.id, RunQueueItemState::Failed, Some(refused.message())).await;
@@ -62,12 +43,14 @@ impl Worker {
             item_id: item.id,
             task_id: item.task_id,
             terminal_id: opened.id,
-            settled_steps: before.settled_steps,
+            provider: opened.provider,
+            model: opened.model,
+            last_settled_at: before.last_settled_at,
             waiting_for_permission: false,
             closing: false,
         });
         self.queue.mark_item(item.id, RunQueueItemState::Running, None).await?;
-        info!(anchor = %item.anchor, terminal_id = %opened.id, "Run queue: running");
+        info!(anchor = %item.anchor, terminal_id = %opened.id, provider = opened.provider.label(), "Run queue: running");
         Ok(())
     }
 
@@ -103,6 +86,35 @@ impl Worker {
         self.parked.insert(item.id);
         self.queue.mark_item(item.id, RunQueueItemState::Queued, Some(&reason)).await
     }
+}
+
+fn queue_opening(item: &RunQueueItemView, snapshot: &Snapshot) -> TerminalOpening {
+    let provider = item.launch.provider;
+    let (skip_permissions, model, effort) = match provider {
+        SessionProvider::Claude => (snapshot.skip_permissions, snapshot.model.clone(), snapshot.effort.clone()),
+        SessionProvider::Codex => {
+            let options = item.launch.codex_options.clone().unwrap_or_default();
+            (options.skip_permissions, options.model, options.effort)
+        }
+    };
+    TerminalOpening {
+        target: TerminalTarget::Task(item.task_id),
+        step_id: None,
+        provider,
+        skip_permissions,
+        model,
+        effort,
+        mode: TerminalMode::Work,
+        kind: snapshot.session_kind,
+    }
+}
+
+fn live_session_conflict(session: &TerminalView) -> String {
+    let kind = match session.kind {
+        SessionKind::Terminal => "Terminal",
+        SessionKind::Chat => "Chat",
+    };
+    format!("{} {kind} is already open on this task. Close it and queue the task again.", session.provider.label())
 }
 
 fn nothing_open(work: &TaskWork) -> &'static str {
