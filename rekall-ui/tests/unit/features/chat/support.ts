@@ -53,3 +53,42 @@ export function chatSession(over: Partial<Terminal> = {}): Terminal {
     ...over
   }
 }
+
+/** Stands in for the browser's `EventSource`; clear `instances` before each test. */
+export class FakeEventSource {
+  static readonly CONNECTING = 0
+  static readonly OPEN = 1
+  static readonly CLOSED = 2
+  static instances: FakeEventSource[] = []
+
+  readyState = FakeEventSource.CONNECTING
+  closed = false
+  onopen: (() => void) | null = null
+  onmessage: ((message: MessageEvent<string>) => void) | null = null
+  onerror: (() => void) | null = null
+
+  constructor(readonly url: string) {
+    FakeEventSource.instances.push(this)
+  }
+
+  addEventListener(): void {}
+
+  close(): void {
+    this.closed = true
+    this.readyState = FakeEventSource.CLOSED
+  }
+
+  open(): void {
+    this.readyState = FakeEventSource.OPEN
+    this.onopen?.()
+  }
+
+  emit(payload: unknown): void {
+    this.onmessage?.({ data: typeof payload === 'string' ? payload : JSON.stringify(payload) } as MessageEvent<string>)
+  }
+
+  drop(): void {
+    this.readyState = FakeEventSource.CONNECTING
+    this.onerror?.()
+  }
+}

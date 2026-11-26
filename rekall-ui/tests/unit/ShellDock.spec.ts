@@ -361,14 +361,16 @@ describe('ShellDock', () => {
       expect(push).not.toHaveBeenCalled()
     })
 
-    it('opens a chat session in the chat window, not in a floating panel', async () => {
-      const { wrapper } = await mountDock([terminal({ kind: 'CHAT' })])
+    it('shows a chat session full-size, not in a floating panel', async () => {
+      const { wrapper, console } = await mountDock([terminal({ kind: 'CHAT' })])
 
       await wrapper.get('[data-testid="terminal-dock-toggle"]').trigger('click')
       await wrapper.get('[data-testid="terminal-dock-jump"]').trigger('click')
       await flushPromises()
 
       expect(wrapper.find('[data-testid="terminal-float"]').exists()).toBe(false)
+      expect(console.paneFocus).toBe('chat')
+      expect(push).toHaveBeenCalledWith({ name: 'console' })
     })
 
     it('stops a terminal from its row', async () => {

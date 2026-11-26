@@ -68,8 +68,9 @@ The routes that exist today keep their paths: the redesign changes what a screen
 lives. `/` is no screen of its own: it goes to the project list, and `/review` and `/settings`
 are new. A ledger row, a card and the sheet open the task page at `/task/:id/description`; a note in view
 is part of the path (`/task/:id/notes/:noteId`). `/console` hosts one full-size session, a terminal or a chat, and nothing else: the session key
-on a task's tab and a deep link show either there, the sessions list and **Watch session** show a [chat](#the-full-size-chat) there (a terminal they
-float above the dock instead), and a visit with neither goes on to the task page of the task in view, or to the project list. The notes list, the steps, wrapup, description and deviation panes of the old
+on a task's tab and a deep link show either there, and every way of opening a [chat](#the-full-size-chat) shows
+it there (the sessions list and **Watch session** float a terminal above the dock instead); a visit with
+neither goes on to the task page of the task in view, or to the project list. The notes list, the steps, wrapup, description and deviation panes of the old
 console are gone; their tabs are on the task page.
 
 ### The grouped menu
@@ -115,7 +116,7 @@ tab marked and is not added. A chat on no task marks its project and no task tab
   status: moving bars in bright indigo while a step is running or the task's chat turn is working;
   still bars in indigo once a step was claimed or done, or a session is open on the task; short
   grey bars when nothing happened. Under reduced motion the working bars sit at three heights.
-  Only the chat on screen or followed by the window reports a turn, so a task whose session is elsewhere shows
+  Only the [followed chat](#the-full-size-chat) reports a turn, so a task whose session is elsewhere shows
   working from a running step alone. The key, the counter and the mark never shrink; only the
   title does, and a tab with the key may be 28px wider.
 - **The session key** (mockups `.impeccable/mocks/terminal-tab/index.html` and
@@ -536,17 +537,26 @@ its length is the day against an eight-hour day, its segments the projects large
 ## The full-size chat
 
 A chat session (a headless `claude` or Codex app server, see [terminals.md](terminals.md)) has no
-terminal to draw, so the console draws its events. Everything lives in
+terminal to draw: the console builds its transcript from the structured event stream, in
 `rekall-ui/src/features/chat/`. The store folds each event into a timeline by `seq` (`foldEvent`,
-idempotent, so a reconnect that replays an event changes nothing), and one `EventSource` per followed
-session (`useChatEvents`) feeds it. A chat never becomes the terminal pane's active session; that pane
-and the Diagrams and Security drawers list terminals only.
+idempotent, so a reconnect that replays an event changes nothing). A chat never becomes the terminal
+pane's active session; that pane and the Diagrams and Security drawers list terminals only.
 
-A chat opened from its task's key, or through the shared opener (`useOpenSession`: the sessions list,
-**Watch session**, a quick task, a wrapup line, a vulnerability fix, **Open** in "A session is already
-open"), fills the area under the working-set bar at `/console` (`ChatPane`, mockup
-`.impeccable/mocks/chat-tab/index.html`). The URL names a task's chat by its task and a chat on no
-task by its session (`chat=…`), so a reload and Back work for both.
+One follower, mounted once by `Bootstrap` (`useFollowSelectedChat`), holds the only chat
+`EventSource`, on screen or not. It is on the selected task's live chat, else on that task's ended one;
+a task with neither keeps a chat on no task that was already followed. This is what keeps the sessions
+capsule reading **approve**, the tab's activity bars moving and the browser tab title marked while a
+chat waits. `ChatPane` reads the connection state from the chat store.
+
+A chat is only ever shown full-size: it fills the area under the working-set bar at `/console`
+(`ChatPane`, mockup `.impeccable/mocks/chat-tab/index.html`). It opens from its task's key; from
+**Run here**, **Plan here**, **Plan a flow**, **Discuss**, **Refine** and **Replan**; from Security's
+collect, assess and watch and Diagrams' **Watch**; and through the shared opener (`useOpenSession`:
+the sessions list, the run queue's **Watch session**, a quick task, a wrapup line, a vulnerability
+fix, **Open** in "A session is already open"). Generating or explaining a diagram, rewriting a
+description, applying feedback, autoconfiguring, reorganizing and scanning components leave the
+person on the page, as with a terminal. The URL names a task's chat by its task and a chat on no task
+by its session (`chat=…`), so a reload and Back work for both.
 
 - **Title row.** The task's title, which leads to its page (the project's name, leading nowhere, for
   a chat on no task), the status, the provider and anchors, **Other N sessions** (the other live
@@ -560,43 +570,12 @@ task by its session (`chat=…`), so a reload and Back work for both.
   chat reads "No chat session on this task" with **Run here**, and shows the terminal view if that
   opens a terminal. A chat on no task that left the list reads "This chat session has closed".
 
-## The chat window
-
-On every page but the console a chat is also shown in a window over the page, which shares the full
-view's conversation, actions and **Run here** (`ChatConversation`, `useShownChat`, `ChatRunHere`). It
-has three modes (`chatDock.store`): `overlay`, `full` when expanded, and `hidden`. Its width runs from
-360 to 720 px and is remembered with the hidden flag, per viewer, in `localStorage`. It belongs to a
-task: it shows only on the task its session runs on (or on the one that asked for it with no session
-yet), and disappears when another task is selected (`useChatWindowShown`, `chat.sessionFor`). A
-session on no task, such as one generating a diagram for a project, stays on screen. A chat opened
-from a button brings itself to the window (`useRevealOpenedChat`).
-
-`ChatDock` owns the window's motion. Hiding slides the window to the right edge it came from in
-`--motion-move`, and reopening slides it back; a hide reversed half-way turns back from where it is,
-because the state sits on the window as `data-state` and the motion is a CSS transition. Once shown
-the window stays mounted while hidden, inert and out of the tab order, so the draft and the scroll
-position survive a hide; the Hide key carries a chevron pointing at the edge it goes to. Under reduced
-motion it cuts.
-
-While the window is hidden and the selected task has a session, `ChatReopenTag` is the way back: a
-round button at the bottom right that slides in from the edge as the window leaves. It reads the
-session's state from the hidden window's own events: moving bars (`TaskActivityMark`) while Claude
-works, a still bubble with a green dot when idle, a dashed quiet bubble when the session ended, and
-an amber pill reading "Needs your answer" with a ping ring while a permission waits. Each state has
-its own accessible name ("Open the chat, waiting for your answer"). Only the selected task's session is
-shown.
-
 An approval is never answered or expired on the user's behalf: `ChatApprovalCard` shows the call
 (with a diff for an edit) and stays until a `permissionResolved` event arrives. Whether the session is
 waiting is read from its own timeline once it is followed, because the flag on the stored session
 list is only refreshed on load and focus and would go stale after the answer. Stop sends the
-interrupt and the session keeps answering.
-
-`C` hides or shows the window when a chat is active, the task has one, or the session view is Chat;
-`Shift+C` shows it expanded; in all other cases `C` keeps opening the terminal pane. In the window,
-`Y` allows and `N` denies the pending call, `Enter` sends, `Shift+Enter` breaks the line, and `Esc`
-returns focus to the note pane. The dock's divider resizes with the arrow keys (16 px, 64 px with
-Shift).
+interrupt and the session keeps answering. In the approval card `Y` allows and `N` denies; in the
+message field `Enter` sends and `Shift+Enter` breaks the line.
 
 ## Scroll lanes
 

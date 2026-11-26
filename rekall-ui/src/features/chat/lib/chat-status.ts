@@ -12,7 +12,7 @@ export interface StatusReading {
   readonly reconnecting: boolean
 }
 
-/** What the window says the session is doing: an answer owed to the person outranks every other state. */
+/** What the chat says the session is doing: an answer owed to the person outranks every other state. */
 export function chatStatus(reading: StatusReading): ChatStatus {
   const { timeline, session, connected, reconnecting } = reading
   if (timeline.ended || (session !== null && !session.live)) return 'ended'

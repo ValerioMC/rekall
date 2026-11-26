@@ -10,7 +10,7 @@ export interface ActivityReading {
 }
 
 /**
- * Only the chat session the window follows has a folded timeline, and an in-app terminal has no
+ * Only a followed chat session has a folded timeline, and an in-app terminal has no
  * turn signal, so `turn` is null for those and `WORKING` then comes from a `RUNNING` step alone.
  */
 export function taskActivity({ steps, turn, hasLiveSession }: ActivityReading): TaskActivity {

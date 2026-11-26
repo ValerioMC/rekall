@@ -110,7 +110,7 @@ describe('the terminal store', () => {
       )
       expect(api.openTerminal).toHaveBeenCalledTimes(1)
       expect(api.sendTerminalInput).not.toHaveBeenCalled()
-      expect(store.lastOpened).toEqual(live)
+      expect(store.terminals).toEqual([live])
       expect(store.activeTerminalId).toBe(live.id)
     }
   )

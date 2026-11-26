@@ -10,10 +10,9 @@ export interface ChatEventStream {
 }
 
 /**
- * The one `EventSource` the chat window holds, on the session it follows. A first connection asks
- * for what came after the last event the store holds; the browser's own reconnects resume with
- * `Last-Event-ID`. Changing session or leaving the scope closes it, and an ended session is not
- * reopened.
+ * The `EventSource` on the followed chat session. A first connection asks for what came after the
+ * last event the store holds; the browser's own reconnects resume with `Last-Event-ID`. Changing
+ * session or leaving the scope closes it, and an ended session is not reopened.
  */
 export function useChatEvents(sessionId: Ref<TerminalId | null>): ChatEventStream {
   const chat = useChatStore()

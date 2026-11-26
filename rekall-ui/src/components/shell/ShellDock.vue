@@ -3,7 +3,6 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
 import { useChatPaneShown } from '@/features/chat/composables/useChatPaneShown'
-import { useChatWindowShown } from '@/features/chat/composables/useChatWindowShown'
 import { useTerminalPaneShown } from '@/features/claude/composables/useTerminalPaneShown'
 import { useClaudeCommandUpdateStore } from '@/features/claude/store/claudeCommandUpdate.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
@@ -31,7 +30,6 @@ const { runningEntries } = storeToRefs(store)
 const { terminals: allTerminals, floatingId } = storeToRefs(terminals)
 const { updating: updatingCommands } = storeToRefs(useClaudeCommandUpdateStore())
 const root = ref<HTMLElement | null>(null)
-const chatWindowShown = useChatWindowShown()
 
 const open = ref<DockPanel | null>(null)
 const floating = computed(() => allTerminals.value.find((terminal) => terminal.id === floatingId.value) ?? null)
@@ -43,8 +41,8 @@ const chatShown = useChatPaneShown()
 const onSessionPane = computed(() => terminalShown.value || chatShown.value)
 
 const showsRunning = computed(() => runningEntries.value.length > 0)
-// The sessions segment steps aside while a full-size session or the chat window is on screen: they show the sessions.
-const showsSessions = computed(() => liveSessions.value.length > 0 && !onSessionPane.value && !chatWindowShown.value)
+// The sessions segment steps aside while a full-size session is on screen: it lists the others.
+const showsSessions = computed(() => liveSessions.value.length > 0 && !onSessionPane.value)
 const visible = computed(
   () => updatingCommands.value || showsRunning.value || showsSessions.value || floating.value !== null
 )

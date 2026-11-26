@@ -22,7 +22,7 @@ export interface TurnContext {
   readonly windowTokens: number
 }
 
-/** What a tool call was asked to do; the tools the window shows in a way of their own are typed, the rest are `Other`. */
+/** What a tool call was asked to do; the tools the chat shows in a way of their own are typed, the rest are `Other`. */
 export type ToolInput =
   | { readonly tool: 'bash'; readonly command: string; readonly description: string | null }
   | {

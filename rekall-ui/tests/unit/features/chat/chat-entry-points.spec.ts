@@ -1,14 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import { effectScope, nextTick } from 'vue'
+import { effectScope } from 'vue'
 import OpenTerminalButton from '@/features/claude/components/OpenTerminalButton.vue'
 import SessionLaunchConflict from '@/features/claude/components/SessionLaunchConflict.vue'
 import { ApiError } from '@/api/client'
 import { preferredLaunchKind, preferredSessionKind, setPreferredSessionKind } from '@/common/config/claude-launch'
 import { launchChoices, setCodexBypass, setCodexEffort, setCodexModel, setPreferredProvider } from '@/common/config/session-launch'
-import { useRevealOpenedChat } from '@/features/chat/composables/useRevealOpenedChat'
-import { useChatDockStore } from '@/features/chat/store/chatDock.store'
 import { useChatStore } from '@/features/chat/store/chat.store'
 import { useOpenSession } from '@/features/claude/composables/useOpenSession'
 import { useConsoleStore } from '@/stores/console.store'
@@ -105,7 +103,7 @@ describe('the entry points', () => {
     chatButton.unmount()
   })
 
-  it.each(['CLAUDE', 'CODEX'] as const)('Plan here opens %s Chat without opening the terminal pane', async (provider) => {
+  it.each(['CLAUDE', 'CODEX'] as const)('Plan here shows %s Chat full-size, not the terminal pane', async (provider) => {
     chooseChatView()
     terminalApi.openTerminal.mockResolvedValue(chatSession({ provider }))
     const openPane = vi.spyOn(useConsoleStore(), 'openTerminal')
@@ -118,6 +116,7 @@ describe('the entry points', () => {
 
     expect(terminalApi.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ mode: 'PLAN', kind: 'CHAT', provider }))
     expect(openPane).not.toHaveBeenCalled()
+    expect([useConsoleStore().selectedTaskId, useConsoleStore().paneFocus]).toEqual([TASK, 'chat'])
     button.unmount()
   })
 
@@ -129,7 +128,7 @@ describe('the entry points', () => {
     const opened = await terminals.planForTask(TASK, { provider: 'CLAUDE', skipPermissions: false }, 'PLAN_FLOW')
 
     expect(opened.kind).toBe('CHAT')
-    expect(terminals.lastOpened?.id).toBe(CHAT_ID)
+    expect(terminals.terminals.map((session) => session.id)).toEqual([CHAT_ID])
     expect(terminals.activeTerminalId).toBeNull()
     expect(terminalApi.openTerminal).toHaveBeenCalledWith(
       { taskId: TASK }, expect.objectContaining({ mode: 'PLAN_FLOW', provider: 'CLAUDE' })
@@ -210,31 +209,7 @@ describe('showing a chat session', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     installStorage()
-    terminalApi.openTerminal.mockReset()
     push.mockReset()
-  })
-
-  it('brings a chat session to the window as soon as one is opened, and leaves terminals to their pane', async () => {
-    const scope = effectScope()
-    scope.run(() => useRevealOpenedChat())
-    const terminals = useTerminalStore()
-    const chat = useChatStore()
-    useChatDockStore().hide()
-
-    terminalApi.openTerminal.mockResolvedValue(chatSession({ kind: 'TERMINAL', id: 'term-1' as never }))
-    await terminals.openForTask(TASK, { skipPermissions: false })
-    await nextTick()
-    expect(chat.activeChatId).toBeNull()
-    expect(terminals.activeTerminalId).toBe('term-1')
-
-    terminalApi.openTerminal.mockResolvedValue(chatSession())
-    await terminals.openForTask(TASK, { skipPermissions: false, kind: 'CHAT' })
-    await nextTick()
-
-    expect(chat.activeChatId).toBe(CHAT_ID)
-    expect(useChatDockStore().hidden).toBe(false)
-    expect(terminals.activeTerminalId).toBe('term-1')
-    scope.stop()
   })
 
   it('shows a chat session from the dock full-size on its task, not in the terminal pane', () => {

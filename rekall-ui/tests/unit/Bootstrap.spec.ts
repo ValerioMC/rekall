@@ -6,6 +6,9 @@ import { router } from '@/router'
 import { fetchWrapups } from '@/features/wrapup/api/wrapups.api'
 import { useConsoleStore } from '@/stores/console.store'
 import { useToastStore } from '@/stores/toast.store'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import type { TaskId } from '@/model/branded'
+import { FakeEventSource, chatSession } from './features/chat/support'
 
 /**
  * The boot-time branch: which of the three top-level screens mounts. The screens themselves are
@@ -72,6 +75,7 @@ async function mountBootstrap() {
 
 afterEach(() => {
   mounted.splice(0).forEach((wrapper) => wrapper.unmount())
+  vi.unstubAllGlobals()
 })
 
 describe('Bootstrap', () => {
@@ -149,5 +153,18 @@ describe('Bootstrap', () => {
     const wrapper = await mountBootstrap()
 
     expect(wrapper.text()).toContain("couldn't be reached")
+  })
+
+  it('follows the selected task\'s chat from any screen', async () => {
+    FakeEventSource.instances = []
+    vi.stubGlobal('EventSource', FakeEventSource)
+    fetchDatabaseStatus.mockResolvedValue({ status: 'READY', active: null, databases: [] })
+    await mountBootstrap()
+
+    useTerminalStore().upsert(chatSession())
+    useConsoleStore().selectedTaskId = 't-1' as TaskId
+    await flushPromises()
+
+    expect(FakeEventSource.instances.map((source) => source.url)).toContain('/api/chat/chat-1/events?after=0')
   })
 })

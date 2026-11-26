@@ -14,18 +14,21 @@ import SessionProviderSwitch from '@/features/claude/components/SessionProviderS
 import ReplanConfirm from '@/features/claude/components/ReplanConfirm.vue'
 import { usePlanTask } from '@/features/claude/composables/usePlanTask'
 import { useRunProvider } from '@/features/claude/composables/useRunProvider'
+import { useOpenSessionInPane } from '@/features/claude/composables/useOpenSessionInPane'
 import type { RunMenuAction } from '@/features/claude/model/runMenu'
+import type { Terminal } from '@/features/claude/model/terminal'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { queuePlacement } from '@/features/queue/model/runQueue'
 import { useReleaseOnRun } from '@/features/graph/composables/useReleaseOnRun'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
 /**
- * Starts the task's session without leaving the pane it was pressed on; the sessions dock is the
- * way back to it. One glyph that changes: `idle` a play mark, `launching` the mark runs out
- * through the edge, `waiting` an open ring turning while the server answers, `done` the amber
- * seal stamped in as a completed step's is, `working` the running step's own seal turning until
- * the session claims the work or ends. `done` and `working` share the pressed key. Only `idle` takes a press.
+ * Starts the task's session: a chat opens full-size, a terminal leaves the pane it was pressed on
+ * in place, with the sessions dock as the way back to it. One glyph that changes: `idle` a play
+ * mark, `launching` the mark runs out through the edge, `waiting` an open ring turning while the
+ * server answers, `done` the amber seal stamped in as a completed step's is, `working` the running
+ * step's own seal turning until the session claims the work or ends. `done` and `working` share the
+ * pressed key. Only `idle` takes a press.
  * The switch beside it picks the provider the key and its arrow start.
  * Its arrow also discusses the task, always, and plans it: a flow only while the task has no steps,
  * a replan only while draft or open steps can be replaced.
@@ -56,6 +59,7 @@ const toast = useToastStore()
 const runQueue = useRunQueueStore()
 const { run } = useAsyncAction()
 const { releaseBeforeRun } = useReleaseOnRun()
+const openInPane = useOpenSessionInPane()
 const { tasks, steps } = storeToRefs(console_)
 const { terminals: openTerminals } = storeToRefs(terminals)
 
@@ -133,12 +137,7 @@ async function launch(): Promise<void> {
     return
   }
   launchPhase.value = 'launching'
-  const opening = run(() =>
-    terminals.openForTask(props.taskId, {
-      stepId: props.stepId,
-      ...launchChoices(provider.value)
-    })
-  )
+  const opening = run(openSessionHere)
   await pause(TRAVEL_MS)
   // Painted only if the server is still answering: a settled `opening` moves on in the same tick.
   launchPhase.value = 'waiting'
@@ -155,6 +154,15 @@ async function launch(): Promise<void> {
     await pause(HANDOFF_MS)
     handingOff.value = false
   }
+}
+
+async function openSessionHere(): Promise<Terminal> {
+  const opened = await terminals.openForTask(props.taskId, {
+    stepId: props.stepId,
+    ...launchChoices(provider.value)
+  })
+  if (opened.kind === 'CHAT') openInPane(opened)
+  return opened
 }
 
 async function runInQueue(): Promise<void> {

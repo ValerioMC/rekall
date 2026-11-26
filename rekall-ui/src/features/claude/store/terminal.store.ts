@@ -33,7 +33,6 @@ interface ChatFallback {
 export const useTerminalStore = defineStore('terminal', () => {
   const terminals = ref<Terminal[]>([])
   const activeTerminalId = ref<TerminalId | null>(null)
-  const lastOpened = shallowRef<Terminal | null>(null)
   const floatingId = ref<TerminalId | null>(null)
   const launchConflict = shallowRef<LaunchConflict | null>(null)
   const chatFallback = shallowRef<ChatFallback | null>(null)
@@ -64,14 +63,16 @@ export const useTerminalStore = defineStore('terminal', () => {
   }
 
   async function openForTask(taskId: TaskId, input: OpenTerminalInput): Promise<Terminal> {
-    const opened = settleOpened(await openWithProvider({ taskId }, input))
-    showInTerminalPane(opened)
+    const opened = await openWithProvider({ taskId }, input)
+    adoptOpened(opened)
     return opened
   }
 
   /** A terminal on a project alone, which draws a diagram, inventories or assesses; the server reuses a live one. */
   async function openForProject(projectId: ProjectId, input: OpenTerminalInput): Promise<Terminal> {
-    return settleOpened(await openWithProvider({ projectId }, input))
+    const opened = await openWithProvider({ projectId }, input)
+    upsert(opened)
+    return opened
   }
 
   async function planForTask(
@@ -140,21 +141,9 @@ export const useTerminalStore = defineStore('terminal', () => {
     conflict?.decide(retry)
   }
 
-  /** Lists a session an open request answered with, and tells the chat window about it. */
-  function settleOpened(opened: Terminal): Terminal {
-    upsert(opened)
-    lastOpened.value = opened
-    return opened
-  }
-
-  /** A session another call opened, such as a quick task's: listed, announced and shown like one opened here. */
+  /** Lists a session opened on a task, here or by another call. The terminal pane takes PTY sessions only. */
   function adoptOpened(opened: Terminal): void {
-    settleOpened(opened)
-    showInTerminalPane(opened)
-  }
-
-  /** The terminal pane shows PTY sessions only: a chat session is shown by the chat window. */
-  function showInTerminalPane(opened: Terminal): void {
+    upsert(opened)
     if (opened.kind === 'TERMINAL') activeTerminalId.value = opened.id
   }
 
@@ -211,7 +200,6 @@ export const useTerminalStore = defineStore('terminal', () => {
     terminals,
     activeTerminalId,
     activeTerminal,
-    lastOpened,
     floatingId,
     launchConflict,
     chatFallback,

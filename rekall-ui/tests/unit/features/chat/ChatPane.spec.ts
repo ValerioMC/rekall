@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
-import { ref } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import ChatPane from '@/features/chat/components/ChatPane.vue'
 import { useChatStore } from '@/features/chat/store/chat.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import { useTaskProviderStore } from '@/features/claude/store/taskProvider.store'
+import { setCodexEffort, setCodexModel, setPreferredProvider } from '@/common/config/session-launch'
+import type { ChatEvent } from '@/features/chat/model/chat-event'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Terminal } from '@/features/claude/model/terminal'
 import type { TaskStep } from '@/features/steps/model/task-step'
@@ -16,17 +18,19 @@ import { installStorage } from '../../support/memoryStorage'
 
 const terminalApi = { fetchTerminals: vi.fn(), openTerminal: vi.fn(), closeTerminal: vi.fn() }
 
-vi.mock('@/features/chat/api/chat.api', () => ({ sendMessage: vi.fn(), interrupt: vi.fn(), answerPermission: vi.fn() }))
+const chatApi = { sendMessage: vi.fn(), interrupt: vi.fn(), answerPermission: vi.fn() }
+
+vi.mock('@/features/chat/api/chat.api', () => ({
+  sendMessage: (...a: unknown[]) => chatApi.sendMessage(...a),
+  interrupt: (...a: unknown[]) => chatApi.interrupt(...a),
+  answerPermission: (...a: unknown[]) => chatApi.answerPermission(...a)
+}))
 
 vi.mock('@/features/claude/api/terminal.api', () => ({
   fetchTerminals: (...a: unknown[]) => terminalApi.fetchTerminals(...a),
   openTerminal: (...a: unknown[]) => terminalApi.openTerminal(...a),
   closeTerminal: (...a: unknown[]) => terminalApi.closeTerminal(...a),
   sendTerminalInput: vi.fn()
-}))
-
-vi.mock('@/features/chat/composables/useChatEvents', () => ({
-  useChatEvents: () => ({ connected: ref(true), reconnecting: ref(false) })
 }))
 
 const TASK = 't-1' as TaskId
@@ -76,6 +80,8 @@ describe('the full-size chat', () => {
     installStorage()
     Object.values(terminalApi).forEach((mock) => mock.mockReset())
     terminalApi.closeTerminal.mockResolvedValue(undefined)
+    Object.values(chatApi).forEach((mock) => mock.mockReset().mockResolvedValue(undefined))
+    useChatStore().noteConnection({ connected: true, reconnecting: false })
     useConsoleStore().tasks = [
       { ...taskFixture(TASK), title: 'Report builder', projectRepoFolder: '/code/vega' },
       { ...taskFixture(OTHER), title: 'Retry policy' }
@@ -108,17 +114,6 @@ describe('the full-size chat', () => {
     expect(view.get('[data-testid=chat-header]').text()).toContain('Claude Code chat')
     expect(view.get('[data-testid=chat-header]').text()).toContain('project:vega task:report-builder')
     expect(view.find('[data-testid=chat-input]').exists()).toBe(true)
-  })
-
-  it('has no key to expand, hide or resize it', async () => {
-    sessions(chatSession())
-    showChatOf(TASK)
-
-    const view = await mountPane()
-
-    expect(view.find('[data-testid=chat-expand]').exists()).toBe(false)
-    expect(view.find('[data-testid=chat-hide]').exists()).toBe(false)
-    expect(view.find('[role=separator]').exists()).toBe(false)
   })
 
   it('lists the session\'s step, permissions, context and cost beside the conversation', async () => {
@@ -256,6 +251,7 @@ describe('the full-size chat', () => {
 
   async function confirmStop(view: VueWrapper): Promise<void> {
     await view.get('[data-testid=chat-stop-session]').trigger('click')
+    expect(terminalApi.closeTerminal).not.toHaveBeenCalled()
     Array.from(document.querySelectorAll('button'))
       .find((button) => button.textContent?.trim() === 'Stop session' && button.closest('[role=alertdialog]'))
       ?.click()
@@ -283,5 +279,168 @@ describe('the full-size chat', () => {
 
     expect(terminalApi.closeTerminal).toHaveBeenCalledWith(LOOSE_CHAT)
     expect(router.currentRoute.value.fullPath).toBe('/projects/p-1')
+  })
+
+  describe('its conversation', () => {
+    const BASH = { tool: 'bash', command: 'ls', description: null } as const
+
+    async function mountConversation(): Promise<VueWrapper> {
+      sessions(chatSession())
+      showChatOf(TASK)
+      return mountPane()
+    }
+
+    function ingest(event: ChatEvent): void {
+      useChatStore().ingest(CHAT_ID, event)
+    }
+
+    function input(view: VueWrapper): HTMLTextAreaElement {
+      return view.get('[data-testid=chat-input]').element as HTMLTextAreaElement
+    }
+
+    it('reads reconnecting while the followed stream is retried', async () => {
+      const view = await mountConversation()
+
+      useChatStore().noteConnection({ connected: false, reconnecting: true })
+      await flushPromises()
+
+      expect(view.get('[data-testid=chat-status]').text()).toBe('reconnecting')
+      expect(view.find('[data-testid=chat-reconnecting]').exists()).toBe(true)
+    })
+
+    it('puts the keyboard in the message field when it opens', async () => {
+      const view = await mountConversation()
+
+      expect(document.activeElement).toBe(input(view))
+    })
+
+    it('sends the typed message through the store and clears the field', async () => {
+      const view = await mountConversation()
+
+      await view.get('[data-testid=chat-input]').setValue('hello')
+      await view.get('[data-testid=chat-input]').trigger('keydown', { key: 'Enter' })
+      await flushPromises()
+
+      expect(chatApi.sendMessage).toHaveBeenCalledWith(CHAT_ID, 'hello')
+      expect(input(view).value).toBe('')
+    })
+
+    it('keeps the text and says why when the send fails', async () => {
+      chatApi.sendMessage.mockRejectedValue(new Error('Session is gone'))
+      const view = await mountConversation()
+
+      await view.get('[data-testid=chat-input]').setValue('hello')
+      await view.get('[data-testid=chat-send]').trigger('click')
+      await flushPromises()
+
+      expect(input(view).value).toBe('hello')
+      expect(view.get('[data-testid=chat-send-error]').text()).toBe('Session is gone')
+    })
+
+    it('stops the running turn through interrupt and shows Stopping until the turn ends', async () => {
+      const view = await mountConversation()
+      ingest({ seq: 1, type: 'userMessage', text: 'go' })
+      await flushPromises()
+
+      await view.get('[data-testid=chat-stop]').trigger('click')
+      await flushPromises()
+      expect(chatApi.interrupt).toHaveBeenCalledWith(CHAT_ID)
+      expect(view.get('[data-testid=chat-stop]').text()).toBe('Stopping…')
+
+      ingest({
+        seq: 2,
+        type: 'turnFinished',
+        usage: { inputTokens: 1, cacheCreationInputTokens: 0, cacheReadInputTokens: 0, outputTokens: 1 },
+        durationMs: 10,
+        outcome: 'interrupted',
+        costUsd: null,
+        context: null
+      })
+      await flushPromises()
+      expect(view.find('[data-testid=chat-stop]').exists()).toBe(false)
+    })
+
+    it('posts Allow, keeps the card disabled until the resolution arrives, then clears it', async () => {
+      const view = await mountConversation()
+      ingest({ seq: 1, type: 'permissionRequested', requestId: 'req-1', toolUseId: 'u1', name: 'Bash', input: BASH })
+      await flushPromises()
+
+      expect(view.get('[data-testid=chat-status]').text()).toBe('waiting for approval')
+      expect(view.get('[data-testid=chat-input]').attributes('disabled')).toBeDefined()
+      await view.get('[data-testid=chat-allow]').trigger('click')
+      await flushPromises()
+
+      expect(chatApi.answerPermission).toHaveBeenCalledWith(CHAT_ID, 'req-1', true)
+      expect(view.get('[data-testid=chat-allow]').attributes('disabled')).toBeDefined()
+
+      ingest({ seq: 2, type: 'permissionResolved', requestId: 'req-1', allowed: true })
+      await flushPromises()
+      expect(view.find('[data-testid=chat-approval]').exists()).toBe(false)
+      expect(view.get('[data-testid=chat-input]').attributes('disabled')).toBeUndefined()
+    })
+
+    it('posts Deny, and shows a failed answer on the card', async () => {
+      chatApi.answerPermission.mockRejectedValueOnce(new Error('Rekall is down'))
+      const view = await mountConversation()
+      ingest({ seq: 1, type: 'permissionRequested', requestId: 'req-1', toolUseId: 'u1', name: 'Bash', input: BASH })
+      await flushPromises()
+
+      await view.get('[data-testid=chat-deny]').trigger('click')
+      await flushPromises()
+      expect(view.get('[data-testid=chat-approval-error]').text()).toBe('Rekall is down')
+      expect(view.get('[data-testid=chat-deny]').attributes('disabled')).toBeUndefined()
+
+      await view.get('[data-testid=chat-deny]').trigger('click')
+      await flushPromises()
+      expect(chatApi.answerPermission).toHaveBeenLastCalledWith(CHAT_ID, 'req-1', false)
+    })
+
+    it('disables the message field with its reason once the session ended', async () => {
+      const view = await mountConversation()
+
+      useTerminalStore().markEnded(CHAT_ID)
+      await flushPromises()
+
+      expect(view.get('[data-testid=chat-status]').text()).toBe('ended')
+      expect(view.get('[data-testid=chat-input]').attributes('disabled')).toBeDefined()
+      expect(view.get('[data-testid=chat-hint]').text()).toBe('Session ended')
+    })
+  })
+
+  describe('Run here on a task with no chat', () => {
+    async function pressRunHere(view: VueWrapper): Promise<void> {
+      await view.get('[data-testid=chat-open]').trigger('click')
+      await flushPromises()
+    }
+
+    it('opens with the preferred Codex options and shows the actual provider', async () => {
+      setPreferredProvider('CODEX')
+      setCodexModel('gpt-test')
+      setCodexEffort('high')
+      sessions()
+      showChatOf(TASK)
+      const view = await mountPane()
+      terminalApi.openTerminal.mockResolvedValue(chatSession({ provider: 'CODEX' }))
+
+      await pressRunHere(view)
+
+      expect(terminalApi.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({
+        provider: 'CODEX', kind: 'CHAT', model: 'gpt-test', effort: 'high', skipPermissions: false
+      }))
+      expect(view.get('[data-testid=chat-header]').text()).toContain('Codex chat')
+      expect(view.get('[data-testid=chat-input]').attributes('aria-label')).toBe('Message to Codex')
+    })
+
+    it('opens with the provider the task was switched to', async () => {
+      useTaskProviderStore().choose(TASK, 'CODEX')
+      sessions()
+      showChatOf(TASK)
+      const view = await mountPane()
+      terminalApi.openTerminal.mockResolvedValue(chatSession({ provider: 'CODEX' }))
+
+      await pressRunHere(view)
+
+      expect(terminalApi.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ provider: 'CODEX' }))
+    })
   })
 })

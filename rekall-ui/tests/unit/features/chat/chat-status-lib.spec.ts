@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { chatStatus, composerState } from '@/features/chat/lib/chat-status'
 import { describePermission } from '@/features/chat/lib/describe-permission'
 import { matchingCommands } from '@/features/chat/lib/slash-commands'
-import { sessionStep, stepChip } from '@/features/chat/lib/step-chip'
+import { sessionStep } from '@/features/chat/lib/step-chip'
 import { emptyTimeline } from '@/features/chat/lib/timeline'
 import type { TaskStep } from '@/features/steps/model/task-step'
 import type { TaskStepId } from '@/model/branded'
@@ -54,21 +54,6 @@ describe('matchingCommands', () => {
     expect(matchingCommands('hello')).toEqual([])
     expect(matchingCommands('/model opus')).toEqual([])
     expect(matchingCommands('/c').map((command) => command.name)).toEqual(['/context', '/compact'])
-  })
-})
-
-describe('stepChip', () => {
-  it('says Task when the session is on no step, and nothing for a step it cannot find', () => {
-    expect(stepChip(null, [])).toBe('Task')
-    expect(stepChip('s9' as TaskStepId, steps(false, false))).toBeNull()
-  })
-
-  it('counts the step and names the steps its session covers', () => {
-    const checklist = steps(false, false, true, false, false)
-
-    expect(stepChip('s1' as TaskStepId, checklist)).toBe('Step 1 of 5 · session covers steps 1 to 2')
-    expect(stepChip('s4' as TaskStepId, checklist)).toBe('Step 4 of 5 · session covers steps 3 to 5')
-    expect(stepChip('s1' as TaskStepId, steps(false, true))).toBe('Step 1 of 2')
   })
 })
 

@@ -7,16 +7,6 @@ export interface SessionStep {
   readonly coverage: string | null
 }
 
-/** "Step 3 of 7 · session covers steps 3 to 5"; "Task" when the session is on no step, none when the step is not in `steps`. */
-export function stepChip(stepId: TaskStepId | null, steps: readonly TaskStep[]): string | null {
-  if (!stepId) return 'Task'
-  const index = steps.findIndex((step) => step.id === stepId)
-  if (index < 0) return null
-  const own = `Step ${index + 1} of ${steps.length}`
-  const covered = coverage(stepId, steps)
-  return covered ? `${own} · ${covered}` : own
-}
-
 /** The step a session is on, named "Step 3 · Write the CSV file"; none when it is on no step of `steps`. */
 export function sessionStep(stepId: TaskStepId | null, steps: readonly TaskStep[]): SessionStep | null {
   const index = steps.findIndex((step) => step.id === stepId)

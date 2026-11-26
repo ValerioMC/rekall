@@ -225,7 +225,7 @@ onMounted(() => void load())
         <p class="text-small text-text">Session view</p>
         <p class="mt-0.5 text-caption leading-relaxed text-text-subtle">
           <span class="text-text-muted">Chat</span> shows the selected provider’s conversation and approval requests
-          in a window beside the task.
+          full-size, under the open task tabs.
           <span class="text-text-muted">Terminal</span> stays the default.
         </p>
         <SessionChoiceGroup

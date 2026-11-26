@@ -3,7 +3,6 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import TerminalSessionsPanel from '@/components/shell/TerminalSessionsPanel.vue'
 import ShellDock from '@/components/shell/ShellDock.vue'
-import { useChatDockStore } from '@/features/chat/store/chatDock.store'
 import { useChatStore } from '@/features/chat/store/chat.store'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
@@ -12,6 +11,7 @@ import { CHAT_ID, chatSession } from './support'
 import { installStorage } from '../../support/memoryStorage'
 
 const route = { name: 'console' }
+
 const terminalApi = { closeTerminal: vi.fn() }
 
 vi.mock('vue-router', () => ({
@@ -26,18 +26,11 @@ vi.mock('@/features/claude/api/terminal.api', () => ({
   sendTerminalInput: vi.fn()
 }))
 
-class SilentResizeObserver implements ResizeObserver {
-  observe(): void {}
-  unobserve(): void {}
-  disconnect(): void {}
-}
-
 describe('chat sessions in the sessions dock', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     installStorage()
     terminalApi.closeTerminal.mockReset().mockResolvedValue(undefined)
-    vi.stubGlobal('ResizeObserver', SilentResizeObserver)
   })
 
   it('lists a chat beside a terminal with a badge, and marks the one waiting for approval', () => {
@@ -86,24 +79,12 @@ describe('chat sessions in the sessions dock', () => {
     expect(terminalApi.closeTerminal).toHaveBeenCalledWith(CHAT_ID)
   })
 
-  it('turns the sessions segment into "approve" while a chat waits, and steps aside while the window is shown', async () => {
-    const terminals = useTerminalStore()
-    terminals.upsert(chatSession({ awaitingPermission: true }))
+  it('turns the sessions segment into "approve" while a chat waits, on the page of its own task', () => {
+    useTerminalStore().upsert(chatSession({ awaitingPermission: true }))
     useConsoleStore().selectedTaskId = 't-1' as TaskId
-    const dock = mount(ShellDock, { props: { placement: 'screen' }, global: { stubs: { TerminalSessionsPanel: true, RunningTasksPanel: true } } })
-
-    expect(dock.find('[data-testid=terminal-dock-toggle]').exists()).toBe(false)
-    useChatDockStore().hide()
-    await dock.vm.$nextTick()
+    route.name = 'task'
+    const dock = mount(ShellDock, { global: { stubs: { TerminalSessionsPanel: true, RunningTasksPanel: true } } })
 
     expect(dock.get('[data-testid=terminal-dock-toggle]').text()).toBe('approve')
-  })
-
-  it('keeps the sessions segment while the selected task is not the chat\'s own', async () => {
-    useTerminalStore().upsert(chatSession())
-    useConsoleStore().selectedTaskId = 't-2' as TaskId
-    const dock = mount(ShellDock, { props: { placement: 'screen' }, global: { stubs: { TerminalSessionsPanel: true, RunningTasksPanel: true } } })
-
-    expect(dock.get('[data-testid=terminal-dock-toggle]').text()).toBe('1 session')
   })
 })

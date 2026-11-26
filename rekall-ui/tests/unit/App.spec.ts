@@ -167,11 +167,6 @@ vi.mock('@/features/claude/api/terminal.api', () => ({
   closeTerminal: vi.fn()
 }))
 
-vi.mock('@/features/chat/composables/useChatEvents', async () => {
-  const { ref } = await import('vue')
-  return { useChatEvents: () => ({ connected: ref(true), reconnecting: ref(false) }) }
-})
-
 vi.mock('@xterm/xterm', () => ({
   Terminal: class {
     element: HTMLElement | null = null
@@ -422,14 +417,13 @@ describe('the console', () => {
       return wrapper
     }
 
-    it('shows the chat of a task full-size, with no window beside it', async () => {
+    it('shows the chat of a task full-size', async () => {
       vi.mocked(fetchTerminals).mockResolvedValue([chatSession({ taskId: validator, anchors: 'task:PR-1' })])
 
       const wrapper = await mountSessionAt(`/console?mode=tasks&task=${validator}&pane=chat`)
 
       expect(router.currentRoute.value.name).toBe('console')
       expect(wrapper.find('[data-testid="chat-input"]').exists()).toBe(true)
-      expect(wrapper.find('[data-testid="chat-window"]').exists()).toBe(false)
     })
 
     it('shows a chat on no task full-size, named in the URL by its session and in the header by its project', async () => {
