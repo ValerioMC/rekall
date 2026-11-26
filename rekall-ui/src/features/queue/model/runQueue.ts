@@ -1,4 +1,5 @@
 import { APP_LOCALE } from '@/common/format/app-locale'
+import type { SessionProvider } from '@/features/claude/model/session-provider'
 import type { SessionKind } from '@/features/claude/model/terminal'
 import type { TaskId } from '@/model/branded'
 
@@ -35,6 +36,17 @@ export interface RunQueueWait {
   readonly inQueue: boolean
 }
 
+export interface QueuedCodexOptions {
+  readonly model: string | null
+  readonly effort: string | null
+  readonly skipPermissions: boolean
+}
+
+export type QueueTaskRequest = { readonly taskId: TaskId } & (
+  | { readonly provider: 'CLAUDE' }
+  | { readonly provider: 'CODEX'; readonly codexOptions: QueuedCodexOptions }
+)
+
 export interface RunQueueItem {
   readonly id: RunQueueItemId
   readonly taskId: TaskId
@@ -44,6 +56,8 @@ export interface RunQueueItem {
   readonly anchor: string
   readonly position: number
   readonly state: RunQueueItemState
+  readonly provider: SessionProvider
+  readonly codexOptions: QueuedCodexOptions | null
   readonly detail: string | null
   readonly startedAt: string | null
   readonly finishedAt: string | null

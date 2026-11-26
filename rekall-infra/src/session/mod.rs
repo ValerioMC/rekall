@@ -9,7 +9,7 @@ mod session_hosts;
 mod session_launcher;
 mod work_marker;
 
-pub use rekall_core::claude::SessionProvider;
+pub use rekall_core::claude::{session_command_prompt, SessionProvider};
 pub use session_options::SessionOptions;
 pub use ended_bus::EndedBus;
 pub use idle_sweep::spawn_idle_sweep;

@@ -139,7 +139,7 @@ async fn an_epic_is_not_converted_again() {
 async fn a_task_on_the_run_queue_is_not_converted() {
     let world = world().await;
     let task = task_in(&world, "handoff", TaskKind::Task, None).await;
-    RunQueueService::new(world.ctx.clone()).add(task.id).await.unwrap();
+    RunQueueService::new(world.ctx.clone()).add(task.id, Default::default()).await.unwrap();
 
     let refused = world.conversion.convert(task.id).await;
 

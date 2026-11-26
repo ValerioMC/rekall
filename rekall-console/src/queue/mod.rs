@@ -4,5 +4,6 @@
 mod command;
 mod service;
 
+pub use command::queue_task_command::QueueTaskCommand;
 pub use service::run_queue_control_service::RunQueueControlService;
 pub use command::run_queue_settings_command::RunQueueSettingsCommand;

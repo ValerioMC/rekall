@@ -5,15 +5,15 @@ use rekall_store::repository as repo;
 use rekall_store::{run_queue_item, RunQueueItemState, RunQueueState};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, IntoActiveModel, QueryFilter};
 
-use crate::queue::RunQueueView;
+use crate::queue::{QueueLaunch, RunQueueView};
 use crate::{in_write, Tx};
 
 use super::{ordered, renumber, require_item, task_title, RunQueueService};
 
 impl RunQueueService {
-    pub async fn add(&self, task_id: Id) -> Result<RunQueueView> {
+    pub async fn add(&self, task_id: Id, launch: QueueLaunch) -> Result<RunQueueView> {
         in_write!(&self.ctx, |tx| {
-            self.enqueue(&tx, task_id).await?;
+            self.enqueue(&tx, task_id, launch).await?;
             let queue = self.queue(&tx).await?;
             self.publish(&mut tx, queue).await
         })
@@ -21,9 +21,9 @@ impl RunQueueService {
 
     /// Add the task and, when the queue is idle, start it in the same transaction. A running,
     /// holding or scheduled queue only gains the item: it runs when the worker reaches it.
-    pub async fn add_and_arm(&self, task_id: Id) -> Result<RunQueueView> {
+    pub async fn add_and_arm(&self, task_id: Id, launch: QueueLaunch) -> Result<RunQueueView> {
         in_write!(&self.ctx, |tx| {
-            self.enqueue(&tx, task_id).await?;
+            self.enqueue(&tx, task_id, launch).await?;
             let mut queue = self.queue(&tx).await?;
             if queue.state == RunQueueState::Idle {
                 queue.move_to(RunQueueState::Running);
@@ -88,7 +88,9 @@ impl RunQueueService {
         })
     }
 
-    async fn enqueue(&self, tx: &Tx, task_id: Id) -> Result<()> {
+    async fn enqueue(&self, tx: &Tx, task_id: Id, launch: QueueLaunch) -> Result<()> {
+        let provider = launch.provider;
+        let codex_options = launch.into_codex_options()?;
         let task = repo::task::find_by_id(tx.db(), task_id)
             .await?
             .ok_or_else(|| RekallError::unknown_anchor(format!("No task with id {task_id}")))?;
@@ -98,10 +100,14 @@ impl RunQueueService {
         if waiting {
             return Err(RekallError::conflict(format!("'{}' is already in the queue.", task.title)));
         }
-        run_queue_item::Model::new(task_id, current.len() as i32, self.now())
-            .into_active_model()
-            .insert(tx.db())
-            .await?;
+        let mut item = run_queue_item::Model::new(task_id, current.len() as i32, self.now());
+        item.provider = provider;
+        if let Some(options) = codex_options {
+            item.codex_model = options.model;
+            item.codex_effort = options.effort;
+            item.codex_skip_permissions = options.skip_permissions;
+        }
+        item.into_active_model().insert(tx.db()).await?;
         Ok(())
     }
 }

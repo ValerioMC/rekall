@@ -11,7 +11,7 @@ use std::time::Duration;
 use chrono::TimeDelta;
 use portable_pty::CommandBuilder;
 use rekall_kernel::{Id, Instant, RekallError, Result};
-use rekall_core::claude::{TerminalLaunch, TerminalLaunchService, SessionProvider, TerminalOpening, TerminalTarget};
+use rekall_core::claude::{session_command_prompt, TerminalLaunch, TerminalLaunchService, SessionProvider, TerminalOpening, TerminalTarget};
 use rekall_core::telemetry::TelemetrySettingsService;
 use tokio::sync::broadcast;
 use tracing::info;
@@ -102,7 +102,7 @@ impl PtyTerminalManager {
         let step_id = if mode.follows_steps() { step_id } else { None };
 
         let _gate = self.spawn_gate.lock().await;
-        let prompt = provider.command_prompt(&mode.first_line(&launch.anchors));
+        let prompt = session_command_prompt(provider, &mode.first_line(&launch.anchors));
         if let Some(existing) = self.live_terminal_on(target) {
             if existing.provider != provider {
                 return Err(RekallError::conflict(format!(

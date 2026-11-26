@@ -2,10 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { EMPTY_RUN_QUEUE, asRunQueueItemId, type RunQueueItem } from '@/features/queue/model/runQueue'
-import { runTaskInQueue } from '@/features/queue/api/runQueue.api'
+import { enqueueTask, runTaskInQueue } from '@/features/queue/api/runQueue.api'
 import { asTaskId } from '@/model/branded'
 
 vi.mock('@/features/queue/api/runQueue.api', () => ({
+  enqueueTask: vi.fn(),
   runTaskInQueue: vi.fn()
 }))
 
@@ -33,10 +34,19 @@ describe('the run queue store', () => {
       updatedAt: '2026-09-23T10:00:05Z'
     })
 
-    await store.runInQueue(asTaskId('task-1'))
+    await store.runInQueue(asTaskId('task-1'), 'CODEX')
 
-    expect(runTaskInQueue).toHaveBeenCalledWith('task-1')
+    expect(runTaskInQueue).toHaveBeenCalledWith('task-1', 'CODEX')
     expect(store.queue.state).toBe('RUNNING')
+  })
+
+  it('passes the selected provider when adding a task', async () => {
+    const store = useRunQueueStore()
+    vi.mocked(enqueueTask).mockResolvedValue(EMPTY_RUN_QUEUE)
+
+    await store.add(asTaskId('task-1'), 'CODEX')
+
+    expect(enqueueTask).toHaveBeenCalledWith('task-1', 'CODEX')
   })
 
   it('drops an older queue answered to a run in queue', async () => {
@@ -57,6 +67,8 @@ describe('the run queue store', () => {
     const store = useRunQueueStore()
     const running: RunQueueItem = {
       id: asRunQueueItemId('item-1'),
+      provider: 'CLAUDE',
+      codexOptions: null,
       taskId: asTaskId('task-1'),
       taskTitle: 'Task',
       taskCode: 'task',

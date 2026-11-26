@@ -7,7 +7,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use chrono::TimeDelta;
 use rekall_core::chat::{ChatAttachment, ChatBody, ChatListener, ChatPipe};
-use rekall_core::claude::{SessionProvider, TerminalEnded, TerminalHost, TerminalLaunch, TerminalLaunchService, TerminalMode, TerminalOpening, TerminalTarget, TerminalView};
+use rekall_core::claude::{session_command_prompt, SessionProvider, TerminalEnded, TerminalHost, TerminalLaunch, TerminalLaunchService, TerminalMode, TerminalOpening, TerminalTarget, TerminalView};
 use rekall_core::telemetry::TelemetrySettingsService;
 use rekall_kernel::{Id, Instant, RekallError, Result};
 use tokio::process::Command;
@@ -228,7 +228,7 @@ impl TerminalHost for ChatSessionManager {
         let launch = self.launch_service.resolve(target).await?;
         let follows_steps = mode.follows_steps();
         let step_id = if follows_steps { step_id } else { None };
-        let first_line = provider.command_prompt(&mode.first_line(&launch.anchors));
+        let first_line = session_command_prompt(provider, &mode.first_line(&launch.anchors));
 
         if let Some(existing) = self.live_session_on(target) {
             opening.kind_for_live_session(&existing.view())?;

@@ -7,7 +7,7 @@ mod support;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use rekall_core::queue::{QueueRunner, RunQueueFrame, RunQueueService};
+use rekall_core::queue::{QueueLaunch, QueueRunner, RunQueueFrame, RunQueueService};
 use rekall_core::claude::StepProgressState;
 use rekall_infra::queue::RunQueueRunner;
 use rekall_core::claude::{ClaudeUsageView, Limit, SessionKind, Severity, UsageReader};
@@ -81,8 +81,8 @@ async fn the_queue_runs_each_task_in_turn_and_moves_on_once_its_work_is_claimed(
     world.step(&accepted, "Only", 0, TaskStepState::Done).await;
     let harness = harness(&world, reading(10.0));
 
-    harness.queue.add(busy.id).await.unwrap();
-    harness.queue.add(accepted.id).await.unwrap();
+    harness.queue.add(busy.id, QueueLaunch::default()).await.unwrap();
+    harness.queue.add(accepted.id, QueueLaunch::default()).await.unwrap();
     let started = harness.runner.start(&harness.queue, None).await.unwrap();
     assert_eq!(started.state, RunQueueState::Running);
 
@@ -115,7 +115,7 @@ async fn a_session_that_ends_before_claiming_its_work_fails_the_item() {
     world.step(&task, "First", 0, TaskStepState::Open).await;
     let harness = harness(&world, reading(10.0));
 
-    harness.queue.add(task.id).await.unwrap();
+    harness.queue.add(task.id, QueueLaunch::default()).await.unwrap();
     harness.runner.start(&harness.queue, None).await.unwrap();
     eventually("the terminal", || async { harness.terminals.has_live_terminal_for(task.id) }).await;
     let terminal = harness.terminals.list().into_iter().next().unwrap();
@@ -137,7 +137,7 @@ async fn usage_at_the_ceiling_holds_the_queue_before_anything_starts() {
     let harness = harness(&world, reading(92.4));
 
     harness.queue.update_settings(Some(80), false, None, None, SessionKind::Terminal, 1).await.unwrap();
-    harness.queue.add(task.id).await.unwrap();
+    harness.queue.add(task.id, QueueLaunch::default()).await.unwrap();
     harness.runner.start(&harness.queue, None).await.unwrap();
 
     eventually("the hold", || async { harness.queue.view().await.unwrap().state == RunQueueState::Holding }).await;
@@ -155,7 +155,7 @@ async fn stopping_closes_the_session_and_puts_the_item_back_at_the_head() {
     let task = world.task(&project, "one").await;
     let harness = harness(&world, reading(10.0));
 
-    harness.queue.add(task.id).await.unwrap();
+    harness.queue.add(task.id, QueueLaunch::default()).await.unwrap();
     harness.runner.start(&harness.queue, None).await.unwrap();
     eventually("the terminal", || async { harness.terminals.has_live_terminal_for(task.id) }).await;
 
@@ -187,8 +187,8 @@ async fn claiming_every_step_of_a_checklist_moves_the_queue_to_the_next_task_wit
     let second = world.task(&project, "second").await;
     world.step(&second, "Only", 0, TaskStepState::Open).await;
     let harness = harness(&world, reading(10.0));
-    harness.queue.add(first.id).await.unwrap();
-    harness.queue.add(second.id).await.unwrap();
+    harness.queue.add(first.id, QueueLaunch::default()).await.unwrap();
+    harness.queue.add(second.id, QueueLaunch::default()).await.unwrap();
     harness.runner.start(&harness.queue, None).await.unwrap();
     eventually("the first item running", || async { item_states(&harness.queue).await[0].0 == RunQueueItemState::Running }).await;
 
@@ -216,8 +216,8 @@ async fn a_flow_that_reaches_its_end_finishes_though_steps_were_never_run_and_th
     let after = world.task(&project, "after").await;
     world.step(&after, "Only", 0, TaskStepState::Open).await;
     let harness = harness(&world, reading(10.0));
-    harness.queue.add(flow.id).await.unwrap();
-    harness.queue.add(after.id).await.unwrap();
+    harness.queue.add(flow.id, QueueLaunch::default()).await.unwrap();
+    harness.queue.add(after.id, QueueLaunch::default()).await.unwrap();
     harness.runner.start(&harness.queue, None).await.unwrap();
     eventually("the flow running", || async { harness.terminals.has_live_terminal_for(flow.id) }).await;
 
@@ -239,7 +239,7 @@ async fn a_task_with_claimed_steps_and_open_ones_is_worked_for_the_open_ones_onl
     let done = world.step(&task, "Earlier", 0, TaskStepState::Claimed).await;
     let later = world.step(&task, "Later", 1, TaskStepState::Open).await;
     let harness = harness(&world, reading(10.0));
-    harness.queue.add(task.id).await.unwrap();
+    harness.queue.add(task.id, QueueLaunch::default()).await.unwrap();
     harness.runner.start(&harness.queue, None).await.unwrap();
 
     eventually("the task running", || async { harness.terminals.has_live_terminal_for(task.id) }).await;
@@ -257,7 +257,7 @@ async fn a_step_a_session_left_running_goes_back_to_open_when_the_session_ends()
     let task = world.task(&project, "stalled").await;
     let step = world.step(&task, "First", 0, TaskStepState::Open).await;
     let harness = harness(&world, reading(10.0));
-    harness.queue.add(task.id).await.unwrap();
+    harness.queue.add(task.id, QueueLaunch::default()).await.unwrap();
     harness.runner.start(&harness.queue, None).await.unwrap();
     eventually("the terminal", || async { harness.terminals.has_live_terminal_for(task.id) }).await;
     world.services.steps.transition(Some("alpha"), "stalled", Some("First"), TaskStepState::Running).await.unwrap();
@@ -278,7 +278,7 @@ async fn a_claim_that_ends_a_group_of_steps_renews_the_session_on_the_same_item(
     let frontend = world.step(&task, "Frontend", 1, TaskStepState::Open).await;
     world.services.step_bindings.begin_session(frontend.id, true).await.unwrap();
     let harness = harness(&world, reading(10.0));
-    harness.queue.add(task.id).await.unwrap();
+    harness.queue.add(task.id, QueueLaunch::default()).await.unwrap();
     harness.runner.start(&harness.queue, None).await.unwrap();
     eventually("the first session", || async { harness.terminals.has_live_terminal_for(task.id) }).await;
     let first_session = harness.terminals.list().into_iter().next().unwrap().id;
@@ -300,7 +300,7 @@ async fn a_claim_by_the_session_reaches_the_console_as_a_new_queue_frame_with_th
     world.step(&task, "One", 0, TaskStepState::Open).await;
     world.step(&task, "Two", 1, TaskStepState::Open).await;
     let harness = harness(&world, reading(10.0));
-    harness.queue.add(task.id).await.unwrap();
+    harness.queue.add(task.id, QueueLaunch::default()).await.unwrap();
     harness.runner.start(&harness.queue, None).await.unwrap();
     eventually("the terminal", || async { harness.terminals.has_live_terminal_for(task.id) }).await;
     let mut frames = world.events.subscribe();

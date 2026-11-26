@@ -74,6 +74,8 @@ function terminal(): Terminal {
 function queueItem(taskId: TaskId, position: number, state: RunQueueItem['state']): RunQueueItem {
   return {
     id: asRunQueueItemId(`item-${position}`),
+    provider: 'CLAUDE',
+    codexOptions: null,
     taskId,
     taskTitle: 'Task',
     taskCode: 'task',
@@ -371,7 +373,7 @@ describe('the Run here button', () => {
 
     await chooseRunInQueue(wrapper)
 
-    expect(runTaskInQueue).toHaveBeenCalledWith(TASK)
+    expect(runTaskInQueue).toHaveBeenCalledWith(TASK, 'CLAUDE')
     expect(openTerminal).not.toHaveBeenCalled()
     expect(toast.toasts[0]?.message).toBe('Running now in the queue')
     wrapper.unmount()

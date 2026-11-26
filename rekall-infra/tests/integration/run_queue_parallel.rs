@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use rekall_core::claude::{ClaudeUsageView, InMemoryTerminalHost, Limit, SessionKind, Severity, TerminalHost, TerminalMode, UsageReader};
-use rekall_core::queue::{QueueRunner, RunQueueService};
+use rekall_core::queue::{QueueLaunch, QueueRunner, RunQueueService};
 use rekall_core::step::StepEdit;
 use rekall_core::connection::{PullRequestMerge, ScriptedPullRequestHost};
 use rekall_core::worktree::{ScriptedWorktreeHost, TaskPullRequestService, TaskWorktreeService};
@@ -104,7 +104,7 @@ async fn two_independent_tasks_run_together_each_in_its_own_worktree_and_the_thi
     let harness = harness(&world, 2).await;
 
     for task in [&one, &two, &three] {
-        harness.queue.add(task.id).await.unwrap();
+        harness.queue.add(task.id, QueueLaunch::default()).await.unwrap();
     }
     harness.runner.start(&harness.queue, None).await.unwrap();
 
@@ -133,8 +133,8 @@ async fn a_task_that_depends_on_a_running_one_does_not_start() {
     task_dependency::Model::new(second.id, first.id, Instant::now()).into_active_model().insert(world.db()).await.unwrap();
     let harness = harness(&world, 2).await;
 
-    harness.queue.add(second.id).await.unwrap();
-    harness.queue.add(first.id).await.unwrap();
+    harness.queue.add(second.id, QueueLaunch::default()).await.unwrap();
+    harness.queue.add(first.id, QueueLaunch::default()).await.unwrap();
     harness.runner.start(&harness.queue, None).await.unwrap();
 
     eventually("the first task running", || async { harness.terminals.has_live_terminal_for(first.id) }).await;
@@ -149,8 +149,8 @@ async fn stopping_closes_every_open_session_and_puts_their_items_back() {
     let project = world.project("alpha", Some(world.folder.path())).await;
     let (one, two) = (open_task(&world, &project, "one").await, open_task(&world, &project, "two").await);
     let harness = harness(&world, 2).await;
-    harness.queue.add(one.id).await.unwrap();
-    harness.queue.add(two.id).await.unwrap();
+    harness.queue.add(one.id, QueueLaunch::default()).await.unwrap();
+    harness.queue.add(two.id, QueueLaunch::default()).await.unwrap();
     harness.runner.start(&harness.queue, None).await.unwrap();
     eventually("both running", || async {
         harness.terminals.has_live_terminal_for(one.id) && harness.terminals.has_live_terminal_for(two.id)
@@ -172,8 +172,8 @@ async fn a_worktree_git_refuses_leaves_its_task_waiting_with_the_reason_and_the_
     let (broken, fine) = (open_task(&world, &project, "broken").await, open_task(&world, &project, "fine").await);
     let harness = harness(&world, 2).await;
     harness.git.refuse("rekall/broken");
-    harness.queue.add(broken.id).await.unwrap();
-    harness.queue.add(fine.id).await.unwrap();
+    harness.queue.add(broken.id, QueueLaunch::default()).await.unwrap();
+    harness.queue.add(fine.id, QueueLaunch::default()).await.unwrap();
 
     harness.runner.start(&harness.queue, None).await.unwrap();
 
@@ -190,8 +190,8 @@ async fn one_session_at_a_time_makes_no_worktree() {
     let project = world.project("alpha", Some(world.folder.path())).await;
     let (one, two) = (open_task(&world, &project, "one").await, open_task(&world, &project, "two").await);
     let harness = harness(&world, 1).await;
-    harness.queue.add(one.id).await.unwrap();
-    harness.queue.add(two.id).await.unwrap();
+    harness.queue.add(one.id, QueueLaunch::default()).await.unwrap();
+    harness.queue.add(two.id, QueueLaunch::default()).await.unwrap();
 
     harness.runner.start(&harness.queue, None).await.unwrap();
 

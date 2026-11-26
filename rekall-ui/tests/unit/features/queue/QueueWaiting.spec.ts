@@ -19,6 +19,8 @@ function wait(anchor: string, overrides: Partial<RunQueueWait> = {}): RunQueueWa
 function item(id: string, waitingFor: RunQueueWait[] = [], state: RunQueueItem['state'] = 'QUEUED'): RunQueueItem {
   return {
     id: asRunQueueItemId(id),
+    provider: 'CLAUDE',
+    codexOptions: null,
     taskId: asTaskId(`t-${id}`),
     taskTitle: `Task ${id}`,
     taskCode: `t-${id}`,

@@ -21,6 +21,8 @@ function step(title: string, state: RunQueueStepState, current = false): RunQueu
 function itemWith(state: RunQueueItemState, steps: RunQueueStep[], detail: string | null = null): RunQueueItem {
   return {
     id: asRunQueueItemId('a'),
+    provider: 'CLAUDE',
+    codexOptions: null,
     taskId: asTaskId('t-a'),
     taskTitle: 'Report a',
     taskCode: 't-a',

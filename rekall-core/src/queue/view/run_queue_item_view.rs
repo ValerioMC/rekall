@@ -1,9 +1,9 @@
 use rekall_kernel::{Id, Instant};
-use rekall_store::{project, run_queue_item, task, RunQueueItemState};
+use rekall_store::{project, run_queue_item, task, RunQueueItemState, SessionProvider};
 use serde::Serialize;
 
-use crate::claude::StepProgress;
-use crate::queue::RunQueueWaitView;
+use crate::claude::{CodexSessionOptions, StepProgress};
+use crate::queue::{QueueLaunch, RunQueueWaitView};
 
 /// One queued task, with enough of the task to name it without a second request, and its
 /// released steps with the one being worked (none for a task with no checklist), and the
@@ -19,6 +19,8 @@ pub struct RunQueueItemView {
     pub anchor: String,
     pub position: i32,
     pub state: RunQueueItemState,
+    #[serde(flatten)]
+    pub launch: QueueLaunch,
     pub detail: Option<String>,
     pub started_at: Option<Instant>,
     pub finished_at: Option<Instant>,
@@ -37,6 +39,14 @@ impl RunQueueItemView {
             anchor: task.anchor(),
             position: item.position,
             state: item.state,
+            launch: QueueLaunch {
+                provider: item.provider,
+                codex_options: (item.provider == SessionProvider::Codex).then(|| CodexSessionOptions {
+                    model: item.codex_model.clone(),
+                    effort: item.codex_effort.clone(),
+                    skip_permissions: item.codex_skip_permissions,
+                }),
+            },
             detail: item.detail.clone(),
             started_at: item.started_at,
             finished_at: item.finished_at,

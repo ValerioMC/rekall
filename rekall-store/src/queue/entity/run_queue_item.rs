@@ -3,7 +3,7 @@
 use rekall_kernel::{jstr, Id, Instant};
 use sea_orm::entity::prelude::*;
 
-use crate::enums::RunQueueItemState;
+use crate::enums::{RunQueueItemState, SessionProvider};
 
 pub const DETAIL_MAX: usize = 500;
 
@@ -15,6 +15,10 @@ pub struct Model {
     pub task_id: Id,
     pub position: i32,
     pub state: RunQueueItemState,
+    pub provider: SessionProvider,
+    pub codex_model: Option<String>,
+    pub codex_effort: Option<String>,
+    pub codex_skip_permissions: bool,
     /// Why the item is where it is, in a sentence, when that is not obvious from the state.
     pub detail: Option<String>,
     pub started_at: Option<Instant>,
@@ -49,6 +53,10 @@ impl Model {
             task_id,
             position,
             state: RunQueueItemState::Queued,
+            provider: SessionProvider::Claude,
+            codex_model: None,
+            codex_effort: None,
+            codex_skip_permissions: false,
             detail: None,
             started_at: None,
             finished_at: None,

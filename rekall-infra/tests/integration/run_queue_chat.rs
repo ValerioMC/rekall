@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use rekall_core::claude::{ClaudeUsageView, InMemoryTerminalHost, Limit, SessionKind, Severity, TerminalHost, UsageReader};
-use rekall_core::queue::{QueueRunner, RunQueueService};
+use rekall_core::queue::{QueueLaunch, QueueRunner, RunQueueService};
 use rekall_infra::queue::RunQueueRunner;
 use rekall_kernel::Instant;
 use rekall_store::{task, task_step, RunQueueItemState, RunQueueState, TaskStepState};
@@ -107,7 +107,7 @@ async fn a_task_with_a_step_that_opens_a_session_runs_in_two_chat_sessions() {
     step_opening_a_session(&world, &task, "Third", 2).await;
     let harness = harness(&world).await;
 
-    harness.queue.add(task.id).await.unwrap();
+    harness.queue.add(task.id, QueueLaunch::default()).await.unwrap();
     harness.runner.start(&harness.queue, None).await.unwrap();
     eventually("the first chat session", || async { harness.host.openings().len() == 1 }).await;
     let first = harness.host.list().pop().unwrap();
@@ -142,8 +142,8 @@ async fn a_chat_session_that_ends_before_its_work_is_claimed_fails_the_item_and_
     world.step(&second, "Only", 0, TaskStepState::Open).await;
     let harness = harness(&world).await;
 
-    harness.queue.add(first.id).await.unwrap();
-    harness.queue.add(second.id).await.unwrap();
+    harness.queue.add(first.id, QueueLaunch::default()).await.unwrap();
+    harness.queue.add(second.id, QueueLaunch::default()).await.unwrap();
     harness.runner.start(&harness.queue, None).await.unwrap();
     eventually("the first session", || async { harness.host.has_live_for(first.id) }).await;
     harness.host.end(harness.host.list()[0].id);
@@ -166,7 +166,7 @@ async fn a_chat_session_waiting_on_a_permission_prompt_is_a_running_item_that_sa
     world.step(&task, "Only", 0, TaskStepState::Open).await;
     let harness = harness(&world).await;
 
-    harness.queue.add(task.id).await.unwrap();
+    harness.queue.add(task.id, QueueLaunch::default()).await.unwrap();
     harness.runner.start(&harness.queue, None).await.unwrap();
     eventually("the session", || async { harness.host.has_live_for(task.id) }).await;
     let session = harness.host.list()[0].id;

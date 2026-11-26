@@ -130,6 +130,8 @@ In the console it is the arrow on the right of **Run here**, on a task's descrip
 
 `/api/run-queue` holds the queue: `GET`, `PUT /settings` (`ceilingPercent`, `skipPermissions`, `model`, `effort`, `sessionKind`), `POST /items` (adds without starting), `POST /runs` (`taskId`: adds the task and arms the queue), `DELETE /items/{id}`, `PUT /items/{id}/position`, `POST /clear`, `POST /start` (`startAt` null starts now), `POST /stop`. Each answers with the whole queue, and every change is pushed on the console's event stream as a `run-queue` frame.
 
+Both add endpoints take `taskId` and an optional `provider` (`CLAUDE` or `CODEX`). Only Codex requests may include `codexOptions` with the model, effort and permission preference. Existing rows and requests with no provider use Claude Code and the queue's session settings. The queue returns each item's saved choice in responses and events, including after a restart. The queue worker currently launches Claude Code.
+
 ## Token usage
 
 Every task and every step shows the tokens Claude Code generated while working on it: on the task's row in the navigator and on each step of its checklist. A project shows the sum of its tasks wherever it is drawn: its heading in the navigator, its card and page in the catalog, and its group in a calendar day. The figure is output tokens; the tooltip adds the input, cache-write and cache-read tokens read to produce them. A task's figure includes its steps'.

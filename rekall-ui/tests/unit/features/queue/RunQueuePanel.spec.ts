@@ -40,6 +40,8 @@ vi.mock('@/features/claude/api/claude.api', () => ({
 function item(id: string, state: RunQueueItemState): RunQueueItem {
   return {
     id: asRunQueueItemId(id),
+    provider: 'CLAUDE',
+    codexOptions: null,
     taskId: asTaskId(`t-${id}`),
     taskTitle: `Report ${id}`,
     taskCode: `t-${id}`,
@@ -209,7 +211,7 @@ describe('the run queue panel', () => {
 
     await input.trigger('keydown', { key: 'Enter' })
     await flushPromises()
-    expect(api.enqueueTask).toHaveBeenCalledWith('t-z')
+    expect(api.enqueueTask).toHaveBeenCalledWith('t-z', 'CLAUDE')
     wrapper.unmount()
   })
 

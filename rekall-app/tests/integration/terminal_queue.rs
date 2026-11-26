@@ -469,6 +469,7 @@ async fn running_in_the_queue_starts_at_once_when_idle_and_otherwise_waits_its_t
     let started = q.app.post("/api/run-queue/runs", json!({ "taskId": first })).await;
     assert_eq!(started.status, 200);
     assert_eq!(started.str("state"), "RUNNING");
+    assert_eq!(started.body["items"][0]["provider"], "CLAUDE");
     await_until(15, || async { q.item_state(0).await == "RUNNING" && q.terminal_on(&first).await.is_some() }).await;
 
     let waiting = q.app.post("/api/run-queue/runs", json!({ "taskId": second })).await;
@@ -483,6 +484,76 @@ async fn running_in_the_queue_starts_at_once_when_idle_and_otherwise_waits_its_t
 
     q.claim("fix-readme", "1").await;
     await_until(15, || async { q.item_state(1).await == "FINISHED" && q.queue_state().await == "IDLE" }).await;
+    q.tear_down().await;
+}
+
+#[tokio::test]
+async fn add_and_run_store_each_provider_through_restart_recovery() {
+    let folder = tempfile::tempdir().unwrap();
+    let url = format!("sqlite:{}", folder.path().join("queue.db").display());
+    let properties = [("rekall.database.url", url.as_str())];
+    let app = app_with(&properties, StartOptions { no_restart: true, ..StartOptions::default() }).await;
+    let claude = a_task_with_folder(&app, folder.path()).await;
+    let project = app.get(&format!("/api/tasks/{claude}")).await.str("projectId");
+    let codex = id(&app.post("/api/tasks", json!({
+        "label": "second", "title": "Second", "status": "IN_PROGRESS", "projectId": project
+    })).await);
+
+    let added = app.post("/api/run-queue/items", json!({ "taskId": claude })).await;
+    assert_eq!(added.status, 200);
+    assert_eq!(added.body["items"][0]["provider"], "CLAUDE");
+    assert!(added.body["items"][0]["codexOptions"].is_null());
+    let scheduled = app.post("/api/run-queue/start", json!({ "startAt": Instant::now().plus_minutes(60).to_string() })).await;
+    assert_eq!(scheduled.str("state"), "SCHEDULED");
+
+    let options = json!({ "model": "example/codex", "effort": "high", "skipPermissions": true });
+    let mixed = app.post("/api/run-queue/runs", json!({ "taskId": codex, "provider": "CODEX", "codexOptions": options })).await;
+    assert_eq!(mixed.status, 200);
+    assert_eq!(mixed.str("state"), "SCHEDULED");
+    assert_eq!(mixed.body["items"][1]["provider"], "CODEX");
+    assert_eq!(mixed.body["items"][1]["codexOptions"], options);
+    app.execute("UPDATE run_queue_item SET state = 'RUNNING' WHERE task_id = ?", vec![support::uuid_value(&codex)]).await;
+    app.stop().await;
+
+    let reopened = app_with(&properties, StartOptions { no_restart: true, ..StartOptions::default() }).await;
+    await_until(5, || async { reopened.get("/api/run-queue").await.body["items"][1]["state"] == "QUEUED" }).await;
+    let recovered = reopened.get("/api/run-queue").await;
+    assert_eq!(recovered.str("state"), "SCHEDULED");
+    assert_eq!(recovered.body["items"][0], mixed.body["items"][0]);
+    let recovered_codex = &recovered.body["items"][1];
+    assert_eq!(recovered_codex["state"], "QUEUED");
+    assert_eq!(recovered_codex["provider"], "CODEX");
+    assert_eq!(recovered_codex["codexOptions"], options);
+    reopened.stop().await;
+}
+
+#[tokio::test]
+async fn invalid_provider_options_do_not_enqueue_or_arm() {
+    let q = queue_app().await;
+    let task = q.task("report-builder", "Report builder").await;
+    let bad_model = q.app.post("/api/run-queue/items", json!({
+        "taskId": task, "provider": "CODEX", "codexOptions": { "model": "--help" }
+    })).await;
+    assert_eq!(bad_model.status, 400);
+    assert!(bad_model.detail().contains("Codex model"));
+    let bad_effort = q.app.post("/api/run-queue/runs", json!({
+        "taskId": task, "provider": "CODEX", "codexOptions": { "effort": "high\"model" }
+    })).await;
+    assert_eq!(bad_effort.status, 400);
+    assert!(bad_effort.detail().contains("Codex reasoning effort"));
+    let wrong_provider = q.app.post("/api/run-queue/runs", json!({
+        "taskId": task, "codexOptions": { "effort": "high" }
+    })).await;
+    assert_eq!(wrong_provider.status, 400);
+    assert_eq!(q.app.post("/api/run-queue/items", json!({ "taskId": task, "provider": "OTHER" })).await.status, 400);
+    assert_eq!(q.queue_state().await, "IDLE");
+    assert_eq!(q.queue().await["items"], json!([]));
+
+    let added = q.app.post("/api/run-queue/items", json!({ "taskId": task, "provider": "CODEX" })).await;
+    assert_eq!(added.status, 200);
+    assert_eq!(added.str("state"), "IDLE");
+    assert_eq!(added.body["items"][0]["provider"], "CODEX");
+    assert_eq!(added.body["items"][0]["codexOptions"], json!({ "model": null, "effort": null, "skipPermissions": false }));
     q.tear_down().await;
 }
 

@@ -4,7 +4,7 @@ use rekall_core::queue::{QueueRunner, RunQueueService, RunQueueView};
 use rekall_kernel::{Id, Instant, Result};
 use rekall_store::run_queue::PARALLEL_SESSIONS_MIN;
 
-use crate::queue::RunQueueSettingsCommand;
+use crate::queue::{QueueTaskCommand, RunQueueSettingsCommand};
 
 /// Edits the queue, and wakes its worker when a change is one it would otherwise wait a tick for.
 #[derive(Clone)]
@@ -26,14 +26,14 @@ impl RunQueueControlService {
         self.queue.update_settings(command.ceiling_percent, command.skip_permissions, command.model.as_deref(), command.effort.as_deref(), command.session_kind, command.parallel_sessions.unwrap_or(PARALLEL_SESSIONS_MIN)).await
     }
 
-    pub async fn add(&self, task_id: Id) -> Result<RunQueueView> {
-        let added = self.queue.add(task_id).await?;
+    pub async fn add(&self, command: QueueTaskCommand) -> Result<RunQueueView> {
+        let added = self.queue.add(command.task_id, command.launch).await?;
         self.runner.nudge();
         Ok(added)
     }
 
-    pub async fn run_in_queue(&self, task_id: Id) -> Result<RunQueueView> {
-        let armed = self.queue.add_and_arm(task_id).await?;
+    pub async fn run_in_queue(&self, command: QueueTaskCommand) -> Result<RunQueueView> {
+        let armed = self.queue.add_and_arm(command.task_id, command.launch).await?;
         self.runner.nudge();
         Ok(armed)
     }

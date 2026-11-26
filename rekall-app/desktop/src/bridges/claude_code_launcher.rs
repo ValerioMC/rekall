@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use rekall_infra::codex::CodexCli;
 use rekall_infra::login_shell::LoginShellEnvironment;
-use rekall_infra::session::{SessionOptions, SessionProvider};
+use rekall_infra::session::{session_command_prompt, SessionOptions, SessionProvider};
 
 use std::path::{Path, PathBuf};
 
@@ -62,7 +62,7 @@ async fn terminal_binary(home: &Path, provider: SessionProvider) -> Result<Strin
 }
 
 fn script(directory: &str, anchors: &str, options: &SessionOptions, binary: &str) -> String {
-    let prompt = options.provider.command_prompt(&format!("/rk {}", anchors.trim_matches([' ', '\t'])));
+    let prompt = session_command_prompt(options.provider, &format!("/rk {}", anchors.trim_matches([' ', '\t'])));
     let arguments = options.arguments();
     let command = std::iter::once(quote(binary))
         .chain(arguments.iter().map(|argument| quote(&argument.to_string_lossy())))

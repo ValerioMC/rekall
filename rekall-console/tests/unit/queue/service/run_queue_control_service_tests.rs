@@ -68,7 +68,7 @@ async fn world() -> World {
 async fn adding_a_task_wakes_the_worker() {
     let world = world().await;
 
-    let queued = world.service.add(world.task_id).await.unwrap();
+    let queued = world.service.add(QueueTaskCommand { task_id: world.task_id, launch: Default::default() }).await.unwrap();
 
     assert_eq!(queued.items.len(), 1);
     assert_eq!(world.runner.nudges.load(Ordering::SeqCst), 1);
@@ -78,7 +78,7 @@ async fn adding_a_task_wakes_the_worker() {
 async fn a_refused_add_leaves_the_worker_asleep() {
     let world = world().await;
 
-    assert!(world.service.add(Id::random()).await.is_err());
+    assert!(world.service.add(QueueTaskCommand { task_id: Id::random(), launch: Default::default() }).await.is_err());
 
     assert_eq!(world.runner.nudges.load(Ordering::SeqCst), 0);
 }
@@ -96,7 +96,7 @@ async fn stopping_is_the_workers_to_do() {
 async fn running_in_the_queue_starts_an_idle_queue_and_wakes_the_worker() {
     let world = world().await;
 
-    let started = world.service.run_in_queue(world.task_id).await.unwrap();
+    let started = world.service.run_in_queue(QueueTaskCommand { task_id: world.task_id, launch: Default::default() }).await.unwrap();
 
     assert_eq!(started.state, RunQueueState::Running);
     assert_eq!(started.items.len(), 1);
