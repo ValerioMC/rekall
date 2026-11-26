@@ -159,6 +159,52 @@ async fn an_issue_is_closed_by_patching_its_state() {
 }
 
 #[tokio::test]
+async fn a_close_rejected_by_github_succeeds_when_the_issue_is_already_closed() {
+    let router = Router::new().route(
+        "/api/v3/repos/acme/app/issues/12",
+        patch(|Json(body): Json<Value>| async move {
+            assert_eq!(body, json!({ "state": "closed" }));
+            (AxumStatus::UNPROCESSABLE_ENTITY, Json(json!({
+                "message": "Validation Failed",
+                "errors": [{ "resource": "Issue", "code": "custom", "message": "This issue was closed by another request. Reload it and try again." }]
+            })))
+        })
+        .get(|| async { Json(json!({ "state": "closed" })) }),
+    );
+    let site = serve(router).await;
+
+    GithubPullRequestHost::new().close_issue(&endpoint(&site), "12").await.unwrap();
+}
+
+#[tokio::test]
+async fn a_close_rejected_by_github_preserves_the_failure_when_the_issue_is_open() {
+    let router = Router::new().route(
+        "/api/v3/repos/acme/app/issues/12",
+        patch(|| async { (AxumStatus::UNPROCESSABLE_ENTITY, Json(json!({ "message": "Validation Failed" }))) })
+            .get(|| async { Json(json!({ "state": "open" })) }),
+    );
+    let site = serve(router).await;
+
+    let failure = GithubPullRequestHost::new().close_issue(&endpoint(&site), "12").await.unwrap_err();
+
+    assert_eq!(failure, TrackerFailure::Failed { reason: "it answered HTTP 422: Validation Failed".into() });
+}
+
+#[tokio::test]
+async fn a_close_rejected_by_github_preserves_the_failure_when_the_issue_cannot_be_read() {
+    let router = Router::new().route(
+        "/api/v3/repos/acme/app/issues/12",
+        patch(|| async { (AxumStatus::UNPROCESSABLE_ENTITY, Json(json!({ "message": "Validation Failed" }))) })
+            .get(|| async { AxumStatus::BAD_GATEWAY }),
+    );
+    let site = serve(router).await;
+
+    let failure = GithubPullRequestHost::new().close_issue(&endpoint(&site), "12").await.unwrap_err();
+
+    assert_eq!(failure, TrackerFailure::Failed { reason: "it answered HTTP 422: Validation Failed".into() });
+}
+
+#[tokio::test]
 async fn a_branch_is_deleted_by_deleting_its_ref() {
     let router = Router::new().route("/api/v3/repos/acme/app/git/refs/heads/rekall/fix-login", delete(|| async { AxumStatus::NO_CONTENT }));
     let site = serve(router).await;
