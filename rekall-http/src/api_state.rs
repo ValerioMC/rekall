@@ -190,6 +190,7 @@ impl ApiState {
         let ctx = services.ctx.clone();
         let Wired { tasks, project_connections, projects, connections, component_catalog, repository_discovery, jira_issues, confluence_spaces, connection_targets, gitlab_targets, task_tracker_sync, vulnerability_fixes, graphs, graph_attach, terminals, quick_tasks } =
             Wired::of(&ctx, &services, &ports);
+        let pictures = picture::PictureService::new(ctx.clone(), ports.pictures);
         Self {
             companies: catalog::CompanyService::new(ctx.clone()),
             logos: catalog::CompanyLogoService::new(ctx.clone()),
@@ -205,7 +206,7 @@ impl ApiState {
             section_contexts: section::SectionContextService::new(ctx.clone()),
             section_layout: section::SectionLayoutService::new(ctx.clone()),
             component_catalog,
-            exports: export::ProjectExportService::new(ctx.clone()),
+            exports: export::ProjectExportService::new(ctx.clone(), pictures.clone()),
             checks: check::CheckService::new(ctx.clone()),
             task_dependencies: dependency::TaskDependencyService::new(ctx.clone(), RunQueueService::new(ctx.clone())),
             task_decisions: decision::TaskDecisionService::new(ctx.clone()),
@@ -269,7 +270,7 @@ impl ApiState {
             credential_hand_out: connection::CredentialHandOutService::new(ports.credential_desk),
             backups: backup::BackupService::new(ports.backups, ports.restore),
             database_folders: settings::DatabaseFolderService::new(ports.database_folders, ports.restart),
-            pictures: picture::PictureService::new(ctx.clone(), ports.pictures),
+            pictures,
             update_check: version::UpdateCheckService::new(RUNNING_VERSION, ports.release_feed),
             stream,
         }

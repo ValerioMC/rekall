@@ -190,7 +190,7 @@ The guides describe each area as it behaves today, with its REST routes and prop
 | Terminals | A real `claude` in a pseudo-terminal inside the app, or the same `claude` as a chat window (Settings > Sessions and run queue > Session view); the run queue, which can work up to four tasks at once in git worktrees of their own; the usage meter | [sessions](docs/guide/sessions.md) |
 | Token usage | Tokens Claude Code generated per task and step, read from its transcripts | [sessions](docs/guide/sessions.md#token-usage) |
 | Projects | Page, sections grouped in contexts (with a Reorganize session), components, icons, autoconfigure; connections to GitLab, GitHub, Kubernetes, Jira, Confluence and Grafana shared across companies; a Confluence space that fills a project's description, blueprint and sections; a task manager (GitLab, GitHub or Jira) that receives the project's tasks, and a main branch their work is merged into | [projects](docs/guide/projects.md) |
-| Export | A project's blueprint, pages and components as one PDF or Word file, with their Mermaid diagrams, kept on an Exports page until deleted | [projects](docs/guide/projects.md#exporting) |
+| Export | A project's blueprint, pages and components as one PDF or Word file, with their Mermaid diagrams and pictures, kept on an Exports page until deleted | [projects](docs/guide/projects.md#exporting) |
 | Console | Search, notes, tags, skills, the markdown editor, timers | [console](docs/guide/console.md) |
 | Report | Hours per client over a week or a month | [console](docs/guide/console.md#report) |
 | Claude resources | Edit `~/.claude`: instructions, skills, commands, agents, memories, memory review | [claude-resources](docs/guide/claude-resources.md) |

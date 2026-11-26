@@ -289,3 +289,27 @@ async fn an_upload_that_is_no_picture_too_large_or_for_nobody_writes_nothing() {
     assert!(matches!(nobody, Err(RekallError::NotFound(_))), "{nobody:?}");
     assert_eq!(*world.store.writes.lock().unwrap(), 0);
 }
+
+#[tokio::test]
+async fn a_kept_picture_is_printed_by_the_address_the_markdown_holds() {
+    let world = world().await;
+    let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="30" height="10"/>"#.to_vec();
+    let address = "/api/images/acme/web/web-12/flow-00000001.svg";
+    world.store.kept.lock().unwrap().insert("acme/web/web-12/flow-00000001.svg".into(), svg);
+
+    let printable = world.service.printable(address).await.unwrap();
+
+    assert_eq!(printable.natural_width, 30);
+    assert!(printable.png.starts_with(b"\x89PNG"));
+}
+
+#[tokio::test]
+async fn an_address_with_no_picture_behind_it_is_not_printed() {
+    let world = world().await;
+
+    let gone = world.service.printable("/api/images/acme/web/web-12/gone-00000001.png").await.unwrap_err();
+    let elsewhere = world.service.printable("docs/sketch.png").await.unwrap_err();
+
+    assert!(matches!(gone, RekallError::NotFound(_)));
+    assert!(elsewhere.is_illegal_argument());
+}

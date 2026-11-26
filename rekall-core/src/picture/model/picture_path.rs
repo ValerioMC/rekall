@@ -5,6 +5,9 @@ use crate::picture::PictureFormat;
 /// A company, a project and one or two folders under them.
 const FOLDER_COUNTS: std::ops::RangeInclusive<usize> = 3..=4;
 
+/// What every address in the markdown starts with.
+const ADDRESS_PREFIX: &str = "/api/images/";
+
 /// A picture's place under the images folder, such as `acme/web/web-12/login-3f9a1c2b.png`.
 /// Only this shape names a file there, so no address reaches outside the folder.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -23,6 +26,14 @@ impl PicturePath {
         }
     }
 
+    /// The picture an `address()` names.
+    pub fn of_address(address: &str) -> Result<Self> {
+        match address.strip_prefix(ADDRESS_PREFIX) {
+            Some(relative) => Self::parse(relative),
+            None => Err(RekallError::illegal(format!("'{address}' is not a picture address."))),
+        }
+    }
+
     pub fn relative(&self) -> &str {
         &self.relative
     }
@@ -33,7 +44,7 @@ impl PicturePath {
 
     /// What the markdown holds to show this picture.
     pub fn address(&self) -> String {
-        format!("/api/images/{}", self.relative)
+        format!("{ADDRESS_PREFIX}{}", self.relative)
     }
 }
 

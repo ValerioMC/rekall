@@ -81,9 +81,9 @@ folder per crate. The chain:
    serves HTTP, and `rekall-http` never sees it.
 4. `rekall-app` sees everything: it builds the `rekall-infra` implementations, hands them to
    `rekall-http` in `ApiPorts`, and mounts both routers.
-5. `rekall-diagram` and `rekall-export` depend on no Rekall crate. `rekall-export` takes markdown parts and
-   the pictures of their diagrams and returns the bytes of a PDF or Word file; `rekall-console` calls it and
-   nothing below `rekall-console` does.
+5. `rekall-diagram` and `rekall-export` depend on no Rekall crate. `rekall-export` takes markdown parts, the
+   images of their diagrams and their pictures, and returns the bytes of a PDF or Word file; `rekall-console` calls
+   it and nothing below `rekall-console` does.
 
 `rekall-mcp` lists `rekall-kernel` and `rekall-core` and no other Rekall crate: no entity,
 repository, console service or route is in its reach, and the few `rekall-store` enums its tools
@@ -120,7 +120,7 @@ is found by opening one folder per crate:
 | `check` | the commands a person sets to pass before a claim is accepted, for a whole project or one step, and what each run found; the console writes them, no session can |
 | `decision` | what a person and a session settle about a task before it runs, one record per question: a key, its options, the answer (a changed answer keeps the one it replaced), details added later, the conversation lines behind it, optionally one step; `DecisionService` in `rekall-core` is what every writer calls (a session through `rekall_decision` in `rekall-mcp`, a person editing, adding or removing one by hand through `TaskDecisionService` in `rekall-console`, whose records the context marks as edited by you), the context carries the records in a `<decisions>` block and the task's decisions come before each step's |
 | `deviation` | where a task's work departed from its plan, one record per task and step and apart from its notes: a session writes it (`rekall_deviation`, in `rekall-core` and `rekall-mcp`), the console only reads it, and the context carries it in a `<deviations>` block |
-| `export` | a project's exports as one PDF or Word file: the row that records each (`project_export`, done or failed with the kind of error) and the file's bytes in a table of its own (`project_export_file`), kept until deleted; `ProjectExportService` (`rekall-console`) writes one with `DocxWriter` or `PdfWriter` from `rekall-export`, records a failed write as a `FAILED` row with its kind (`RENDER` or `STORAGE`) and refuses an invalid request without recording it, lists, serves the file, deletes one and clears a company's, a project's or the failed ones |
+| `export` | a project's exports as one PDF or Word file: the row that records each (`project_export`, done or failed with the kind of error) and the file's bytes in a table of its own (`project_export_file`), kept until deleted; `ProjectExportService` (`rekall-console`) asks `PictureService` for the pictures of what is ticked, writes the file with `DocxWriter` or `PdfWriter` from `rekall-export`, records a failed write as a `FAILED` row with its kind (`RENDER` or `STORAGE`) and refuses an invalid request without recording it, lists, serves the file, deletes one and clears a company's, a project's or the failed ones |
 | `feedback` | a task's revisions of its description: the text before and after a saved change, aimed at the work (`IMPLEMENTATION`) or at the plan (`PLAN`, the default on a task with steps), each `PENDING` while it waits, `RUNNING` once Run revision took it into a numbered pass, `APPLIED` when a session replies; a session answers open revisions with `FeedbackService::reply` (`rekall-core`), which also gives unanswered running ones back when its session ends, and the context carries the thread in a `<thread>` block; the console's `FeedbackService` (`rekall-console`) records every saved change of an evaluated task's description as a revision, points a waiting one at the work or the plan with `PATCH /api/feedback/{id}`, starts a pass with `POST /api/tasks/{id}/feedback/passes` (refused while a pass runs) and discards a waiting one; a revision is never typed apart from the description |
 | `dependency` | a task that waits for another task of its project to be accepted: the pair, the cycle rule, and what a task still waits for as the run queue and the context read it; the console writes the pairs, no session can |
 | `connection` | the GitLab instances, GitHub servers, Kubernetes clusters, Jira sites, Confluence sites and Grafana instances projects reach, the companies each is shared with, the projects that bind each, the log of every credential a terminal asked for, the Jira issues a project imports as tasks, the Confluence space a project's description, blueprint and sections are filled from (`ConfluenceSpaces`, the port, `ConfluenceSpaceService` in `rekall-console`, which groups the pages by concept in `confluence_grouping_rules`), the Jira project, Confluence space or GitLab group or project a binding's target is checked against and suggested from (`ConnectionTargetService`, and `GitlabTargetService` over the `GitlabNamespaces` port, implemented by `HttpGitlabNamespaces` in `rekall-infra/src/tracker/`), the task manager a project writes its tasks to (`TaskTracker`, the port, and `TaskTrackerService` in `rekall-core`), and the pull request or merge request of a task's branch on that task manager (`PullRequestHost`, the port, with `GithubPullRequestHost`, `GitlabPullRequestHost` and `ConnectionPullRequestHost`, which picks one by the connection's kind, in `rekall-infra/src/tracker/`) |
@@ -129,7 +129,7 @@ is found by opening one folder per crate:
 | `graph` | a project's deployment graphs and laying one on a task; console-only, so it has no folder in `rekall-core` |
 | `note` | documents, each owned by one task and deleted with it, and how they load (in full or by reference) |
 | `wrapup`, `review`, `timeentry` | the wrapup, the review line, logged time |
-| `picture` | the pictures a markdown text shows, kept as files in `images/` beside the database (D11): `PicturePath` and the `PictureStore` port in `rekall-core`, `PictureService` in `rekall-console`, which names the folder after the owner (a task, a project's blueprint, a page or a component) and judges the format by the content, and `FolderPictureStore` in `rekall-infra`. Called `picture` so no module shadows the `image` crate; no table behind it, so no folder in `rekall-store` |
+| `picture` | the pictures a markdown text shows, kept as files in `images/` beside the database (D11): `PicturePath` and the `PictureStore` port in `rekall-core`, `PictureService` in `rekall-console`, which names the folder after the owner (a task, a project's blueprint, a page or a component), judges the format by the content and turns a picture into the PNG an export prints, and `FolderPictureStore` in `rekall-infra`. Called `picture` so no module shadows the `image` crate; no table behind it, so no folder in `rekall-store` |
 | `commit`, `diagram`, `token`, `search`, `context` | logged commits and what they and the working tree changed, stored diagrams, token usage, search, context assembly and its size |
 | `context_fill` | the last share of its context window a chat held at the end of a turn, per task and per step (`ContextFillService`, the only writer of `context_fill`; the console reads it) |
 | `quick` | the quick task: a task started from one line of text with its session opened at once, accepted without a review when Claude's wrapup lands; console and HTTP only, the acceptance itself is in `review` and `wrapup` |
@@ -203,7 +203,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `dependency` | `task` | `claude` | `queue`, `task` | nothing | - |
 | `deviation` | `task` | `step`, `task` | `task` | nothing | nothing |
 | `diagram` | `catalog`, `task` | `catalog`, `task` | nothing | nothing | nothing |
-| `export` | `catalog` | - | `catalog`, `component`, `section` | nothing | - |
+| `export` | `catalog` | - | `catalog`, `component`, `picture`, `section` | nothing | - |
 | `feedback` | `task` | `task` | `step`, `task`, `wrapup` | nothing | nothing |
 | `filesystem` | - | - | nothing | nothing | - |
 | `flow` | `step`, `task` | `step` | - | `step` | `step` |
@@ -496,6 +496,17 @@ title as a level-1 heading and the headings inside it moved one level down. `Pro
 the file in `spawn_blocking`, stores it with its row, and on a failed write or insert records a `FAILED` row with
 its kind and returns an error whose message names the kind; a request refused as invalid (nothing ticked, a blank
 blueprint alone, an item of another project) is not recorded. Diagrams are decision D9.
+
+Pictures (D11) are read by the server. After the texts are loaded, `PictureService` answers a PNG and a natural
+width for every `/api/images/` address in them: an 8-bit PNG as it is, a deeper one, JPEG, WebP and a GIF's first
+frame converted with `image`, and an SVG drawn with `resvg` and this machine's fonts at twice its natural size, at
+most 4096 pixels a side, reading no file it points to. `rekall-export` is handed `{ address, png, naturalWidth }`
+and knows nothing of where they came from: a picture becomes a block of its own, splitting the paragraph it sits in,
+aligned by the address ending `#center` or `#right` (left otherwise), fitted to the width it has and never drawn
+wider than its natural width at 96 pixels to the inch. A table cell and a heading hold text alone, so a picture
+there is its description. An address with no picture handed in prints a "Picture missing" paragraph with the
+description and fails nothing; the service logs why. A web picture is not downloaded: its description and address
+are printed. The PDF keeps every pixel: `printpdf`'s own image shrinking and JPEG recompression are off.
 
 | Route | Does |
 |---|---|

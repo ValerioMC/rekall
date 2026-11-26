@@ -1,11 +1,12 @@
 //! What a person does to a project's exports: write one, list them, download one, delete some.
 //! A refused request is not an export and leaves no record; a failure to write or keep the
-//! document is recorded as a `FAILED` export so the Exports page shows it.
+//! document is recorded as a `FAILED` export so the Exports page shows it. A picture that cannot
+//! be printed fails no export: the document says it is missing.
 
 use std::collections::HashSet;
 
 use rekall_core::{in_read, in_write, Ctx, Tx};
-use rekall_export::{DocxWriter, PdfWriter};
+use rekall_export::{DocxWriter, ExportPicture, PdfWriter};
 use rekall_kernel::{Id, RekallError, Result};
 use rekall_store::export::ProjectExportListing;
 use rekall_store::project_export;
@@ -18,19 +19,22 @@ use crate::export::rule::export_plan::ExportPlan;
 use crate::export::rule::export_selection::ExportSelection;
 use crate::export::rule::page_order;
 use crate::export::{ExportedFile, ProjectExportClearCommand, ProjectExportCommand, ProjectExportView};
+use crate::picture::PictureService;
 
 #[derive(Clone)]
 pub struct ProjectExportService {
     ctx: Ctx,
+    pictures: PictureService,
 }
 
 impl ProjectExportService {
-    pub fn new(ctx: Ctx) -> Self {
-        Self { ctx }
+    pub fn new(ctx: Ctx, pictures: PictureService) -> Self {
+        Self { ctx, pictures }
     }
 
     pub async fn export(&self, project_id: Id, command: ProjectExportCommand) -> Result<ProjectExportView> {
-        let plan = in_read!(&self.ctx, |tx| plan_in(&tx, project_id, &command).await)?;
+        let mut plan = in_read!(&self.ctx, |tx| plan_in(&tx, project_id, &command).await)?;
+        plan.document.pictures = self.pictures_of(&plan).await;
         let bytes = match render(plan.format, &plan).await {
             Ok(bytes) => bytes,
             Err(failure) => return Err(self.record_failure(&plan, failure).await),
@@ -78,6 +82,18 @@ impl ProjectExportService {
             }
             repo::project_export::delete_matching(tx.db(), command.company_id, command.project_id, command.status).await
         })
+    }
+
+    /// The pictures the document shows, as PNG. One that cannot be read or drawn is left out.
+    async fn pictures_of(&self, plan: &ExportPlan) -> Vec<ExportPicture> {
+        let mut pictures = Vec::new();
+        for address in plan.document.picture_addresses() {
+            match self.pictures.printable(&address).await {
+                Ok(printable) => pictures.push(ExportPicture { address, png: printable.png, natural_width: printable.natural_width }),
+                Err(failure) => tracing::warn!(%failure, %address, project_id = %plan.project.id, "A picture is missing from an export"),
+            }
+        }
+        pictures
     }
 
     async fn store_done(&self, plan: &ExportPlan, bytes: Vec<u8>) -> Result<ProjectExportView> {

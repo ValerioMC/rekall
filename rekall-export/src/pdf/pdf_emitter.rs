@@ -44,11 +44,17 @@ impl<'a> PdfEmitter<'a> {
             .map(|page| PdfPage::new(Mm(DocumentStyle::PAGE_WIDTH_MM as f32), Mm(DocumentStyle::PAGE_HEIGHT_MM as f32), Self::operations(page, &fonts, &images)))
             .collect();
         let mut warnings = Vec::new();
-        let bytes = document.with_pages(pdf_pages).save(&PdfSaveOptions::default(), &mut warnings);
+        let bytes = document.with_pages(pdf_pages).save(&Self::save_options(), &mut warnings);
         if let Some(failure) = warnings.iter().find(|warning| format!("{:?}", warning.severity) == "Error") {
             return Err(ExportError::Pdf(failure.msg.clone()));
         }
         Self::deflate(&bytes)
+    }
+
+    /// printpdf otherwise shrinks every image past 2 MB and recompresses it as JPEG, which blurs
+    /// the text of a screenshot. `deflate` compresses the pixels without loss.
+    fn save_options() -> PdfSaveOptions {
+        PdfSaveOptions { image_optimization: None, ..PdfSaveOptions::default() }
     }
 
     fn add_page_furniture(&self, pages: &mut [Vec<Placed>]) {
@@ -104,7 +110,7 @@ impl<'a> PdfEmitter<'a> {
         pictures
             .iter()
             .map(|png| {
-                let raw = RawImage::decode_from_bytes(png, &mut Vec::new()).map_err(|failure| ExportError::Image(format!("a diagram image could not be decoded: {failure}")))?;
+                let raw = RawImage::decode_from_bytes(png, &mut Vec::new()).map_err(|failure| ExportError::Image(format!("an image could not be decoded: {failure}")))?;
                 Ok(Picture { pixel_width: raw.width as f32, id: document.add_image(&raw) })
             })
             .collect()

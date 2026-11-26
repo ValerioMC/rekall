@@ -1,7 +1,7 @@
 use std::io::{Cursor, Read};
 
 use super::*;
-use crate::document::{DiagramImage, ExportPart};
+use crate::document::{DiagramImage, ExportPart, ExportPicture};
 
 const DIAGRAM_PNG: &[u8] = include_bytes!("../../fixtures/diagram.png");
 
@@ -10,7 +10,13 @@ fn document(parts: &[(&str, &str)], diagrams: Vec<DiagramImage>) -> ExportDocume
         title: "Rekall blueprint".to_string(),
         parts: parts.iter().map(|(heading, markdown)| ExportPart { heading: heading.to_string(), markdown: markdown.to_string() }).collect(),
         diagrams,
+        pictures: vec![],
     }
+}
+
+fn document_with_picture(markdown: &str, natural_width: u32) -> ExportDocument {
+    let picture = ExportPicture { address: "/p.png".to_string(), png: DIAGRAM_PNG.to_vec(), natural_width };
+    ExportDocument { pictures: vec![picture], ..document(&[("Part", markdown)], vec![]) }
 }
 
 fn entry(bytes: &[u8], name: &str) -> String {
@@ -133,4 +139,45 @@ fn a_diagram_image_that_is_not_a_png_is_refused() {
     let failure = DocxWriter::write(&document(&[("Flow", "```mermaid\ngraph TD\n```")], diagrams));
 
     assert!(matches!(failure, Err(ExportError::Image(_))));
+}
+
+#[test]
+fn a_picture_is_a_drawing_at_its_natural_width_with_its_media_file() {
+    let bytes = DocxWriter::write(&document_with_picture("![Login Flow](/p.png)", 240)).unwrap();
+
+    let xml = entry(&bytes, "word/document.xml");
+    assert!(xml.contains("<w:drawing>"));
+    assert!(xml.contains(r#"cx="2286000" cy="1143000""#), "{xml}");
+    assert!(!xml.contains("Login Flow"));
+    assert!(entry_names(&bytes).iter().any(|name| name.starts_with("word/media/") && name.ends_with(".png")));
+}
+
+#[test]
+fn a_picture_paragraph_is_aligned_as_its_address_says() {
+    for (ending, value) in [("", "left"), ("#center", "center"), ("#right", "right")] {
+        let bytes = DocxWriter::write(&document_with_picture(&format!("![a](/p.png{ending})"), 240)).unwrap();
+
+        let xml = entry(&bytes, "word/document.xml");
+
+        let before_drawing = &xml[..xml.find("<w:drawing>").expect("the picture is drawn")];
+        let paragraph = &before_drawing[before_drawing.rfind("<w:pPr>").expect("the paragraph has properties")..];
+        assert!(paragraph.contains(&format!(r#"<w:jc w:val="{value}""#)), "ending '{ending}': {paragraph}");
+    }
+}
+
+#[test]
+fn a_wide_picture_in_a_list_is_shrunk_to_the_width_beside_the_indent() {
+    let bytes = DocxWriter::write(&document_with_picture("- ![a](/p.png)", 2000)).unwrap();
+
+    assert!(entry(&bytes, "word/document.xml").contains(r#"cx="5400000" cy="2700000""#));
+}
+
+#[test]
+fn a_missing_picture_is_a_boxed_paragraph_with_its_description() {
+    let bytes = DocxWriter::write(&document(&[("Part", "![Old mock](/gone.png)")], vec![])).unwrap();
+
+    let xml = entry(&bytes, "word/document.xml");
+
+    assert!(xml.contains("Picture missing: Old mock"));
+    assert!(xml.contains("<w:pBdr>") && !xml.contains("<w:drawing>"));
 }

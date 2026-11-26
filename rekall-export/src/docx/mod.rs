@@ -2,6 +2,7 @@
 
 mod docx_blocks;
 mod docx_element;
+mod docx_figures;
 mod docx_inlines;
 mod docx_measure;
 mod docx_styles;

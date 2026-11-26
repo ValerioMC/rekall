@@ -1,5 +1,11 @@
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::io::Cursor;
+use std::path::Path;
+use std::sync::{Arc, Mutex};
 
+use async_trait::async_trait;
+use image::{ImageFormat, Rgb, RgbImage};
+use rekall_core::picture::{PicturePath, PictureStore};
 use rekall_core::EventBus;
 use rekall_kernel::Instant;
 use rekall_store::{company, project, project_section, section_context, ExportFailureKind, ProjectStatus};
@@ -11,6 +17,32 @@ use crate::export::DiagramImageCommand;
 const DIAGRAM_PNG: &[u8] = include_bytes!("../../../fixtures/diagram.png");
 const FLOW: &str = "graph TD\n  A --> B";
 
+#[derive(Default)]
+struct FakePictures {
+    kept: Mutex<HashMap<String, Vec<u8>>>,
+}
+
+impl FakePictures {
+    fn keep(&self, relative: &str, bytes: Vec<u8>) {
+        self.kept.lock().unwrap().insert(relative.to_string(), bytes);
+    }
+}
+
+#[async_trait]
+impl PictureStore for FakePictures {
+    async fn read_source(&self, _source: &Path, _limit_bytes: u64) -> Result<Vec<u8>> {
+        unreachable!("an export copies no picture in")
+    }
+
+    async fn write(&self, _path: &PicturePath, _bytes: &[u8]) -> Result<()> {
+        unreachable!("an export writes no picture")
+    }
+
+    async fn read(&self, path: &PicturePath) -> Result<Vec<u8>> {
+        self.kept.lock().unwrap().get(path.relative()).cloned().ok_or_else(|| RekallError::not_found_msg("no picture"))
+    }
+}
+
 struct World {
     service: ProjectExportService,
     company: company::Model,
@@ -19,6 +51,7 @@ struct World {
     decisions: section_context::Model,
     pages: Vec<project_section::Model>,
     components: Vec<project_component::Model>,
+    store: Arc<FakePictures>,
     database: rekall_store::Database,
 }
 
@@ -73,7 +106,9 @@ async fn world() -> World {
         a_page(db, &guides, "Release Plan", "Ship it.", 1, now).await,
     ];
     let components = vec![a_component(db, &vega, "api", 1, now).await, a_component(db, &vega, "ui", 0, now).await];
-    World { service: ProjectExportService::new(ctx), company, vega, guides, decisions, pages, components, database }
+    let store = Arc::new(FakePictures::default());
+    let service = ProjectExportService::new(ctx.clone(), PictureService::new(ctx, store.clone()));
+    World { service, company, vega, guides, decisions, pages, components, store, database }
 }
 
 fn command(format: ExportFormat) -> ProjectExportCommand {
@@ -85,7 +120,11 @@ fn diagram(source: &str, png: &[u8]) -> DiagramImageCommand {
 }
 
 async fn plan_of(world: &World, command: ProjectExportCommand) -> Result<ExportPlan> {
-    in_read!(&world.service.ctx, |tx| plan_in(&tx, world.vega.id, &command).await)
+    plan_for(world, world.vega.id, command).await
+}
+
+async fn plan_for(world: &World, project_id: Id, command: ProjectExportCommand) -> Result<ExportPlan> {
+    in_read!(&world.service.ctx, |tx| plan_in(&tx, project_id, &command).await)
 }
 
 async fn recorded(world: &World) -> Vec<project_export::Model> {
@@ -315,4 +354,47 @@ async fn clearing_with_no_criterion_or_an_unknown_company_is_refused() {
     assert!(matches!(unknown, RekallError::NotFound(_)));
     assert_eq!(world.service.list().await.unwrap().len(), 1);
     let _ = (&world.guides, &world.decisions);
+}
+
+fn jpeg(width: u32, height: u32) -> Vec<u8> {
+    let mut out = Cursor::new(Vec::new());
+    RgbImage::from_pixel(width, height, Rgb([200, 120, 40])).write_to(&mut out, ImageFormat::Jpeg).unwrap();
+    out.into_inner()
+}
+
+/// A project whose blueprint shows a JPEG, an SVG, a picture whose file is gone and one on the web.
+async fn a_project_with_pictures(world: &World) -> project::Model {
+    world.store.keep("acme/atlas/blueprint/photo-00000001.jpg", jpeg(60, 40));
+    world.store.keep("acme/atlas/blueprint/flow-00000002.svg", br#"<svg xmlns="http://www.w3.org/2000/svg" width="30" height="10"/>"#.to_vec());
+    let blueprint = "![Photo](/api/images/acme/atlas/blueprint/photo-00000001.jpg#center)\n\n\
+        ![Flow](/api/images/acme/atlas/blueprint/flow-00000002.svg)\n\n\
+        ![Gone](/api/images/acme/atlas/blueprint/gone-00000003.png)\n\n\
+        ![Web](https://example.com/logo.png)";
+    a_project(&world.database.conn, world.company.id, "atlas", "AT", Some(blueprint), Instant::now()).await
+}
+
+#[tokio::test]
+async fn the_pictures_of_the_ticked_texts_reach_the_document_as_png_and_a_missing_one_is_left_out() {
+    let world = world().await;
+    let atlas = a_project_with_pictures(&world).await;
+    let ticked = ProjectExportCommand { blueprint: true, ..command(ExportFormat::Pdf) };
+    let plan = plan_for(&world, atlas.id, ticked).await.unwrap();
+
+    let pictures = world.service.pictures_of(&plan).await;
+
+    let handed: Vec<(&str, u32)> = pictures.iter().map(|picture| (picture.address.as_str(), picture.natural_width)).collect();
+    assert_eq!(handed, [("/api/images/acme/atlas/blueprint/photo-00000001.jpg", 60), ("/api/images/acme/atlas/blueprint/flow-00000002.svg", 30)]);
+    assert!(pictures.iter().all(|picture| image::guess_format(&picture.png).unwrap() == ImageFormat::Png));
+}
+
+#[tokio::test]
+async fn an_export_with_a_missing_picture_is_written_in_each_format() {
+    let world = world().await;
+    let atlas = a_project_with_pictures(&world).await;
+
+    for format in [ExportFormat::Pdf, ExportFormat::Docx] {
+        let view = world.service.export(atlas.id, ProjectExportCommand { blueprint: true, ..command(format) }).await.unwrap();
+
+        assert_eq!(view.status, ExportStatus::Done, "{format}");
+    }
 }

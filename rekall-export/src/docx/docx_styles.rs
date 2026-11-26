@@ -32,7 +32,11 @@ impl DocxStyles {
     }
 
     pub(super) fn list_indent(depth: usize) -> i32 {
-        DocxMeasure::twips(LIST_STEP_MM * (depth + 1) as f64)
+        DocxMeasure::twips(Self::list_indent_mm(depth))
+    }
+
+    pub(super) fn list_indent_mm(depth: usize) -> f64 {
+        LIST_STEP_MM * (depth + 1) as f64
     }
 
     fn heading_style(index: u8) -> Style {

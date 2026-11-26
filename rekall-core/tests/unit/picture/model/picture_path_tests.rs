@@ -51,3 +51,13 @@ fn a_path_of_the_wrong_depth_extension_or_alphabet_is_refused() {
         assert!(PicturePath::parse(path).is_err(), "{path}");
     }
 }
+
+#[test]
+fn an_address_names_its_picture_and_anything_else_names_none() {
+    let path = PicturePath::of_address("/api/images/acme/web/web-12/a.png").unwrap();
+
+    assert_eq!(path.relative(), "acme/web/web-12/a.png");
+    for address in ["acme/web/web-12/a.png", "/api/images/acme/a.png", "/api/images/acme/web/../a.png", "docs/sketch.png"] {
+        assert!(PicturePath::of_address(address).is_err(), "{address}");
+    }
+}

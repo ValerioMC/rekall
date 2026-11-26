@@ -1,5 +1,6 @@
-//! What a person does with pictures: keep one beside the database, in its owner's folder, and read
-//! it back. The disk is reached through the `PictureStore` port of `rekall_core::picture`.
+//! What a person does with pictures: keep one beside the database, in its owner's folder, read it
+//! back and print it in an export. The disk is reached through the `PictureStore` port of
+//! `rekall_core::picture`.
 
 mod command;
 mod rule;
@@ -14,3 +15,4 @@ pub use rule::picture_content::{too_large, MAX_PICTURE_BYTES};
 pub use service::picture_service::PictureService;
 pub use view::imported_picture_view::ImportedPictureView;
 pub use view::picture_file_view::PictureFileView;
+pub use view::printable_picture_view::PrintablePictureView;

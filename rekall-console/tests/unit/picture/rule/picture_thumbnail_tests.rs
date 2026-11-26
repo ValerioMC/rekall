@@ -1,6 +1,6 @@
 use std::io::Cursor;
 
-use image::{GenericImageView, Rgb, RgbImage};
+use image::{GenericImageView, ImageFormat, Rgb, RgbImage};
 
 use super::*;
 

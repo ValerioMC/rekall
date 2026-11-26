@@ -5,8 +5,8 @@ use super::export_file_name;
 use super::export_selection::ExportSelection;
 use crate::export::DiagramImageCommand;
 
-/// Everything an export needs once the items are read: the document to write, what it is called
-/// and what the record of it says.
+/// Everything an export needs once the items are read: the document to write, still without its
+/// pictures, what it is called and what the record of it says.
 #[derive(Clone, Debug)]
 pub struct ExportPlan {
     pub project: project::Model,
@@ -23,6 +23,7 @@ impl ExportPlan {
             title: project.title.clone(),
             parts: selection.parts(),
             diagrams: diagrams.iter().map(|image| DiagramImage { source: image.source.clone(), png: image.png.clone() }).collect(),
+            pictures: Vec::new(),
         };
         Self {
             summary: selection.summary(),

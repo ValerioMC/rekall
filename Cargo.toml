@@ -79,6 +79,7 @@ base64 = "0.22"
 sha2 = "0.10"
 roxmltree = "0.21"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
+resvg = { version = "0.50", default-features = false, features = ["text", "system-fonts", "memmap-fonts", "raster-images"] }
 portable-pty = "0.9"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 tempfile = "3"

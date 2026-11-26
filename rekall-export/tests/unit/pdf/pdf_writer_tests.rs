@@ -4,17 +4,53 @@ use lopdf::content::Content;
 use lopdf::{Dictionary, Document, Object};
 
 use super::*;
-use crate::document::{DiagramImage, ExportPart};
+use crate::document::{DiagramImage, ExportPart, ExportPicture};
+use crate::pdf::pdf_metrics::PdfMetrics;
+use crate::pdf::placed::Placed;
 use crate::style::DocumentStyle;
 
 const DIAGRAM_PNG: &[u8] = include_bytes!("../../fixtures/diagram.png");
+const SCREENSHOT_PNG: &[u8] = include_bytes!("../../fixtures/screenshot.png");
 
 fn document(parts: &[(&str, &str)], diagrams: Vec<DiagramImage>) -> ExportDocument {
     ExportDocument {
         title: "Rekall blueprint".to_string(),
         parts: parts.iter().map(|(heading, markdown)| ExportPart { heading: heading.to_string(), markdown: markdown.to_string() }).collect(),
         diagrams,
+        pictures: vec![],
     }
+}
+
+fn picture(address: &str, png: &[u8], natural_width: u32) -> ExportPicture {
+    ExportPicture { address: address.to_string(), png: png.to_vec(), natural_width }
+}
+
+/// Where the writer's layout puts each picture of the markdown: its left edge and width, in points.
+fn placements(markdown: &str, pictures: Vec<ExportPicture>) -> Vec<(f32, f32)> {
+    let faces = PdfFaces::load().expect("the fonts load");
+    let document = ExportDocument { pictures, ..document(&[("Part", markdown)], vec![]) };
+    let blocks = MarkdownBlocks::read(&document.parts[0], &[], &document.pictures);
+    let mut layout = PdfBlocks::new(&faces);
+    layout.render_part(&blocks, true).expect("the part is laid out");
+    let (pages, _) = layout.finish();
+    pages
+        .iter()
+        .flatten()
+        .filter_map(|placed| match placed {
+            Placed::Picture { x, width, .. } => Some((*x, *width)),
+            _ => None,
+        })
+        .collect()
+}
+
+fn image_widths(bytes: &[u8]) -> Vec<i64> {
+    let pdf = Document::load_mem(bytes).expect("the output is a PDF");
+    pdf.objects
+        .values()
+        .filter_map(|object| object.as_stream().ok())
+        .filter(|stream| stream.dict.get(b"Subtype").and_then(Object::as_name).ok() == Some(b"Image".as_slice()))
+        .filter_map(|stream| stream.dict.get(b"Width").and_then(Object::as_i64).ok())
+        .collect()
 }
 
 fn diagram(source: &str) -> DiagramImage {
@@ -183,4 +219,49 @@ fn only_the_glyphs_used_are_embedded() {
     let bytes = PdfWriter::write(&document(&[("Small", "A short page of text with a **bold** word and `code`.")], vec![])).unwrap();
 
     assert!(bytes.len() < 150_000, "the file is {} bytes", bytes.len());
+}
+
+#[test]
+fn a_picture_is_embedded_and_a_missing_one_prints_its_description() {
+    let markdown = "![Login Flow](/pictures/flow.png)\n\n![Old mock](/pictures/gone.png)";
+    let document = ExportDocument { pictures: vec![picture("/pictures/flow.png", DIAGRAM_PNG, 240)], ..document(&[("Part", markdown)], vec![]) };
+
+    let bytes = PdfWriter::write(&document).unwrap();
+
+    let texts = texts(&bytes);
+    assert_eq!(image_count(&bytes), 1);
+    assert!(texts.contains(&"Picture missing: Old mock".to_string()), "{texts:?}");
+    assert!(!texts.iter().any(|text| text.contains("Login Flow")));
+}
+
+#[test]
+fn a_picture_stands_where_its_address_aligns_it_at_its_natural_width() {
+    let markdown = "![a](/p.png)\n\n![b](/p.png#center)\n\n![c](/p.png#right)";
+
+    let placements = placements(markdown, vec![picture("/p.png", DIAGRAM_PNG, 240)]);
+
+    let natural = 180.0;
+    let spare = PdfMetrics::content_width() - natural;
+    let expected = [0.0, spare / 2.0, spare].map(|offset| PdfMetrics::margin() + offset);
+    assert_eq!(placements.len(), 3);
+    for ((x, width), expected_x) in placements.into_iter().zip(expected) {
+        assert!((width - natural).abs() < 0.01, "width {width}");
+        assert!((x - expected_x).abs() < 0.01, "x {x}, expected {expected_x}");
+    }
+}
+
+#[test]
+fn a_wide_picture_is_shrunk_to_the_width_left_inside_a_quote() {
+    let placements = placements("> ![a](/p.png)", vec![picture("/p.png", SCREENSHOT_PNG, 1200)]);
+
+    assert!((placements[0].1 - (PdfMetrics::content_width() - PdfMetrics::QUOTE_INDENT)).abs() < 0.01, "{placements:?}");
+}
+
+#[test]
+fn a_large_picture_keeps_every_pixel() {
+    let document = ExportDocument { pictures: vec![picture("/p.png", SCREENSHOT_PNG, 1200)], ..document(&[("Part", "![a](/p.png)")], vec![]) };
+
+    let bytes = PdfWriter::write(&document).unwrap();
+
+    assert_eq!(image_widths(&bytes), [1200]);
 }

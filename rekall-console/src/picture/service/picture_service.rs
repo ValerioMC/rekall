@@ -7,9 +7,10 @@ use rekall_kernel::{RekallError, Result};
 
 use crate::picture::rule::picture_content::{self, MAX_PICTURE_BYTES};
 use crate::picture::rule::picture_naming;
+use crate::picture::rule::picture_print;
 use crate::picture::rule::picture_thumbnail;
 use crate::picture::support::owner_folder;
-use crate::picture::{ImportedPictureView, PictureFileView, PictureImportCommand, PictureOwner, PictureUploadCommand};
+use crate::picture::{ImportedPictureView, PictureFileView, PictureImportCommand, PictureOwner, PictureUploadCommand, PrintablePictureView};
 use crate::shared::blocking;
 
 /// What a picture that arrived without a name is kept as.
@@ -53,6 +54,13 @@ impl PictureService {
         let bytes = self.store.read_source(Path::new(source_path), MAX_PICTURE_BYTES).await?;
         let format = picture_content::format_of(&bytes)?;
         blocking(move || picture_thumbnail::of(bytes, format)).await
+    }
+
+    /// The PNG an export prints for the picture a markdown address names.
+    pub async fn printable(&self, address: &str) -> Result<PrintablePictureView> {
+        let bytes = self.store.read(&PicturePath::of_address(address)?).await?;
+        let format = picture_content::format_of(&bytes)?;
+        blocking(move || picture_print::of(bytes, format)).await
     }
 
     pub async fn read(&self, relative: &str) -> Result<PictureFileView> {
