@@ -7,6 +7,7 @@ use rekall_core::connection::{github_api_root, Mergeability, PullRequest, PullRe
 use rekall_store::ConnectionKind;
 use serde::Deserialize;
 use serde_json::{json, Value};
+use tracing::warn;
 
 use super::http_task_tracker::{checked, said_by, signature_of, Refusal};
 use crate::probes::{client_through, failure_chain};
@@ -21,6 +22,18 @@ struct GithubPull {
     mergeable: Option<bool>,
     merged: Option<bool>,
     mergeable_state: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct GithubIssueStatus {
+    state: GithubIssueState,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum GithubIssueState {
+    Open,
+    Closed,
 }
 
 /// GitHub's pull request API over HTTPS with `reqwest`, through the connection's proxy when it
@@ -72,6 +85,14 @@ impl GithubPullRequestHost {
         }
         Ok(PullRequestMerge::Refused(if reason.is_empty() { "GitHub refused the merge".to_string() } else { reason }))
     }
+
+    async fn issue_is_closed(&self, endpoint: &TrackerEndpoint, path: &str) -> Result<bool, TrackerFailure> {
+        let response = checked(self.send(endpoint, Method::GET, path, &[], None).await?).await?;
+        let issue = response.json::<GithubIssueStatus>().await.map_err(|failure| TrackerFailure::Failed {
+            reason: format!("its answer did not read as an issue ({failure})"),
+        })?;
+        Ok(matches!(issue.state, GithubIssueState::Closed))
+    }
 }
 
 impl Default for GithubPullRequestHost {
@@ -110,8 +131,18 @@ impl PullRequestHost for GithubPullRequestHost {
     }
 
     async fn close_issue(&self, endpoint: &TrackerEndpoint, issue_key: &str) -> Result<(), TrackerFailure> {
-        let response = self.send(endpoint, Method::PATCH, &format!("/issues/{issue_key}"), &[], Some(json!({ "state": "closed" }))).await?;
-        checked(response).await.map(|_| ())
+        let path = format!("/issues/{issue_key}");
+        let response = self.send(endpoint, Method::PATCH, &path, &[], Some(json!({ "state": "closed" }))).await?;
+        let status = response.status();
+        let result = checked(response).await.map(|_| ());
+        if status == StatusCode::UNPROCESSABLE_ENTITY {
+            match self.issue_is_closed(endpoint, &path).await {
+                Ok(true) => return Ok(()),
+                Ok(false) => {}
+                Err(failure) => warn!(?failure, %issue_key, "Could not verify the GitHub issue state after a rejected close"),
+            }
+        }
+        result
     }
 
     async fn delete_branch(&self, endpoint: &TrackerEndpoint, branch: &str) -> Result<(), TrackerFailure> {
