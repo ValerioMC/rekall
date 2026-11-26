@@ -424,18 +424,6 @@ describe('ShellDock', () => {
       expect(wrapper.find('[data-testid="terminal-float"]').exists()).toBe(true)
     })
 
-    it('moves to the full terminal pane from Open in pane', async () => {
-      const { wrapper, console, terminals } = await floatTerminal()
-
-      await wrapper.get('[data-testid="terminal-float-expand"]').trigger('click')
-      await flushPromises()
-
-      expect(console.paneFocus).toBe('terminal')
-      expect(terminals.activeTerminalId).toBe('term-1')
-      expect(push).toHaveBeenCalledWith({ name: 'console' })
-      expect(wrapper.find('[data-testid="terminal-float"]').exists()).toBe(false)
-    })
-
     it('is where a session opens by default, wherever it is asked for', async () => {
       const { wrapper, console, terminals } = await mountDock([terminal()])
       const open = effectScope().run(() => useOpenSession())!

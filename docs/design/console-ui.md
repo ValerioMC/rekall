@@ -67,8 +67,8 @@ Every screen is a page header, optional tabs and a body, and the body is always 
 The routes that exist today keep their paths: the redesign changes what a screen shows, not where it
 lives. `/` is no screen of its own: it goes to the project list, and `/review` and `/settings`
 are new. A ledger row, a card and the sheet open the task page at `/task/:id/description`; a note in view
-is part of the path (`/task/:id/notes/:noteId`). `/console` is the terminal host and nothing else: Open in terminal, the dock and a deep link to a
-terminal show the session there, and a visit with no terminal open goes on to the task page of the task
+is part of the path (`/task/:id/notes/:noteId`). `/console` is the terminal host and nothing else: the terminal key on a task's tab and a deep link to a
+terminal show the session there (the dock and the run queue's **Watch session** float it above the dock instead), and a visit with no terminal open goes on to the task page of the task
 in view, or to the project list. The notes list, the steps, wrapup, description and deviation panes of the old
 console are gone; their tabs are on the task page.
 
