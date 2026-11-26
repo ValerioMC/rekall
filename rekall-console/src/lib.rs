@@ -20,6 +20,7 @@ pub mod filesystem;
 pub mod graph;
 pub mod guard;
 pub mod note;
+pub mod picture;
 pub mod queue;
 pub mod quick;
 pub mod section;

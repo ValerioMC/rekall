@@ -20,7 +20,7 @@ use rekall_core::queue::RunQueueService;
 use rekall_core::skill::SkillGroupService;
 use rekall_core::Services;
 
-use rekall_console::{adherence, backup, catalog, chat, check, claude, component, connection, decision, dependency, deviation, diagram, export, feedback, filesystem, graph, guard, note, queue, quick, section, settings, skill, tag, terminal, version, vulnerability, workingset, worktree};
+use rekall_console::{adherence, backup, catalog, chat, check, claude, component, connection, decision, dependency, deviation, diagram, export, feedback, filesystem, graph, guard, note, picture, queue, quick, section, settings, skill, tag, terminal, version, vulnerability, workingset, worktree};
 
 use crate::{ApiPorts, StepEventStream};
 
@@ -105,6 +105,7 @@ pub struct ApiState {
     pub connection_checks: ConnectionCheckService,
     pub backups: backup::BackupService,
     pub database_folders: settings::DatabaseFolderService,
+    pub pictures: picture::PictureService,
     pub update_check: version::UpdateCheckService,
     pub stream: Arc<StepEventStream>,
 }
@@ -264,10 +265,11 @@ impl ApiState {
             claude_install: claude::ClaudeInstallService::new(ports.claude_setup),
             guard_protection: claude::GuardProtectionService::new(ports.guard_installer),
             connection_checks: ConnectionCheckService::new(ctx.clone(), ports.secrets, ports.connection_probe),
-            skill_groups: SkillGroupService::new(ctx),
+            skill_groups: SkillGroupService::new(ctx.clone()),
             credential_hand_out: connection::CredentialHandOutService::new(ports.credential_desk),
             backups: backup::BackupService::new(ports.backups, ports.restore),
             database_folders: settings::DatabaseFolderService::new(ports.database_folders, ports.restart),
+            pictures: picture::PictureService::new(ctx.clone(), ports.pictures),
             update_check: version::UpdateCheckService::new(RUNNING_VERSION, ports.release_feed),
             stream,
         }

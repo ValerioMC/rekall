@@ -17,6 +17,7 @@ use rekall_infra::chat::ChatSessionManager;
 use rekall_infra::codex::{CodexCli, CodexIntegration};
 use rekall_infra::installer::{ClaudeCodeInstaller, GuardHookInstaller};
 use rekall_infra::login_shell::LoginShellEnvironment;
+use rekall_infra::picture::FolderPictureStore;
 use rekall_infra::pty::PtyTerminalManager;
 use rekall_infra::queue::RunQueueRunner;
 use rekall_infra::resources::ClaudeResourceService;
@@ -101,6 +102,7 @@ impl Instance {
         let queue = start_queue(config, &ctx, &events, &services, &task_tracker, &sessions.hosts, &usage);
         let transcripts = TranscriptScanner::new(TranscriptFolder::new(claude_config.transcripts_dir.clone()), services.token_usage.clone());
         let location = database.path.as_deref().and_then(DatabaseLocation::of);
+        let pictures = Arc::new(FolderPictureStore::new(location.as_ref()));
         let backups = DatabaseBackupService::new(
             database.conn.clone(),
             location,
@@ -133,6 +135,7 @@ impl Instance {
             restore: Arc::new(DatabaseRestoreService::new(backups.clone(), restarter.clone())),
             database_folders: Arc::new(DatabaseFolderRegistry::new(DatabaseRegistryStore::new(&config.home), config.user_home.clone())),
             restart: Arc::new(restarter),
+            pictures,
             task_tracker: task_tracker.clone(),
             task_worktrees: queue.worktrees.clone(),
             protected_credential_references: protected_references(&config.home, &config.user_home),

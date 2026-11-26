@@ -22,6 +22,10 @@ impl DatabaseLocation {
         self.folder.join("backups")
     }
 
+    pub fn images(&self) -> PathBuf {
+        self.folder.join("images")
+    }
+
     pub fn data_file(&self) -> PathBuf {
         self.folder.join(&self.data_file_name)
     }

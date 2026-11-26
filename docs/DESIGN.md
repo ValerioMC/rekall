@@ -44,6 +44,7 @@ loaded in one call, including its notes.
 | D8 | A task carries one wrapup, and it is a state and not a log | The thing that costs a session its first twenty minutes is reconstructing what the code already does. A note cannot answer that: notes accumulate, and the reader has to synthesise the current state out of them. A wrapup is that synthesis, written once and overwritten thereafter. Its own table, because notes accumulate on a task by construction and "one answer per task" has to be a constraint rather than a convention. See §4.1. |
 | D9 | An export's diagrams are drawn by the console and sent with the request, and its file is stored and downloaded by link | The server has no browser, and the console already draws Mermaid: it draws each fence again on a light palette (`diagram-palette.ts`), takes a PNG and posts `{ source, png }` pairs beside the choice, so `rekall-export` only places pictures it is handed and a fence with none becomes an error paragraph, never a failed export. A finished file is stored in `project_export_file` and the person downloads it from `GET /api/exports/{id}/file`, a plain attachment link, as the desktop shell already saves a backup, so the console handles no blob and an export can be fetched again until it is deleted. |
 | D10 | Every text a session saves for a person opens on a scenario | A session writes with the code loaded, so a step, note or deviation can be accurate and still unreadable to the person who reviews it in the console without the code. `.claude/rk/reader.md` sets one order (scenario, what changes, the parts involved in plain words then code names, terms, the work) and the modes that write such text point to it; the MCP tools that write a task, a step, a note, a deviation or a decision end their descriptions with its short form (`reader!` in `rekall-mcp/src/texts.rs`), so a client that never reads the modes gets it too. A diagram carries the same thing as data: a `Scenario` on `DiagramDocument`, required on every diagram a session writes (`DocumentValidator::validate_generated`) and optional on an imported or older one, and the console opens a walkthrough on it. |
+| D11 | Pictures are files beside the database, addressed by URL in the markdown | The database stays text. A picture is copied to `images/<company>/<project>/...` beside the database file and the markdown holds its address, `/api/images/...`. The address is the picture's identity: renaming or moving a record moves no file, so no link breaks, and the eight characters of the content's hash in the name keep two pictures from overwriting each other. Only a `PicturePath` names a file there, the format is read from the content and never from the extension, and a picture is at most 10 MB. A database that is not a file keeps no pictures. |
 
 Non-goals: multi-user, authentication, remote deployment, vector search.
 
@@ -61,7 +62,7 @@ rekall/
   rekall-console/    the services only the console calls, one folder per domain: commands in, views out, no HTTP types
   rekall-http/       Axum REST routes for the UI, one folder per domain: controllers, request and response shapes and routes; `shared` holds the error body, request extractors and response helpers
   rekall-mcp/        MCP server: six tools read, twenty-one write; a folder per domain holds its tools
-  rekall-infra/      the implementations of core's ports, a folder per capability: the in-app terminal (`pty`), the chat session (`chat`) and the `session` host that routes between the two, the run queue's worker, the usage meter, the transcript reader, the Claude folder editor (`resources`), the Claude Code installer, the shell that runs a step's checks (`check`), the git worktrees of a task (`worktree`), the credential sessions (`connection`), the database registry (`bootstrap`), backups and restores, the restart handle, the release feed and the macOS update installer (`version`), the credential file and the OS credential store it replaced (`secret`), the connection probes, the Jira search, the task manager's REST calls and the runner that creates a new task's issue in it (`tracker`), the GitHub Advisory Database client; it serves no route
+  rekall-infra/      the implementations of core's ports, a folder per capability: the in-app terminal (`pty`), the chat session (`chat`) and the `session` host that routes between the two, the run queue's worker, the usage meter, the transcript reader, the Claude folder editor (`resources`), the Claude Code installer, the shell that runs a step's checks (`check`), the git worktrees of a task (`worktree`), the credential sessions (`connection`), the database registry (`bootstrap`), backups and restores, the restart handle, the release feed and the macOS update installer (`version`), the credential file and the OS credential store it replaced (`secret`), the connection probes, the pictures beside the database (`picture`), the Jira search, the task manager's REST calls and the runner that creates a new task's issue in it (`tracker`), the GitHub Advisory Database client; it serves no route
   rekall-app/        rekall-server: builds the infrastructure and injects it, mounts the HTTP and MCP routers, the local-access guard, serves the built frontend, embedded at compile time
   rekall-app/desktop the Tauri desktop app over the same server, in-process
   rekall-ui/         Vue 3 + Vite (built into rekall-ui/dist, embedded by rekall-app)
@@ -128,6 +129,7 @@ is found by opening one folder per crate:
 | `graph` | a project's deployment graphs and laying one on a task; console-only, so it has no folder in `rekall-core` |
 | `note` | documents, each owned by one task and deleted with it, and how they load (in full or by reference) |
 | `wrapup`, `review`, `timeentry` | the wrapup, the review line, logged time |
+| `picture` | the pictures a markdown text shows, kept as files in `images/` beside the database (D11): `PicturePath` and the `PictureStore` port in `rekall-core`, `PictureService` in `rekall-console`, which names the folder after the owner (a task, a project's blueprint, a page or a component) and judges the format by the content, and `FolderPictureStore` in `rekall-infra`. Called `picture` so no module shadows the `image` crate; no table behind it, so no folder in `rekall-store` |
 | `commit`, `diagram`, `token`, `search`, `context` | logged commits and what they and the working tree changed, stored diagrams, token usage, search, context assembly and its size |
 | `context_fill` | the last share of its context window a chat held at the end of a turn, per task and per step (`ContextFillService`, the only writer of `context_fill`; the console reads it) |
 | `quick` | the quick task: a task started from one line of text with its session opened at once, accepted without a review when Claude's wrapup lands; console and HTTP only, the acceptance itself is in `review` and `wrapup` |
@@ -209,6 +211,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `guard` | - | nothing | `catalog`, `step`, `task` | nothing | - |
 | `inventory` | `catalog` | `catalog` | - | nothing | `vulnerability` |
 | `note` | `task` | `task` | nothing | nothing | nothing |
+| `picture` | - | nothing | `catalog`, `component`, `section`, `task` | nothing | - |
 | `queue` | `task` | `catalog`, `claude`, `dependency`, `task` | nothing | nothing | - |
 | `quick` | - | - | `catalog`, `claude`, `terminal` | `catalog`, `claude` | - |
 | `review` | - | `step`, `task`, `timeentry` | - | - | - |
@@ -504,6 +507,19 @@ blueprint alone, an item of another project) is not recorded. Diagrams are decis
 
 The console lists them on `/exports`, a Library screen, grouped by company then project; filters and search run
 over the loaded list and have no route.
+
+### 4.7 Pictures
+
+A picture is a file, not a row (D11). `PictureService` copies the chosen file into its owner's folder,
+`<company>/<project>/` followed by the task's code, `blueprint`, `pages/<title>` or `components/<name>`, and
+names it `<file name>-<hash>.<format>`. A name that leaves no slug falls back to the start of the record's id,
+a file's to `image`. A file already there is written again, so its modification time says when it was last
+asked for.
+
+| Route | Does |
+|---|---|
+| `POST /api/images` | Copies the file at `sourcePath` for `owner` (`kind` `TASK`, `BLUEPRINT`, `PAGE` or `COMPONENT`, and `id`; a blueprint is named by its project's id) and answers `201` with its `url`. Not a picture, past 10 MB, not a file or a relative path is `400`, an unknown owner `404`, a database that is not a file `409` |
+| `GET /api/images/{path}` | The bytes with their content type, cacheable for good, `nosniff` and same-origin only; an SVG carries a sandboxing `Content-Security-Policy`, so one opened directly runs no script. Anything that is not a picture's path is `404` |
 
 ---
 
