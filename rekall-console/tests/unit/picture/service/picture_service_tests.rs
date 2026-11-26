@@ -246,3 +246,46 @@ async fn a_thumbnail_is_refused_for_what_an_import_refuses() {
         assert!(matches!(refusal, RekallError::IllegalArgument(_)), "{source}: {refusal}");
     }
 }
+
+fn upload_of(name: Option<&str>, bytes: &[u8], owner: PictureOwner) -> PictureUploadCommand {
+    PictureUploadCommand { name: name.map(Into::into), bytes: bytes.to_vec(), owner }
+}
+
+#[tokio::test]
+async fn an_uploaded_picture_is_kept_as_an_imported_one_is() {
+    let world = world().await;
+    let imported = world.service.import(import_of(LOGIN_FLOW, PictureOwner::Task(world.task))).await.unwrap();
+
+    let uploaded = world.service.upload(upload_of(Some("Login Flow.png"), PNG, PictureOwner::Task(world.task))).await.unwrap();
+
+    assert_eq!(uploaded, imported);
+    let kept = uploaded.url.strip_prefix("/api/images/").unwrap();
+    assert_eq!(world.store.kept.lock().unwrap()[kept], PNG);
+}
+
+#[tokio::test]
+async fn an_upload_without_a_name_is_a_pasted_image() {
+    let world = world().await;
+
+    for name in [None, Some("  ")] {
+        let url = world.service.upload(upload_of(name, PNG, PictureOwner::Page(world.page))).await.unwrap().url;
+        assert!(url.starts_with("/api/images/acme/web/pages/release-plan/pasted-image-"), "{url}");
+    }
+}
+
+#[tokio::test]
+async fn an_upload_that_is_no_picture_too_large_or_for_nobody_writes_nothing() {
+    let world = world().await;
+    let task = PictureOwner::Task(world.task);
+    let mut oversized = PNG.to_vec();
+    oversized.resize(MAX_PICTURE_BYTES as usize + 1, 0);
+
+    let text = world.service.upload(upload_of(Some("notes.png"), b"only text", task)).await;
+    let large = world.service.upload(upload_of(Some("huge.png"), &oversized, task)).await;
+    let nobody = world.service.upload(upload_of(None, PNG, PictureOwner::Task(Id::random()))).await;
+
+    assert!(matches!(text, Err(RekallError::IllegalArgument(_))), "{text:?}");
+    assert!(matches!(large, Err(RekallError::IllegalArgument(ref message)) if message.contains("10 MB")), "{large:?}");
+    assert!(matches!(nobody, Err(RekallError::NotFound(_))), "{nobody:?}");
+    assert_eq!(*world.store.writes.lock().unwrap(), 0);
+}

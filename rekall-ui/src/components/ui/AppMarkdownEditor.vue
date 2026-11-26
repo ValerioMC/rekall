@@ -19,6 +19,7 @@ import { paintTaskReferences } from '@/common/markdown/task-reference'
 import { useReferenceChips } from '@/composables/useReferenceChips'
 import { useEditorPathPicker } from '@/composables/useEditorPathPicker'
 import { usePictureInsert } from '@/features/picture/composables/usePictureInsert'
+import { usePictureTransfer } from '@/features/picture/composables/usePictureTransfer'
 import { withFolderSlash } from '@/common/path/path-query'
 import type { PictureOwner } from '@/features/picture/model/picture'
 import { useFittedEditorHeight } from '@/composables/useFittedEditorHeight'
@@ -59,7 +60,7 @@ const props = withDefaults(
     pathRoot?: string | null
     /**
      * The record the text belongs to, for pictures: with one, the toolbar's image button picks a
-     * file and copies it into that record's folder. Without one the button writes bare markdown.
+     * file, and pasted or dropped pictures are taken, all copied into that record's folder.
      */
     pictureOwner?: PictureOwner | null
     /**
@@ -133,6 +134,7 @@ const {
   pathRoot: () => props.pathRoot,
   owner: () => props.pictureOwner
 })
+usePictureTransfer(editor, () => props.pictureOwner)
 
 const tableMenu = useTableContextMenu(editor)
 

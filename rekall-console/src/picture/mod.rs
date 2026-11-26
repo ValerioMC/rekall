@@ -9,6 +9,8 @@ mod view;
 
 pub use command::picture_import_command::PictureImportCommand;
 pub use command::picture_owner::PictureOwner;
+pub use command::picture_upload_command::PictureUploadCommand;
+pub use rule::picture_content::{too_large, MAX_PICTURE_BYTES};
 pub use service::picture_service::PictureService;
 pub use view::imported_picture_view::ImportedPictureView;
 pub use view::picture_file_view::PictureFileView;

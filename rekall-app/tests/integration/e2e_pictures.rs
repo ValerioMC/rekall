@@ -92,3 +92,55 @@ async fn a_file_being_browsed_is_previewed_under_the_headers_of_a_kept_picture()
     app.stop().await;
 }
 
+
+async fn uploaded(app: &App, query: &[(&str, &str)], bytes: Vec<u8>) -> (u16, serde_json::Value) {
+    let request = app.client.post(app.url("/api/image-uploads")).query(query).header("content-type", "image/png");
+    let response = request.body(bytes).send().await.unwrap();
+    let status = response.status().as_u16();
+    (status, response.json().await.unwrap_or_default())
+}
+
+#[tokio::test]
+async fn uploaded_bytes_are_kept_as_a_picture_of_their_owner() {
+    let app = app().await;
+    let task = a_task(&app).await;
+    let owner = [("ownerKind", "TASK"), ("ownerId", task.as_str())];
+
+    let (status, pasted) = uploaded(&app, &owner, PNG.to_vec()).await;
+    assert_eq!(status, 201, "{pasted}");
+    let url = pasted["url"].as_str().unwrap();
+    assert!(url.starts_with("/api/images/acme/web/web-1/pasted-image-"), "{url}");
+    assert_eq!(served(&app, url).await.bytes().await.unwrap().as_ref(), PNG);
+
+    let named = [owner[0], owner[1], ("name", "Login Flow & co.png")];
+    let (_, dropped) = uploaded(&app, &named, PNG.to_vec()).await;
+    assert!(dropped["url"].as_str().unwrap().contains("/web-1/login-flow-co-"), "{dropped}");
+
+    app.stop().await;
+}
+
+#[tokio::test]
+async fn an_upload_refused_for_its_content_size_or_owner_keeps_nothing() {
+    let app = app().await;
+    let task = a_task(&app).await;
+    let owner = [("ownerKind", "TASK"), ("ownerId", task.as_str())];
+    let mut at_the_limit = PNG.to_vec();
+    at_the_limit.resize(10 * 1024 * 1024, 0);
+    let mut over_the_limit = at_the_limit.clone();
+    over_the_limit.push(0);
+
+    assert_eq!(uploaded(&app, &owner, b"only text".to_vec()).await.0, 400);
+    assert_eq!(uploaded(&app, &owner, Vec::new()).await.0, 400);
+    let (status, refusal) = uploaded(&app, &owner, over_the_limit).await;
+    assert_eq!((status, refusal["detail"].as_str()), (400, Some("The picture is larger than 10 MB.")));
+    assert_eq!(uploaded(&app, &[("ownerKind", "TASK")], PNG.to_vec()).await.0, 400);
+    assert_eq!(uploaded(&app, &[("ownerKind", "TASK"), ("ownerId", "nope")], PNG.to_vec()).await.0, 400);
+    assert_eq!(uploaded(&app, &[("ownerKind", "FOLDER"), ("ownerId", task.as_str())], PNG.to_vec()).await.0, 400);
+    let stranger = [("ownerKind", "PAGE"), ("ownerId", task.as_str())];
+    assert_eq!(uploaded(&app, &stranger, PNG.to_vec()).await.0, 404);
+    assert!(!app.folder.path().join("db/images").exists());
+
+    assert_eq!(uploaded(&app, &owner, at_the_limit).await.0, 201);
+
+    app.stop().await;
+}

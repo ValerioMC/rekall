@@ -9,8 +9,11 @@ use crate::picture::rule::picture_content::{self, MAX_PICTURE_BYTES};
 use crate::picture::rule::picture_naming;
 use crate::picture::rule::picture_thumbnail;
 use crate::picture::support::owner_folder;
-use crate::picture::{ImportedPictureView, PictureFileView, PictureImportCommand};
+use crate::picture::{ImportedPictureView, PictureFileView, PictureImportCommand, PictureOwner, PictureUploadCommand};
 use crate::shared::blocking;
+
+/// What a picture that arrived without a name is kept as.
+const PASTED_NAME: &str = "pasted-image";
 
 #[derive(Clone)]
 pub struct PictureService {
@@ -26,10 +29,21 @@ impl PictureService {
     pub async fn import(&self, command: PictureImportCommand) -> Result<ImportedPictureView> {
         let source = Path::new(&command.source_path);
         let bytes = self.store.read_source(source, MAX_PICTURE_BYTES).await?;
-        let format = picture_content::format_of(&bytes)?;
-        let folder = in_read!(&self.ctx, |tx| owner_folder::of(tx.db(), command.owner).await)?;
-        let path = PicturePath::parse(&format!("{folder}/{}", picture_naming::file_name(source, &bytes, format)))?;
-        self.store.write(&path, &bytes).await?;
+        self.keep(command.owner, source, &bytes).await
+    }
+
+    pub async fn upload(&self, command: PictureUploadCommand) -> Result<ImportedPictureView> {
+        picture_content::within_limit(&command.bytes)?;
+        let name = command.name.filter(|name| !name.trim().is_empty()).unwrap_or_else(|| PASTED_NAME.to_string());
+        self.keep(command.owner, Path::new(&name), &command.bytes).await
+    }
+
+    /// Judges the content, then writes it into the owner's folder under a name taken from `source`.
+    async fn keep(&self, owner: PictureOwner, source: &Path, bytes: &[u8]) -> Result<ImportedPictureView> {
+        let format = picture_content::format_of(bytes)?;
+        let folder = in_read!(&self.ctx, |tx| owner_folder::of(tx.db(), owner).await)?;
+        let path = PicturePath::parse(&format!("{folder}/{}", picture_naming::file_name(source, bytes, format)))?;
+        self.store.write(&path, bytes).await?;
         Ok(ImportedPictureView { url: path.address() })
     }
 

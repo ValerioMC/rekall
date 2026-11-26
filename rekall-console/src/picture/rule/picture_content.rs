@@ -5,7 +5,18 @@ use rekall_core::picture::PictureFormat;
 use rekall_kernel::{RekallError, Result};
 use roxmltree::{Document, ParsingOptions};
 
-pub(in crate::picture) const MAX_PICTURE_BYTES: u64 = 10 * 1024 * 1024;
+pub const MAX_PICTURE_BYTES: u64 = 10 * 1024 * 1024;
+
+pub fn too_large() -> RekallError {
+    RekallError::illegal(format!("The picture is larger than {} MB.", MAX_PICTURE_BYTES / (1024 * 1024)))
+}
+
+pub(in crate::picture) fn within_limit(bytes: &[u8]) -> Result<()> {
+    if bytes.len() as u64 > MAX_PICTURE_BYTES {
+        return Err(too_large());
+    }
+    Ok(())
+}
 
 pub(in crate::picture) fn format_of(bytes: &[u8]) -> Result<PictureFormat> {
     match image::guess_format(bytes) {

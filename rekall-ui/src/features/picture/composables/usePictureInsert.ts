@@ -3,7 +3,7 @@ import type { ExposeParam } from 'md-editor-v3'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useEditorSelectionPicker, type EditorSelection } from '@/composables/useEditorSelectionPicker'
 import { importPicture } from '@/features/picture/api/pictures.api'
-import { pictureMarkdown } from '@/features/picture/lib/picture-file'
+import { PICTURE_NOT_INSERTED, pictureMarkdown } from '@/features/picture/lib/picture-file'
 import type { PictureOwner } from '@/features/picture/model/picture'
 import { useToastStore } from '@/stores/toast.store'
 
@@ -32,7 +32,7 @@ export function usePictureInsert(
     const picture = await run(() => importPicture(path, owner))
     if (!picture) return
     if (picker.stillHolds(target)) picker.write(target, pictureMarkdown(path, picture.url))
-    else toast.notifyError('The text changed while the picture was being copied, so it was not inserted.')
+    else toast.notifyError(PICTURE_NOT_INSERTED)
   }
 
   async function insert(path: string): Promise<void> {

@@ -34,6 +34,9 @@ pub(crate) fn build_window(handle: &AppHandle) -> tauri::Result<WebviewWindow> {
         .background_color(tauri::window::Color(8, 9, 12, 255))
         .shadow(false)
         .initialization_script(bridges::bridge_script())
+        // Tauri would otherwise take a dropped file before the page sees it, and an editor takes
+        // dropped pictures.
+        .disable_drag_drop_handler()
         // Anything not served by the local instance belongs in the browser, not in a window with
         // no address bar and no way back.
         .on_navigation(move |url| {

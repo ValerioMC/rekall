@@ -1,5 +1,11 @@
 const PICTURE_EXTENSION = /\.(png|jpe?g|gif|webp|svg)$/i
 
+/** What a picture the clipboard gave no name is kept and described as. */
+export const PASTED_PICTURE_NAME = 'pasted-image'
+
+/** Shown when a copy ends after the text it was meant for has gone. */
+export const PICTURE_NOT_INSERTED = 'The text changed while the picture was being copied, so it was not inserted.'
+
 export function isPictureFileName(name: string): boolean {
   return PICTURE_EXTENSION.test(name)
 }
