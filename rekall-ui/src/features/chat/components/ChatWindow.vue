@@ -16,6 +16,7 @@ import { failureMessage } from '@/features/chat/lib/failure-message'
 import { MIN_WIDTH, useChatDockStore } from '@/features/chat/store/chatDock.store'
 import { useChatStore } from '@/features/chat/store/chat.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import { useRunProvider } from '@/features/claude/composables/useRunProvider'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Terminal } from '@/features/claude/model/terminal'
 import type { TaskId, TerminalId } from '@/model/branded'
@@ -34,6 +35,7 @@ const dock = useChatDockStore()
 const { selectedTask, selectedTaskSteps } = storeToRefs(store)
 const { activeChatId, activeTimeline } = storeToRefs(chat)
 const { isRunning, run } = useAsyncAction()
+const { provider: runProvider } = useRunProvider(() => selectedTask.value?.id ?? null)
 
 const composer = ref<InstanceType<typeof ChatComposer> | null>(null)
 const sendError = ref<string | null>(null)
@@ -143,7 +145,7 @@ async function openHere(): Promise<void> {
   const task = selectedTask.value
   if (!task || !folder.value || isRunning.value) return
   const opened = await run(
-    () => terminals.openForTask(task.id, { ...launchChoices(), kind: 'CHAT' }),
+    () => terminals.openForTask(task.id, { ...launchChoices(runProvider.value), kind: 'CHAT' }),
     'Session opened'
   )
   if (opened?.kind === 'CHAT') chat.select(opened.id)

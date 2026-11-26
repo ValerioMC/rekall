@@ -7,6 +7,7 @@ import { setCodexEffort, setCodexModel, setPreferredProvider } from '@/common/co
 import { useChatDockStore } from '@/features/chat/store/chatDock.store'
 import { useChatStore } from '@/features/chat/store/chat.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import { useTaskProviderStore } from '@/features/claude/store/taskProvider.store'
 import type { ChatEvent } from '@/features/chat/model/chat-event'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { TaskId } from '@/model/branded'
@@ -296,6 +297,18 @@ describe('ChatWindow', () => {
     }))
     expect(chat.get('[data-testid=chat-header]').text()).toContain('Codex Chat')
     expect(chat.get('[data-testid=chat-input]').attributes('aria-label')).toBe('Message to Codex')
+    chat.unmount()
+  })
+
+  it('opens with the provider the task was switched to', async () => {
+    useTaskProviderStore().choose(TASK, 'CODEX')
+    terminalApi.openTerminal.mockResolvedValue(chatSession({ provider: 'CODEX' }))
+    const chat = mountWindow()
+
+    await chat.get('[data-testid=chat-open]').trigger('click')
+    await flushPromises()
+
+    expect(terminalApi.openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ provider: 'CODEX' }))
     chat.unmount()
   })
 

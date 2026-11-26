@@ -9,7 +9,8 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { identityHue } from '@/common/identity'
-import { launchChoices, preferredProvider } from '@/common/config/session-launch'
+import { launchChoices } from '@/common/config/session-launch'
+import { useRunProvider } from '@/features/claude/composables/useRunProvider'
 import { SESSION_PROVIDER_LABEL, SESSION_WORKFLOW_LABEL } from '@/features/claude/model/session-provider'
 import type { Terminal, TerminalEndedFrame } from '@/features/claude/model/terminal'
 
@@ -19,7 +20,7 @@ const { selectedTask } = storeToRefs(store)
 const { terminals: allTerminals, activeTerminal, activeTerminalId } = storeToRefs(terminals)
 const { run, isRunning } = useAsyncAction()
 
-const launchProvider = preferredProvider()
+const { provider: launchProvider } = useRunProvider(() => selectedTask.value?.id ?? null)
 const connected = ref(false)
 const ended = ref<{ exitCode: number; detail: string } | null>(null)
 const switcherOpen = ref(false)
@@ -69,7 +70,7 @@ async function openHere(): Promise<void> {
   await run(
     () =>
       terminals.openForTask(task.id, {
-        ...launchChoices(),
+        ...launchChoices(launchProvider.value),
         kind: 'TERMINAL'
       }),
     'Terminal opened'

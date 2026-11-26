@@ -9,10 +9,9 @@ const props = defineProps<{
   taskId: TaskId | null
   queueing?: boolean
   busy?: boolean
-  back?: boolean
 }>()
 
-const emit = defineEmits<{ choose: [provider: SessionProvider]; back: [] }>()
+const emit = defineEmits<{ choose: [provider: SessionProvider] }>()
 
 const providerOptions = useSessionProviderOptions(() => props.taskId, () => props.queueing ?? false)
 const options = computed(providerOptions.options)
@@ -28,19 +27,6 @@ function choose(provider: SessionProvider): void {
 </script>
 
 <template>
-  <button
-    v-if="back"
-    type="button"
-    role="menuitem"
-    tabindex="-1"
-    class="focus-ring flex w-full items-center gap-2 rounded-control px-2.5 py-2 text-left text-small text-text-muted hover:bg-surface"
-    @click="emit('back')"
-  >
-    <svg class="size-3.5 shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="m10 4-4 4 4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
-    </svg>
-    Back to actions
-  </button>
   <button
     v-for="option in options"
     :key="option.provider"

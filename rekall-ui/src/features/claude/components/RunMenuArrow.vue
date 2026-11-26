@@ -1,33 +1,30 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
-import { adjacentMenuPlacement, focusMenuStart, moveMenuFocus, useAnchoredMenu } from '@/composables/useAnchoredMenu'
+import { computed, ref } from 'vue'
+import { useAnchoredMenu } from '@/composables/useAnchoredMenu'
 import SessionProviderMark from '@/features/claude/components/SessionProviderMark.vue'
-import SessionProviderMenu from '@/features/claude/components/SessionProviderMenu.vue'
 import { useSessionProviderOptions } from '@/features/claude/composables/useSessionProviderOptions'
-import { RUN_WITH_PROVIDER_LABEL, type SessionProvider } from '@/features/claude/model/session-provider'
-import { opensProviderMenu, type ProviderMenuAction, type RunMenuAction, type RunMenuSelection } from '@/features/claude/model/runMenu'
+import { SESSION_PROVIDER_LABEL, type SessionProvider } from '@/features/claude/model/session-provider'
+import type { RunMenuAction } from '@/features/claude/model/runMenu'
 import type { TaskId } from '@/model/branded'
 
 /**
  * The narrow key joined to the right of Run here. A separator splits its menu's groups: ways to run
- * the work, then ways to prepare it. It takes the main key's look through `ready` and `pressed`, and no press while `busy`.
+ * the work, then ways to prepare it, all with `provider`. It takes the main key's look through `ready` and `pressed`, and no press while `busy`.
  */
 const props = defineProps<{
   taskId: TaskId
+  provider: SessionProvider
   ready: boolean
   pressed: boolean
   busy: boolean
   groups: readonly (readonly RunMenuAction[])[]
 }>()
 
-const emit = defineEmits<{ choose: [selection: RunMenuSelection] }>()
+const emit = defineEmits<{ choose: [action: RunMenuAction] }>()
 
-const MENU_WIDTH = 200
-const PROVIDER_WIDTH = 240
+const MENU_WIDTH = 208
 
 const ENTRIES: Record<RunMenuAction, { label: string; testid: string }> = {
-  CLAUDE: { label: RUN_WITH_PROVIDER_LABEL.CLAUDE, testid: 'run-with-CLAUDE' },
-  CODEX: { label: RUN_WITH_PROVIDER_LABEL.CODEX, testid: 'run-with-CODEX' },
   RUN_IN_QUEUE: { label: 'Run in queue', testid: 'run-in-queue' },
   DISCUSS: { label: 'Discuss', testid: 'discuss' },
   PLAN: { label: 'Plan here', testid: 'plan-here' },
@@ -36,103 +33,20 @@ const ENTRIES: Record<RunMenuAction, { label: string; testid: string }> = {
 }
 
 const arrow = ref<HTMLButtonElement | null>(null)
-const providerMenu = ref<HTMLElement | null>(null)
-const providerAction = ref<ProviderMenuAction | null>(null)
-const actionRow = ref<HTMLElement | null>(null)
-const providerPlacement = ref<Record<string, string> | null>(null)
-const { missing } = useSessionProviderOptions(() => props.taskId)
-
-const { open, menu, placement, place, toggle, close, handleKeydown } = useAnchoredMenu(
-  () => arrow.value,
-  MENU_WIDTH,
-  { onPlace: placeProviders, relatedMenu: () => providerMenu.value }
+const providerOptions = useSessionProviderOptions(() => props.taskId)
+const queueOptions = useSessionProviderOptions(() => props.taskId, () => true)
+const unavailable = computed(() => providerOptions.missing(props.provider))
+const queueWarning = computed(
+  () => queueOptions.options().find((option) => option.provider === props.provider)?.detail ?? null
 )
+const menuLabel = computed(() => `More ways to run with ${SESSION_PROVIDER_LABEL[props.provider]}`)
 
-watch(open, (visible) => {
-  if (!visible) clearProviders()
-})
+const { open, menu, placement, toggle, close, handleKeydown } = useAnchoredMenu(() => arrow.value, MENU_WIDTH)
 
-function clearProviders(): void {
-  providerAction.value = null
-  providerPlacement.value = null
-  actionRow.value = null
-}
-
-function placeProviders(): void {
-  if (!menu.value || !actionRow.value) return
-  const parent = menu.value.getBoundingClientRect()
-  const row = actionRow.value.getBoundingClientRect()
-  const placement = adjacentMenuPlacement(parent, row.height ? row : parent, providerMenu.value?.scrollHeight ?? 0, PROVIDER_WIDTH)
-  const focused = document.activeElement
-  const moved = Boolean(placement) !== Boolean(providerPlacement.value)
-  providerPlacement.value = placement
-  if (moved && focused instanceof HTMLElement && providerMenu.value?.contains(focused)) {
-    void nextTick(() => focused.focus({ preventScroll: true }))
-  }
-}
-
-async function showProviders(action: ProviderMenuAction, row: HTMLElement): Promise<void> {
-  actionRow.value = row
-  providerAction.value = action
-  placeProviders()
-  await nextTick()
-  place()
-  await nextTick()
-  placeProviders()
-  await nextTick()
-  focusMenuStart(providerPlacement.value ? providerMenu.value : menu.value)
-}
-
-async function backToActions(): Promise<void> {
-  const row = actionRow.value
-  clearProviders()
-  await nextTick()
-  place()
-  row?.focus({ preventScroll: true })
-}
-
-function choose(action: RunMenuAction, event: Event): void {
-  if (props.busy) return
-  if (opensProviderMenu(action)) {
-    if (event.currentTarget instanceof HTMLElement) void showProviders(action, event.currentTarget)
-    return
-  }
-  if (action !== 'REPLAN' && missing(action)) return
+function choose(action: RunMenuAction): void {
+  if (props.busy || unavailable.value) return
   close(true)
-  emit('choose', action === 'REPLAN' ? { action } : { action: 'RUN', provider: action })
-}
-
-function chooseProvider(provider: SessionProvider): void {
-  if (props.busy || !providerAction.value) return
-  const action = providerAction.value
-  close(true)
-  emit('choose', { action, provider })
-}
-
-function onActionKeydown(event: KeyboardEvent, action: RunMenuAction): void {
-  if (event.key !== 'ArrowRight' || !opensProviderMenu(action)) return
-  event.preventDefault()
-  event.stopPropagation()
-  choose(action, event)
-}
-
-function onProviderKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape' || event.key === 'ArrowLeft') {
-    event.preventDefault()
-    event.stopPropagation()
-    void backToActions()
-    return
-  }
-  if (event.key === 'Tab') {
-    handleKeydown(event)
-    return
-  }
-  moveMenuFocus(event, providerPlacement.value ? providerMenu.value : menu.value)
-}
-
-function onRootKeydown(event: KeyboardEvent): void {
-  if (providerAction.value && !providerPlacement.value) onProviderKeydown(event)
-  else handleKeydown(event)
+  emit('choose', action)
 }
 </script>
 
@@ -179,68 +93,53 @@ function onRootKeydown(event: KeyboardEvent): void {
       v-if="open"
       ref="menu"
       role="menu"
-      :aria-label="providerAction && !providerPlacement ? ENTRIES[providerAction].label : 'More ways to run'"
+      :aria-label="menuLabel"
       class="fixed z-(--z-popover) overflow-y-auto rounded-card border border-border-strong bg-surface-raised p-1 shadow-lift"
       :style="placement"
       data-anchored-menu
       data-testid="run-menu"
-      @keydown="onRootKeydown"
+      @keydown="handleKeydown"
     >
-      <div :hidden="Boolean(providerAction && !providerPlacement)">
-        <template v-for="(group, index) in groups" :key="index">
-          <div v-if="index > 0" class="mx-1 my-1 h-px bg-border" role="separator" />
-          <button
-            v-for="action in group"
-            :key="action"
-            type="button"
-            role="menuitem"
-            tabindex="-1"
-            class="focus-ring flex w-full cursor-pointer items-start justify-between gap-3 rounded-control px-2.5 py-2 text-left transition-colors hover:bg-surface"
-            :class="providerAction === action ? 'bg-surface' : undefined"
-            :aria-haspopup="opensProviderMenu(action) ? 'menu' : undefined"
-            :aria-expanded="opensProviderMenu(action) ? providerAction === action : undefined"
-            :aria-disabled="(action === 'CLAUDE' || action === 'CODEX') && missing(action) ? true : undefined"
-            :data-testid="ENTRIES[action].testid"
-            @keydown="onActionKeydown($event, action)"
-            @click="choose(action, $event)"
-          >
-            <span class="text-small font-medium text-text">
-              {{ ENTRIES[action].label }}
-              <span v-if="(action === 'CLAUDE' || action === 'CODEX') && missing(action)" class="block text-caption font-normal text-text-muted">
-                {{ missing(action) }}
-              </span>
-            </span>
-            <svg v-if="opensProviderMenu(action)" class="size-4 shrink-0 text-text-subtle" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path d="m6 4 4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-            <SessionProviderMark v-else-if="action === 'CLAUDE' || action === 'CODEX'" :provider="action" :size="16" />
-            <svg v-else class="size-4 shrink-0 text-text-subtle" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path d="M13 8a5 5 0 1 1-1.6-3.7m1.6-1.5v2.7h-2.7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </button>
-        </template>
-      </div>
-      <Teleport to="body" :disabled="!providerPlacement">
-        <div
-          v-if="providerAction"
-          ref="providerMenu"
-          :role="providerPlacement ? 'menu' : undefined"
-          :aria-label="providerPlacement ? ENTRIES[providerAction].label : undefined"
-          :class="providerPlacement && 'fixed z-(--z-popover) overflow-y-auto rounded-card border border-border-strong bg-surface-raised p-1 shadow-lift'"
-          :style="providerPlacement ?? undefined"
-          data-anchored-menu
-          @keydown="providerPlacement && onProviderKeydown($event)"
+      <p class="flex items-center gap-1.5 px-2.5 pt-1.5 pb-1 text-caption text-text-muted" data-testid="run-menu-provider">
+        <SessionProviderMark :provider="provider" :size="12" />
+        With {{ SESSION_PROVIDER_LABEL[provider] }}
+      </p>
+      <template v-if="unavailable">
+        <p class="px-2.5 pb-1 text-caption leading-snug text-text-muted">{{ unavailable }}</p>
+        <RouterLink
+          to="/settings/sessions"
+          role="menuitem"
+          tabindex="-1"
+          class="focus-ring block rounded-control px-2.5 py-2 text-small text-text-muted hover:bg-surface hover:text-text"
         >
-          <SessionProviderMenu
-            :task-id="taskId"
-            :queueing="providerAction === 'RUN_IN_QUEUE'"
-            :busy="busy"
-            :back="!providerPlacement"
-            @choose="chooseProvider"
-            @back="backToActions"
-          />
-        </div>
-      </Teleport>
+          Agent setup in Settings
+        </RouterLink>
+      </template>
+      <template v-for="(group, index) in groups" :key="index">
+        <div v-if="index > 0" class="mx-1 my-1 h-px bg-border" role="separator" />
+        <button
+          v-for="action in group"
+          :key="action"
+          type="button"
+          role="menuitem"
+          tabindex="-1"
+          class="focus-ring flex w-full items-start justify-between gap-3 rounded-control px-2.5 py-2 text-left transition-colors hover:bg-surface"
+          :class="unavailable ? 'cursor-default' : 'cursor-pointer'"
+          :aria-disabled="unavailable ? true : undefined"
+          :data-testid="ENTRIES[action].testid"
+          @click="choose(action)"
+        >
+          <span class="text-small font-medium" :class="unavailable ? 'text-text-muted' : 'text-text'">
+            {{ ENTRIES[action].label }}
+            <span v-if="action === 'RUN_IN_QUEUE' && queueWarning" class="mt-0.5 block text-caption font-normal leading-snug text-text-muted">
+              {{ queueWarning }}
+            </span>
+          </span>
+          <svg v-if="action === 'REPLAN'" class="size-4 shrink-0 text-text-subtle" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M13 8a5 5 0 1 1-1.6-3.7m1.6-1.5v2.7h-2.7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </template>
     </div>
   </Teleport>
 </template>

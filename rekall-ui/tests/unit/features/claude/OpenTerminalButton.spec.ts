@@ -8,7 +8,6 @@ import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import { setPreferredEffort, setPreferredModel, setPreferredSessionKind, setSkipsPermissions } from '@/common/config/claude-launch'
 import { preferredProvider, setCodexEffort, setCodexModel, setPreferredProvider } from '@/common/config/session-launch'
-import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
 import { useCodexStore } from '@/features/codex/store/codex.store'
 import { installStorage } from '../../support/memoryStorage'
 import { installBothSessionProviders } from '../../support/sessionProviders'
@@ -100,17 +99,19 @@ function menuButton(testid: string): HTMLButtonElement {
   return document.body.querySelector<HTMLButtonElement>(`[data-testid="${testid}"]`)!
 }
 
+async function switchTo(wrapper: ReturnType<typeof mountButton>, provider: Terminal['provider']): Promise<void> {
+  await wrapper.get(`[data-testid="provider-switch-${provider}"]`).trigger('click')
+}
+
 async function chooseRunInQueue(
   wrapper: ReturnType<typeof mountButton>,
   provider: Terminal['provider'] = 'CLAUDE'
 ): Promise<void> {
+  await switchTo(wrapper, provider)
   await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
-  menuButton('run-in-queue').click()
-  await flushPromises()
-  expect(runTaskInQueue).not.toHaveBeenCalled()
-  const choice = menuButton(`session-provider-${provider}`)
-  choice.click()
-  choice.click()
+  const entry = menuButton('run-in-queue')
+  entry.click()
+  entry.click()
   await flushPromises()
 }
 
@@ -302,41 +303,59 @@ describe('the Run here button', () => {
     expect(button.attributes('data-phase')).toBe('idle')
   })
 
-  it.each([false, true])('explains unavailable providers and focuses a selectable row when possible (%s)', async (both) => {
+  it('says why the shown provider cannot start, links its setup and takes no menu action', async () => {
     installBothSessionProviders()
     setPreferredProvider('CODEX')
     useCodexStore().setup = { status: 'CLI_MISSING' }
-    const claude = useClaudeConnectionStore()
-    if (both) claude.installation = { ...claude.installation!, status: 'CLI_MISSING' }
     const wrapper = mountButton()
 
     await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
+    const menu = document.body.querySelector('[data-testid="run-menu"]')!
     menuButton('discuss').click()
     await flushPromises()
 
-    const codex = menuButton('session-provider-CODEX')
-    const claudeRow = menuButton('session-provider-CLAUDE')
-    expect(codex.getAttribute('aria-disabled')).toBe('true')
-    expect(codex.textContent).toContain('Preferred')
-    expect(codex.textContent).toContain('Codex CLI is not installed.')
-    expect(claudeRow.getAttribute('aria-disabled')).toBe(both ? 'true' : null)
-    expect(document.activeElement).toBe(claudeRow)
-    codex.click()
+    expect(menu.textContent).toContain('Codex CLI is not installed.')
+    expect(wrapper.findComponent(RouterLinkStub).props('to')).toBe('/settings/sessions')
+    expect(menuButton('discuss').getAttribute('aria-disabled')).toBe('true')
     expect(openTerminal).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
-  it('shows the live provider and view before requesting a different provider', async () => {
+  it('dims a provider whose CLI is missing, saying why, and cannot be switched to it', async () => {
+    installBothSessionProviders()
+    useCodexStore().setup = { status: 'CLI_MISSING' }
+    const wrapper = mountButton()
+    const codex = wrapper.get('[data-testid="provider-switch-CODEX"]')
+
+    await codex.trigger('click')
+
+    expect(codex.attributes('aria-disabled')).toBe('true')
+    expect(codex.attributes('title')).toBe('Codex CLI is not installed.')
+    expect(codex.attributes('aria-checked')).toBe('false')
+    wrapper.unmount()
+  })
+
+  it('holds the switch on the provider of a live session and says to close it', async () => {
+    setPreferredProvider('CODEX')
     useTerminalStore().terminals = [{ ...terminal(), kind: 'CHAT', mode: 'DISCUSS' }]
-    openTerminal.mockResolvedValue({ ...terminal(), provider: 'CODEX' })
+    const wrapper = mountButton()
+    const codex = wrapper.get('[data-testid="provider-switch-CODEX"]')
+
+    await codex.trigger('click')
+
+    expect(wrapper.get('[data-testid="provider-switch-CLAUDE"]').attributes('aria-checked')).toBe('true')
+    expect(codex.attributes('aria-disabled')).toBe('true')
+    expect(codex.attributes('title')).toBe('Claude Code Chat is open on this task. Close it to use Codex.')
+    wrapper.unmount()
+  })
+
+  it('warns under Run in queue that the live session has to be closed first', async () => {
+    useTerminalStore().terminals = [terminal()]
     const wrapper = mountButton()
 
     await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
-    menuButton('discuss').click()
-    await flushPromises()
 
-    expect(menuButton('session-provider-CODEX').textContent).toContain('Claude Code Chat is open on this task.')
-    expect(openTerminal).not.toHaveBeenCalled()
+    expect(menuButton('run-in-queue').textContent).toContain('Close it before the queue starts this task.')
     wrapper.unmount()
   })
 
@@ -346,10 +365,10 @@ describe('the Run here button', () => {
 
     await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
 
-    const rows = [...document.body.querySelector('[data-testid="run-menu"]')!.firstElementChild!.children].map((row) =>
+    const rows = [...document.body.querySelector('[data-testid="run-menu"]')!.children].map((row) =>
       row.getAttribute('role') === 'separator' ? '---' : row.textContent?.trim()
     )
-    expect(rows).toEqual(['Run with Claude Code', 'Run with Codex', 'Run in queue', '---', 'Discuss', 'Plan here', 'Plan a flow'])
+    expect(rows).toEqual(['With Claude Code', 'Run in queue', '---', 'Discuss', 'Plan here', 'Plan a flow'])
     wrapper.unmount()
   })
 
@@ -365,62 +384,28 @@ describe('the Run here button', () => {
     menuButton('run-in-queue').focus()
     expect(press('ArrowDown')).toBe('Discuss')
     expect(press('ArrowUp')).toBe('Run in queue')
-    expect(press('ArrowUp')).toBe('Run with Codex')
+    expect(press('ArrowUp')).toBe('Plan a flow')
     wrapper.unmount()
   })
 
-  it('walks into a provider submenu and returns focus with Left, Escape and Tab', async () => {
-    setPreferredProvider('CODEX')
+  it('moves the switch and its focus with the arrow keys', async () => {
     const wrapper = mountButton()
-    const trigger = wrapper.get('[data-testid="run-menu-arrow"]')
-    await trigger.trigger('click')
-    const root = document.body.querySelector<HTMLElement>('[data-testid="run-menu"]')!
-    const action = menuButton('discuss')
-    root.getBoundingClientRect = () => new DOMRect(120, 100, 200, 220)
-    action.getBoundingClientRect = () => new DOMRect(124, 200, 192, 32)
-    action.focus()
-    action.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }))
+    const group = wrapper.get('[data-testid="provider-switch"]')
+
+    await group.trigger('keydown', { key: 'ArrowRight' })
     await flushPromises()
 
-    const providers = () => document.body.querySelector<HTMLElement>('[role="menu"][aria-label="Discuss"]')!
-    const codex = menuButton('session-provider-CODEX')
-    expect(document.activeElement).toBe(codex)
-    providers().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }))
-    expect(document.activeElement).toBe(menuButton('session-provider-CLAUDE'))
-    providers().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }))
-    await flushPromises()
-    expect(document.activeElement).toBe(action)
-
-    action.click()
-    await flushPromises()
-    providers().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
-    await flushPromises()
-    expect(document.activeElement).toBe(action)
-    root.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab' }))
-    await flushPromises()
-    expect(document.activeElement).toBe(trigger.element)
-    expect(document.body.querySelector('[data-testid="run-menu"]')).toBeNull()
-    expect(openTerminal).not.toHaveBeenCalled()
-    wrapper.unmount()
-  })
-
-  it('marks each Run with entry with its provider mark', async () => {
-    installBothSessionProviders()
-    const wrapper = mountButton()
-
-    await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
-
-    const markOf = (provider: string): string | null =>
-      document.body.querySelector(`[data-testid="run-with-${provider}"] svg`)?.getAttribute('data-provider') ?? null
-    expect(markOf('CLAUDE')).toBe('CLAUDE')
-    expect(markOf('CODEX')).toBe('CODEX')
+    const codex = wrapper.get('[data-testid="provider-switch-CODEX"]')
+    expect(codex.attributes('aria-checked')).toBe('true')
+    expect(codex.attributes('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(codex.element)
     wrapper.unmount()
   })
 
   it.each([
     { defaultProvider: 'CODEX', provider: 'CLAUDE', model: 'sonnet', effort: 'low', kind: 'CHAT', skipPermissions: true },
     { defaultProvider: 'CLAUDE', provider: 'CODEX', model: 'gpt-test', effort: 'xhigh', kind: 'CHAT', skipPermissions: false }
-  ] as const)('runs once with $provider from the arrow menu', async ({ defaultProvider, ...choices }) => {
+  ] as const)('runs with $provider once the switch shows it', async ({ defaultProvider, ...choices }) => {
     installBothSessionProviders()
     setPreferredProvider(defaultProvider)
     setPreferredModel('sonnet')
@@ -432,13 +417,23 @@ describe('the Run here button', () => {
     openTerminal.mockResolvedValue({ ...terminal(), provider: choices.provider, kind: choices.kind })
     const wrapper = mountButton()
 
-    await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
-    expect(menuLabels().slice(0, 2)).toEqual(['Run with Claude Code', 'Run with Codex'])
-    document.body.querySelector<HTMLButtonElement>(`[data-testid="run-with-${choices.provider}"]`)!.click()
+    await switchTo(wrapper, choices.provider)
+    await wrapper.get('[data-testid="open-terminal"]').trigger('click')
     await flushPromises()
 
     expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining(choices))
     expect(preferredProvider()).toBe(defaultProvider)
+    wrapper.unmount()
+  })
+
+  it('keeps the switch still while a launch is under way', async () => {
+    openTerminal.mockReturnValue(new Promise<Terminal>(() => undefined))
+    const wrapper = mountButton()
+    await wrapper.get('[data-testid="open-terminal"]').trigger('click')
+
+    await switchTo(wrapper, 'CODEX')
+
+    expect(wrapper.get('[data-testid="provider-switch-CLAUDE"]').attributes('aria-checked')).toBe('true')
     wrapper.unmount()
   })
 
@@ -531,19 +526,9 @@ describe('planning from the Run here arrow', () => {
     })
   }
 
-  async function choose(
-    wrapper: ReturnType<typeof mountPlanning>,
-    testid: string,
-    provider: Terminal['provider'] = 'CLAUDE'
-  ): Promise<void> {
+  async function choose(wrapper: ReturnType<typeof mountPlanning>, testid: string): Promise<void> {
     await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
     menuButton(testid).click()
-    await flushPromises()
-    if (testid === 'replan') return
-    expect(openTerminal).not.toHaveBeenCalled()
-    const choice = menuButton(`session-provider-${provider}`)
-    choice.click()
-    choice.click()
     await flushPromises()
   }
 
@@ -598,7 +583,7 @@ describe('planning from the Run here arrow', () => {
       console_.steps = steps
       const wrapper = mountPlanning()
       await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
-      const labels = menuLabels().filter((label) => !label.startsWith('Run with'))
+      const labels = menuLabels()
       wrapper.unmount()
       document.body.innerHTML = ''
       return labels
@@ -644,11 +629,13 @@ describe('planning from the Run here arrow', () => {
     ['discuss', 'DISCUSS'],
     ['plan-here', 'PLAN'],
     ['plan-flow', 'PLAN_FLOW']
-  ] as const)('dispatches %s once with an explicit Codex override', async (testid, mode) => {
+  ] as const)('dispatches %s once with the provider the switch shows', async (testid, mode) => {
     setPreferredProvider('CLAUDE')
     openTerminal.mockResolvedValue({ ...terminal(), provider: 'CODEX' })
+    const wrapper = mountPlanning()
+    await wrapper.get('[data-testid="provider-switch-CODEX"]').trigger('click')
 
-    await choose(mountPlanning(), testid, 'CODEX')
+    await choose(wrapper, testid)
 
     expect(openTerminal).toHaveBeenCalledTimes(1)
     expect(openTerminal).toHaveBeenCalledWith(
@@ -672,6 +659,22 @@ describe('planning from the Run here arrow', () => {
       expect(wrapper.findComponent(AppConfirm).attributes('blast')).toContain('3 steps deleted')
       expect(openTerminal).not.toHaveBeenCalled()
       expect(sendTerminalInput).not.toHaveBeenCalled()
+    })
+
+    it('replans with the provider the switch shows', async () => {
+      withReplaceableSteps(1)
+      openTerminal.mockResolvedValue({ ...terminal(), provider: 'CODEX' })
+      const wrapper = mountPlanning()
+      await wrapper.get('[data-testid="provider-switch-CODEX"]').trigger('click')
+
+      await choose(wrapper, 'replan')
+      await wrapper.findComponent(AppConfirm).vm.$emit('confirm')
+      await flushPromises()
+
+      expect(openTerminal).toHaveBeenCalledWith(
+        { taskId: TASK },
+        expect.objectContaining({ mode: 'REPLAN', provider: 'CODEX' })
+      )
     })
 
     it('says one step in the singular', async () => {

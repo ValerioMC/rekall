@@ -32,6 +32,7 @@ export function usePlanTask(
 
   const isConfirmingReplan = ref(false)
   const missedMessage = ref('')
+  let replanProvider: SessionProvider | undefined
   const ready = computed(() => Boolean(terminals.terminalForTask(taskId())) || Boolean(folder()))
 
   function start(mode: PlanMode, provider?: SessionProvider): void {
@@ -42,6 +43,7 @@ export function usePlanTask(
     }
     if (mode === 'REPLAN') {
       missedMessage.value = ''
+      replanProvider = provider
       isConfirmingReplan.value = true
       return
     }
@@ -51,7 +53,7 @@ export function usePlanTask(
   async function confirmReplan(): Promise<void> {
     if (!isConfirmingReplan.value || isRunning.value) return
     isConfirmingReplan.value = false
-    await plan('REPLAN', missedMessage.value)
+    await plan('REPLAN', missedMessage.value, replanProvider)
   }
 
   function cancelReplan(): void {

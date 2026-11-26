@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Run here provider choice</title>
+<link rel="stylesheet" href="../redesign/shared.css">
+<style>
+  html, body { height: auto; }
+  body { overflow: auto; padding: 24px; }
+  main { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 32px; }
+  h1 { font-size: var(--t-heading); font-weight: 500; }
+  h2 { font-size: var(--t-title); font-weight: 600; }
+  p { color: var(--muted); max-width: 72ch; margin-top: 6px; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 20px; }
+  .option > p { margin: 4px 0 10px; min-height: 39px; font-size: var(--t-small); }
+  .stage { position: relative; height: 372px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--canvas); }
+  .head { height: 52px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--border); }
+  .crumb { margin-right: auto; font-size: var(--t-small); color: var(--subtle); }
+  .crumb b { font: 400 var(--t-caption) var(--font-mono); color: var(--muted); }
+  .said { position: absolute; left: 12px; bottom: 10px; font: 400 var(--t-caption) var(--font-mono); color: var(--subtle); }
+  .said b { font-weight: 400; color: var(--text); }
+
+  /* the split key, at the console's own sizes */
+  .run { display: inline-flex; align-items: stretch; gap: 1px; }
+  .key { height: 28px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; background: var(--accent); color: var(--accent-ink); font-size: var(--t-small); font-weight: 600; box-shadow: inset 0 0 0 1px #c27a22, 0 1px 2px rgb(0 0 0 / .5); border-radius: var(--r-key); white-space: nowrap; transition: filter 140ms, transform 80ms; }
+  .key:hover { filter: brightness(1.06); }
+  .key:active { transform: translateY(1px); }
+  .run .main { border-radius: var(--r-key) 0 0 var(--r-key); min-width: 106px; }
+  .run .arrow { border-radius: 0 var(--r-key) var(--r-key) 0; padding: 0 6px; }
+  .key.lit { background: var(--surface); color: var(--accent); box-shadow: inset 0 0 0 1px var(--border-strong); cursor: default; filter: none; transform: none; }
+  .key.off { background: transparent; color: var(--subtle); box-shadow: none; }
+  .key svg { width: 14px; height: 14px; }
+
+  /* the provider switch */
+  .switch { display: inline-flex; gap: 2px; padding: 2px; height: 28px; border-radius: var(--r-control); background: var(--surface); box-shadow: inset 0 0 0 1px var(--border-strong); }
+  .switch button { height: 24px; min-width: 28px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: var(--r-key); color: var(--muted); font-size: var(--t-small); font-weight: 500; transition: background-color 140ms, color 140ms; }
+  .switch button svg { width: 14px; height: 14px; opacity: .45; filter: grayscale(1); transition: opacity 140ms, filter 140ms; }
+  .switch button:hover svg { opacity: .8; }
+  .switch button[aria-checked="true"] { background: var(--hover); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-field), 0 1px 2px rgb(0 0 0 / .5); }
+  .switch button[aria-checked="true"] svg { opacity: 1; filter: none; }
+  .switch button[aria-disabled="true"] { cursor: default; }
+  .switch button[aria-disabled="true"] svg { opacity: .25; }
+  .switch.wide { display: flex; margin: 2px 2px 4px; }
+  .switch.wide button { flex: 1; }
+
+  .claude { color: #d97757; }
+  .codex { color: var(--text); }
+
+  .menu { position: absolute; top: 46px; right: 12px; width: 208px; padding: 4px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--raised); box-shadow: 0 1px 2px rgb(0 0 0 / .55), 0 10px 22px -8px rgb(0 0 0 / .65); }
+  .menu[hidden], .sub[hidden] { display: none; }
+  .menu.wider { width: 248px; }
+  .sub { position: absolute; right: 224px; width: 232px; padding: 4px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--raised); box-shadow: 0 1px 2px rgb(0 0 0 / .55), 0 10px 22px -8px rgb(0 0 0 / .65); }
+  .item { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; border-radius: var(--r-control); font-size: var(--t-small); font-weight: 500; transition: background-color 140ms; }
+  .item:hover, .item.on { background: var(--surface); }
+  .item svg { width: 16px; height: 16px; flex: none; }
+  .item .chev, .item .redo { color: var(--subtle); }
+  .item.lead { justify-content: flex-start; gap: 8px; }
+  .item .note { margin-left: auto; font-weight: 400; font-size: var(--t-caption); color: var(--subtle); }
+  .rule { height: 1px; margin: 4px; background: var(--border); }
+  .with { display: flex; align-items: center; gap: 6px; padding: 6px 10px 4px; font-size: var(--t-caption); color: var(--muted); }
+  .with svg { width: 12px; height: 12px; }
+
+  .hold { position: absolute; left: 12px; top: 64px; display: inline-flex; align-items: center; gap: 8px; font-size: var(--t-small); color: var(--muted); user-select: none; }
+  .hold kbd { font-size: var(--t-small); line-height: 22px; padding: 0 8px; color: var(--text); }
+  .hold.down kbd { color: var(--accent); border-bottom-width: 1px; translate: 0 1px; }
+
+  .states { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+  .state { border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; }
+  .state .keys { height: 64px; display: flex; align-items: center; justify-content: center; gap: 6px; border-bottom: 1px solid var(--border); }
+  .state figcaption { padding: 9px 12px 11px; font-size: var(--t-small); color: var(--muted); }
+  .state figcaption b { display: block; font-weight: 600; color: var(--text); }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: var(--t-small); }
+  th, td { height: 36px; padding: 0 12px; border-bottom: 1px solid var(--border); text-align: right; font-variant-numeric: tabular-nums; }
+  th { font-size: var(--t-caption); font-weight: 500; color: var(--subtle); }
+  th:first-child, td:first-child { text-align: left; padding-left: 0; }
+  td { color: var(--muted); }
+  td:first-child { color: var(--text); }
+
+  @media (max-width: 960px) { .grid, .states { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Choose the provider without being asked every time</h1>
+    <p>You are on task RK-12 and want it handled by Codex, while most tasks stay on Claude Code. Every key and menu below works: press them.</p>
+  </header>
+
+  <div class="grid">
+    <section class="option">
+      <h2>Today</h2>
+      <p>Run here does not say which provider it starts. Two menu entries repeat it, and four more ask again in a submenu.</p>
+      <div class="stage" id="today"></div>
+    </section>
+    <section class="option">
+      <h2>A. Switch beside the key (recommended)</h2>
+      <p>Pick once per task. Run here and every menu entry use the provider shown. No submenus.</p>
+      <div class="stage" id="a"></div>
+    </section>
+    <section class="option">
+      <h2>B. Switch inside the menu</h2>
+      <p>The key stays as it is. The switch heads the menu and lasts until it closes, then returns to your default.</p>
+      <div class="stage" id="b"></div>
+    </section>
+    <section class="option">
+      <h2>C. Hold ⌥ for the other provider</h2>
+      <p>No new control. While ⌥ is down the key and menu name the other provider. Fast, but only if you know it.</p>
+      <div class="stage" id="c"></div>
+    </section>
+  </div>
+
+  <section>
+    <h2>A in each state</h2>
+    <div class="states" id="states"></div>
+  </section>
+
+  <section>
+    <h2>Clicks to start Codex when Claude Code is the default</h2>
+    <table>
+      <thead><tr><th>You want</th><th>Today</th><th>A, first time</th><th>A, after</th><th>B</th><th>C (⌥ held)</th></tr></thead>
+      <tbody>
+        <tr><td>Run here</td><td>2</td><td>2</td><td>1</td><td>3</td><td>1</td></tr>
+        <tr><td>Plan here, Discuss, Plan a flow, Run in queue</td><td>3</td><td>3</td><td>2</td><td>3</td><td>2</td></tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+
+<script>
+const PATH = {
+  CLAUDE: 'm4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z',
+  CODEX: 'M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z'
+};
+const NAME = { CLAUDE: 'Claude Code', CODEX: 'Codex' };
+const other = (p) => (p === 'CLAUDE' ? 'CODEX' : 'CLAUDE');
+const mark = (p) => `<svg class="${p.toLowerCase()}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${PATH[p]}"/></svg>`;
+const PLAY = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.4 1.9c0-.6.66-.97 1.17-.65l5.9 3.75c.47.3.47.99 0 1.29l-5.9 3.76c-.51.32-1.17-.05-1.17-.65Z" fill="currentColor"/></svg>';
+const DOWN = '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CHEV = '<svg class="chev" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 4 4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const REDO = '<svg class="redo" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.7m1.6-1.5v2.7h-2.7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const SEAL = '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.4" stroke="#7c83f7" stroke-width="1.4" stroke-dasharray="28 12" stroke-linecap="round"/><circle cx="8" cy="8" r="2.6" fill="#7c83f7"/></svg>';
+const ACTIONS = ['Run in queue', 'Discuss', 'Plan here', 'Plan a flow'];
+
+const runKey = (open) => `<span class="run"><button class="key main" data-act="Run here">${PLAY}Run here</button><button class="key arrow" aria-label="More ways to run" aria-expanded="${open}" data-arrow>${DOWN}</button></span>`;
+const switcher = (chosen, o = {}) => `<span class="switch ${o.wide ? 'wide' : ''}" role="radiogroup" aria-label="Provider">${['CLAUDE', 'CODEX'].map((p) => {
+  const off = o.off === p;
+  const title = off ? o.reason : NAME[p];
+  return `<button role="radio" aria-checked="${p === chosen}" aria-disabled="${off}" aria-label="${NAME[p]}" title="${title}" data-provider="${p}">${mark(p)}${o.wide ? NAME[p] : ''}</button>`;
+}).join('')}</span>`;
+const head = (right) => `<div class="head"><span class="crumb">Northwind / Rekall <b>RK-12</b></span>${right}</div>`;
+const said = (text) => `<div class="said" aria-live="polite">${text}</div>`;
+const started = (action, p) => `<b>${action}</b> starts ${NAME[p]}`;
+const replan = `<div class="rule"></div><button class="item" data-act="Replan">Replan${REDO}</button>`;
+
+function wire(id, state) {
+  const stage = document.getElementById(id);
+  const draw = () => { stage.innerHTML = state.html(); };
+  stage.addEventListener('click', (event) => {
+    const el = event.target.closest('button');
+    if (!el || el.getAttribute('aria-disabled') === 'true') return;
+    state.click(el);
+    draw();
+  });
+  draw();
+}
+
+const today = {
+  open: true, sub: 'Plan here', said: 'The submenu is open on Plan here',
+  click(el) {
+    if ('arrow' in el.dataset) { this.open = !this.open; this.sub = null; }
+    else if (el.dataset.sub) this.sub = this.sub === el.dataset.sub ? null : el.dataset.sub;
+    else if (el.dataset.act) { this.said = started(el.dataset.act, el.dataset.with || 'CLAUDE'); this.open = false; this.sub = null; }
+  },
+  html() {
+    const rows = ['CLAUDE', 'CODEX'].map((p) => `<button class="item" data-act="Run with ${NAME[p]}" data-with="${p}">Run with ${NAME[p]}${mark(p)}</button>`).join('');
+    const subs = (a) => `<button class="item ${this.sub === a ? 'on' : ''}" data-sub="${a}" aria-haspopup="menu">${a}${CHEV}</button>`;
+    const top = this.sub === 'Run in queue' ? 112 : 112 + 41 + (ACTIONS.indexOf(this.sub) - 1) * 33;
+    const sub = this.open && this.sub ? `<div class="sub" style="top:${top}px">${['CLAUDE', 'CODEX'].map((p) => `<button class="item lead" data-act="${this.sub}" data-with="${p}">${mark(p)}${NAME[p]}${p === 'CLAUDE' ? '<span class="note">Preferred</span>' : ''}</button>`).join('')}</div>` : '';
+    return head(runKey(this.open)) + `<div class="menu" ${this.open ? '' : 'hidden'}>${rows}${subs(ACTIONS[0])}<div class="rule"></div>${ACTIONS.slice(1).map(subs).join('')}<button class="item" data-act="Replan">Replan${REDO}</button></div>${sub}${said(this.said)}`;
+  }
+};
+
+const optionA = {
+  open: true, provider: 'CODEX', said: 'Codex is chosen for RK-12',
+  click(el) {
+    if (el.dataset.provider) { this.provider = el.dataset.provider; this.said = `${NAME[this.provider]} is chosen for RK-12`; }
+    else if ('arrow' in el.dataset) this.open = !this.open;
+    else if (el.dataset.act) { this.said = started(el.dataset.act, this.provider); this.open = false; }
+  },
+  html() {
+    const items = ACTIONS.map((a, i) => `<button class="item" data-act="${a}">${a}</button>${i === 0 ? '<div class="rule"></div>' : ''}`).join('');
+    return head(switcher(this.provider) + runKey(this.open)) + `<div class="menu" ${this.open ? '' : 'hidden'}><div class="with">${mark(this.provider)}With ${NAME[this.provider]}</div>${items}<button class="item" data-act="Replan">Replan${REDO}</button></div>${said(this.said)}`;
+  }
+};
+
+const optionB = {
+  open: true, provider: 'CODEX', said: 'The key alone still starts Claude Code',
+  click(el) {
+    if (el.dataset.provider) this.provider = el.dataset.provider;
+    else if ('arrow' in el.dataset) { this.open = !this.open; this.provider = 'CLAUDE'; }
+    else if (el.dataset.act) {
+      const fromMenu = el.classList.contains('item');
+      this.said = started(el.dataset.act, fromMenu ? this.provider : 'CLAUDE');
+      this.open = false; this.provider = 'CLAUDE';
+    }
+  },
+  html() {
+    const items = ACTIONS.map((a, i) => `<button class="item" data-act="${a}">${a}</button>${i === 0 ? '<div class="rule"></div>' : ''}`).join('');
+    return head(runKey(this.open)) + `<div class="menu wider" ${this.open ? '' : 'hidden'}>${switcher(this.provider, { wide: true })}<button class="item" data-act="Run here">Run here${mark(this.provider)}</button>${items}<button class="item" data-act="Replan">Replan${REDO}</button></div>${said(this.said)}`;
+  }
+};
+
+const optionC = {
+  open: true, alt: false, said: 'Hold ⌥, or press and hold the keycap',
+  provider() { return this.alt ? 'CODEX' : 'CLAUDE'; },
+  click(el) {
+    if ('arrow' in el.dataset) this.open = !this.open;
+    else if (el.dataset.act) { this.said = started(el.dataset.act, this.provider()); this.open = false; }
+  },
+  html() {
+    const p = this.provider();
+    const label = this.alt ? 'Run with Codex' : 'Run here';
+    const key = `<span class="run"><button class="key main" data-act="Run here" style="min-width:140px">${PLAY}${label}</button><button class="key arrow" aria-label="More ways to run" aria-expanded="${this.open}" data-arrow>${DOWN}</button></span>`;
+    const items = ACTIONS.map((a, i) => `<button class="item" data-act="${a}">${a}</button>${i === 0 ? '<div class="rule"></div>' : ''}`).join('');
+    return head(key) + `<span class="hold ${this.alt ? 'down' : ''}"><kbd data-hold>⌥</kbd>${this.alt ? 'held' : 'hold'}</span><div class="menu" ${this.open ? '' : 'hidden'}><div class="with">${mark(p)}With ${NAME[p]}</div>${items}<button class="item" data-act="Replan">Replan${REDO}</button></div>${said(this.said)}`;
+  }
+};
+
+wire('today', today);
+wire('a', optionA);
+wire('b', optionB);
+wire('c', optionC);
+
+function setAlt(down) {
+  if (optionC.alt === down) return;
+  optionC.alt = down;
+  document.getElementById('c').innerHTML = optionC.html();
+}
+addEventListener('keydown', (e) => { if (e.key === 'Alt') setAlt(true); });
+addEventListener('keyup', (e) => { if (e.key === 'Alt') setAlt(false); });
+addEventListener('blur', () => setAlt(false));
+document.getElementById('c').addEventListener('pointerdown', (e) => { if (e.target.closest('[data-hold]')) setAlt(true); });
+addEventListener('pointerup', () => setAlt(false));
+
+const split = (main, cls = '') => `<span class="run"><button class="key main ${cls}">${main}</button><button class="key arrow ${cls}" aria-label="More ways to run">${DOWN}</button></span>`;
+const ready = split(PLAY + 'Run here');
+const STATES = [
+  ['Your default', 'A task you never switched follows the provider in Settings.', switcher('CLAUDE') + ready],
+  ['Switched for this task', 'Remembered for RK-12 in this browser. Other tasks are untouched.', switcher('CODEX') + ready],
+  ['Working', 'The switch holds on the provider that is working and takes no press.', switcher('CODEX', { off: 'CLAUDE', reason: 'Codex Terminal is open on this task. Close it to use Claude Code.' }) + split(SEAL + 'Working', 'lit')],
+  ['Session open', 'Locked to the open session. The tooltip says to close it to change.', switcher('CLAUDE', { off: 'CODEX', reason: 'Claude Code Terminal is open on this task. Close it to use Codex.' }) + ready],
+  ['CLI not installed', 'The missing provider is dimmed; its tooltip reads "Codex CLI is not installed."', switcher('CLAUDE', { off: 'CODEX', reason: 'Codex CLI is not installed.' }) + ready],
+  ['No project folder', 'The key is quiet as today. Pressing it says to set the folder.', switcher('CLAUDE') + split(PLAY + 'Run here', 'off')]
+];
+document.getElementById('states').innerHTML = STATES.map(([name, text, keys]) => `<figure class="state"><div class="keys">${keys}</div><figcaption><b>${name}</b>${text}</figcaption></figure>`).join('');
+</script>
+</body>
+</html>

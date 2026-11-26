@@ -1,8 +1,10 @@
 import { preferredEffort, preferredLaunchKind, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
 import { SESSION_PROVIDERS, type SessionProvider } from '@/features/claude/model/session-provider'
 import type { SessionKind } from '@/features/claude/model/terminal'
+import type { TaskId } from '@/model/branded'
 
 const PROVIDER_KEY = 'rekall.session.provider'
+const TASK_PROVIDER_KEY = 'rekall.session.task-provider.'
 const CODEX_MODEL_KEY = 'rekall.codex.model'
 const CODEX_EFFORT_KEY = 'rekall.codex.effort'
 const CODEX_BYPASS_KEY = 'rekall.codex.bypass'
@@ -36,13 +38,25 @@ function saveChoice(key: string, value: string): void {
   }
 }
 
+function readProvider(key: string): SessionProvider | null {
+  const stored = readChoice(key)
+  return SESSION_PROVIDERS.find((provider) => provider === stored) ?? null
+}
+
 export function preferredProvider(): SessionProvider {
-  const stored = readChoice(PROVIDER_KEY)
-  return SESSION_PROVIDERS.find((provider) => provider === stored) ?? 'CLAUDE'
+  return readProvider(PROVIDER_KEY) ?? 'CLAUDE'
 }
 
 export function setPreferredProvider(value: SessionProvider): void {
   saveChoice(PROVIDER_KEY, value)
+}
+
+export function savedTaskProvider(taskId: TaskId): SessionProvider | null {
+  return readProvider(TASK_PROVIDER_KEY + taskId)
+}
+
+export function saveTaskProvider(taskId: TaskId, value: SessionProvider): void {
+  saveChoice(TASK_PROVIDER_KEY + taskId, value)
 }
 
 export function codexPreferences(): CodexPreferences {

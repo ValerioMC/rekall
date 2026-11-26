@@ -10,10 +10,11 @@ import { sessionAtWork } from '@/model/session-at-work'
 import { NOTHING_TO_RUN_MESSAGE, nothingToRun } from '@/model/nothing-to-run'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
 import RunMenuArrow from '@/features/claude/components/RunMenuArrow.vue'
+import SessionProviderSwitch from '@/features/claude/components/SessionProviderSwitch.vue'
 import ReplanConfirm from '@/features/claude/components/ReplanConfirm.vue'
 import { usePlanTask } from '@/features/claude/composables/usePlanTask'
-import type { RunMenuAction, RunMenuSelection } from '@/features/claude/model/runMenu'
-import { SESSION_PROVIDERS, type SessionProvider } from '@/features/claude/model/session-provider'
+import { useRunProvider } from '@/features/claude/composables/useRunProvider'
+import type { RunMenuAction } from '@/features/claude/model/runMenu'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { queuePlacement } from '@/features/queue/model/runQueue'
 import { useReleaseOnRun } from '@/features/graph/composables/useReleaseOnRun'
@@ -25,6 +26,7 @@ import type { TaskId, TaskStepId } from '@/model/branded'
  * through the edge, `waiting` an open ring turning while the server answers, `done` the amber
  * seal stamped in as a completed step's is, `working` the running step's own seal turning until
  * the session claims the work or ends. `done` and `working` share the pressed key. Only `idle` takes a press.
+ * The switch beside it picks the provider the key and its arrow start.
  * Its arrow also discusses the task, always, and plans it: a flow only while the task has no steps,
  * a replan only while draft or open steps can be replaced.
  */
@@ -57,6 +59,8 @@ const { releaseBeforeRun } = useReleaseOnRun()
 const { tasks, steps } = storeToRefs(console_)
 const { terminals: openTerminals } = storeToRefs(terminals)
 
+const { provider } = useRunProvider(() => props.taskId)
+
 const planTask = usePlanTask(
   () => props.taskId,
   () => props.folder,
@@ -88,10 +92,7 @@ const pressed = computed(() => phase.value === 'done' || phase.value === 'workin
 
 const taskSteps = computed(() => steps.value.filter((step) => step.taskId === props.taskId))
 const replaceableSteps = computed(() => taskSteps.value.filter((step) => step.state === 'DRAFT' || step.state === 'OPEN').length)
-const runActions = computed<readonly RunMenuAction[]>(() => [
-  ...(ready.value ? SESSION_PROVIDERS : []),
-  'RUN_IN_QUEUE'
-])
+const runActions: readonly RunMenuAction[] = ['RUN_IN_QUEUE']
 const prepareActions = computed<readonly RunMenuAction[]>(() => [
   'DISCUSS',
   'PLAN',
@@ -117,7 +118,7 @@ function pause(milliseconds: number): Promise<void> {
   })
 }
 
-async function launch(provider?: SessionProvider): Promise<void> {
+async function launch(): Promise<void> {
   if (busy.value) return
   if (!ready.value) {
     toast.notifyError(new Error(props.missingHint))
@@ -135,7 +136,7 @@ async function launch(provider?: SessionProvider): Promise<void> {
   const opening = run(() =>
     terminals.openForTask(props.taskId, {
       stepId: props.stepId,
-      ...launchChoices(provider)
+      ...launchChoices(provider.value)
     })
   )
   await pause(TRAVEL_MS)
@@ -156,7 +157,7 @@ async function launch(provider?: SessionProvider): Promise<void> {
   }
 }
 
-async function runInQueue(provider: SessionProvider): Promise<void> {
+async function runInQueue(): Promise<void> {
   if (busy.value) return
   if (!ready.value) {
     toast.notifyError(new Error(props.missingHint))
@@ -170,19 +171,18 @@ async function runInQueue(provider: SessionProvider): Promise<void> {
       toast.notifyError(new Error(NOTHING_TO_RUN_MESSAGE))
       return
     }
-    const queued = await run(() => runQueue.runInQueue(props.taskId, provider))
+    const chosen = provider.value
+    const queued = await run(() => runQueue.runInQueue(props.taskId, chosen))
     if (queued === null) return
-    toast.notify(queuePlacement(runQueue.queue, props.taskId, provider))
+    toast.notify(queuePlacement(runQueue.queue, props.taskId, chosen))
   } finally {
     preparing.value = false
   }
 }
 
-function chooseFromMenu(selection: RunMenuSelection): void {
-  if (selection.action === 'REPLAN') planTask.start(selection.action)
-  else if (selection.action === 'RUN') void launch(selection.provider)
-  else if (selection.action === 'RUN_IN_QUEUE') void runInQueue(selection.provider)
-  else planTask.start(selection.action, selection.provider)
+function chooseFromMenu(action: RunMenuAction): void {
+  if (action === 'RUN_IN_QUEUE') void runInQueue()
+  else planTask.start(action, provider.value)
 }
 
 onBeforeUnmount(() => {
@@ -192,100 +192,104 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="inline-flex shrink-0 items-stretch gap-px">
-    <button
-      type="button"
-      class="focus-ring relative inline-flex h-7 shrink-0 items-center gap-1.5 overflow-hidden rounded-key rounded-r-none px-2.5 text-small font-medium"
-      :class="[
-        ready
-          ? pressed
-            ? 'key-lit'
-            : 'key-gold font-semibold'
-          : 'bg-transparent text-text-subtle transition-colors hover:bg-surface-raised hover:text-text-muted',
-        busy && 'cursor-default'
-      ]"
-      :aria-label="phase === 'working' ? 'Working' : 'Run here'"
-      :aria-busy="busy"
-      :aria-disabled="busy"
-      :title="
-        phase === 'working'
-          ? 'A session is working on this. This button becomes available once the work is claimed or the session ends.'
-          : undefined
-      "
-      :data-phase="phase"
-      data-testid="open-terminal"
-      @click="launch()"
-    >
-      <span class="grid size-3.5 [&>*]:[grid-area:1/1]">
-        <svg
-          class="size-3.5"
-          :class="{
-            'run-play-return': phase === 'idle' && returning,
-            'run-play-away': phase !== 'idle' && phase !== 'working',
-            invisible: phase === 'working'
-          }"
-          viewBox="0 0 12 12"
-          aria-hidden="true"
-        >
-          <path
-            d="M3.4 1.9c0-.6.66-.97 1.17-.65l5.9 3.75c.47.3.47.99 0 1.29l-5.9 3.76c-.51.32-1.17-.05-1.17-.65Z"
-            fill="currentColor"
-          />
-        </svg>
-        <span
-          v-if="phase === 'working'"
-          class="run-working block size-4 place-self-center"
-          aria-hidden="true"
-        >
-          <StepSeal state="RUNNING" />
-        </span>
-      </span>
-      <span data-label class="grid [&>*]:[grid-area:1/1]">
-        <span
-          :class="{
-            'run-label-return': phase === 'idle' && returning,
-            'run-label-away': phase !== 'idle' && phase !== 'working',
-            invisible: phase === 'working'
-          }"
-          >Run here</span
-        >
-        <span :class="phase === 'working' ? 'run-label-in' : 'invisible'" aria-hidden="true">Working</span>
-      </span>
-
-      <span
-        v-if="phase === 'waiting' || phase === 'done'"
-        class="absolute inset-0 grid place-items-center"
-        aria-hidden="true"
+  <div class="inline-flex shrink-0 items-center gap-1.5">
+    <SessionProviderSwitch :task-id="taskId" :busy="busy" />
+    <div class="inline-flex shrink-0 items-stretch gap-px">
+      <button
+        type="button"
+        class="focus-ring relative inline-flex h-7 shrink-0 items-center gap-1.5 overflow-hidden rounded-key rounded-r-none px-2.5 text-small font-medium"
+        :class="[
+          ready
+            ? pressed
+              ? 'key-lit'
+              : 'key-gold font-semibold'
+            : 'bg-transparent text-text-subtle transition-colors hover:bg-surface-raised hover:text-text-muted',
+          busy && 'cursor-default'
+        ]"
+        :aria-label="phase === 'working' ? 'Working' : 'Run here'"
+        :aria-busy="busy"
+        :aria-disabled="busy"
+        :title="
+          phase === 'working'
+            ? 'A session is working on this. This button becomes available once the work is claimed or the session ends.'
+            : undefined
+        "
+        :data-phase="phase"
+        data-testid="open-terminal"
+        @click="launch()"
       >
-        <span v-if="phase === 'done'" class="run-seal block size-[18px]">
-          <StepSeal state="DONE" arriving />
+        <span class="grid size-3.5 [&>*]:[grid-area:1/1]">
+          <svg
+            class="size-3.5"
+            :class="{
+              'run-play-return': phase === 'idle' && returning,
+              'run-play-away': phase !== 'idle' && phase !== 'working',
+              invisible: phase === 'working'
+            }"
+            viewBox="0 0 12 12"
+            aria-hidden="true"
+          >
+            <path
+              d="M3.4 1.9c0-.6.66-.97 1.17-.65l5.9 3.75c.47.3.47.99 0 1.29l-5.9 3.76c-.51.32-1.17-.05-1.17-.65Z"
+              fill="currentColor"
+            />
+          </svg>
+          <span
+            v-if="phase === 'working'"
+            class="run-working block size-4 place-self-center"
+            aria-hidden="true"
+          >
+            <StepSeal state="RUNNING" />
+          </span>
         </span>
-        <svg v-else class="size-4" viewBox="0 0 16 16" fill="none">
-          <circle
-            class="run-ring run-ring-open"
-            cx="8"
-            cy="8"
-            r="6.4"
-            pathLength="100"
-            stroke="currentColor"
-            stroke-width="1.4"
-            stroke-linecap="round"
-          />
-        </svg>
-      </span>
+        <span data-label class="grid [&>*]:[grid-area:1/1]">
+          <span
+            :class="{
+              'run-label-return': phase === 'idle' && returning,
+              'run-label-away': phase !== 'idle' && phase !== 'working',
+              invisible: phase === 'working'
+            }"
+            >Run here</span
+          >
+          <span :class="phase === 'working' ? 'run-label-in' : 'invisible'" aria-hidden="true">Working</span>
+        </span>
 
-      <span class="sr-only" aria-live="polite">{{
-        phase === 'done' ? 'Session started' : phase === 'working' ? 'Session is working' : ''
-      }}</span>
-    </button>
-    <RunMenuArrow
-      :task-id="taskId"
-      :ready="ready"
-      :pressed="pressed"
-      :busy="busy"
-      :groups="[runActions, prepareActions]"
-      @choose="chooseFromMenu"
-    />
+        <span
+          v-if="phase === 'waiting' || phase === 'done'"
+          class="absolute inset-0 grid place-items-center"
+          aria-hidden="true"
+        >
+          <span v-if="phase === 'done'" class="run-seal block size-[18px]">
+            <StepSeal state="DONE" arriving />
+          </span>
+          <svg v-else class="size-4" viewBox="0 0 16 16" fill="none">
+            <circle
+              class="run-ring run-ring-open"
+              cx="8"
+              cy="8"
+              r="6.4"
+              pathLength="100"
+              stroke="currentColor"
+              stroke-width="1.4"
+              stroke-linecap="round"
+            />
+          </svg>
+        </span>
+
+        <span class="sr-only" aria-live="polite">{{
+          phase === 'done' ? 'Session started' : phase === 'working' ? 'Session is working' : ''
+        }}</span>
+      </button>
+      <RunMenuArrow
+        :task-id="taskId"
+        :provider="provider"
+        :ready="ready"
+        :pressed="pressed"
+        :busy="busy"
+        :groups="[runActions, prepareActions]"
+        @choose="chooseFromMenu"
+      />
+    </div>
   </div>
 
   <ReplanConfirm

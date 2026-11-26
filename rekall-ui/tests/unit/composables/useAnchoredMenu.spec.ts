@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
-import { adjacentMenuPlacement, useAnchoredMenu } from '@/composables/useAnchoredMenu'
+import { useAnchoredMenu } from '@/composables/useAnchoredMenu'
 
 const VIEWPORT_HEIGHT = 800
 const KEY_HEIGHT = 28
@@ -54,25 +54,5 @@ describe('useAnchoredMenu', () => {
 
     expect(placement.bottom).toBe('104px')
     expect(placement.maxHeight).toBe('88px')
-  })
-})
-
-describe('adjacentMenuPlacement', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('flips to the left and clamps the provider rows to the viewport', () => {
-    vi.stubGlobal('innerWidth', 800)
-    vi.stubGlobal('innerHeight', 500)
-    const parent = new DOMRect(560, 390, 200, 90)
-    const row = new DOMRect(564, 450, 192, 30)
-
-    expect(adjacentMenuPlacement(parent, row, 120, 240)).toMatchObject({ left: '316px', top: '372px' })
-  })
-
-  it('returns inline placement when neither side fits', () => {
-    vi.stubGlobal('innerWidth', 480)
-    const parent = new DOMRect(140, 250, 200, 160)
-
-    expect(adjacentMenuPlacement(parent, parent, 120, 240)).toBeNull()
   })
 })
