@@ -213,6 +213,16 @@ A logged commit stays out of `rekall_context` until it is chosen for it. Each ro
 
 The REST side is `GET /api/commit-references`, `POST /api/tasks/{id}/commit-references/latest`, `POST /api/tasks/{id}/commit-references` (body `commitHash`, optional `stepId` and `componentId`), `GET /api/tasks/{id}/recent-commits` (optional `componentId`), `GET /api/tasks/{id}/changes` (per repository: every logged commit's files and hunks, oldest first, read from git with the stored diff as the fallback, and the uncommitted working tree), `GET /api/commit-references/{id}/diff`, `PATCH /api/commit-references/{id}` (body `inContext`) and `DELETE /api/commit-references/{id}`.
 
+#### Reading Changes in batches
+
+`GET /api/tasks/{task_id}/changes/index` returns a `snapshotId` and the repositories, commit and working-tree sources, and file metadata from that read. The metadata includes paths, change kinds and line totals. A clean task has an empty `repositories` array.
+
+`POST /api/tasks/{task_id}/changes/files` takes the index's `snapshotId`, a `scope` object, and a `files` array of one to eight distinct `{ "componentId": ..., "path": "README.md" }` keys. Use `null` for `componentId` in the project's own repository. A scope with `kind` set to `all` needs no other fields. The `repository` and `working-tree` scopes carry `componentId`. The `step` scope carries `stepId`, and the `commit` scope carries `referenceId`.
+
+Each response entry contains its `file` key, `hunks`, and a `source` object with `kind: "commit"` and `referenceId`, or `kind: "working-tree"`. A file touched by several sources has one entry for each matching source. Batches use the same captured patches as the index.
+
+A malformed request or a file outside the selected scope returns 400. A snapshot belonging to another task returns 404. An expired, evicted, or otherwise missing snapshot returns 409. Request a fresh index before retrying a batch after a 409.
+
 ### Commit on claim
 
 A project can commit for the session instead of waiting for it to. The **Commit on claim** switch sits under the **Folder** field on the project page's **Settings** tab and only arms when that folder is a git repository: the strip under it says which branch is checked out and whom git would commit as there (`user.name` / `user.email` as `git config` resolves them in that folder, so the global identity unless the repo overrides it). Outside a repository the switch stays off and says why; on a repository with no `user.email` it arms but warns that the commit will fail until one is set. The setting is saved on the project (`autoCommit` on `PUT /api/projects/{id}`; the server keeps it off whenever the folder is not a repository) and `GET /api/projects/{id}/repository` is what the strip reads.

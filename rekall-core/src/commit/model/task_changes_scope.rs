@@ -10,10 +10,20 @@ use serde::Deserialize;
 )]
 pub enum TaskChangesScope {
     All,
-    Repository { component_id: Option<Id> },
-    Step { step_id: Id },
-    Commit { reference_id: Id },
-    WorkingTree { component_id: Option<Id> },
+    Repository {
+        #[serde(deserialize_with = "Deserialize::deserialize")]
+        component_id: Option<Id>,
+    },
+    Step {
+        step_id: Id,
+    },
+    Commit {
+        reference_id: Id,
+    },
+    WorkingTree {
+        #[serde(deserialize_with = "Deserialize::deserialize")]
+        component_id: Option<Id>,
+    },
 }
 
 impl TaskChangesScope {
