@@ -1,4 +1,5 @@
-//! Keeping a picture beside the database and serving it back, served by `rekall_console::picture`.
+//! Keeping a picture beside the database, serving it back and deleting the unused ones, served by
+//! `rekall_console::picture`.
 
 mod controller;
 mod request;

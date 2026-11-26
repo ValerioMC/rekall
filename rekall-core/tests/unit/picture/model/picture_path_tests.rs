@@ -9,6 +9,8 @@ fn a_task_picture_and_a_page_picture_are_paths_with_their_address() {
     assert_eq!(task.format(), PictureFormat::Png);
     assert_eq!(page.relative(), "acme/web/pages/release.plan/a_b-0011aabb.svg");
     assert_eq!(page.format(), PictureFormat::Svg);
+    assert_eq!(task.folder(), "acme/web/web-12");
+    assert_eq!(page.folder(), "acme/web/pages/release.plan");
 }
 
 #[test]

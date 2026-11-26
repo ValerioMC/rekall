@@ -129,7 +129,7 @@ is found by opening one folder per crate:
 | `graph` | a project's deployment graphs and laying one on a task; console-only, so it has no folder in `rekall-core` |
 | `note` | documents, each owned by one task and deleted with it, and how they load (in full or by reference) |
 | `wrapup`, `review`, `timeentry` | the wrapup, the review line, logged time |
-| `picture` | the pictures a markdown text shows, kept as files in `images/` beside the database (D11): `PicturePath` and the `PictureStore` port in `rekall-core`, the `PictureReference` rule that finds them in a markdown text, `PictureService` in `rekall-console`, which names the folder after the owner (a task, a project's blueprint, a page or a component), judges the format by the content and turns a picture into the PNG an export prints, and `FolderPictureStore` in `rekall-infra`. Called `picture` so no module shadows the `image` crate; no table behind it, so no folder in `rekall-store` |
+| `picture` | the pictures a markdown text shows, kept as files in `images/` beside the database (D11): `PicturePath` and the `PictureStore` port in `rekall-core`, the `PictureReference` rule that finds them in a markdown text, `PictureService` in `rekall-console`, which names the folder after the owner (a task, a project's blueprint, a page or a component), judges the format by the content and turns a picture into the PNG an export prints, `PictureCleanupService` beside it, which deletes the pictures no text shows (§4.7), and `FolderPictureStore` in `rekall-infra`. Called `picture` so no module shadows the `image` crate; no table behind it: its folder in `rekall-store` holds only the queries that read every text column (`picture_text`) |
 | `commit`, `diagram`, `token`, `search`, `context` | logged commits and what they and the working tree changed, stored diagrams, token usage, search, context assembly and its size |
 | `context_fill` | the last share of its context window a chat held at the end of a turn, per task and per step (`ContextFillService`, the only writer of `context_fill`; the console reads it) |
 | `quick` | the quick task: a task started from one line of text with its session opened at once, accepted without a review when Claude's wrapup lands; console and HTTP only, the acceptance itself is in `review` and `wrapup` |
@@ -211,7 +211,7 @@ because SeaORM declares a relation from both ends. A dash means the crate has no
 | `guard` | - | nothing | `catalog`, `step`, `task` | nothing | - |
 | `inventory` | `catalog` | `catalog` | - | nothing | `vulnerability` |
 | `note` | `task` | `task` | nothing | nothing | nothing |
-| `picture` | - | nothing | `catalog`, `component`, `section`, `task` | nothing | - |
+| `picture` | nothing | nothing | `catalog`, `component`, `section`, `task` | nothing | - |
 | `queue` | `task` | `catalog`, `claude`, `dependency`, `task` | nothing | nothing | - |
 | `quick` | - | - | `catalog`, `claude`, `terminal` | `catalog`, `claude` | - |
 | `review` | - | `step`, `task`, `timeentry` | - | - | - |
@@ -558,6 +558,28 @@ picture is refused there.
 | `POST /api/image-uploads?ownerKind=&ownerId=&name=` | The same for a pasted or dropped picture, sent as the request body: `ownerKind` and `ownerId` as `owner` above, `name` the file it came from, `pasted-image` without one. Same answer, content check, 10 MB limit and refusals |
 | `GET /api/images/{path}` | The bytes with their content type, cacheable for good, `nosniff` and same-origin only; an SVG carries a sandboxing `Content-Security-Policy`, so one opened directly runs no script. Anything that is not a picture's path is `404` |
 | `GET /api/image-thumbnail?path=` | A preview of the file at the absolute `path`, for the picker, under the content check and 10 MB limit of an import, else `400`; nothing is copied. PNG, JPEG, WebP and a GIF's first frame come back as a PNG fitting 320 pixels, never enlarged and turned as their EXIF orientation says; an SVG as it is. The headers of `GET /api/images/{path}`, so no other page can embed it and probe your files, but `Cache-Control: private, no-cache` |
+| `POST /api/image-cleanup` | Starts a search for unused pictures, `202`. `409` while a run is under way, while a list waits to be deleted or discarded, or on a database that is not a file |
+| `GET /api/image-cleanup` | The `state` and what it has: `percentage` while `SEARCHING` or `DELETING`; `pictures` (`url`, `folder`, `sizeBytes`) and `totalBytes` when `READY`; `removed`, `freedBytes`, `kept` and `notDeleted` when `FINISHED`; `message` when `FAILED`; nothing more when `IDLE` |
+| `POST /api/image-cleanup/deletion` | Deletes the listed pictures, `202`; `409` without a list |
+| `DELETE /api/image-cleanup` | Discards the list, `204`; `409` without one |
+
+**Unused pictures.** Nothing counts what shows a picture, since many writers save markdown: `PictureCleanupService`
+(`rekall-console`) reads it all. A picture is in use while any text column of any table contains
+`/api/images/<its path>`. The tables and columns come from the schema (`picture_text` in `rekall-store`, leaving out
+SQLite's own tables and the migrations'), so a column added later is read too, and old wrapup versions and earlier step
+passes count as use. `tracker_picture` holds paths without that prefix, so an upload is not a use. One run at a time
+goes on in the background and is kept in memory, so a restart goes back to idle. A search reads 200 rows per read
+transaction, so writing goes on, and reports the rows read over the rows counted when it started; a deletion reports
+the files handled over the files listed. Each change of state, whole percentage or count is a `picture-cleanup` frame
+on the event stream (`PictureCleanupStreamEvent`: `state`, `percentage`, and `count`, the pictures listed or removed).
+
+- Only a file whose path is a `PicturePath` is listed, so nothing else under `images/` is ever deleted, and links are
+  not followed.
+- A file written less than 24 hours ago is never listed: its text may not be saved yet.
+- A deletion removes listed files only, after asking the texts and each file's age again, so a picture linked or
+  written again since the search is kept.
+- A failed read deletes nothing. A file that cannot be deleted is logged and counted, and the others still go.
+- A deletion is for good. It removes the folders left empty, never `images/` itself.
 
 ---
 

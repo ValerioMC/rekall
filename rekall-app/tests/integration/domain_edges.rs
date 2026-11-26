@@ -44,6 +44,7 @@ const STORE: LayeredCrate = LayeredCrate {
         ("graph", &["catalog", "flow", "step"]),
         ("inventory", &["catalog"]),
         ("note", &["task"]),
+        ("picture", &[]),
         ("queue", &["task"]),
         ("section", &["catalog"]),
         ("skill", &["step", "tag", "task"]),

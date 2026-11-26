@@ -1,8 +1,11 @@
-//! Keeping pictures beside the database and serving them back, over HTTP.
+//! Keeping pictures beside the database, serving them back and cleaning up the unused ones, over HTTP.
 
 mod support;
 
-use serde_json::json;
+use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime};
+
+use serde_json::{json, Value};
 use support::{app, App};
 
 const PNG: &[u8] = b"\x89PNG\r\n\x1a\n pixels";
@@ -178,6 +181,72 @@ async fn a_session_is_told_where_the_pictures_are_by_the_context_and_each_read_t
 
     let size = app.get(&format!("/api/tasks/{task}/context-size")).await;
     assert!(size.text.contains("Pictures folder"), "{}", size.text);
+
+    app.stop().await;
+}
+
+fn kept_file(app: &App, url: &str) -> PathBuf {
+    app.folder.path().join("db/images").join(url.strip_prefix("/api/images/").unwrap())
+}
+
+fn written_two_days_ago(file: &Path) {
+    let long_ago = SystemTime::now() - Duration::from_secs(48 * 60 * 60);
+    std::fs::File::options().write(true).open(file).unwrap().set_modified(long_ago).unwrap();
+}
+
+async fn cleanup_that_reaches(app: &App, state: &str) -> Value {
+    for _ in 0..200 {
+        let status = app.get("/api/image-cleanup").await;
+        if status.str("state") == state {
+            return status.body;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    panic!("the cleanup never reached {state}: {}", app.get("/api/image-cleanup").await.text);
+}
+
+#[tokio::test]
+async fn a_cleanup_lists_and_then_deletes_only_the_old_picture_no_text_shows() {
+    let app = app().await;
+    let task = a_task(&app).await;
+    let project = app.get(&format!("/api/tasks/{task}")).await.str("projectId");
+    let used = import(&app, &task, "Used.png", PNG).await;
+    let unused = import(&app, &task, "Old mock.png", PNG).await;
+    let young = import(&app, &task, "Fresh.png", PNG).await;
+    let shown = format!("![Used]({used}#right)");
+    app.put(&format!("/api/tasks/{task}"), json!({ "title": "Login", "projectId": project, "description": shown })).await;
+    written_two_days_ago(&kept_file(&app, &used));
+    written_two_days_ago(&kept_file(&app, &unused));
+    let stranger = kept_file(&app, &unused).with_file_name("notes.txt");
+    std::fs::write(&stranger, "not a picture").unwrap();
+    written_two_days_ago(&stranger);
+    assert_eq!(app.get("/api/image-cleanup").await.body, json!({ "state": "IDLE" }));
+    assert_eq!(app.post_empty("/api/image-cleanup/deletion").await.status, 409);
+    assert_eq!(app.delete("/api/image-cleanup").await.status, 409);
+    let mut events = app.open_stream().await;
+    events.await_line("ready", 5).await;
+
+    assert_eq!(app.post_empty("/api/image-cleanup").await.status, 202);
+
+    events.await_line("event:picture-cleanup", 10).await;
+    events.await_line(r#""state":"READY""#, 10).await;
+    let ready = cleanup_that_reaches(&app, "READY").await;
+    let folder = unused.strip_prefix("/api/images/").unwrap().rsplit_once('/').unwrap().0;
+    assert_eq!(ready["pictures"], json!([{ "url": unused, "folder": folder, "sizeBytes": PNG.len() }]));
+    assert_eq!(ready["totalBytes"], PNG.len());
+    assert_eq!(app.post_empty("/api/image-cleanup").await.status, 409);
+
+    assert_eq!(app.post_empty("/api/image-cleanup/deletion").await.status, 202);
+
+    let finished = cleanup_that_reaches(&app, "FINISHED").await;
+    assert_eq!(finished, json!({ "state": "FINISHED", "removed": 1, "freedBytes": PNG.len(), "kept": 0, "notDeleted": 0 }));
+    assert!(!kept_file(&app, &unused).exists());
+    assert!(kept_file(&app, &used).exists() && kept_file(&app, &young).exists() && stranger.exists());
+
+    assert_eq!(app.post_empty("/api/image-cleanup").await.status, 202);
+    cleanup_that_reaches(&app, "READY").await;
+    assert_eq!(app.delete("/api/image-cleanup").await.status, 204);
+    assert_eq!(app.get("/api/image-cleanup").await.body, json!({ "state": "IDLE" }));
 
     app.stop().await;
 }

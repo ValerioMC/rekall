@@ -2,11 +2,14 @@ use std::io::{self, ErrorKind};
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
-use rekall_core::picture::{PicturePath, PictureStore};
-use rekall_kernel::{InternalFailure, RekallError, Result};
+use chrono::{DateTime, Utc};
+use rekall_core::picture::{PicturePath, PictureStore, StoredPicture};
+use rekall_kernel::{InternalFailure, Instant, RekallError, Result};
 use tokio::io::AsyncReadExt;
+use tracing::warn;
 
 use crate::backup::DatabaseLocation;
+use crate::picture::picture_files;
 
 const BYTES_PER_MEGABYTE: u64 = 1024 * 1024;
 
@@ -70,6 +73,54 @@ impl PictureStore for FolderPictureStore {
             }
             _ => disk_failure(failure),
         })
+    }
+
+    async fn list(&self) -> Result<Vec<StoredPicture>> {
+        let images = self.root()?.to_path_buf();
+        tokio::task::spawn_blocking(move || stored_pictures(&images))
+            .await
+            .map_err(|failure| RekallError::internal(InternalFailure::Background, failure))?
+            .map_err(disk_failure)
+    }
+
+    async fn delete(&self, path: &PicturePath) -> Result<()> {
+        let file = self.file_of(path)?;
+        match tokio::fs::remove_file(&file).await {
+            Err(failure) if failure.kind() != ErrorKind::NotFound => Err(disk_failure(failure)),
+            _ => {
+                remove_emptied_folders(self.root()?, &file).await;
+                Ok(())
+            }
+        }
+    }
+}
+
+/// A file removed while the folder is being listed is left out.
+fn stored_pictures(images: &Path) -> io::Result<Vec<StoredPicture>> {
+    let mut stored = Vec::new();
+    for path in picture_files(images)? {
+        match std::fs::symlink_metadata(images.join(path.relative())) {
+            Ok(found) => {
+                let modified_at = Instant::from_datetime(DateTime::<Utc>::from(found.modified()?));
+                stored.push(StoredPicture { path, size_bytes: found.len(), modified_at });
+            }
+            Err(failure) if failure.kind() == ErrorKind::NotFound => {}
+            Err(failure) => return Err(failure),
+        }
+    }
+    Ok(stored)
+}
+
+/// From the file's folder upwards, until one still holds something. The picture is gone by then,
+/// so a folder that cannot be removed is only logged.
+async fn remove_emptied_folders(images: &Path, file: &Path) {
+    for folder in file.ancestors().skip(1).take_while(|folder| *folder != images) {
+        if let Err(failure) = tokio::fs::remove_dir(folder).await {
+            if failure.kind() != ErrorKind::DirectoryNotEmpty {
+                warn!(%failure, folder = %folder.display(), "Could not remove an emptied picture folder");
+            }
+            return;
+        }
     }
 }
 

@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use image::{ImageFormat, Rgb, RgbImage};
-use rekall_core::picture::{PicturePath, PictureStore};
+use rekall_core::picture::{PicturePath, PictureStore, StoredPicture};
 use rekall_core::EventBus;
 use rekall_kernel::Instant;
 use rekall_store::{company, project, project_section, section_context, ExportFailureKind, ProjectStatus};
@@ -44,6 +44,14 @@ impl PictureStore for FakePictures {
 
     async fn read(&self, path: &PicturePath) -> Result<Vec<u8>> {
         self.kept.lock().unwrap().get(path.relative()).cloned().ok_or_else(|| RekallError::not_found_msg("no picture"))
+    }
+
+    async fn list(&self) -> Result<Vec<StoredPicture>> {
+        unreachable!("an export lists no picture")
+    }
+
+    async fn delete(&self, _path: &PicturePath) -> Result<()> {
+        unreachable!("an export deletes no picture")
     }
 }
 

@@ -46,6 +46,11 @@ impl PicturePath {
         self.relative.rsplit('/').next().unwrap_or(&self.relative)
     }
 
+    /// Where the file is under the images folder, such as `acme/web/web-12`.
+    pub fn folder(&self) -> &str {
+        self.relative.rsplit_once('/').map_or("", |(folder, _)| folder)
+    }
+
     /// What the markdown holds to show this picture.
     pub fn address(&self) -> String {
         format!("{}{}", Self::ADDRESS_PREFIX, self.relative)

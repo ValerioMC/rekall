@@ -103,3 +103,66 @@ fn the_folder_is_the_real_images_folder_before_and_after_it_exists() {
 fn without_a_database_file_there_is_no_folder() {
     assert_eq!(FolderPictureStore::new(None).folder(), None);
 }
+
+#[tokio::test]
+async fn pictures_are_listed_with_their_size_and_when_they_were_written() {
+    let folder = tempfile::tempdir().unwrap();
+    let store = store_in(&folder);
+    store.write(&path(), b"pixels").await.unwrap();
+    std::fs::write(folder.path().join("images/acme/web/web-12/notes.txt"), "not a picture").unwrap();
+    let file = folder.path().join("images").join(path().relative());
+    let long_ago = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(86_400);
+    std::fs::File::options().write(true).open(&file).unwrap().set_modified(long_ago).unwrap();
+
+    let listed = store.list().await.unwrap();
+
+    assert_eq!(listed, [StoredPicture { path: path(), size_bytes: 6, modified_at: Instant::from_epoch_seconds(86_400).unwrap() }]);
+}
+
+#[tokio::test]
+async fn a_store_with_no_picture_yet_lists_nothing() {
+    let folder = tempfile::tempdir().unwrap();
+
+    assert!(store_in(&folder).list().await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn deleting_a_picture_removes_the_folders_it_leaves_empty_but_never_the_images_folder() {
+    let folder = tempfile::tempdir().unwrap();
+    let store = store_in(&folder);
+    store.write(&path(), b"pixels").await.unwrap();
+
+    store.delete(&path()).await.unwrap();
+
+    assert!(!folder.path().join("images/acme").exists());
+    assert!(folder.path().join("images").is_dir());
+}
+
+#[tokio::test]
+async fn deleting_a_picture_keeps_a_folder_that_holds_something_else() {
+    let folder = tempfile::tempdir().unwrap();
+    let store = store_in(&folder);
+    let sibling = PicturePath::parse("acme/web/blueprint/map-3f9a1c2b.png").unwrap();
+    store.write(&path(), b"pixels").await.unwrap();
+    store.write(&sibling, b"pixels").await.unwrap();
+
+    store.delete(&path()).await.unwrap();
+
+    assert!(!folder.path().join("images/acme/web/web-12").exists());
+    assert_eq!(store.read(&sibling).await.unwrap(), b"pixels");
+}
+
+#[tokio::test]
+async fn deleting_a_picture_that_is_already_gone_succeeds() {
+    let folder = tempfile::tempdir().unwrap();
+
+    assert!(store_in(&folder).delete(&path()).await.is_ok());
+}
+
+#[tokio::test]
+async fn a_database_that_is_not_a_file_lists_and_deletes_nothing() {
+    let store = FolderPictureStore::new(None);
+
+    assert!(matches!(store.list().await, Err(RekallError::Conflict(_))));
+    assert!(matches!(store.delete(&path()).await, Err(RekallError::Conflict(_))));
+}

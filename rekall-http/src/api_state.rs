@@ -106,6 +106,7 @@ pub struct ApiState {
     pub backups: backup::BackupService,
     pub database_folders: settings::DatabaseFolderService,
     pub pictures: picture::PictureService,
+    pub picture_cleanup: picture::PictureCleanupService,
     pub update_check: version::UpdateCheckService,
     pub stream: Arc<StepEventStream>,
 }
@@ -190,6 +191,7 @@ impl ApiState {
         let ctx = services.ctx.clone();
         let Wired { tasks, project_connections, projects, connections, component_catalog, repository_discovery, jira_issues, confluence_spaces, connection_targets, gitlab_targets, task_tracker_sync, vulnerability_fixes, graphs, graph_attach, terminals, quick_tasks } =
             Wired::of(&ctx, &services, &ports);
+        let picture_cleanup = picture::PictureCleanupService::new(ctx.clone(), ports.pictures.clone());
         let pictures = picture::PictureService::new(ctx.clone(), ports.pictures);
         Self {
             companies: catalog::CompanyService::new(ctx.clone()),
@@ -271,6 +273,7 @@ impl ApiState {
             backups: backup::BackupService::new(ports.backups, ports.restore),
             database_folders: settings::DatabaseFolderService::new(ports.database_folders, ports.restart),
             pictures,
+            picture_cleanup,
             update_check: version::UpdateCheckService::new(RUNNING_VERSION, ports.release_feed),
             stream,
         }

@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use async_trait::async_trait;
+use rekall_core::picture::StoredPicture;
 use rekall_core::EventBus;
 use rekall_kernel::{Id, Instant};
 use rekall_store::{company, project, project_component, project_section, section_context, task, ProjectStatus};
@@ -43,6 +44,14 @@ impl PictureStore for FakeStore {
 
     async fn read(&self, path: &PicturePath) -> Result<Vec<u8>> {
         self.kept.lock().unwrap().get(path.relative()).cloned().ok_or_else(|| RekallError::not_found_msg("no picture"))
+    }
+
+    async fn list(&self) -> Result<Vec<StoredPicture>> {
+        unreachable!("keeping and reading pictures never lists them")
+    }
+
+    async fn delete(&self, _: &PicturePath) -> Result<()> {
+        unreachable!("keeping and reading pictures never deletes one")
     }
 }
 
