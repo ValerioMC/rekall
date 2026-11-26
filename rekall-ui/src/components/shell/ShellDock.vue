@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRoute } from 'vue-router'
 import { useConsoleStore } from '@/stores/console.store'
 import { useChatWindowShown } from '@/features/chat/composables/useChatWindowShown'
+import { useTerminalPaneShown } from '@/features/claude/composables/useTerminalPaneShown'
 import { useClaudeCommandUpdateStore } from '@/features/claude/store/claudeCommandUpdate.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import CommandUpdateMark from '@/features/claude/components/CommandUpdateMark.vue'
@@ -25,10 +25,9 @@ type DockPanel = 'running' | 'sessions'
 
 const store = useConsoleStore()
 const terminals = useTerminalStore()
-const { runningEntries, paneFocus } = storeToRefs(store)
+const { runningEntries } = storeToRefs(store)
 const { terminals: allTerminals, floatingId } = storeToRefs(terminals)
 const { updating: updatingCommands } = storeToRefs(useClaudeCommandUpdateStore())
-const route = useRoute()
 const root = ref<HTMLElement | null>(null)
 const chatWindowShown = useChatWindowShown()
 
@@ -38,7 +37,7 @@ const floating = computed(() => allTerminals.value.find((terminal) => terminal.i
 const liveSessions = computed(() => allTerminals.value.filter((terminal) => terminal.live))
 
 // The sessions segment steps aside while the terminal pane or the chat window is on screen: they show the sessions.
-const onTerminalPane = computed(() => route.name === 'console' && paneFocus.value === 'terminal')
+const onTerminalPane = useTerminalPaneShown()
 
 const showsRunning = computed(() => runningEntries.value.length > 0)
 const showsSessions = computed(() => liveSessions.value.length > 0 && !onTerminalPane.value && !chatWindowShown.value)

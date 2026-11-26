@@ -10,6 +10,7 @@ import { reviewCountsByTask } from '@/features/workingset/lib/review-counts'
 import { stepTally, taskActivity } from '@/features/workingset/lib/task-activity'
 import { useWorkingSetStore } from '@/features/workingset/store/workingSet.store'
 import { useChatStore } from '@/features/chat/store/chat.store'
+import { useTerminalPaneShown } from '@/features/claude/composables/useTerminalPaneShown'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import type { StepTally, TaskActivity } from '@/features/workingset/model/task-activity'
 import { useConsoleStore } from '@/stores/console.store'
@@ -18,8 +19,8 @@ import type { TaskId } from '@/model/branded'
 
 /**
  * The two-level bar under the header: the projects with open tasks, then the open tasks of the
- * project in view. It shows on a task page and a project page while something is open, and the
- * project and task it marks follow the route, however the page was reached.
+ * project in view. It shows on a task page, a project page and the terminal view while something
+ * is open, and marks the project and task on screen, however they were reached.
  */
 const route = useRoute()
 const workingSet = useWorkingSetStore()
@@ -27,6 +28,7 @@ const { reviewQueue, steps } = storeToRefs(useConsoleStore())
 const chat = useChatStore()
 const terminals = useTerminalStore()
 const { taskInView, projectIdInView, placeToVisit, visit } = useWorkingSetNavigation()
+const terminalShown = useTerminalPaneShown()
 
 const reviewCounts = computed(() => reviewCountsByTask(reviewQueue.value))
 const groupInView = computed(() =>
@@ -35,7 +37,8 @@ const groupInView = computed(() =>
 const tasksInView = computed(() => groupInView.value?.tasks ?? [])
 const activities = computed(() => new Map<TaskId, TaskActivity>(tasksInView.value.map((task) => [task.id, activityOf(task.id)])))
 const tallies = computed(() => new Map<TaskId, StepTally>(tasksInView.value.map((task) => [task.id, stepTally(stepsOf(task.id))])))
-const shown = computed(() => (route.name === 'task' || route.name === 'project-detail') && workingSet.groups.length > 0)
+const onBarPage = computed(() => route.name === 'task' || route.name === 'project-detail' || terminalShown.value)
+const shown = computed(() => onBarPage.value && workingSet.groups.length > 0)
 
 useWorkingSetKeys()
 

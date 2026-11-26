@@ -19,12 +19,23 @@ const ATLAS = 'atlas' as ProjectId
 
 const Page = { render: () => null }
 
+function showTerminalOf(taskId: TaskId): void {
+  const catalog = useConsoleStore()
+  catalog.selectTask(taskId)
+  catalog.openTerminal()
+}
+
+function markedTasks(bar: ReturnType<typeof mount>): (string | undefined)[] {
+  return bar.findAll('[data-testid="working-set-task"]').map((tab) => tab.attributes('aria-selected'))
+}
+
 async function barAt(path: string): Promise<{ bar: ReturnType<typeof mount>; router: Router }> {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
       { path: '/task/:id/:tab?', name: 'task', component: Page },
       { path: '/projects/:id/:tab?', name: 'project-detail', component: Page },
+      { path: '/console', name: 'console', component: Page },
       { path: '/settings', name: 'settings', component: Page }
     ]
   })
@@ -112,5 +123,67 @@ describe('the working-set bar', () => {
 
     expect(router.currentRoute.value.params.id).toBe('t1')
     expect(useWorkingSetStore().isOpen(T2)).toBe(false)
+  })
+
+  describe('on the terminal view', () => {
+    it('shows both rows and marks the selected task', async () => {
+      showTerminalOf(T2)
+
+      const { bar } = await barAt('/console')
+
+      expect(bar.findAll('[data-testid="working-set-project"]')).toHaveLength(2)
+      expect(markedTasks(bar)).toEqual(['false', 'true'])
+    })
+
+    it('is hidden on a console route without the terminal', async () => {
+      useConsoleStore().selectTask(T2)
+
+      const { bar } = await barAt('/console')
+
+      expect(bar.find('[data-testid="working-set-bar"]').exists()).toBe(false)
+    })
+
+    it('moves the mark when the terminal switches to another task', async () => {
+      showTerminalOf(T2)
+      const { bar } = await barAt('/console')
+
+      showTerminalOf(T1)
+      await flushPromises()
+
+      expect(markedTasks(bar)).toEqual(['true', 'false'])
+    })
+
+    it('marks no tab and adds nothing for a task that is not open', async () => {
+      vi.mocked(api.fetchWorkingSet).mockResolvedValue({ tasks: [{ taskId: T1, projectId: VEGA }], places: [] })
+      await useWorkingSetStore().load()
+      showTerminalOf(T2)
+
+      const { bar } = await barAt('/console')
+
+      expect(markedTasks(bar)).toEqual(['false'])
+      expect(bar.get('[data-testid="working-set-all-tasks"]').attributes('aria-selected')).toBe('false')
+      expect(useWorkingSetStore().isOpen(T2)).toBe(false)
+    })
+
+    it('goes back to the task page when the marked tab is pressed', async () => {
+      showTerminalOf(T2)
+      const { bar, router } = await barAt('/console')
+
+      await bar.findAll('[data-testid="working-set-task"]')[1]?.trigger('click')
+      await flushPromises()
+
+      expect(router.currentRoute.value.fullPath).toBe('/task/t2/description')
+    })
+
+    it('lands on the neighbour when the task shown is closed', async () => {
+      vi.mocked(api.closeTask).mockResolvedValue({ projectId: VEGA, taskId: T1 })
+      showTerminalOf(T2)
+      const { bar, router } = await barAt('/console')
+
+      await bar.findAll('[data-testid="working-set-task-close"]')[1]?.trigger('click')
+      await flushPromises()
+
+      expect(router.currentRoute.value.fullPath).toBe('/task/t1/description')
+    })
   })
 })

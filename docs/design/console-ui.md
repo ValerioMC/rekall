@@ -95,9 +95,12 @@ its Notes tab, a step hit its Plan with the step open. It is how a person change
 
 A two-level bar under the header, mounted once in `Bootstrap.vue`, for moving between the tasks a
 person keeps open, across projects, and between a project's task list and its tasks
-(`features/workingset`, `WorkingSetBar`). It shows on a task page and on a project page while at
-least one task is open, and nowhere else (Settings, the Calendar, Companies and the rest leave it
-and the set alone).
+(`features/workingset`, `WorkingSetBar`). It shows on a task page, on a project page and on the
+terminal view while at least one task is open, and nowhere else (Settings, the Calendar, Companies,
+a `/console` that shows no terminal and the rest leave it and the set alone). The terminal view is
+`/console` with a task's terminal in the pane (`useTerminalPaneShown`): the bar marks that task and
+its project, the terminal fills the area under it, and a task that is not open has no tab marked and
+is not added.
 
 - **Level 1, `WorkingSetProjectTabs`:** one tab per project with an open task, grouped under its
   company's name, each with the project mark, the count of its open tasks and, in amber, the count

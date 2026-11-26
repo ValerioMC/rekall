@@ -254,6 +254,7 @@ describe('ShellDock', () => {
     it('hides the sessions segment while the terminal pane is already open', async () => {
       routeName.value = 'console'
       const { wrapper, console } = await mountDock([terminal()], [running()])
+      console.selectedTaskId = TASK
       console.paneFocus = 'terminal'
       await flushPromises()
       expect(wrapper.find('[data-testid="terminal-dock-toggle"]').exists()).toBe(false)
