@@ -3,15 +3,18 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 
 use crate::connection::{TaskTracker, TrackerEndpoint, TrackerFailure, TrackerIssue, TrackerLink};
+use crate::picture::PicturePath;
 
 /// A `TaskTracker` that numbers the issues it is given in memory, for tests of what decides when
-/// to write one. `fail_with` makes every call fail until `recover`.
+/// to write one. `fail_with` makes every call fail and `refuse_uploads` every upload, until `recover`.
 #[derive(Default)]
 pub struct ScriptedTaskTracker {
     created: Mutex<Vec<(String, TrackerIssue)>>,
     updated: Mutex<Vec<(String, TrackerIssue)>>,
     deleted: Mutex<Vec<String>>,
+    uploaded: Mutex<Vec<(Option<String>, String)>>,
     failure: Mutex<Option<TrackerFailure>>,
+    upload_failure: Mutex<Option<TrackerFailure>>,
 }
 
 impl ScriptedTaskTracker {
@@ -23,8 +26,13 @@ impl ScriptedTaskTracker {
         *self.failure.lock().expect("scripted tracker lock") = Some(failure);
     }
 
+    pub fn refuse_uploads(&self, failure: TrackerFailure) {
+        *self.upload_failure.lock().expect("scripted tracker lock") = Some(failure);
+    }
+
     pub fn recover(&self) {
         *self.failure.lock().expect("scripted tracker lock") = None;
+        *self.upload_failure.lock().expect("scripted tracker lock") = None;
     }
 
     /// The location each created issue went to, with the issue.
@@ -40,6 +48,11 @@ impl ScriptedTaskTracker {
     /// The key of each issue deleted, in order.
     pub fn deleted(&self) -> Vec<String> {
         self.deleted.lock().expect("scripted tracker lock").clone()
+    }
+
+    /// The issue each picture was uploaded for, with the picture's path, in order.
+    pub fn uploaded(&self) -> Vec<(Option<String>, String)> {
+        self.uploaded.lock().expect("scripted tracker lock").clone()
     }
 
     fn refusal(&self) -> Option<TrackerFailure> {
@@ -73,5 +86,14 @@ impl TaskTracker for ScriptedTaskTracker {
         }
         self.deleted.lock().expect("scripted tracker lock").push(key.to_string());
         Ok(())
+    }
+
+    async fn upload_picture(&self, endpoint: &TrackerEndpoint, issue_key: Option<&str>, picture: &PicturePath, _: Vec<u8>) -> Result<String, TrackerFailure> {
+        let refused = self.upload_failure.lock().expect("scripted tracker lock").clone().or_else(|| self.refusal());
+        if let Some(failure) = refused {
+            return Err(failure);
+        }
+        self.uploaded.lock().expect("scripted tracker lock").push((issue_key.map(str::to_string), picture.relative().to_string()));
+        Ok(format!("{}/uploads/{}", endpoint.site_url, picture.file_name()))
     }
 }

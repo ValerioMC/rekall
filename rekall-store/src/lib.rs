@@ -73,7 +73,7 @@ pub use skill::{entity::skill_arguments, entity::skill_name, entity::skill_place
 pub use step::{entity::step_pass, entity::task_step};
 pub use telemetry::entity::telemetry_setting;
 pub use workingset::entity::{working_set_place, working_set_task};
-pub use tracker::entity::{task_pull_request, task_tracker_link};
+pub use tracker::entity::{task_pull_request, task_tracker_link, tracker_picture};
 pub use timeentry::entity::time_entry;
 pub use token::{entity::token_usage, entity::transcript_scan};
 pub use vulnerability::{entity::scan_scope, entity::security_advisory, entity::vulnerability_exposure};

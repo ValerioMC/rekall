@@ -4,6 +4,7 @@ use sea_orm::{ActiveModelTrait, IntoActiveModel};
 
 use super::*;
 use crate::connection::{InMemorySecretStore, ScriptedPullRequestHost, ScriptedTaskTracker, Secret, SecretStore};
+use crate::picture::{InMemoryPictureStore, PicturePath};
 use crate::worktree::ScriptedWorktreeHost;
 use crate::EventBus;
 
@@ -11,6 +12,8 @@ struct World {
     service: TaskPullRequestService,
     git: Arc<ScriptedWorktreeHost>,
     host: Arc<ScriptedPullRequestHost>,
+    tracker: Arc<ScriptedTaskTracker>,
+    pictures: Arc<InMemoryPictureStore>,
     ctx: Ctx,
     project_id: Id,
 }
@@ -35,12 +38,15 @@ async fn world(pull_request_flow: bool) -> World {
     binding.clone().into_active_model().insert(&ctx.db).await.unwrap();
     let secrets = Arc::new(InMemorySecretStore::new());
     secrets.put(&connection.secret_ref, &Secret::new("token")).unwrap();
-    let tracker = TaskTrackerService::new(ctx.clone(), secrets, Arc::new(ScriptedTaskTracker::new()));
+    let tracker = Arc::new(ScriptedTaskTracker::new());
+    let pictures = Arc::new(InMemoryPictureStore::new());
+    let uploads = TrackerPictureService::new(ctx.clone(), pictures.clone(), tracker.clone());
+    let issues = TaskTrackerService::new(ctx.clone(), secrets, tracker.clone(), uploads.clone());
     let git = Arc::new(ScriptedWorktreeHost::new());
     let host = Arc::new(ScriptedPullRequestHost::new());
     let layout = WorktreeLayout::new(std::path::PathBuf::from("/worktrees"));
-    let service = TaskPullRequestService::new(ctx.clone(), tracker, git.clone(), host.clone(), layout);
-    World { service, git, host, ctx, project_id: project.id }
+    let service = TaskPullRequestService::new(ctx.clone(), issues, uploads, git.clone(), host.clone(), layout);
+    World { service, git, host, tracker, pictures, ctx, project_id: project.id }
 }
 
 impl World {
@@ -230,4 +236,37 @@ async fn a_task_whose_pull_request_never_opened_is_refused_with_the_reason_it_fa
     let landing = world.service.merge_accepted(task.id).await.unwrap();
 
     assert_eq!(landing, PullRequestLanding::Refused("The push of rekall/report was refused: remote: Permission denied".into()));
+}
+
+#[tokio::test]
+async fn the_pictures_of_the_body_are_uploaded_and_shown_by_their_copies() {
+    let world = world(true).await;
+    let task = world.claimed_task("report").await;
+    let path = "acme/app/app-1/login-3f9a1c2b.png";
+    world.pictures.put(&PicturePath::parse(path).unwrap(), b"picture");
+    let mut described = task.clone().into_active_model();
+    described.description = sea_orm::Set(Some(format!("![Login](/api/images/{path})")));
+    described.update(&world.ctx.db).await.unwrap();
+
+    world.service.open_if_claimed(task.id).await.unwrap();
+
+    assert_eq!(world.tracker.uploaded(), [(None, path.to_string())]);
+    assert_eq!(world.host.opened()[0].body, "![Login](https://github.com/uploads/login-3f9a1c2b.png)");
+}
+
+#[tokio::test]
+async fn a_refused_picture_stores_the_reason_and_opens_nothing() {
+    let world = world(true).await;
+    let task = world.claimed_task("report").await;
+    let path = "acme/app/app-1/login-3f9a1c2b.png";
+    world.pictures.put(&PicturePath::parse(path).unwrap(), b"picture");
+    let mut described = task.clone().into_active_model();
+    described.description = sea_orm::Set(Some(format!("![Login](/api/images/{path})")));
+    described.update(&world.ctx.db).await.unwrap();
+    world.tracker.refuse_uploads(TrackerFailure::Failed { reason: "it answered HTTP 404".into() });
+
+    world.service.open_if_claimed(task.id).await.unwrap();
+
+    assert!(world.host.opened().is_empty());
+    assert!(world.stored(&task).await.unwrap().failure.unwrap().contains("could not take the picture login-3f9a1c2b.png"));
 }

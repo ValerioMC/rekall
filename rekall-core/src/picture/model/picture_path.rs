@@ -42,6 +42,10 @@ impl PicturePath {
         self.format
     }
 
+    pub fn file_name(&self) -> &str {
+        self.relative.rsplit('/').next().unwrap_or(&self.relative)
+    }
+
     /// What the markdown holds to show this picture.
     pub fn address(&self) -> String {
         format!("{}{}", Self::ADDRESS_PREFIX, self.relative)

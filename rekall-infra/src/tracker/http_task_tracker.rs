@@ -1,9 +1,12 @@
+use std::sync::LazyLock;
 use std::time::Duration;
 
 use async_trait::async_trait;
 use reqwest::header::{HeaderName, HeaderValue, ACCEPT, AUTHORIZATION, USER_AGENT};
+use regex::Regex;
 use reqwest::{Method, Response, StatusCode};
 use rekall_core::connection::{github_api_root, AtlassianCredential, AtlassianDeployment, TaskTracker, TrackerEndpoint, TrackerFailure, TrackerIssue, TrackerLink};
+use rekall_core::picture::PicturePath;
 use rekall_store::ConnectionKind;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -11,12 +14,18 @@ use tracing::warn;
 
 use crate::probes::{client_through, failure_chain};
 
+use super::http_picture_upload::PictureUpload;
+
 const TIMEOUT: Duration = Duration::from_secs(15);
 const REASON_MAX_CHARACTERS: usize = 300;
 const JIRA_ISSUE_TYPE: &str = "Task";
 const GITLAB_ISSUE_TYPE: &str = "task";
 const GITHUB_ISSUE_TYPE: &str = "Task";
 const DELETE_ISSUE_MUTATION: &str = "mutation($id: ID!) { deleteIssue(input: { issueId: $id }) { clientMutationId } }";
+
+static ATTACHMENT_LINK: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\[([^\[\]]+)\]\((https?://[^\s()]+/rest/api/3/attachment/content/[^\s()]+)\)").expect("the attachment link pattern is valid")
+});
 
 #[derive(Deserialize)]
 struct JiraCreated {
@@ -69,11 +78,13 @@ struct Call {
 /// PUT (GitHub: PATCH), through the connection's proxy when it names one.
 pub struct HttpTaskTracker {
     timeout: Duration,
+    /// Set by tests alone, which have no GitHub upload host to reach.
+    github_uploads: Option<String>,
 }
 
 impl HttpTaskTracker {
     pub fn new() -> Self {
-        Self { timeout: TIMEOUT }
+        Self { timeout: TIMEOUT, github_uploads: None }
     }
 
     async fn send(&self, endpoint: &TrackerEndpoint, call: Call) -> Result<Response, TrackerFailure> {
@@ -147,6 +158,10 @@ impl TaskTracker for HttpTaskTracker {
 
     async fn update(&self, endpoint: &TrackerEndpoint, key: &str, issue: &TrackerIssue) -> Result<(), TrackerFailure> {
         self.send(endpoint, update_call(endpoint, key, issue)?).await.map(|_| ())
+    }
+
+    async fn upload_picture(&self, endpoint: &TrackerEndpoint, issue_key: Option<&str>, picture: &PicturePath, bytes: Vec<u8>) -> Result<String, TrackerFailure> {
+        PictureUpload { endpoint, picture, bytes }.send(issue_key, self.github_uploads.as_deref()).await
     }
 }
 
@@ -290,11 +305,11 @@ fn jira_credential(endpoint: &TrackerEndpoint) -> Result<AtlassianCredential, Tr
     AtlassianCredential::from_stored(&endpoint.credential).map_err(|failure| TrackerFailure::Failed { reason: failure.message().to_string() })
 }
 
-fn jira_deployment(endpoint: &TrackerEndpoint) -> Result<AtlassianDeployment, TrackerFailure> {
+pub(super) fn jira_deployment(endpoint: &TrackerEndpoint) -> Result<AtlassianDeployment, TrackerFailure> {
     jira_credential(endpoint).map(|credential| credential.deployment())
 }
 
-fn jira_api(deployment: AtlassianDeployment) -> &'static str {
+pub(super) fn jira_api(deployment: AtlassianDeployment) -> &'static str {
     match deployment {
         AtlassianDeployment::Cloud => "/rest/api/3",
         AtlassianDeployment::DataCenter => "/rest/api/2",
@@ -311,11 +326,30 @@ fn jira_description(deployment: AtlassianDeployment, markdown: &str) -> Value {
                 .split("\n\n")
                 .map(str::trim)
                 .filter(|block| !block.is_empty())
-                .map(|block| json!({ "type": "paragraph", "content": [{ "type": "text", "text": block }] }))
+                .map(|block| json!({ "type": "paragraph", "content": paragraph_content(block) }))
                 .collect();
             json!({ "type": "doc", "version": 1, "content": paragraphs })
         }
     }
+}
+
+/// The block as written, except that a link to an attachment of the issue is a real link.
+fn paragraph_content(block: &str) -> Vec<Value> {
+    let mut content = Vec::new();
+    let mut kept_from = 0;
+    for link in ATTACHMENT_LINK.captures_iter(block) {
+        let markup = link.get(0).expect("a match has its whole text");
+        content.extend(text_node(&block[kept_from..markup.start()]));
+        content.push(json!({ "type": "text", "text": &link[1], "marks": [{ "type": "link", "attrs": { "href": &link[2] } }] }));
+        kept_from = markup.end();
+    }
+    content.extend(text_node(&block[kept_from..]));
+    content
+}
+
+/// Atlassian's document format refuses an empty text.
+fn text_node(text: &str) -> Option<Value> {
+    (!text.is_empty()).then(|| json!({ "type": "text", "text": text }))
 }
 
 /// GitLab names a project in the path by its full path with the slashes encoded.
@@ -323,7 +357,7 @@ pub(super) fn gitlab_project(path: &str) -> String {
     path.replace('/', "%2F")
 }
 
-fn not_a_task_manager() -> TrackerFailure {
+pub(super) fn not_a_task_manager() -> TrackerFailure {
     TrackerFailure::Failed { reason: "only a GitLab, GitHub or Jira connection is a task manager".into() }
 }
 

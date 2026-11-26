@@ -4719,6 +4719,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "futures",
+ "pulldown-cmark",
  "regex",
  "rekall-core",
  "rekall-diagram",

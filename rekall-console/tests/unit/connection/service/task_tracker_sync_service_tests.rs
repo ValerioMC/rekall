@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use rekall_core::connection::{InMemorySecretStore, ScriptedTaskTracker, Secret, SecretStore, TrackerFailure};
+use rekall_core::connection::{InMemorySecretStore, ScriptedTaskTracker, Secret, SecretStore, TrackerFailure, TrackerPictureService};
+use rekall_core::picture::InMemoryPictureStore;
 use rekall_core::{Ctx, EventBus};
 use rekall_kernel::Instant;
 use rekall_store::{company, external_connection, project, project_connection, task, ConnectionKind, ProjectStatus};
@@ -39,7 +40,8 @@ async fn world() -> World {
     let tracker = Arc::new(ScriptedTaskTracker::new());
     let services = rekall_core::Services::new(ctx.clone(), Arc::new(rekall_core::check::ScriptedCheckRunner::new()));
     let tasks = TaskService::new(ctx.clone(), services.review.clone(), services.time_entries.clone());
-    let service = TaskTrackerSyncService::new(TaskTrackerService::new(ctx, secrets, tracker.clone()), tasks);
+    let pictures = TrackerPictureService::new(ctx.clone(), Arc::new(InMemoryPictureStore::new()), tracker.clone());
+    let service = TaskTrackerSyncService::new(TaskTrackerService::new(ctx, secrets, tracker.clone(), pictures), tasks);
     World { service, tracker, task_id: task.id }
 }
 

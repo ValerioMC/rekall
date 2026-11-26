@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use axum::Router;
 use rekall_core::claude::UsageReader;
-use rekall_core::connection::TaskTrackerService;
+use rekall_core::connection::{TaskTrackerService, TrackerPictureService};
 use rekall_core::picture::PictureStore;
 use rekall_core::settings::SetupStatus;
 use rekall_core::timeentry::IDLE_AFTER;
@@ -31,7 +31,7 @@ use tracing::warn;
 
 use crate::config::AppConfig;
 
-use super::instance_parts::{advisory_feed_of, assemble_router, check_runner_of, confluence_spaces_of, connection_probe_of, gitlab_namespaces_of, jira_issues_of, open_sessions, release_feed_of, secrets_of, start_queue, task_tracker_of, usage_of, Sessions};
+use super::instance_parts::{advisory_feed_of, assemble_router, check_runner_of, confluence_spaces_of, connection_probe_of, gitlab_namespaces_of, jira_issues_of, open_sessions, release_feed_of, secrets_of, start_queue, task_tracker_of, usage_of, Sessions, Trackers};
 use super::StartOptions;
 
 /// How often open timers are checked against [`IDLE_AFTER`].
@@ -88,7 +88,9 @@ impl Instance {
         let services = Services::new(ctx.clone(), check_runner_of(options, &login_shell)).with_pictures_folder(pictures.folder());
         let secrets = secrets_of(config, options);
         let stream = Arc::new(StepEventStream::new(events.clone()));
-        let task_tracker = TaskTrackerService::new(ctx.clone(), secrets.clone(), task_tracker_of(options));
+        let tracker_port = task_tracker_of(options);
+        let tracker_pictures = TrackerPictureService::new(ctx.clone(), pictures.clone(), tracker_port.clone());
+        let task_tracker = TaskTrackerService::new(ctx.clone(), secrets.clone(), tracker_port, tracker_pictures.clone());
         TaskTrackerRunner::start(&events, task_tracker.clone());
         let scan_settings = ScanSettingsService::new(ctx.clone(), secrets.clone());
         let vulnerability_scans = VulnerabilityScanService::new(
@@ -102,7 +104,8 @@ impl Instance {
         let mcp = rekall_mcp::McpController::new(rekall_mcp::tool_registry::all(&services));
         let usage = usage_of(options, claude_config, &clock);
         let sessions = open_sessions(config, &ctx, &services, &secrets, &login_shell, served_port, pictures.folder());
-        let queue = start_queue(config, &ctx, &events, &services, &task_tracker, &sessions.hosts, &usage);
+        let trackers = Trackers { issues: task_tracker.clone(), pictures: tracker_pictures };
+        let queue = start_queue(config, &ctx, &events, &services, trackers, &sessions.hosts, &usage);
         let transcripts = TranscriptScanner::new(TranscriptFolder::new(claude_config.transcripts_dir.clone()), services.token_usage.clone());
         let backups = DatabaseBackupService::new(
             database.conn.clone(),

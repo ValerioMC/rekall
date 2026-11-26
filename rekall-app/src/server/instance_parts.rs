@@ -10,7 +10,7 @@ use axum::http::StatusCode;
 use axum::{middleware, Router};
 use rekall_core::check::CheckRunner;
 use rekall_core::claude::{TerminalHost, UsageReader};
-use rekall_core::connection::{ConfluenceSpaces, ConnectionProbe, GitlabNamespaces, JiraIssues, MigratingSecretStore, RememberingSecretStore, SecretStore, TaskTracker, TaskTrackerService};
+use rekall_core::connection::{ConfluenceSpaces, ConnectionProbe, GitlabNamespaces, JiraIssues, MigratingSecretStore, RememberingSecretStore, SecretStore, TaskTracker, TaskTrackerService, TrackerPictureService};
 use rekall_core::queue::RunQueueService;
 use rekall_core::version::ReleaseFeed;
 use rekall_core::vulnerability::AdvisoryFeed;
@@ -187,12 +187,18 @@ pub(super) struct QueueParts {
     pub worktrees: TaskWorktreeService,
 }
 
+/// The services that write to a project's task manager, which a pull request needs both of.
+pub(super) struct Trackers {
+    pub issues: TaskTrackerService,
+    pub pictures: TrackerPictureService,
+}
+
 pub(super) fn start_queue(
     config: &AppConfig,
     ctx: &Ctx,
     events: &EventBus,
     services: &Services,
-    task_tracker: &TaskTrackerService,
+    trackers: Trackers,
     sessions: &Arc<dyn TerminalHost>,
     usage: &Arc<dyn UsageReader>,
 ) -> QueueParts {
@@ -201,7 +207,7 @@ pub(super) fn start_queue(
     let layout = WorktreeLayout::new(config.home.join(WORKTREES_FOLDER));
     let git: Arc<dyn WorktreeHost> = Arc::new(GitWorktreeHost::new(layout.clone()));
     let worktrees = TaskWorktreeService::new(ctx.clone(), git.clone(), layout.clone());
-    let pull_requests = TaskPullRequestService::new(ctx.clone(), task_tracker.clone(), git, Arc::new(ConnectionPullRequestHost::new()), layout);
+    let pull_requests = TaskPullRequestService::new(ctx.clone(), trackers.issues, trackers.pictures, git, Arc::new(ConnectionPullRequestHost::new()), layout);
     WorktreeCleaner::start(events, services.task_work.clone(), worktrees.clone(), pull_requests, sessions.clone(), MERGE_SESSION_CHECK);
     let runner = RunQueueRunner::start(
         queue.clone(),

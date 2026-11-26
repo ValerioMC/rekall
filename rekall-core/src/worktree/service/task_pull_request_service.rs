@@ -11,7 +11,7 @@ use tracing::{info, warn};
 
 use crate::claude::{Remaining, TaskWorkService};
 use crate::commit::GitRepositoryInspector;
-use crate::connection::{PullRequest, PullRequestHost, PullRequestMerge, TaskTrackerService, TrackerEndpoint, TrackerFailure, Mergeability};
+use crate::connection::{PullRequest, PullRequestHost, PullRequestMerge, TaskTrackerService, TrackerEndpoint, TrackerFailure, TrackerPictureService, Mergeability};
 use crate::worktree::rule::request_noun::request_noun;
 use crate::worktree::{pull_request_body, PullRequestLanding, PushOutcome, StepCommit, WorktreeHost, WorktreeLayout};
 use crate::{in_read, in_write, load, Ctx};
@@ -22,6 +22,7 @@ struct Claim {
     project_folder: String,
     main_branch: Option<String>,
     body: String,
+    issue_key: Option<String>,
     held_number: Option<i64>,
 }
 
@@ -41,6 +42,7 @@ struct Landing {
 pub struct TaskPullRequestService {
     ctx: Ctx,
     tracker: TaskTrackerService,
+    pictures: TrackerPictureService,
     worktrees: Arc<dyn WorktreeHost>,
     hosts: Arc<dyn PullRequestHost>,
     layout: WorktreeLayout,
@@ -48,8 +50,15 @@ pub struct TaskPullRequestService {
 }
 
 impl TaskPullRequestService {
-    pub fn new(ctx: Ctx, tracker: TaskTrackerService, worktrees: Arc<dyn WorktreeHost>, hosts: Arc<dyn PullRequestHost>, layout: WorktreeLayout) -> Self {
-        Self { ctx, tracker, worktrees, hosts, layout, repositories: GitRepositoryInspector }
+    pub fn new(
+        ctx: Ctx,
+        tracker: TaskTrackerService,
+        pictures: TrackerPictureService,
+        worktrees: Arc<dyn WorktreeHost>,
+        hosts: Arc<dyn PullRequestHost>,
+        layout: WorktreeLayout,
+    ) -> Self {
+        Self { ctx, tracker, pictures, worktrees, hosts, layout, repositories: GitRepositoryInspector }
     }
 
     /// A task outside the flow, or one whose work is not all claimed, is left alone. A task that
@@ -170,7 +179,7 @@ impl TaskPullRequestService {
             let issue_key = repo::task_tracker_link::find_of_task(tx.db(), task_id).await?.and_then(|link| link.issue_key);
             let commits = step_commits_of(tx.db(), task_id).await?;
             let body = pull_request_body(task.description.as_deref(), issue_key.as_deref(), &commits);
-            Ok(Some(Claim { task, project_folder, main_branch: project.main_branch, body, held_number }))
+            Ok(Some(Claim { task, project_folder, main_branch: project.main_branch, body, issue_key, held_number }))
         })
     }
 
@@ -182,7 +191,8 @@ impl TaskPullRequestService {
         }
         let Some(endpoint) = self.tracker.endpoint_of_project(claim.task.project_id).await? else { return Ok(None) };
         let base = self.base_of(&claim.project_folder, claim.main_branch.as_deref()).await?;
-        let opened = self.hosts.open(&endpoint, &branch, &base, &claim.task.title, &claim.body).await;
+        let body = self.pictures.send(&endpoint, claim.task.id, claim.issue_key.as_deref(), &claim.body).await?;
+        let opened = self.hosts.open(&endpoint, &branch, &base, &claim.task.title, &body).await;
         opened.map(Some).map_err(|failure| RekallError::conflict(failure_message(&failure, &format!("open the {}", request_noun(endpoint.kind)))))
     }
 
