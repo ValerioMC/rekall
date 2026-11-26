@@ -7,6 +7,7 @@ import WorkingSetBar from '@/features/workingset/components/WorkingSetBar.vue'
 import { useWorkingSetStore } from '@/features/workingset/store/workingSet.store'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import { useChatStore } from '@/features/chat/store/chat.store'
 import type { Terminal } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId, TerminalId } from '@/model/branded'
 import { company, project, task } from './fixtures'
@@ -33,6 +34,17 @@ function markedTasks(bar: ReturnType<typeof mount>): (string | undefined)[] {
 
 function liveTerminalOn(taskId: TaskId): void {
   useTerminalStore().terminals = [{ id: `term-${taskId}` as TerminalId, taskId, kind: 'TERMINAL', live: true } as Terminal]
+}
+
+function liveChatOn(taskId: TaskId): void {
+  useTerminalStore().terminals = [{ id: `chat-${taskId}` as TerminalId, taskId, kind: 'CHAT', live: true } as Terminal]
+}
+
+function showChatOf(taskId: TaskId): void {
+  const catalog = useConsoleStore()
+  catalog.selectTask(taskId)
+  catalog.openChat()
+  useChatStore().select(`chat-${taskId}` as TerminalId)
 }
 
 async function barAt(path: string): Promise<{ bar: ReturnType<typeof mount>; router: Router }> {
@@ -274,6 +286,70 @@ describe('the working-set bar', () => {
       await flushPromises()
 
       expect(bar.find('[data-testid="working-set-task-terminal"]').exists()).toBe(false)
+    })
+  })
+
+  describe('the chat key of a task', () => {
+    const CHAT_KEY = '[data-testid="working-set-task-chat"]'
+
+    it('gives each task the key of its own session', async () => {
+      useTerminalStore().terminals = [
+        { id: 'chat-t1' as TerminalId, taskId: T1, kind: 'CHAT', live: true } as Terminal,
+        { id: 'term-t2' as TerminalId, taskId: T2, kind: 'TERMINAL', live: true } as Terminal
+      ]
+
+      const { bar } = await barAt('/task/t2/description')
+
+      expect(bar.findAll('[aria-pressed]').map((key) => key.attributes('aria-label'))).toEqual(['Open the chat of t1', 'Open the terminal of t2'])
+    })
+
+    it.each(['/task/t2/description', '/task/t1/description', '/projects/vega'])('shows its chat from %s', async (path) => {
+      liveChatOn(T1)
+      const { bar, router } = await barAt(path)
+
+      await bar.get(CHAT_KEY).trigger('click')
+      await flushPromises()
+
+      expect(router.currentRoute.value.name).toBe('console')
+      expect(useConsoleStore().selectedTaskId).toBe(T1)
+      expect(useConsoleStore().paneFocus).toBe('chat')
+      expect(useChatStore().activeChatId).toBe('chat-t1')
+      expect(bar.get(CHAT_KEY).attributes('aria-pressed')).toBe('true')
+    })
+
+    it('leaves the chat on screen alone on a second press', async () => {
+      liveChatOn(T1)
+      showChatOf(T1)
+      const select = vi.spyOn(useConsoleStore(), 'selectTask')
+      const { bar } = await barAt('/console')
+
+      await bar.get(CHAT_KEY).trigger('click')
+
+      expect(select).not.toHaveBeenCalled()
+    })
+
+    it('stays, lit, on a chat that ends while it is on screen, until the list is read again', async () => {
+      liveChatOn(T1)
+      showChatOf(T1)
+      const { bar } = await barAt('/console')
+
+      useTerminalStore().markEnded('chat-t1' as TerminalId)
+      await flushPromises()
+      expect(bar.get(CHAT_KEY).attributes('aria-pressed')).toBe('true')
+
+      useTerminalStore().terminals = []
+      await flushPromises()
+      expect(bar.find(CHAT_KEY).exists()).toBe(false)
+    })
+
+    it('leaves when a chat ends out of sight and the console hears it', async () => {
+      liveChatOn(T1)
+      const { bar } = await barAt('/task/t2/description')
+
+      useTerminalStore().markEnded('chat-t1' as TerminalId)
+      await flushPromises()
+
+      expect(bar.find(CHAT_KEY).exists()).toBe(false)
     })
   })
 })

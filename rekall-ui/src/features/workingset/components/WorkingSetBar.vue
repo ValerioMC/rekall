@@ -17,6 +17,7 @@ import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import type { StepTally, TaskActivity } from '@/features/workingset/model/task-activity'
 import { useConsoleStore } from '@/stores/console.store'
 import type { TaskStep } from '@/features/steps/model/task-step'
+import type { SessionKind, Terminal } from '@/features/claude/model/terminal'
 import type { TaskId } from '@/model/branded'
 
 /**
@@ -41,9 +42,19 @@ const groupInView = computed(() =>
 const tasksInView = computed(() => groupInView.value?.tasks ?? [])
 const activities = computed(() => new Map<TaskId, TaskActivity>(tasksInView.value.map((task) => [task.id, activityOf(task.id)])))
 const tallies = computed(() => new Map<TaskId, StepTally>(tasksInView.value.map((task) => [task.id, stepTally(stepsOf(task.id))])))
-const terminalTaskIds = computed(
-  () => new Set<TaskId>(tasksInView.value.filter((task) => terminals.liveTerminalForTask(task.id)).map((task) => task.id))
+const sessionKinds = computed(
+  () =>
+    new Map<TaskId, SessionKind>(
+      tasksInView.value.flatMap((task) => {
+        const session = keyedSession(task.id)
+        return session ? [[task.id, session.kind]] : []
+      })
+    )
 )
+const shownKind = computed<SessionKind | null>(() => {
+  if (terminalShown.value) return 'TERMINAL'
+  return chatShown.value ? 'CHAT' : null
+})
 const onBarPage = computed(
   () => route.name === 'task' || route.name === 'project-detail' || terminalShown.value || chatShown.value
 )
@@ -64,10 +75,21 @@ function activityOf(taskId: TaskId): TaskActivity {
   })
 }
 
-function openTerminal(taskId: TaskId): void {
-  if (terminalShown.value && taskInView.value?.id === taskId) return
-  const terminal = terminals.liveTerminalForTask(taskId)
-  if (terminal) openInPane(terminal)
+/** The session a task's key opens: its live one, or its ended chat while that is still on screen. */
+function keyedSession(taskId: TaskId): Terminal | null {
+  return terminals.terminalForTask(taskId) ?? chatOnScreen(taskId)
+}
+
+function chatOnScreen(taskId: TaskId): Terminal | null {
+  if (!chatShown.value) return null
+  return terminals.terminals.find((session) => session.id === chat.activeChatId && session.taskId === taskId) ?? null
+}
+
+function openSession(taskId: TaskId): void {
+  const session = keyedSession(taskId)
+  if (!session) return
+  if (taskInView.value?.id === taskId && shownKind.value === session.kind) return
+  openInPane(session)
 }
 
 async function close(taskId: TaskId): Promise<void> {
@@ -94,11 +116,11 @@ async function close(taskId: TaskId): Promise<void> {
       :activities="activities"
       :tallies="tallies"
       :review-counts="reviewCounts"
-      :terminal-task-ids="terminalTaskIds"
-      :terminal-shown="terminalShown"
+      :session-kinds="sessionKinds"
+      :shown-kind="shownKind"
       @select="visit"
       @close="close"
-      @open-terminal="openTerminal"
+      @open-session="openSession"
     />
   </div>
 </template>

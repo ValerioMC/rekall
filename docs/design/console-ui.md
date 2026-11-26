@@ -67,10 +67,9 @@ Every screen is a page header, optional tabs and a body, and the body is always 
 The routes that exist today keep their paths: the redesign changes what a screen shows, not where it
 lives. `/` is no screen of its own: it goes to the project list, and `/review` and `/settings`
 are new. A ledger row, a card and the sheet open the task page at `/task/:id/description`; a note in view
-is part of the path (`/task/:id/notes/:noteId`). `/console` hosts one full-size session, a terminal or a chat, and nothing else: the terminal key
-on a task's tab and a deep link show a terminal there (the dock and the run queue's **Watch session** float it above the dock instead), the sessions
-list and **Watch session** show a [chat](#the-full-size-chat) there, and a visit with neither goes on to the task page of the task in view, or to the
-project list. The notes list, the steps, wrapup, description and deviation panes of the old
+is part of the path (`/task/:id/notes/:noteId`). `/console` hosts one full-size session, a terminal or a chat, and nothing else: the session key
+on a task's tab and a deep link show either there, the sessions list and **Watch session** show a [chat](#the-full-size-chat) there (a terminal they
+float above the dock instead), and a visit with neither goes on to the task page of the task in view, or to the project list. The notes list, the steps, wrapup, description and deviation panes of the old
 console are gone; their tabs are on the task page.
 
 ### The grouped menu
@@ -107,8 +106,8 @@ tab marked and is not added. A chat on no task marks its project and no task tab
   company's name, each with the project mark, the count of its open tasks and, in amber, the count
   of items waiting for review. The current project's tab has the gold rule.
 - **Level 2, `WorkingSetTaskTabs`, for the project in view:** "All tasks N" first, which is the
-  project's task list, then a tab per open task: the terminal key while the task has a live
-  terminal, a dot in the task's own status colour, the activity mark, its code, a truncated title, the count of steps executed over the steps there are
+  project's task list, then a tab per open task: the session key while the task has a live
+  session, a dot in the task's own status colour, the activity mark, its code, a truncated title, the count of steps executed over the steps there are
   (`3/7`, claimed and done both counted, drafts left out, nothing on a task with no steps; the same
   element is filled in amber, with the waiting count in its title and accessible name, while claimed
   steps wait for the person) and a cross on hover or focus. A plus goes to the task list, where another task is opened.
@@ -119,13 +118,15 @@ tab marked and is not added. A chat on no task marks its project and no task tab
   Only the chat on screen or followed by the window reports a turn, so a task whose session is elsewhere shows
   working from a running step alone. The key, the counter and the mark never shrink; only the
   title does, and a tab with the key may be 28px wider.
-- **The terminal key** (mockup `.impeccable/mocks/terminal-tab/index.html`) is a button of its own
-  beside the tab, named "Open the terminal of RK-12": one press shows the task's live terminal
-  (`liveTerminalForTask`, never a chat) in the full pane, without selecting or closing the tab. It
-  is lit and pressed while that terminal view is on screen, where a second press does nothing; the
-  tab itself goes to the task page. It follows the session list the console holds: a session that
-  ends out of sight keeps its key until the list is next read, and pressing it shows the empty pane
-  with **Run here**.
+- **The session key** (mockups `.impeccable/mocks/terminal-tab/index.html` and
+  `.impeccable/mocks/chat-tab/index.html`) is a button of its own beside the tab, a terminal glyph or
+  a speech bubble after the kind of the task's live session; a task has one live session at most, so a
+  tab never carries both. It is named "Open the terminal of RK-12" or "Open the chat of RK-12": one
+  press shows that session in the full pane, without selecting or closing the tab. It is lit and
+  pressed while that view of that task is on screen, where a second press does nothing; the tab itself
+  goes to the task page. It follows the session list the console holds: a session that ends out of
+  sight keeps its key until the list is next read, and pressing it shows the empty view with
+  **Run here**. A chat that ends on screen keeps its lit key until then too.
 - **The set belongs to the person.** A task joins it when its page is opened and leaves it only
   through its cross. A running session, a queued run or a waiting review never adds, removes or
   orders anything. It is saved on the server (`working_set_task`, `working_set_place`,
@@ -541,9 +542,9 @@ idempotent, so a reconnect that replays an event changes nothing), and one `Even
 session (`useChatEvents`) feeds it. A chat never becomes the terminal pane's active session; that pane
 and the Diagrams and Security drawers list terminals only.
 
-A chat opened through the shared opener (`useOpenSession`: the sessions list, **Watch session**, a
-quick task, a wrapup line, a vulnerability fix, **Open** in "A session is already open") fills the area
-under the working-set bar at `/console` (`ChatPane`, mockup
+A chat opened from its task's key, or through the shared opener (`useOpenSession`: the sessions list,
+**Watch session**, a quick task, a wrapup line, a vulnerability fix, **Open** in "A session is already
+open"), fills the area under the working-set bar at `/console` (`ChatPane`, mockup
 `.impeccable/mocks/chat-tab/index.html`). The URL names a task's chat by its task and a chat on no
 task by its session (`chat=…`), so a reload and Back work for both.
 
