@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
+import { useTerminalPaneShown } from '@/features/claude/composables/useTerminalPaneShown'
 import type { OpenPlace } from '@/features/workingset/model/working-set'
 import { useWorkingSetStore } from '@/features/workingset/store/workingSet.store'
 import { useConsoleStore } from '@/stores/console.store'
@@ -11,9 +12,13 @@ export function useWorkingSetNavigation() {
   const route = useRoute()
   const router = useRouter()
   const workingSet = useWorkingSetStore()
-  const { tasks } = storeToRefs(useConsoleStore())
+  const { tasks, selectedTask } = storeToRefs(useConsoleStore())
+  const terminalShown = useTerminalPaneShown()
 
-  const taskInView = computed(() => (route.name === 'task' ? (tasks.value.find((task) => task.id === route.params.id) ?? null) : null))
+  const taskInView = computed(() => {
+    if (terminalShown.value) return selectedTask.value
+    return route.name === 'task' ? (tasks.value.find((task) => task.id === route.params.id) ?? null) : null
+  })
   const projectIdInView = computed<ProjectId | null>(() => {
     if (taskInView.value) return taskInView.value.projectId
     return route.name === 'project-detail' ? (String(route.params.id) as ProjectId) : null

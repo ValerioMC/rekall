@@ -257,4 +257,23 @@ describe('the terminal store', () => {
     expect(store.activeTerminalId).toBe('other')
     vi.useRealTimers()
   })
+
+  it('finds the live terminal of a task past its chat and its ended sessions', () => {
+    const store = useTerminalStore()
+    store.terminals = [
+      terminal({ id: 'chat-1' as TerminalId, kind: 'CHAT' }),
+      terminal({ id: 'ended-1' as TerminalId, live: false }),
+      terminal({ id: 'term-2' as TerminalId })
+    ]
+
+    expect(store.liveTerminalForTask(TASK)?.id).toBe('term-2')
+  })
+
+  it('finds no live terminal on a task with only a chat or an ended session', () => {
+    const store = useTerminalStore()
+    store.terminals = [terminal({ id: 'chat-1' as TerminalId, kind: 'CHAT' }), terminal({ live: false })]
+
+    expect(store.liveTerminalForTask(TASK)).toBeNull()
+    expect(store.liveTerminalForTask(null)).toBeNull()
+  })
 })

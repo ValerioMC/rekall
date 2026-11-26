@@ -6,7 +6,9 @@ import * as api from '@/features/workingset/api/working-set.api'
 import WorkingSetBar from '@/features/workingset/components/WorkingSetBar.vue'
 import { useWorkingSetStore } from '@/features/workingset/store/workingSet.store'
 import { useConsoleStore } from '@/stores/console.store'
-import type { ProjectId, TaskId } from '@/model/branded'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import type { Terminal } from '@/features/claude/model/terminal'
+import type { ProjectId, TaskId, TerminalId } from '@/model/branded'
 import { company, project, task } from './fixtures'
 
 vi.mock('@/features/workingset/api/working-set.api')
@@ -19,12 +21,27 @@ const ATLAS = 'atlas' as ProjectId
 
 const Page = { render: () => null }
 
+function showTerminalOf(taskId: TaskId): void {
+  const catalog = useConsoleStore()
+  catalog.selectTask(taskId)
+  catalog.openTerminal()
+}
+
+function markedTasks(bar: ReturnType<typeof mount>): (string | undefined)[] {
+  return bar.findAll('[data-testid="working-set-task"]').map((tab) => tab.attributes('aria-selected'))
+}
+
+function liveTerminalOn(taskId: TaskId): void {
+  useTerminalStore().terminals = [{ id: `term-${taskId}` as TerminalId, taskId, kind: 'TERMINAL', live: true } as Terminal]
+}
+
 async function barAt(path: string): Promise<{ bar: ReturnType<typeof mount>; router: Router }> {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
       { path: '/task/:id/:tab?', name: 'task', component: Page },
       { path: '/projects/:id/:tab?', name: 'project-detail', component: Page },
+      { path: '/console', name: 'console', component: Page },
       { path: '/settings', name: 'settings', component: Page }
     ]
   })
@@ -112,5 +129,117 @@ describe('the working-set bar', () => {
 
     expect(router.currentRoute.value.params.id).toBe('t1')
     expect(useWorkingSetStore().isOpen(T2)).toBe(false)
+  })
+
+  describe('on the terminal view', () => {
+    it('shows both rows and marks the selected task', async () => {
+      showTerminalOf(T2)
+
+      const { bar } = await barAt('/console')
+
+      expect(bar.findAll('[data-testid="working-set-project"]')).toHaveLength(2)
+      expect(markedTasks(bar)).toEqual(['false', 'true'])
+    })
+
+    it('is hidden on a console route without the terminal', async () => {
+      useConsoleStore().selectTask(T2)
+
+      const { bar } = await barAt('/console')
+
+      expect(bar.find('[data-testid="working-set-bar"]').exists()).toBe(false)
+    })
+
+    it('moves the mark when the terminal switches to another task', async () => {
+      showTerminalOf(T2)
+      const { bar } = await barAt('/console')
+
+      showTerminalOf(T1)
+      await flushPromises()
+
+      expect(markedTasks(bar)).toEqual(['true', 'false'])
+    })
+
+    it('marks no tab and adds nothing for a task that is not open', async () => {
+      vi.mocked(api.fetchWorkingSet).mockResolvedValue({ tasks: [{ taskId: T1, projectId: VEGA }], places: [] })
+      await useWorkingSetStore().load()
+      showTerminalOf(T2)
+
+      const { bar } = await barAt('/console')
+
+      expect(markedTasks(bar)).toEqual(['false'])
+      expect(bar.get('[data-testid="working-set-all-tasks"]').attributes('aria-selected')).toBe('false')
+      expect(useWorkingSetStore().isOpen(T2)).toBe(false)
+    })
+
+    it('goes back to the task page when the marked tab is pressed', async () => {
+      showTerminalOf(T2)
+      const { bar, router } = await barAt('/console')
+
+      await bar.findAll('[data-testid="working-set-task"]')[1]?.trigger('click')
+      await flushPromises()
+
+      expect(router.currentRoute.value.fullPath).toBe('/task/t2/description')
+    })
+
+    it('lands on the neighbour when the task shown is closed', async () => {
+      vi.mocked(api.closeTask).mockResolvedValue({ projectId: VEGA, taskId: T1 })
+      showTerminalOf(T2)
+      const { bar, router } = await barAt('/console')
+
+      await bar.findAll('[data-testid="working-set-task-close"]')[1]?.trigger('click')
+      await flushPromises()
+
+      expect(router.currentRoute.value.fullPath).toBe('/task/t1/description')
+    })
+  })
+
+  describe('the terminal key of a task', () => {
+    it.each(['/task/t2/description', '/task/t1/description', '/projects/vega'])('shows its terminal from %s', async (path) => {
+      liveTerminalOn(T1)
+      const { bar, router } = await barAt(path)
+
+      await bar.get('[data-testid="working-set-task-terminal"]').trigger('click')
+      await flushPromises()
+
+      expect(router.currentRoute.value.name).toBe('console')
+      expect(useConsoleStore().selectedTaskId).toBe(T1)
+      expect(useConsoleStore().paneFocus).toBe('terminal')
+      expect(useTerminalStore().activeTerminalId).toBe('term-t1')
+      expect(bar.get('[data-testid="working-set-task-terminal"]').attributes('aria-pressed')).toBe('true')
+    })
+
+    it('shows its terminal from the terminal view of another task', async () => {
+      liveTerminalOn(T1)
+      showTerminalOf(T2)
+      const { bar } = await barAt('/console')
+
+      await bar.get('[data-testid="working-set-task-terminal"]').trigger('click')
+      await flushPromises()
+
+      expect(useConsoleStore().selectedTaskId).toBe(T1)
+      expect(useTerminalStore().activeTerminalId).toBe('term-t1')
+      expect(markedTasks(bar)).toEqual(['true', 'false'])
+    })
+
+    it('leaves the terminal on screen alone on a second press', async () => {
+      liveTerminalOn(T1)
+      showTerminalOf(T1)
+      const select = vi.spyOn(useConsoleStore(), 'selectTask')
+      const { bar } = await barAt('/console')
+
+      await bar.get('[data-testid="working-set-task-terminal"]').trigger('click')
+
+      expect(select).not.toHaveBeenCalled()
+    })
+
+    it('leaves when the session ends', async () => {
+      liveTerminalOn(T1)
+      const { bar } = await barAt('/task/t2/description')
+
+      useTerminalStore().markEnded('term-t1' as TerminalId)
+      await flushPromises()
+
+      expect(bar.find('[data-testid="working-set-task-terminal"]').exists()).toBe(false)
+    })
   })
 })

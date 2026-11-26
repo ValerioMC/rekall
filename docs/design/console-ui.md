@@ -67,8 +67,8 @@ Every screen is a page header, optional tabs and a body, and the body is always 
 The routes that exist today keep their paths: the redesign changes what a screen shows, not where it
 lives. `/` is no screen of its own: it goes to the project list, and `/review` and `/settings`
 are new. A ledger row, a card and the sheet open the task page at `/task/:id/description`; a note in view
-is part of the path (`/task/:id/notes/:noteId`). `/console` is the terminal host and nothing else: Open in terminal, the dock and a deep link to a
-terminal show the session there, and a visit with no terminal open goes on to the task page of the task
+is part of the path (`/task/:id/notes/:noteId`). `/console` is the terminal host and nothing else: the terminal key on a task's tab and a deep link to a
+terminal show the session there (the dock and the run queue's **Watch session** float it above the dock instead), and a visit with no terminal open goes on to the task page of the task
 in view, or to the project list. The notes list, the steps, wrapup, description and deviation panes of the old
 console are gone; their tabs are on the task page.
 
@@ -95,16 +95,19 @@ its Notes tab, a step hit its Plan with the step open. It is how a person change
 
 A two-level bar under the header, mounted once in `Bootstrap.vue`, for moving between the tasks a
 person keeps open, across projects, and between a project's task list and its tasks
-(`features/workingset`, `WorkingSetBar`). It shows on a task page and on a project page while at
-least one task is open, and nowhere else (Settings, the Calendar, Companies and the rest leave it
-and the set alone).
+(`features/workingset`, `WorkingSetBar`). It shows on a task page, on a project page and on the
+terminal view while at least one task is open, and nowhere else (Settings, the Calendar, Companies,
+a `/console` that shows no terminal and the rest leave it and the set alone). The terminal view is
+`/console` with a task's terminal in the pane (`useTerminalPaneShown`): the bar marks that task and
+its project, the terminal fills the area under it, and a task that is not open has no tab marked and
+is not added.
 
 - **Level 1, `WorkingSetProjectTabs`:** one tab per project with an open task, grouped under its
   company's name, each with the project mark, the count of its open tasks and, in amber, the count
   of items waiting for review. The current project's tab has the gold rule.
 - **Level 2, `WorkingSetTaskTabs`, for the project in view:** "All tasks N" first, which is the
-  project's task list, then a tab per open task: a dot in the task's own status colour, the
-  activity mark, its code, a truncated title, the count of steps executed over the steps there are
+  project's task list, then a tab per open task: the terminal key while the task has a live
+  terminal, a dot in the task's own status colour, the activity mark, its code, a truncated title, the count of steps executed over the steps there are
   (`3/7`, claimed and done both counted, drafts left out, nothing on a task with no steps; the same
   element is filled in amber, with the waiting count in its title and accessible name, while claimed
   steps wait for the person) and a cross on hover or focus. A plus goes to the task list, where another task is opened.
@@ -113,7 +116,15 @@ and the set alone).
   still bars in indigo once a step was claimed or done, or a session is open on the task; short
   grey bars when nothing happened. Under reduced motion the working bars sit at three heights.
   Only the chat the window follows reports a turn, so a task whose session is elsewhere shows
-  working from a running step alone. The counter and the mark never shrink; only the title does.
+  working from a running step alone. The key, the counter and the mark never shrink; only the
+  title does, and a tab with the key may be 28px wider.
+- **The terminal key** (mockup `.impeccable/mocks/terminal-tab/index.html`) is a button of its own
+  beside the tab, named "Open the terminal of RK-12": one press shows the task's live terminal
+  (`liveTerminalForTask`, never a chat) in the full pane, without selecting or closing the tab. It
+  is lit and pressed while that terminal view is on screen, where a second press does nothing; the
+  tab itself goes to the task page. It follows the session list the console holds: a session that
+  ends out of sight keeps its key until the list is next read, and pressing it shows the empty pane
+  with **Run here**.
 - **The set belongs to the person.** A task joins it when its page is opened and leaves it only
   through its cross. A running session, a queued run or a waiting review never adds, removes or
   orders anything. It is saved on the server (`working_set_task`, `working_set_place`,

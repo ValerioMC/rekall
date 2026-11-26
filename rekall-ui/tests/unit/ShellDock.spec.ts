@@ -254,6 +254,7 @@ describe('ShellDock', () => {
     it('hides the sessions segment while the terminal pane is already open', async () => {
       routeName.value = 'console'
       const { wrapper, console } = await mountDock([terminal()], [running()])
+      console.selectedTaskId = TASK
       console.paneFocus = 'terminal'
       await flushPromises()
       expect(wrapper.find('[data-testid="terminal-dock-toggle"]').exists()).toBe(false)
@@ -421,18 +422,6 @@ describe('ShellDock', () => {
       await flushPromises()
 
       expect(wrapper.find('[data-testid="terminal-float"]').exists()).toBe(true)
-    })
-
-    it('moves to the full terminal pane from Open in pane', async () => {
-      const { wrapper, console, terminals } = await floatTerminal()
-
-      await wrapper.get('[data-testid="terminal-float-expand"]').trigger('click')
-      await flushPromises()
-
-      expect(console.paneFocus).toBe('terminal')
-      expect(terminals.activeTerminalId).toBe('term-1')
-      expect(push).toHaveBeenCalledWith({ name: 'console' })
-      expect(wrapper.find('[data-testid="terminal-float"]').exists()).toBe(false)
     })
 
     it('is where a session opens by default, wherever it is asked for', async () => {

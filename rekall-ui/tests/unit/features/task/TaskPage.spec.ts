@@ -3,12 +3,14 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import TaskPage from '@/features/task/components/TaskPage.vue'
+import { useOpenSessionInPane } from '@/features/claude/composables/useOpenSessionInPane'
+import type { Terminal } from '@/features/claude/model/terminal'
 import { useConsoleStore } from '@/stores/console.store'
 import { useClaudeResourcesStore } from '@/features/claude-resources/store/claudeResources.store'
 import { useToastStore } from '@/stores/toast.store'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { TaskStep } from '@/features/steps/model/task-step'
-import type { ProjectId, TaskId, TaskStepId } from '@/model/branded'
+import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
 
 vi.mock('@/features/adherence/api/adherence.api', () => ({
   fetchTaskAdherence: vi.fn(async () => ({
@@ -107,6 +109,18 @@ async function mountAt(path: string) {
   })
   await flushPromises()
   return wrapper
+}
+
+function openTerminalOf(taskId: string): void {
+  let openInPane: ReturnType<typeof useOpenSessionInPane> | undefined
+  const host = {
+    setup() {
+      openInPane = useOpenSessionInPane()
+      return () => null
+    }
+  }
+  mount(host, { global: { plugins: [pinia, router] } })
+  openInPane!({ id: 'term-1' as TerminalId, taskId: taskId as TaskId } as Terminal)
 }
 
 describe('TaskPage', () => {
@@ -217,6 +231,18 @@ describe('TaskPage', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.fullPath).toBe('/task/rk-2/description')
+  })
+
+  it('lets another task\'s terminal take the screen', async () => {
+    const store = seed()
+    await mountAt('/task/rk-1/description')
+
+    openTerminalOf('rk-2')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('console')
+    expect(store.selectedTaskId).toBe('rk-2')
+    expect(store.paneFocus).toBe('terminal')
   })
 
   it('opens a task with no tab on its description', async () => {

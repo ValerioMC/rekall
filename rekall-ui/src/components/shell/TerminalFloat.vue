@@ -5,7 +5,6 @@ import SessionProviderMark from '@/features/claude/components/SessionProviderMar
 import { SESSION_PROVIDER_LABEL } from '@/features/claude/model/session-provider'
 import TerminalScreen from '@/features/claude/components/TerminalScreen.vue'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
-import { useOpenSessionInPane } from '@/features/claude/composables/useOpenSessionInPane'
 import { sessionTitle } from '@/common/format/session-title'
 import type { Terminal } from '@/features/claude/model/terminal'
 
@@ -17,7 +16,6 @@ import type { Terminal } from '@/features/claude/model/terminal'
 const props = defineProps<{ terminal: Terminal }>()
 
 const terminals = useTerminalStore()
-const openInPane = useOpenSessionInPane()
 const router = useRouter()
 
 const connected = ref(false)
@@ -33,10 +31,6 @@ function onEnded(): void {
 function openTask(): void {
   if (props.terminal.taskId) void router.push(`/task/${props.terminal.taskId}`)
   terminals.unfloat()
-}
-
-function expand(): void {
-  openInPane(props.terminal)
 }
 </script>
 
@@ -68,13 +62,6 @@ function expand(): void {
         @click="openTask"
       >
         Open task
-      </button>
-      <button
-        class="key-quiet rounded-key focus-ring inline-flex h-7 shrink-0 items-center px-2.5 text-caption"
-        data-testid="terminal-float-expand"
-        @click="expand"
-      >
-        Open in pane
       </button>
       <button
         class="focus-ring grid size-6 shrink-0 place-items-center rounded-full text-text-subtle transition-colors hover:bg-surface-raised hover:text-text"

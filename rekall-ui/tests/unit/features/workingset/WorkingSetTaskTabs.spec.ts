@@ -12,9 +12,25 @@ function tabs(
   currentTaskId: TaskId | null = null,
   activities: ReadonlyMap<TaskId, TaskActivity> = new Map(),
   tallies: ReadonlyMap<TaskId, StepTally> = new Map(),
-  reviewCounts: ReadonlyMap<TaskId, number> = new Map()
+  reviewCounts: ReadonlyMap<TaskId, number> = new Map(),
+  terminal: { taskIds?: readonly TaskId[]; shown?: boolean } = {}
 ) {
-  return mount(WorkingSetTaskTabs, { props: { project: VEGA, tasks: TASKS, currentTaskId, activities, tallies, reviewCounts } })
+  return mount(WorkingSetTaskTabs, {
+    props: {
+      project: VEGA,
+      tasks: TASKS,
+      currentTaskId,
+      activities,
+      tallies,
+      reviewCounts,
+      terminalTaskIds: new Set(terminal.taskIds),
+      terminalShown: terminal.shown ?? false
+    }
+  })
+}
+
+function tabsWithTerminalOnT1(currentTaskId: TaskId | null, shown = false) {
+  return tabs(currentTaskId, new Map(), new Map(), new Map(), { taskIds: ['t1' as TaskId], shown })
 }
 
 describe('the task tab row', () => {
@@ -92,5 +108,31 @@ describe('the task tab row', () => {
 
     expect(row.emitted('close')).toEqual([['t1']])
     expect(row.emitted('select')).toBeUndefined()
+  })
+
+  it('puts a terminal key only on a task with a terminal, outside the tab itself', () => {
+    const row = tabsWithTerminalOnT1(null)
+    const keys = row.findAll('[data-testid="working-set-task-terminal"]')
+
+    expect(keys.map((key) => key.attributes('aria-label'))).toEqual(['Open the terminal of t1'])
+    expect(row.find('[role="tab"] [data-testid="working-set-task-terminal"]').exists()).toBe(false)
+  })
+
+  it('presses the key only while that task\'s terminal is on screen', () => {
+    const pressed = (row: ReturnType<typeof tabs>) => row.get('[data-testid="working-set-task-terminal"]').attributes('aria-pressed')
+
+    expect(pressed(tabsWithTerminalOnT1('t1' as TaskId, true))).toBe('true')
+    expect(pressed(tabsWithTerminalOnT1('t1' as TaskId))).toBe('false')
+    expect(pressed(tabsWithTerminalOnT1('t2' as TaskId, true))).toBe('false')
+  })
+
+  it('asks for the terminal from its key without selecting or closing the task', async () => {
+    const row = tabsWithTerminalOnT1(null)
+
+    await row.get('[data-testid="working-set-task-terminal"]').trigger('click')
+
+    expect(row.emitted('openTerminal')).toEqual([['t1']])
+    expect(row.emitted('select')).toBeUndefined()
+    expect(row.emitted('close')).toBeUndefined()
   })
 })

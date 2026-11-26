@@ -3,6 +3,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useChatStore } from '@/features/chat/store/chat.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useOpenSessionInPane } from '@/features/claude/composables/useOpenSessionInPane'
+import { useTerminalPaneShown } from '@/features/claude/composables/useTerminalPaneShown'
 import type { Terminal } from '@/features/claude/model/terminal'
 
 /**
@@ -16,6 +17,7 @@ export function useOpenSession(): (terminal: Terminal) => void {
   const chat = useChatStore()
   const router = useRouter()
   const openInPane = useOpenSessionInPane()
+  const paneOnScreen = useTerminalPaneShown()
   return (terminal) => {
     if (terminal.kind === 'CHAT') {
       if (terminal.taskId) store.selectTask(terminal.taskId)
@@ -27,8 +29,7 @@ export function useOpenSession(): (terminal: Terminal) => void {
       void router.push({ name: 'diagrams', query: { session: terminal.id } })
       return
     }
-    const paneOnScreen = router.currentRoute.value.name === 'console' && store.paneFocus === 'terminal'
-    if (paneOnScreen) openInPane(terminal)
+    if (paneOnScreen.value) openInPane(terminal)
     else terminals.float(terminal.id)
   }
 }
