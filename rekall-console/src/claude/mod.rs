@@ -1,6 +1,6 @@
 //! Claude Code as the console sees it: the account's usage on the meter, the files of its home
-//! folder the Claude screen edits, and whether it knows Rekall. Each is reached through a port of
-//! `rekall_core::claude`.
+//! folder the Claude screen edits, whether it knows Rekall, and the models it offers. Each is
+//! reached through a port of `rekall_core::claude`.
 
 mod command;
 mod service;
@@ -9,6 +9,7 @@ mod view;
 pub use service::claude_command_update_service::ClaudeCommandUpdateService;
 pub use service::claude_folder_service::ClaudeFolderService;
 pub use service::claude_install_service::ClaudeInstallService;
+pub use service::claude_model_service::ClaudeModelService;
 pub use command::save_resource_command::SaveResourceCommand;
 pub use service::usage_meter_service::UsageMeterService;
 pub use view::command_update_state::CommandUpdateState;

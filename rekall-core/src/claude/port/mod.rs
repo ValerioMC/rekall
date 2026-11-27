@@ -1,4 +1,5 @@
 pub(super) mod claude_code_setup;
+pub(super) mod claude_model_reader;
 pub(super) mod claude_resources;
 #[cfg(any(test, feature = "testing"))]
 pub(super) mod in_memory_terminal_host;

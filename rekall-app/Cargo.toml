@@ -61,6 +61,10 @@ name = "e2e_chat"
 path = "tests/integration/e2e_chat.rs"
 
 [[test]]
+name = "e2e_claude_models"
+path = "tests/integration/e2e_claude_models.rs"
+
+[[test]]
 name = "e2e_claude_resources"
 path = "tests/integration/e2e_claude_resources.rs"
 

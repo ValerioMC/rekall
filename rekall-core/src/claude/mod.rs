@@ -3,7 +3,8 @@
 //! `ResourcePath`, the only way to name a file of Claude Code's home folder, and what the console
 //! is shown of that folder and of the account's usage; and the ports the machine is reached
 //! through: `TerminalHost` and `TerminalPipe` for the terminals, `UsageReader` for the usage
-//! meter, `ClaudeResources` for the home folder and `ClaudeCodeSetup` for the install.
+//! meter, `ClaudeResources` for the home folder, `ClaudeCodeSetup` for the install and
+//! `ClaudeModelReader` for the model catalog.
 
 mod model;
 mod port;
@@ -11,9 +12,11 @@ mod service;
 mod view;
 
 pub use port::claude_code_setup::ClaudeCodeSetup;
+pub use port::claude_model_reader::ClaudeModelReader;
 pub use port::claude_resources::ClaudeResources;
 #[cfg(any(test, feature = "testing"))]
 pub use port::in_memory_terminal_host::InMemoryTerminalHost;
+pub use view::claude_model::ClaudeModel;
 pub use view::claude_usage_view::ClaudeUsageView;
 pub use model::covering_document::{CoveringDocument, CoveringKind};
 pub use model::installation::Installation;

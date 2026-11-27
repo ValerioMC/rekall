@@ -133,7 +133,7 @@ is found by opening one folder per crate:
 | `commit`, `diagram`, `token`, `search`, `context` | logged commits and what they and the working tree changed, stored diagrams, token usage, search, context assembly and its size. `TaskChangesService` keeps up to sixteen task-scoped Changes snapshots for five minutes. The file index carries metadata from capped patches, and hunk reads parse the selected file spans from the same captured patches. |
 | `context_fill` | the last share of its context window a chat held at the end of a turn, per task and per step (`ContextFillService`, the only writer of `context_fill`; the console reads it) |
 | `quick` | the quick task: a task started from one line of text with its session opened at once, accepted without a review when Claude's wrapup lands; console and HTTP only, the acceptance itself is in `review` and `wrapup` |
-| `skill`, `tag`, `queue`, `claude` | skill assignments, tags, the run queue, what a session launch needs |
+| `skill`, `tag`, `queue`, `claude` | skill assignments, tags, the run queue, what a session launch needs and the model catalog of the installed Claude Code |
 | `codex` | the Codex CLI port for the model catalog, account limits and Rekall setup. The console calls it through its service and HTTP routes. Infrastructure runs the CLI and its App Server. The header draws both provider readings with the same account usage meter. |
 | `chat` | the shared conversation and approval events (`ChatEvent`) and ports (`ChatPipe`, `ChatListener`) in `rekall-core`. In `rekall-infra`, `StreamParser` reads Claude Code’s stream JSON and `CodexChat` uses the Codex app-server transport over stdio. `CodexChat` maps command, file-change and MCP tool approvals to the same permission events and sends the corresponding app-server reply. `ChatSessionManager` keeps their event journal and session lifecycle, and `SessionHosts` routes openings to Chat or Terminal. The `chat` service and routes handle input and event replay. The `terminal` routes open, list and close either kind. |
 | `backup`, `settings`, `version` | the backups of the open database and restoring one, the registered database folders and the restart onto another, the update check; no table behind them, so no folder in `rekall-store` |
@@ -279,6 +279,15 @@ usage meter, the transcripts, `~/.claude`, the Claude Code installer. A rule tha
 goes in the first, one that needs the machine in the second. The run queue's rows and moves are
 `RunQueueService` in `rekall-core/src/queue/`, and how skills are grouped is `SkillGroupService` in
 `rekall-core/src/skill/`.
+
+The models Claude Code offers come from the installed CLI. `ClaudeModelReader` is the port,
+`ClaudeModelService` in `rekall-console` serves it as `GET /api/claude/models`, apart from the MCP
+registration status, and `CliClaudeModelReader` in `rekall-infra` implements it with the executable
+and login-shell environment sessions launch with. Each read starts the CLI in an empty folder in
+stream JSON with no prompt, no tools, no saved session and safe mode, sends only the `initialize`
+control message and kills the process once it answers or after fifteen seconds. Nothing is cached. A
+missing, unsupported or silent CLI is a 409. `value` is what a session starts with; the effort
+fields are null when the CLI omits them.
 
 In the console, `HeaderNavigation` holds Back, Forward, the section menu and the project switcher
 on the left of the header. `AppHeaderChrome` draws the icon-only session provider selector on the

@@ -12,6 +12,7 @@ pub mod backup;
 pub mod bootstrap;
 pub mod chat;
 pub mod check;
+pub mod claude_models;
 pub mod cli;
 pub mod config;
 pub mod confluence;

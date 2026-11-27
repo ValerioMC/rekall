@@ -15,6 +15,7 @@ use rekall_infra::backup::{DatabaseBackupService, DatabaseLocation, DatabaseRest
 use rekall_infra::bootstrap::registry::DatabaseRegistryStore;
 use rekall_infra::bootstrap::DatabaseFolderRegistry;
 use rekall_infra::chat::ChatSessionManager;
+use rekall_infra::claude_models::CliClaudeModelReader;
 use rekall_infra::codex::{CodexCli, CodexIntegration};
 use rekall_infra::installer::{ClaudeCodeInstaller, GuardHookInstaller};
 use rekall_infra::login_shell::LoginShellEnvironment;
@@ -122,7 +123,7 @@ impl Instance {
             config.backup.keep,
             clock,
         );
-        let Sessions { broker, terminals, chats, pty_terminals, hosts } = sessions;
+        let Sessions { cli, broker, terminals, chats, pty_terminals, hosts } = sessions;
         let ports = ApiPorts {
             secrets: secrets.clone(),
             jira: jira_issues_of(options),
@@ -136,6 +137,7 @@ impl Instance {
             codex,
             claude_folder: Arc::new(ClaudeResourceService::new(claude_config.claude_home.clone())),
             claude_setup: Arc::new(ClaudeCodeInstaller::new(config.user_home.clone(), config.mcp_endpoint(served_port))),
+            claude_models: Arc::new(CliClaudeModelReader::new(cli)),
             claude_guard: Arc::new(GuardHookInstaller::claude(&claude_config.claude_home, guard_executable.clone())),
             codex_guard: Arc::new(GuardHookInstaller::codex(codex_cli, guard_executable)),
             credential_desk: broker,
