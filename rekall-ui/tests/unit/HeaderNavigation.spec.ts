@@ -26,10 +26,12 @@ describe('the header navigation', () => {
     setActivePinia(createPinia())
   })
 
-  it('keeps the menu key and the history arrows side by side', async () => {
+  it('orders history, sections, project and Home in the DOM', async () => {
     const wrapper = await mountNavigation()
-    expect(wrapper.find('[data-testid="nav-menu-trigger"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="history-back"]').exists()).toBe(true)
+    const order = ['history-back', 'history-forward', 'nav-menu-trigger', 'header-project-switch', 'home-link']
+    const selector = order.map((id) => `[data-testid="${id}"]`).join(', ')
+
+    expect(wrapper.findAll(selector).map((control) => control.attributes('data-testid'))).toEqual(order)
   })
 
   it('opens the menu without taking the history arrows away', async () => {

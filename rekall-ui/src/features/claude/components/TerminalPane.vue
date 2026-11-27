@@ -21,7 +21,7 @@ const { selectedTask } = storeToRefs(store)
 const { terminals: allTerminals, activeTerminal, activeTerminalId } = storeToRefs(terminals)
 const { run, isRunning } = useAsyncAction()
 
-const { provider: launchProvider } = useRunProvider(() => selectedTask.value?.id ?? null)
+const launchProvider = useRunProvider(() => selectedTask.value?.id ?? null)
 const connected = ref(false)
 const ended = ref<{ exitCode: number; detail: string } | null>(null)
 

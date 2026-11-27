@@ -10,7 +10,6 @@ import { sessionAtWork } from '@/model/session-at-work'
 import { NOTHING_TO_RUN_MESSAGE, nothingToRun } from '@/model/nothing-to-run'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
 import RunMenuArrow from '@/features/claude/components/RunMenuArrow.vue'
-import SessionProviderSwitch from '@/features/claude/components/SessionProviderSwitch.vue'
 import ReplanConfirm from '@/features/claude/components/ReplanConfirm.vue'
 import { usePlanTask } from '@/features/claude/composables/usePlanTask'
 import { useRunProvider } from '@/features/claude/composables/useRunProvider'
@@ -29,7 +28,6 @@ import type { TaskId, TaskStepId } from '@/model/branded'
  * server answers, `done` the amber seal stamped in as a completed step's is, `working` the running
  * step's own seal turning until the session claims the work or ends. `done` and `working` share the
  * pressed key. Only `idle` takes a press.
- * The switch beside it picks the provider the key and its arrow start.
  * Its arrow also discusses the task, always, and plans it: a flow only while the task has no steps,
  * a replan only while draft or open steps can be replaced.
  */
@@ -63,7 +61,7 @@ const openInPane = useOpenSessionInPane()
 const { tasks, steps } = storeToRefs(console_)
 const { terminals: openTerminals } = storeToRefs(terminals)
 
-const { provider } = useRunProvider(() => props.taskId)
+const provider = useRunProvider(() => props.taskId)
 
 const planTask = usePlanTask(
   () => props.taskId,
@@ -190,7 +188,7 @@ async function runInQueue(): Promise<void> {
 
 function chooseFromMenu(action: RunMenuAction): void {
   if (action === 'RUN_IN_QUEUE') void runInQueue()
-  else planTask.start(action, provider.value)
+  else planTask.start(action)
 }
 
 onBeforeUnmount(() => {
@@ -201,7 +199,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="inline-flex shrink-0 items-center gap-1.5">
-    <SessionProviderSwitch :task-id="taskId" :busy="busy" />
     <div class="inline-flex shrink-0 items-stretch gap-px">
       <button
         type="button"

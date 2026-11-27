@@ -103,7 +103,7 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onPointerDown, t
       <svg class="size-4 text-text-muted" viewBox="0 0 16 16" fill="none" aria-hidden="true">
         <path d="M2.5 4h11M2.5 8h11M2.5 12h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
       </svg>
-      <span class="text-body font-medium" data-testid="nav-menu-label">{{ current?.label ?? 'Screens' }}</span>
+      <span class="text-body font-medium @max-[15rem]:sr-only" data-testid="nav-menu-label">{{ current?.label ?? 'Screens' }}</span>
       <span v-if="pending > 0" aria-hidden="true">
         <NavAlertCount :count="pending" :label="keyLabel" :tone="pendingTone" />
       </span>

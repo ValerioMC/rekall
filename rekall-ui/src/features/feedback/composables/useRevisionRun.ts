@@ -4,6 +4,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useRunProvider } from '@/features/claude/composables/useRunProvider'
 import { launchChoices } from '@/common/config/session-launch'
 import type { TaskId } from '@/model/branded'
 
@@ -29,6 +30,7 @@ const MISSING_FOLDER_HINT = "Set this project's folder on its page to run a sess
 export function useRevisionRun(taskId: () => TaskId, folder: () => string | null) {
   const store = useConsoleStore()
   const terminals = useTerminalStore()
+  const provider = useRunProvider(taskId)
   const toast = useToastStore()
   const { run } = useAsyncAction()
   const { waitingCount, runningPass } = storeToRefs(store)
@@ -80,7 +82,7 @@ export function useRevisionRun(taskId: () => TaskId, folder: () => string | null
     launchPhase.value = 'launching'
     const target = taskId()
     const starting = run(async () => {
-      const input = launchChoices()
+      const input = launchChoices(provider.value)
       await terminals.planForTask(target, input, 'REVISE')
       await store.startPass(target)
     })

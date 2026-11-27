@@ -149,7 +149,7 @@ function dismiss(): void {
     <button
       ref="trigger"
       type="button"
-      class="status-segment focus-ring group text-text-muted hover:text-text"
+      class="status-segment focus-ring group text-text-muted hover:text-text @max-[24rem]:gap-1 @max-[24rem]:px-1.5"
       :aria-label="triggerLabel"
       :aria-expanded="open"
       :aria-busy="reading"
@@ -204,18 +204,18 @@ function dismiss(): void {
       </template>
 
       <template v-else-if="state === 'reading'">
-        <span>Reading usage</span>
+        <span class="@max-[24rem]:sr-only">Reading usage</span>
       </template>
 
       <template v-else>
-        <span v-if="state === 'signed-out'">Sign in</span>
-        <span v-else-if="state === 'rate-limited'" class="font-mono tabular-nums">
+        <span v-if="state === 'signed-out'" class="@max-[24rem]:sr-only">Sign in</span>
+        <span v-else-if="state === 'rate-limited'" class="font-mono tabular-nums @max-[24rem]:sr-only">
           Wait {{ waitLabel }}
         </span>
-        <span v-else>No reading</span>
+        <span v-else class="@max-[24rem]:sr-only">No reading</span>
         <svg
           v-if="state !== 'rate-limited'"
-          class="size-3 text-text-subtle transition-colors group-hover:text-accent"
+          class="size-3 text-text-subtle transition-colors group-hover:text-accent @max-[24rem]:hidden"
           :class="{ 'opacity-0': reading }"
           viewBox="0 0 12 12"
           fill="none"

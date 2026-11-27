@@ -3,6 +3,7 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useRunProvider } from '@/features/claude/composables/useRunProvider'
 import { launchChoices } from '@/common/config/session-launch'
 import type { RewriteMode, RewriteStyle } from '@/features/claude/model/terminal'
 import type { TaskId, TerminalId } from '@/model/branded'
@@ -31,6 +32,7 @@ const MODE_OF_STYLE: Record<RewriteStyle, RewriteMode> = { FIX: 'REWRITE_FIX', R
 export function useDescriptionRewrite(taskId: () => TaskId, folder: () => string | null) {
   const store = useConsoleStore()
   const terminals = useTerminalStore()
+  const provider = useRunProvider(taskId)
   const toast = useToastStore()
   const { run } = useAsyncAction()
 
@@ -111,7 +113,7 @@ export function useDescriptionRewrite(taskId: () => TaskId, folder: () => string
     const current = terminals.terminalForTask(taskId())
     const mode = MODE_OF_STYLE[style]
     launching.value = true
-    const starting = run(() => terminals.planForTask(taskId(), launchChoices(), mode))
+    const starting = run(() => terminals.planForTask(taskId(), launchChoices(provider.value), mode))
     await pause(TRAVEL_MS)
     const started = await starting
     launching.value = false

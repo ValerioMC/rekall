@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import FormPanel from '@/components/ui/FormPanel.vue'
 import FormRow from '@/components/ui/FormRow.vue'
@@ -21,12 +21,7 @@ const VIEW_OPTIONS: readonly SegmentOption<SessionView>[] = SESSION_VIEWS.map((v
 
 const { installation } = storeToRefs(useClaudeConnectionStore())
 
-const provider = ref(preferredProvider())
-
-function chooseProvider(choice: SessionProvider): void {
-  provider.value = choice
-  setPreferredProvider(choice)
-}
+const provider = computed(preferredProvider)
 
 const sessionView = ref(preferredSessionKind())
 
@@ -44,15 +39,15 @@ function chooseSessionView(choice: SessionView): void {
     data-testid="shared-session-settings"
   >
     <FormRow
-      label="Default provider"
-      hint="Starts new sessions. The switch beside Run here picks another one for a single task."
+      label="Session provider"
+      hint="Starts new interactive sessions. You can also change it in the top bar."
     >
       <SegmentedControl
         :model-value="provider"
         :options="PROVIDER_OPTIONS"
-        label="Default provider"
-        data-testid="default-provider"
-        @update:model-value="chooseProvider"
+        label="Session provider"
+        data-testid="session-provider"
+        @update:model-value="setPreferredProvider"
       />
     </FormRow>
     <FormRow

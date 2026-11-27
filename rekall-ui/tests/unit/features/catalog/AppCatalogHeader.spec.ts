@@ -15,7 +15,8 @@ describe('AppCatalogHeader', () => {
 
     const slot = document.getElementById('app-header-extra')
 
-    expect(slot?.children).toHaveLength(2)
+    expect(slot?.children).toHaveLength(1)
+    expect(document.getElementById('app-header-actions')?.children).toHaveLength(1)
     expect(slot?.children[0]?.textContent).toContain('Diagrams')
   })
 })

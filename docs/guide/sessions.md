@@ -3,19 +3,16 @@
 ## Provider settings
 
 **Settings > Sessions and run queue** keeps what both providers share apart from what belongs to
-one. **Both providers** holds the **Default provider** (**Claude Code** or **Codex**) for new
+one. **Both providers** holds the **Session provider** (**Claude Code** or **Codex**) for new
 interactive sessions, the **Session view** and the MCP server address. Below it, a column per
 provider holds its connection, model, reasoning effort and permission setting. Existing sessions
 and automatic renewals keep the provider and options they started with.
 
-**Run here** and **Start quick task** use the configured session view. The two marks beside
-**Run here** are the task's provider switch: pick Claude Code or Codex and the key starts that
-one, with its own settings. The browser remembers the choice for that task; a task never switched
-follows the Settings default. While a session is open on the task the switch stays on its
-provider, and the other mark says to close it first. A provider whose CLI is missing is dimmed.
-The **Run here** keys of the terminal pane and the chat view follow the same choice.
-**Start quick task** uses the Settings default, and its arrow offers **Run with Claude Code**
-and **Run with Codex** for that launch.
+Choose Claude Code or Codex in the top bar. This is the same choice shown in Settings, and the
+browser remembers it across screens and reloads. **Run here**, **Start quick task** and the other
+interactive launch actions use that provider for new sessions. If a task has a live session,
+its **Run here** and planning actions use that session’s provider. The top bar menu marks a
+provider whose CLI is missing and offers a link to agent setup.
 
 For Codex, install the CLI, sign in, and choose **Connect Codex** to register Rekall’s MCP endpoint
 and install the `$rekall` skill. **Model** and **Reasoning effort** use the CLI’s model catalog.
@@ -36,7 +33,7 @@ On macOS and Linux, both providers can use the project’s saved connections thr
 (`--no-daemon`) so the helpers use that terminal’s environment. Codex’s sandbox and approval
 settings govern the network calls.
 
-**Run here**, next to **Open in terminal** on the description and steps panes, or `c` from any task, runs a real terminal inside the app. The backend starts the selected CLI in a pseudo-terminal in the project’s folder and opens the task with `/rk` for Claude Code or the `$rekall` skill for Codex; the pane renders it with `xterm.js` and the bytes travel both ways over one WebSocket at `/api/terminal/{id}/io`. It is the same binary run the same way as in your own terminal, so its own screens, `/context` read-outs and permission prompts are the ones you know. The [Chat view](#chat-view) is the alternative. Works in a plain browser, not only the desktop app.
+**Run here**, next to **Open in terminal** on the description and steps panes, runs a real terminal inside the app. The backend starts the selected CLI in a pseudo-terminal in the project’s folder and opens the task with `/rk` for Claude Code or the `$rekall` skill for Codex; the pane renders it with `xterm.js` and the bytes travel both ways over one WebSocket at `/api/terminal/{id}/io`. It is the same binary run the same way as in your own terminal, so its own screens, `/context` read-outs and permission prompts are the ones you know. The [Chat view](#chat-view) is the alternative. Works in a plain browser, not only the desktop app.
 
 The terminal gets the environment a new window of your own terminal would: Rekall asks your login shell (`$SHELL -i -l -c`) for its variables once it starts, so whatever your profile adds to `PATH` (`~/.cargo/bin`, nvm, pyenv, sdkman) and exports is there, along with `SSH_AUTH_SOCK`. The answer is cached and refreshed in the background every time a terminal opens, so a tool installed while Rekall runs reaches the next terminal but one. A shell that prints nothing usable within the timeout leaves the last good answer in place, or Rekall's own environment when there is none. Only a terminal opened before the first attempt has finished waits for it; after that a terminal never waits, so a profile that takes longer than the timeout costs the `PATH` it adds, not a delay on Run here. The shell runs with `REKALL_RESOLVING_ENVIRONMENT=1`, so a slow profile can skip work with `[[ -n $REKALL_RESOLVING_ENVIRONMENT ]] && return`.
 
@@ -133,13 +130,13 @@ The queue opens a session on the task, which works the open steps in order, clai
 **Run in queue.** `POST /api/run-queue/runs` adds a task and starts the queue in the same step. An idle queue starts at once; a running, holding or scheduled one only gains the task, which runs when its turn comes. A task left waiting by an earlier **Stop the queue** runs ahead of it, because the queue is armed in order. A task already queued or running is refused with 409.
 
 **More ways to run** opens from the arrow beside **Run here** on a task, preview or step.
-**Run in queue**, **Discuss**, **Plan here**, **Plan a flow** and **Replan** use the provider on
-the switch, which the menu names on its first line. When that CLI is missing the menu says so,
+**Discuss**, **Plan here**, **Plan a flow** and **Replan** use the live session’s provider or the
+top bar choice. The menu names the provider on its first line. When that CLI is missing the menu says so,
 links to its setup in Settings and takes no action. With a session open on the task,
 **Run in queue** warns that it has to be closed before the queue starts the task.
 **Plan a flow** is available on tasks with no steps. **Replan** asks for confirmation when draft
-or open steps can be replaced. From the **Decisions** tab, **Refine** offers a provider choice,
-marking the Settings default as **Preferred**, and records answers in that task’s ledger.
+or open steps can be replaced. From the **Decisions** tab, **Refine** opens or reuses a session directly and records answers
+in that task’s ledger.
 
 `/api/run-queue` holds the queue: `GET`, `PUT /settings` (`ceilingPercent`, `skipPermissions`, `model`, `effort`, `sessionKind`), `POST /items` (adds without starting), `POST /runs` (`taskId`: adds the task and arms the queue), `DELETE /items/{id}`, `PUT /items/{id}/position`, `POST /clear`, `POST /start` (`startAt` null starts now), `POST /stop`. Each answers with the whole queue, and every change is pushed on the console's event stream as a `run-queue` frame.
 

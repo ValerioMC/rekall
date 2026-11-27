@@ -5,14 +5,14 @@ import { useToastStore } from '@/stores/toast.store'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { launchChoices } from '@/common/config/session-launch'
 import type { PlanMode } from '@/features/claude/model/terminal'
-import type { SessionProvider } from '@/features/claude/model/session-provider'
+import { useRunProvider } from '@/features/claude/composables/useRunProvider'
 import type { TaskId } from '@/model/branded'
 
 export interface PlanTask {
   isRunning: Ref<boolean>
   isConfirmingReplan: Ref<boolean>
   missedMessage: Ref<string>
-  start: (mode: PlanMode, provider?: SessionProvider) => void
+  start: (mode: PlanMode) => void
   confirmReplan: () => Promise<void>
   cancelReplan: () => void
 }
@@ -33,10 +33,10 @@ export function usePlanTask(
 
   const isConfirmingReplan = ref(false)
   const missedMessage = ref('')
-  let replanProvider: SessionProvider | undefined
+  const provider = useRunProvider(taskId)
   const ready = computed(() => Boolean(terminals.terminalForTask(taskId())) || Boolean(folder()))
 
-  function start(mode: PlanMode, provider?: SessionProvider): void {
+  function start(mode: PlanMode): void {
     if (isRunning.value) return
     if (!ready.value) {
       toast.notifyError(new Error(missingHint))
@@ -44,26 +44,25 @@ export function usePlanTask(
     }
     if (mode === 'REPLAN') {
       missedMessage.value = ''
-      replanProvider = provider
       isConfirmingReplan.value = true
       return
     }
-    void plan(mode, '', provider)
+    void plan(mode, '')
   }
 
   async function confirmReplan(): Promise<void> {
     if (!isConfirmingReplan.value || isRunning.value) return
     isConfirmingReplan.value = false
-    await plan('REPLAN', missedMessage.value, replanProvider)
+    await plan('REPLAN', missedMessage.value)
   }
 
   function cancelReplan(): void {
     isConfirmingReplan.value = false
   }
 
-  async function plan(mode: PlanMode, message: string, provider?: SessionProvider): Promise<void> {
+  async function plan(mode: PlanMode, message: string): Promise<void> {
     const opened = await run(
-      () => terminals.planForTask(taskId(), launchChoices(provider), mode, message),
+      () => terminals.planForTask(taskId(), launchChoices(provider.value), mode, message),
       startedMessage(mode)
     )
     if (opened?.kind === 'TERMINAL') terminals.float(opened.id)

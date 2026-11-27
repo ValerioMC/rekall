@@ -8,7 +8,7 @@ import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useChatStore } from '@/features/chat/store/chat.store'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import { setPreferredEffort, setPreferredModel, setPreferredSessionKind, setSkipsPermissions } from '@/common/config/claude-launch'
-import { preferredProvider, setCodexEffort, setCodexModel, setPreferredProvider } from '@/common/config/session-launch'
+import { setCodexEffort, setCodexModel, setPreferredProvider } from '@/common/config/session-launch'
 import { useCodexStore } from '@/features/codex/store/codex.store'
 import { installStorage } from '../../support/memoryStorage'
 import { installBothSessionProviders } from '../../support/sessionProviders'
@@ -106,15 +106,11 @@ function menuButton(testid: string): HTMLButtonElement {
   return document.body.querySelector<HTMLButtonElement>(`[data-testid="${testid}"]`)!
 }
 
-async function switchTo(wrapper: ReturnType<typeof mountButton>, provider: Terminal['provider']): Promise<void> {
-  await wrapper.get(`[data-testid="provider-switch-${provider}"]`).trigger('click')
-}
-
 async function chooseRunInQueue(
   wrapper: ReturnType<typeof mountButton>,
   provider: Terminal['provider'] = 'CLAUDE'
 ): Promise<void> {
-  await switchTo(wrapper, provider)
+  setPreferredProvider(provider)
   await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
   const entry = menuButton('run-in-queue')
   entry.click()
@@ -342,31 +338,14 @@ describe('the Run here button', () => {
     wrapper.unmount()
   })
 
-  it('dims a provider whose CLI is missing, saying why, and cannot be switched to it', async () => {
-    installBothSessionProviders()
-    useCodexStore().setup = { status: 'CLI_MISSING' }
-    const wrapper = mountButton()
-    const codex = wrapper.get('[data-testid="provider-switch-CODEX"]')
-
-    await codex.trigger('click')
-
-    expect(codex.attributes('aria-disabled')).toBe('true')
-    expect(codex.attributes('title')).toBe('Codex CLI is not installed.')
-    expect(codex.attributes('aria-checked')).toBe('false')
-    wrapper.unmount()
-  })
-
-  it('holds the switch on the provider of a live session and says to close it', async () => {
+  it('keeps the menu on the provider of a live session', async () => {
     setPreferredProvider('CODEX')
     useTerminalStore().terminals = [{ ...terminal(), kind: 'CHAT', mode: 'DISCUSS' }]
     const wrapper = mountButton()
-    const codex = wrapper.get('[data-testid="provider-switch-CODEX"]')
 
-    await codex.trigger('click')
+    await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
 
-    expect(wrapper.get('[data-testid="provider-switch-CLAUDE"]').attributes('aria-checked')).toBe('true')
-    expect(codex.attributes('aria-disabled')).toBe('true')
-    expect(codex.attributes('title')).toBe('Claude Code Chat is open on this task. Close it to use Codex.')
+    expect(document.body.querySelector('[data-testid="run-menu-provider"]')?.textContent).toContain('With Claude Code')
     wrapper.unmount()
   })
 
@@ -394,7 +373,12 @@ describe('the Run here button', () => {
   })
 
   it('walks the menu with the arrow keys straight over the separator', async () => {
-    const wrapper = mount(OpenTerminalButton, { props: { taskId: TASK, folder: '/code/vega' }, attachTo: document.body })
+    installBothSessionProviders()
+    const wrapper = mount(OpenTerminalButton, {
+      props: { taskId: TASK, folder: '/code/vega' },
+      attachTo: document.body,
+      global: { stubs: { RouterLink: RouterLinkStub } }
+    })
     await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
     const menu = document.body.querySelector<HTMLElement>('[data-testid="run-menu"]')!
     const press = (key: string): string | undefined => {
@@ -409,26 +393,12 @@ describe('the Run here button', () => {
     wrapper.unmount()
   })
 
-  it('moves the switch and its focus with the arrow keys', async () => {
-    const wrapper = mountButton()
-    const group = wrapper.get('[data-testid="provider-switch"]')
-
-    await group.trigger('keydown', { key: 'ArrowRight' })
-    await flushPromises()
-
-    const codex = wrapper.get('[data-testid="provider-switch-CODEX"]')
-    expect(codex.attributes('aria-checked')).toBe('true')
-    expect(codex.attributes('tabindex')).toBe('0')
-    expect(document.activeElement).toBe(codex.element)
-    wrapper.unmount()
-  })
-
   it.each([
-    { defaultProvider: 'CODEX', provider: 'CLAUDE', model: 'sonnet', effort: 'low', kind: 'CHAT', skipPermissions: true },
-    { defaultProvider: 'CLAUDE', provider: 'CODEX', model: 'gpt-test', effort: 'xhigh', kind: 'CHAT', skipPermissions: false }
-  ] as const)('runs with $provider once the switch shows it', async ({ defaultProvider, ...choices }) => {
+    { provider: 'CLAUDE', model: 'sonnet', effort: 'low', kind: 'CHAT', skipPermissions: true },
+    { provider: 'CODEX', model: 'gpt-test', effort: 'xhigh', kind: 'CHAT', skipPermissions: false }
+  ] as const)('runs with the global $provider preference', async (choices) => {
     installBothSessionProviders()
-    setPreferredProvider(defaultProvider)
+    setPreferredProvider(choices.provider)
     setPreferredModel('sonnet')
     setPreferredEffort('low')
     setPreferredSessionKind('chat')
@@ -438,23 +408,10 @@ describe('the Run here button', () => {
     openTerminal.mockResolvedValue({ ...terminal(), provider: choices.provider, kind: choices.kind })
     const wrapper = mountButton()
 
-    await switchTo(wrapper, choices.provider)
     await wrapper.get('[data-testid="open-terminal"]').trigger('click')
     await flushPromises()
 
     expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining(choices))
-    expect(preferredProvider()).toBe(defaultProvider)
-    wrapper.unmount()
-  })
-
-  it('keeps the switch still while a launch is under way', async () => {
-    openTerminal.mockReturnValue(new Promise<Terminal>(() => undefined))
-    const wrapper = mountButton()
-    await wrapper.get('[data-testid="open-terminal"]').trigger('click')
-
-    await switchTo(wrapper, 'CODEX')
-
-    expect(wrapper.get('[data-testid="provider-switch-CLAUDE"]').attributes('aria-checked')).toBe('true')
     wrapper.unmount()
   })
 
@@ -650,11 +607,11 @@ describe('planning from the Run here arrow', () => {
     ['discuss', 'DISCUSS'],
     ['plan-here', 'PLAN'],
     ['plan-flow', 'PLAN_FLOW']
-  ] as const)('dispatches %s once with the provider the switch shows', async (testid, mode) => {
-    setPreferredProvider('CLAUDE')
+  ] as const)('dispatches %s once with the global provider', async (testid, mode) => {
+    setPreferredProvider('CODEX')
     openTerminal.mockResolvedValue({ ...terminal(), provider: 'CODEX' })
     const wrapper = mountPlanning()
-    await wrapper.get('[data-testid="provider-switch-CODEX"]').trigger('click')
+    setPreferredProvider('CODEX')
 
     await choose(wrapper, testid)
 
@@ -663,7 +620,6 @@ describe('planning from the Run here arrow', () => {
       { taskId: TASK },
       expect.objectContaining({ mode, provider: 'CODEX' })
     )
-    expect(preferredProvider()).toBe('CLAUDE')
   })
 
   describe('replanning', () => {
@@ -682,11 +638,11 @@ describe('planning from the Run here arrow', () => {
       expect(sendTerminalInput).not.toHaveBeenCalled()
     })
 
-    it('replans with the provider the switch shows', async () => {
+    it('replans with the global provider', async () => {
       withReplaceableSteps(1)
       openTerminal.mockResolvedValue({ ...terminal(), provider: 'CODEX' })
       const wrapper = mountPlanning()
-      await wrapper.get('[data-testid="provider-switch-CODEX"]').trigger('click')
+      setPreferredProvider('CODEX')
 
       await choose(wrapper, 'replan')
       await wrapper.findComponent(AppConfirm).vm.$emit('confirm')

@@ -280,12 +280,12 @@ goes in the first, one that needs the machine in the second. The run queue's row
 `RunQueueService` in `rekall-core/src/queue/`, and how skills are grouped is `SkillGroupService` in
 `rekall-core/src/skill/`.
 
-In the console, a task's **Run here** takes its provider from `useRunProvider`: the live session's,
-else the one the task was switched to in this browser, else the Settings default.
-`SessionProviderMenu` supplies the provider choices for Decisions refinement and the queue task
-picker. `useAnchoredMenu` places a menu and handles keyboard focus outside the scrolling pane.
-Interactive actions pass the provider to the session store, which handles conflicts and view
-fallback. Queue actions save the provider on the item and its row displays the saved choice.
+In the console, `AppHeaderChrome` mounts one provider selector to the right of centered search,
+before status. Navigation is ordered Back, Forward, section, project and Home. The selector and
+Settings share the reactive preference in `session-launch.ts`, persisted in browser storage with
+a visit fallback. `useRunProvider` resolves task actions to the live session’s provider or the
+global choice for a new session. `usePlanTask` uses that resolution for Discuss, Plan, Replan and
+Refine. The session store handles launch conflicts and view fallback.
 Both queue write routes accept optional per-entry launch settings. For Claude Code, a
 `claudeOptions` object saves each choice, with null values delegating to the account. When the
 object is omitted, the worker uses the queue-wide model and effort. Claude Code permissions and

@@ -31,7 +31,7 @@ const nudging = ref(false)
 let settleTimer: ReturnType<typeof setTimeout> | null = null
 let nudgeTimer: ReturnType<typeof setTimeout> | null = null
 
-const previewProvider = ref(preferredProvider())
+const previewProvider = computed(preferredProvider)
 
 const missing = computed(() => props.missingHint ?? 'Set this project’s folder to open a session from it')
 
@@ -60,7 +60,6 @@ function positionPreview(): void {
 }
 
 function openPreview(): void {
-  previewProvider.value = preferredProvider()
   positionPreview()
   previewing.value = true
 }

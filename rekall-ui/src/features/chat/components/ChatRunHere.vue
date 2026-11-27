@@ -19,7 +19,7 @@ const props = defineProps<{
 const terminals = useTerminalStore()
 const { selectedTask } = storeToRefs(useConsoleStore())
 const { isRunning, run } = useAsyncAction()
-const { provider } = useRunProvider(() => selectedTask.value?.id ?? null)
+const provider = useRunProvider(() => selectedTask.value?.id ?? null)
 const folder = computed(() => selectedTask.value?.projectRepoFolder ?? null)
 
 async function openHere(): Promise<void> {

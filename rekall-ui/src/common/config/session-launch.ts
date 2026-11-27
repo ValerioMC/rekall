@@ -1,10 +1,11 @@
+import { shallowRef } from 'vue'
 import { preferredEffort, preferredLaunchKind, preferredModel, skipsPermissions } from '@/common/config/claude-launch'
 import { SESSION_PROVIDERS, type SessionProvider } from '@/features/claude/model/session-provider'
 import type { SessionKind } from '@/features/claude/model/terminal'
-import type { TaskId } from '@/model/branded'
 
 const PROVIDER_KEY = 'rekall.session.provider'
-const TASK_PROVIDER_KEY = 'rekall.session.task-provider.'
+const providerPreference = shallowRef<{ provider: SessionProvider; saved: boolean }>()
+let lastStoredProvider: SessionProvider = 'CLAUDE'
 const CODEX_MODEL_KEY = 'rekall.codex.model'
 const CODEX_EFFORT_KEY = 'rekall.codex.effort'
 const CODEX_BYPASS_KEY = 'rekall.codex.bypass'
@@ -23,40 +24,36 @@ interface CodexPreferences {
   readonly skipPermissions: boolean
 }
 
-function readChoice(key: string): string | null {
+function readChoice(key: string): string | null | undefined {
   try {
     return window.localStorage.getItem(key)
   } catch {
-    return null
+    return undefined
   }
 }
 
-function saveChoice(key: string, value: string): void {
+function saveChoice(key: string, value: string): boolean {
   try {
     window.localStorage.setItem(key, value)
+    return true
   } catch {
+    return false
   }
-}
-
-function readProvider(key: string): SessionProvider | null {
-  const stored = readChoice(key)
-  return SESSION_PROVIDERS.find((provider) => provider === stored) ?? null
 }
 
 export function preferredProvider(): SessionProvider {
-  return readProvider(PROVIDER_KEY) ?? 'CLAUDE'
+  const preference = providerPreference.value
+  if (preference && !preference.saved) return preference.provider
+  const stored = readChoice(PROVIDER_KEY)
+  if (stored === undefined) return lastStoredProvider
+  lastStoredProvider = SESSION_PROVIDERS.find((provider) => provider === stored) ?? 'CLAUDE'
+  return lastStoredProvider
 }
 
 export function setPreferredProvider(value: SessionProvider): void {
-  saveChoice(PROVIDER_KEY, value)
-}
-
-export function savedTaskProvider(taskId: TaskId): SessionProvider | null {
-  return readProvider(TASK_PROVIDER_KEY + taskId)
-}
-
-export function saveTaskProvider(taskId: TaskId, value: SessionProvider): void {
-  saveChoice(TASK_PROVIDER_KEY + taskId, value)
+  const saved = saveChoice(PROVIDER_KEY, value)
+  lastStoredProvider = value
+  providerPreference.value = { provider: value, saved }
 }
 
 export function codexPreferences(): CodexPreferences {

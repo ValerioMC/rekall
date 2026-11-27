@@ -9,11 +9,6 @@ export const SESSION_PROVIDER_LABEL: Readonly<Record<SessionProvider, string>> =
   CODEX: 'Codex'
 }
 
-export const RUN_WITH_PROVIDER_LABEL: Readonly<Record<SessionProvider, string>> = {
-  CLAUDE: `Run with ${SESSION_PROVIDER_LABEL.CLAUDE}`,
-  CODEX: `Run with ${SESSION_PROVIDER_LABEL.CODEX}`
-}
-
 export const SESSION_WORKFLOW_LABEL: Readonly<Record<SessionProvider, string>> = {
   CLAUDE: '/rk',
   CODEX: '$rekall'

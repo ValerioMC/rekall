@@ -6,10 +6,10 @@ import HistoryArrows from '@/components/shell/HistoryArrows.vue'
 </script>
 
 <template>
-  <div class="flex min-w-0 flex-1 items-center gap-2.5 self-stretch" data-testid="header-navigation">
-    <HomeLink />
-    <AppNavMenu />
+  <div class="@container flex min-w-0 flex-1 items-center gap-2 self-stretch" data-testid="header-navigation">
     <HistoryArrows />
+    <AppNavMenu />
     <HeaderProjectSwitch />
+    <HomeLink />
   </div>
 </template>

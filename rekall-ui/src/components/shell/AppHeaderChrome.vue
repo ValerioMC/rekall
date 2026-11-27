@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HeaderSessionProvider from '@/components/shell/HeaderSessionProvider.vue'
 import HeaderNavigation from '@/components/shell/HeaderNavigation.vue'
 import WindowsWindowControls from '@/components/console/WindowsWindowControls.vue'
 import { desktopPlatform, isDesktopApp } from '@/common/native/desktop'
@@ -9,17 +10,6 @@ const drawsWindowButtons = platform === 'windows'
 const clearsTrafficLights = platform === 'macos'
 </script>
 
-<!-- The one header instance for every screen: mounted once by Bootstrap, above `router-view`, so
-     it never unmounts on navigation. Each screen teleports its own content (a search bar, a page
-     title, its actions) into `#app-header-extra` rather than rendering a header of its own. One
-     48px row on a three-cell grid (`app-header-grid`): the menu key with the history arrows; a centre
-     cell; a right cell. The sides are equal, so the centre cell is at exactly
-     half the grid. The left cell never depends on the screen, so the key sits in the same place on
-     every one. The slot is `display: contents`: a screen teleports exactly two children, which land
-     in the centre and right cells. On macOS the system's own window buttons float over the left
-     edge, so the left cell starts clear of them. On Windows the window buttons stand outside the
-     grid, flush with the right edge, so the grid is the space left of them. The header is a `deep`
-     drag region: any press on it that lands on no button, link or field drags the window. -->
 <template>
   <header
     :data-tauri-drag-region="isDesktop ? 'deep' : undefined"
@@ -34,6 +24,11 @@ const clearsTrafficLights = platform === 'macos'
       </div>
 
       <div id="app-header-extra" class="contents"></div>
+
+      <div class="@container col-start-3 row-start-1 flex min-w-0 items-center justify-end gap-1.5">
+        <HeaderSessionProvider />
+        <div id="app-header-actions" class="contents"></div>
+      </div>
     </div>
     <WindowsWindowControls v-if="drawsWindowButtons" />
   </header>
