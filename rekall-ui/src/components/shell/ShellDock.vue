@@ -105,8 +105,8 @@ onUnmounted(() => {
     data-testid="shell-dock"
   >
     <Transition name="popover" mode="out-in">
-      <RunningTasksPanel v-if="open === 'running'" class="w-[320px]" @close="close" />
-      <TerminalSessionsPanel v-else-if="open === 'sessions'" class="w-[320px]" @close="close" @float="float" />
+      <RunningTasksPanel v-if="open === 'running'" class="w-[420px]" @close="close" />
+      <TerminalSessionsPanel v-else-if="open === 'sessions'" class="w-[420px]" @close="close" @float="float" />
     </Transition>
 
     <TerminalFloat v-if="floating" :terminal="floating" />

@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RV-219 · Dock identity</title>
+<style>
+@font-face { font-family: "Fira Sans"; font-weight: 400; src: url("../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Fira Sans"; font-weight: 500; src: url("../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "Fira Sans"; font-weight: 600; src: url("../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Fira Code"; font-weight: 300 700; src: url("../../../rekall-ui/node_modules/@fontsource-variable/fira-code/files/fira-code-latin-wght-normal.woff2") format("woff2"); }
+
+:root {
+  color-scheme: dark;
+  --canvas: #0d1017; --surface: #151922; --raised: #1d2330; --hover: #262d3c;
+  --border: #2a3243; --border-strong: #3b4558;
+  --text: #f2f5f9; --muted: #a3acba; --subtle: #8c96a6;
+  --accent: #eaa43c; --accent-ink: #2b1804; --anchor: #55c9ea; --anchor-strong: #a9ecfa;
+  --safe: #3ddc97; --safe-soft: #3ddc971a; --warn: #f3c04a; --warn-soft: #f3c04a1a;
+  --danger: #fb7185; --danger-soft: #fb71851a; --claude: #d97757;
+  --sans: "Fira Sans", ui-sans-serif, sans-serif;
+  --mono: "Fira Code", ui-monospace, monospace;
+  --modal: 0 2px 6px rgb(0 0 0 / 0.6), 0 40px 80px -24px rgb(0 0 0 / 0.9);
+  --lift: 0 1px 2px rgb(0 0 0 / 0.55), 0 10px 22px -8px rgb(0 0 0 / 0.65);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--canvas); color: var(--text); font: 13.5px/1.4 var(--sans); min-height: 100vh; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+::selection { background: #eaa43c40; }
+
+.bar { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 12px 32px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.bar h1 { font-size: 15px; font-weight: 600; margin-right: auto; }
+.seg { display: flex; border: 1px solid var(--border-strong); border-radius: 5px; overflow: hidden; }
+.seg button { height: 30px; padding: 0 14px; color: var(--muted); font-size: 12.5px; border-right: 1px solid var(--border-strong); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--hover); color: var(--text); font-weight: 600; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
+.check input { accent-color: var(--accent); }
+.note { padding: 16px 32px 0; color: var(--muted); max-width: 75ch; min-height: 74px; }
+.note b { color: var(--text); font-weight: 600; }
+
+.stage { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 48px; padding: 16px 32px 32px; }
+.dock { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.panel { width: 420px; overflow: hidden; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); box-shadow: inset 0 1px 0 var(--tint), var(--modal); }
+.today .panel { width: 320px; }
+.panel.sessions { --tint: #55c9ea8c; }
+.panel.running { --tint: #eaa43c8c; }
+.panel > header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.panel h2 { flex: 1; font-size: 12.5px; font-weight: 600; }
+.count { font: 11.5px var(--mono); color: var(--subtle); }
+.list { list-style: none; max-height: min(66vh, 480px); overflow-y: auto; padding: 6px; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+.today .list { max-height: 300px; }
+
+.caret { width: 3px; height: 13px; border-radius: 1.5px; background: var(--anchor); }
+.dial { width: 13px; height: 13px; border-radius: 99px; border: 1px solid #eaa43c73; background: conic-gradient(#eaa43c8c, transparent 100deg, transparent); }
+
+.capsule { display: flex; height: 40px; border: 1px solid var(--border-strong); border-radius: 99px; background: var(--surface); box-shadow: var(--lift); overflow: hidden; }
+.capsule span.s { display: flex; align-items: center; gap: 10px; padding: 0 14px 0 12px; font-size: 12.5px; font-weight: 500; }
+.capsule span.s.on { background: color-mix(in srgb, var(--c) 14%, transparent); }
+.capsule i { align-self: center; width: 1px; height: 22px; background: var(--border-strong); }
+
+/* today */
+.t-group { padding: 8px 8px 4px; font: 11px var(--mono); text-transform: uppercase; letter-spacing: .025em; color: var(--subtle); }
+.t-row { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 5px; }
+.t-main { flex: 1; min-width: 0; }
+.t-title { font-size: 12.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-anchor { display: flex; align-items: center; gap: 6px; margin-top: 2px; font: 11px var(--mono); color: #55c9eacc; white-space: nowrap; overflow: hidden; }
+.t-anchor em { width: 4px; height: 4px; border-radius: 99px; flex: none; }
+.t-prov { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 11.5px; color: var(--muted); }
+.t-state { font: 11px var(--mono); color: var(--subtle); white-space: nowrap; }
+
+/* proposal */
+.group { padding: 10px 10px 4px; font-size: 11.5px; font-weight: 500; color: var(--subtle); }
+.row { position: relative; display: grid; grid-template-columns: var(--lead) minmax(0, 1fr); column-gap: 12px; padding: 10px; border-radius: 5px; transition: background-color 140ms ease-out; }
+.row:hover { background: var(--raised); }
+.item + .item .row::before { content: ""; position: absolute; left: 10px; right: 10px; top: 0; height: 1px; background: var(--border); }
+.item + .item .row:hover::before { background: transparent; }
+.title { min-width: 0; font-size: 13.5px; font-weight: 500; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.anchor { margin-top: 3px; font: 11.5px var(--mono); color: var(--anchor); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.meta { display: flex; align-items: center; gap: 8px; margin-top: 5px; min-height: 24px; font-size: 11.5px; color: var(--muted); }
+.meta .grow { flex: 1; }
+.meta .anchor { margin-top: 0; min-width: 0; }
+.prov { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.tag { padding: 1px 6px; border-radius: 3px; background: var(--raised); font-size: 11px; font-weight: 600; color: var(--muted); }
+.row:hover .tag { background: var(--hover); }
+.tag.warn { background: var(--warn-soft); color: var(--warn); }
+.mode { color: var(--subtle); white-space: nowrap; }
+.clock { font: 13.5px var(--mono); font-variant-numeric: tabular-nums; color: var(--accent); }
+.act { display: grid; place-items: center; width: 24px; height: 24px; flex: none; border-radius: 99px; color: var(--subtle); transition: background-color 140ms, color 140ms; }
+.act.commit:hover { background: var(--hover); color: var(--anchor); }
+.act.stop:hover { background: var(--danger-soft); color: var(--danger); }
+.act svg { width: 12px; height: 12px; }
+.chips { display: flex; gap: 4px; margin-top: 4px; }
+.chip { padding: 1px 8px; border-radius: 3px; font: 11px var(--mono); box-shadow: inset 0 0 0 1px var(--border); background: var(--raised); color: var(--subtle); }
+.chip.used { background: var(--safe-soft); color: var(--safe); box-shadow: inset 0 0 0 1px #3ddc9740; }
+
+.mark { display: grid; place-items: center; flex: none; overflow: hidden; font-weight: 600; line-height: 1; }
+.mark svg { display: block; }
+.company { border-radius: 16%; }
+.project { border-radius: 22.37%; }
+.pair { position: relative; width: 36px; height: 36px; margin-top: 2px; }
+.pair .project { position: absolute; right: -9px; bottom: -9px; box-shadow: 0 0 0 2px var(--surface); }
+.row:hover .pair .project { box-shadow: 0 0 0 2px var(--raised); }
+.pair .project.glyph { background-image: linear-gradient(var(--soft), var(--soft)); background-color: var(--surface); }
+.stack { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
+
+.names { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; font-size: 11.5px; color: var(--muted); white-space: nowrap; min-width: 0; }
+.names span { overflow: hidden; text-overflow: ellipsis; }
+.names s { text-decoration: none; color: var(--border-strong); }
+.names b { font-weight: 500; color: var(--text); }
+.names.below { margin: 3px 0 0; }
+
+.b-names { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12.5px; color: var(--muted); white-space: nowrap; min-width: 0; }
+.b-names s { text-decoration: none; color: var(--border-strong); }
+.b-names b { font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; }
+.variant-b .row { grid-template-columns: minmax(0, 1fr); }
+
+.c-head { display: flex; align-items: center; gap: 10px; padding: 12px 10px 6px; }
+.c-head div { min-width: 0; }
+.c-head b { display: block; font-size: 13.5px; font-weight: 600; }
+.c-head small { display: block; font-size: 11.5px; color: var(--subtle); }
+.c-head .n { margin-left: auto; font: 11.5px var(--mono); color: var(--subtle); }
+.c-block + .c-block { border-top: 1px solid var(--border); margin-top: 6px; }
+.variant-c .row { grid-template-columns: minmax(0, 1fr); margin-left: 30px; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>RV-219 · Company and project icons in the dock</h1>
+  <div class="seg" role="group" aria-label="Design">
+    <button data-v="today" aria-pressed="false">Today</button>
+    <button data-v="a" aria-pressed="true">A · Paired mark</button>
+    <button data-v="b" aria-pressed="false">B · Identity line</button>
+    <button data-v="c" aria-pressed="false">C · Grouped by project</button>
+  </div>
+  <label class="check"><input type="checkbox" id="names" /> Option: company and project names (A only)</label>
+</div>
+<p class="note" id="note"></p>
+<main class="stage" id="stage"></main>
+
+<script>
+const PROVIDER = {
+  CLAUDE: { label: "Claude Code", color: "var(--claude)", path: "m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z" },
+  CODEX: { label: "Codex", color: "var(--text)", path: "M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z" }
+};
+
+/* Demo identities. "logo"/"picture" stand in for uploaded images; the rest are the console's fallbacks. */
+const COMPANY = {
+  acme: { name: "Acme Robotics", logo: { bg: "#e8eef6", art: '<path d="M4 19 12 4l8 15h-4.4L12 12l-3.6 7Z" fill="#c2410c"/>' } },
+  globex: { name: "Globex Analytics", logo: { bg: "#0f766e", art: '<circle cx="12" cy="12" r="7.5" fill="none" stroke="#ecfeff" stroke-width="2.2"/><path d="M4.5 12h15M12 4.5c4 4.5 4 10.5 0 15" fill="none" stroke="#ecfeff" stroke-width="1.8"/>' } },
+  initech: { name: "Initech Labs", logo: null, hue: "#9a78e0" }
+};
+const GLYPH = {
+  compass: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><polygon points="15.2 8.8 13 13 8.8 15.2 11 11 15.2 8.8" fill="currentColor"/>',
+  database: '<ellipse cx="12" cy="5.5" rx="7.5" ry="2.7" fill="currentColor"/><path d="M4.500 5.500v13c0 1.500 3.400 2.700 7.500 2.700s7.500-1.200 7.500-2.700v-13M4.500 11.800c0 1.500 3.400 2.700 7.500 2.700s7.500-1.200 7.500-2.700" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+  terminal: '<rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 9.500 10.500 12 7 14.500M12.500 15h4.500" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>'
+};
+const PROJECT = {
+  nav: { company: "acme", name: "Navigation", glyph: "compass", hue: "#6c91da" },
+  fleet: { company: "acme", name: "Fleet operations", picture: { bg: "#14532d", art: '<path d="M5 15h14l-2-6H7Z" fill="#bbf7d0"/><circle cx="8.5" cy="17" r="2" fill="#bbf7d0"/><circle cx="15.500" cy="17" r="2" fill="#bbf7d0"/>' } },
+  ware: { company: "globex", name: "Warehouse", glyph: "database", hue: "#da6cb6" },
+  ci: { company: "initech", name: "CI pipeline", glyph: "terminal", hue: "#b66cda" }
+};
+
+const SESSIONS = [
+  { project: "nav", task: true, title: "Replan the route when an aisle is blocked", anchor: "task:NAV-42", provider: "CLAUDE", mode: "live", chips: ["1 used", "2 unused"] },
+  { project: "ware", task: true, title: "Backfill the demand table", anchor: "task:WH-7", provider: "CODEX", mode: "live", chat: "approve" },
+  { project: "fleet", task: true, title: "Replan the route after a battery swap", anchor: "task:FLT-18", provider: "CLAUDE", mode: "skip perms", chat: "chat" },
+  { project: "ci", task: false, title: "Inventory of ci-pipeline", anchor: "project:ci-pipeline", provider: "CLAUDE", mode: "live" }
+];
+const RUNNING = [
+  { project: "nav", title: "Replan the route when an aisle is blocked", anchor: "task:NAV-42", clock: "1:12:08" },
+  { project: "ware", title: "Backfill the demand table", anchor: "task:WH-7", clock: "24:51" },
+  { project: "ci", title: "Cache dependencies between pipeline runs so a retry does not download them again", anchor: "task:CI-103", clock: "03:17" }
+];
+
+const NOTES = {
+  today: "<b>What the dock shows now.</b> A 320px sheet: the title is cut to make room for the state words and keys, and only a 4px dot hints at the project.",
+  a: "<b>A · Paired mark (recommended).</b> The company logo with the project icon on its corner, as in the header's project switcher. One fixed spot to scan, the title gets two lines, the sheet grows to 420px.",
+  b: "<b>B · Identity line.</b> Each entry opens with both icons beside their names. Nothing to learn, but every entry is one line taller and the icons are smaller (20px).",
+  c: "<b>C · Grouped by project.</b> Both icons head each project once, with its entries under it. Least repetition, but it replaces the “Working on a task / Not on a task” grouping."
+};
+
+const svg = (art, size, box = 24) => `<svg width="${size}" height="${size}" viewBox="0 0 ${box} ${box}" aria-hidden="true">${art}</svg>`;
+const providerMark = (p) => `<svg width="12" height="12" viewBox="0 0 24 24" fill="${PROVIDER[p].color}" aria-hidden="true"><path d="${PROVIDER[p].path}"/></svg>`;
+const full = (key) => `${COMPANY[PROJECT[key].company].name} / ${PROJECT[key].name}`;
+
+function companyMark(key, size) {
+  const c = COMPANY[key];
+  const box = `width:${size}px;height:${size}px`;
+  return c.logo
+    ? `<span class="mark company" style="${box};background:${c.logo.bg}" title="${c.name}">${svg(c.logo.art, size)}</span>`
+    : `<span class="mark company" style="${box};background:${c.hue}1a;color:${c.hue};font-size:${size / 2}px;box-shadow:inset 0 0 0 1px ${c.hue}40" title="${c.name}">${c.name[0]}</span>`;
+}
+function projectMark(key, size) {
+  const p = PROJECT[key];
+  const box = `width:${size}px;height:${size}px`;
+  return p.picture
+    ? `<span class="mark project" style="${box};background-color:${p.picture.bg}" title="${p.name}">${svg(p.picture.art, size)}</span>`
+    : `<span class="mark project glyph" style="${box};--soft:${p.hue}2e;background-color:${p.hue}1a;color:${p.hue}" title="${p.name}">${svg(GLYPH[p.glyph], Math.round(size * .66))}</span>`;
+}
+
+const ICON = {
+  commit: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2.75"/><path d="M1 8h3.2M11.800 8H15" stroke-linecap="round"/></svg>',
+  stop: '<svg viewBox="0 0 16 16" fill="currentColor"><rect x="4" y="4" width="8" height="8" rx="1.5"/></svg>',
+  close: '<svg viewBox="0 0 12 12" fill="none"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>'
+};
+const commitKey = (e) => e.task ? `<button class="act commit" aria-label="Log the latest commit" title="Log the latest commit">${ICON.commit}</button>` : "";
+const stopKey = (label) => `<button class="act stop" aria-label="${label}" title="${label}">${ICON.stop}</button>`;
+const chips = (e) => e.chips ? `<div class="chips"><span class="chip used">${e.chips[0]}</span><span class="chip">${e.chips[1]}</span></div>` : "";
+const chatTag = (e) => e.chat ? `<span class="tag ${e.chat === "approve" ? "warn" : ""}">${e.chat}</span>` : "";
+
+function body(e, kind, nameLine) {
+  const anchor = `<div class="anchor">${e.anchor}</div>`;
+  const details = kind === "sessions"
+    ? `${anchor}<div class="meta"><span class="prov">${providerMark(e.provider)}${PROVIDER[e.provider].label}</span>${chatTag(e)}<span class="mode">${e.mode}</span><span class="grow"></span>${commitKey(e)}${stopKey("Stop session")}</div>`
+    : `<div class="meta">${anchor}<span class="grow"></span><span class="clock">${e.clock}</span>${stopKey("Stop tracking")}</div>`;
+  return `<div style="min-width:0">${nameLine}<div class="title" title="${e.title}">${e.title}</div>${details}${chips(e)}</div>`;
+}
+
+function rowA(e, kind, names) {
+  const c = PROJECT[e.project].company;
+  const line = names ? `<div class="names"><span>${COMPANY[c].name}</span><s>/</s><span><b>${PROJECT[e.project].name}</b></span></div>` : "";
+  return `<li class="item"><div class="row" style="--lead:45px"><div class="pair" aria-label="${full(e.project)}">${companyMark(c, 36)}${projectMark(e.project, 22)}</div>${body(e, kind, line)}</div></li>`;
+}
+function rowB(e, kind) {
+  const c = PROJECT[e.project].company;
+  const line = `<div class="b-names">${companyMark(c, 20)}<span>${COMPANY[c].name}</span><s>/</s>${projectMark(e.project, 20)}<b>${PROJECT[e.project].name}</b></div>`;
+  return `<li class="item"><div class="row">${line}${body(e, kind, "")}</div></li>`;
+}
+
+function grouped(entries, kind, row) {
+  if (kind !== "sessions") return entries.map((e) => row(e, kind)).join("");
+  return [["Working on a task", entries.filter((e) => e.task)], ["Not on a task", entries.filter((e) => !e.task)]]
+    .map(([title, list]) => `<li class="group">${title}</li>` + list.map((e) => row(e, kind)).join(""))
+    .join("");
+}
+function byProject(entries, kind) {
+  return [...new Set(entries.map((e) => e.project))].map((key) => {
+    const p = PROJECT[key];
+    const mine = entries.filter((e) => e.project === key);
+    return `<li class="c-block"><div class="c-head">${companyMark(p.company, 32)}${projectMark(key, 32)}<div><b>${p.name}</b><small>${COMPANY[p.company].name}</small></div><span class="n">${mine.length}</span></div><ul style="list-style:none">${mine.map((e) => `<li class="item"><div class="row">${body(e, kind, "")}</div></li>`).join("")}</ul></li>`;
+  }).join("");
+}
+
+function todayRow(e, kind) {
+  const hue = PROJECT[e.project].hue || "#7f7fe3";
+  const prov = kind === "sessions" ? `<div class="t-prov">${providerMark(e.provider)}${PROVIDER[e.provider].label}</div>` : "";
+  const side = kind === "sessions"
+    ? `${chatTag(e)}<span class="t-state">${e.mode}</span>${commitKey(e)}${stopKey("Stop session")}`
+    : `<span style="font:12.5px var(--mono);color:var(--accent)">${e.clock}</span>${stopKey("Stop tracking")}`;
+  return `<li><div class="t-row"><div class="t-main"><div class="t-title">${e.title}</div><div class="t-anchor"><em style="background:${hue}"></em>${e.anchor}</div>${prov}</div>${side}</div>${e.chips ? `<div style="padding:0 8px 6px">${chips(e)}</div>` : ""}</li>`;
+}
+const todayRows = (entries, kind) => grouped(entries, kind, todayRow).replaceAll('class="group"', 'class="t-group"');
+
+function panel(kind, variant, names) {
+  const entries = kind === "sessions" ? SESSIONS : RUNNING;
+  const list = {
+    today: () => todayRows(entries, kind),
+    a: () => grouped(entries, kind, (e, k) => rowA(e, k, names)),
+    b: () => grouped(entries, kind, rowB),
+    c: () => byProject(entries, kind)
+  }[variant]();
+  const mark = kind === "sessions" ? '<span class="caret"></span>' : '<span class="dial"></span>';
+  const title = kind === "sessions" ? "Sessions" : "Running now";
+  const on = (k) => (k === kind ? "s on" : "s");
+  return `<div class="dock"><section class="panel ${kind}" aria-label="${title}"><header>${mark}<h2>${title}</h2><span class="count">${entries.length}</span><button class="act" aria-label="Close">${ICON.close}</button></header><ul class="list">${list}</ul></section><div class="capsule"><span class="${on("running")}" style="--c:var(--accent)"><span class="dial"></span>${RUNNING.length} in progress</span><i></i><span class="${on("sessions")}" style="--c:var(--anchor)"><span class="caret"></span>approve</span></div></div>`;
+}
+
+const state = { v: "a", names: false };
+const params = new URLSearchParams(location.search);
+if (NOTES[params.get("v")]) state.v = params.get("v");
+state.names = params.has("names");
+
+function render() {
+  const stage = document.getElementById("stage");
+  stage.className = `stage ${state.v === "today" ? "today" : `variant-${state.v}`}`;
+  stage.innerHTML = panel("sessions", state.v, state.names) + panel("running", state.v, state.names);
+  document.getElementById("note").innerHTML = NOTES[state.v];
+  document.querySelectorAll("[data-v]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === state.v)));
+  const box = document.getElementById("names");
+  box.checked = state.names;
+  box.disabled = state.v !== "a";
+}
+document.querySelectorAll("[data-v]").forEach((b) => b.addEventListener("click", () => { state.v = b.dataset.v; render(); }));
+document.getElementById("names").addEventListener("change", (e) => { state.names = e.target.checked; render(); });
+render();
+</script>
+</body>
+</html>
