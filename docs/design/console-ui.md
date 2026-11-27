@@ -108,17 +108,20 @@ tab marked and is not added. A chat on no task marks its project and no task tab
   of items waiting for review. The current project's tab has the gold rule.
 - **Level 2, `WorkingSetTaskTabs`, for the project in view:** "All tasks N" first, which is the
   project's task list, then a tab per open task: the session key while the task has a live
-  session, a dot in the task's own status colour, the activity mark, its code, a truncated title, the count of steps executed over the steps there are
-  (`3/7`, claimed and done both counted, drafts left out, nothing on a task with no steps; the same
-  element is filled in amber, with the waiting count in its title and accessible name, while claimed
-  steps wait for the person) and a cross on hover or focus. A plus goes to the task list, where another task is opened.
+  session, a dot in the task's own status colour, the activity mark, its code, a truncated title,
+  a Plan key and a cross on hover or focus. A plus goes to the task list, where another task is opened.
   The activity mark (`TaskActivityMark`) is three bars, never a dot, so it is not read as a second
   status: moving bars in bright indigo while a step is running or the task's chat turn is working;
   still bars in indigo once a step was claimed or done, or a session is open on the task; short
   grey bars when nothing happened. Under reduced motion the working bars sit at three heights.
   Only the [followed chat](#the-full-size-chat) reports a turn, so a task whose session is elsewhere shows
-  working from a running step alone. The key, the counter and the mark never shrink; only the
-  title does, and a tab with the key may be 28px wider.
+  working from a running step alone. The keys and marks stay at full size while the task title
+  truncates. A tab has up to 28px extra for a session key and 24px extra for a Plan key.
+- **The Plan key** is a link beside the task tab, styled like the session key. Its checklist glyph
+  sits beside the executed-step count (`3/7`), which includes claimed and done steps and excludes
+  drafts. It appears when the task has at least one step outside draft, and goes straight to that
+  task's Plan. Its label and tooltip give the full count and say how many wait for review. The
+  key lights up on that task's Plan, and a solid amber face takes precedence while review is due.
 - **The session key** (mockups `.impeccable/mocks/terminal-tab/index.html` and
   `.impeccable/mocks/chat-tab/index.html`) is a button of its own beside the tab, a terminal glyph or
   a speech bubble after the kind of the task's live session; a task has one live session at most, so a

@@ -181,7 +181,7 @@ The guides describe each area as it behaves today, with its REST routes and prop
 | Area | What it covers | Guide |
 |---|---|---|
 | Wrapup | One state per task, rewritten whole each session; notes a session writes | [workflow](docs/guide/workflow.md#wrapup) |
-| Steps and flows | Draft, open, running, claimed, done; routes, visit budgets, sessions that open a fresh Claude session; planning; send back | [workflow](docs/guide/workflow.md#steps) |
+| Steps and flows | Planning, sending back claims, and the draft, open, running, claimed and done states. Flows route between steps, limit visits and open fresh Claude sessions. The step count on an open task tab opens its Plan. | [workflow](docs/guide/workflow.md#steps) |
 | Deployment graphs | A project's route from commit to running app, laid on a task | [workflow](docs/guide/workflow.md#deployment-graphs) |
 | Epics | A task that gathers other tasks and passes its brief to them | [workflow](docs/guide/workflow.md#epics) |
 | Commits | A ledger of commits per task or step; commit on claim | [workflow](docs/guide/workflow.md#commits) |

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import WorkingSetTaskTabs from '@/features/workingset/components/WorkingSetTaskTabs.vue'
 import type { StepTally, TaskActivity } from '@/features/workingset/model/task-activity'
 import type { SessionKind } from '@/features/claude/model/terminal'
@@ -16,7 +17,15 @@ function tabs(
   reviewCounts: ReadonlyMap<TaskId, number> = new Map(),
   session: { kinds?: ReadonlyMap<TaskId, SessionKind>; shown?: SessionKind } = {}
 ) {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/', component: { render: () => null } },
+      { path: '/task/:id/:tab?', name: 'task', component: { render: () => null } }
+    ]
+  })
   return mount(WorkingSetTaskTabs, {
+    global: { plugins: [router] },
     props: {
       project: VEGA,
       tasks: TASKS,
@@ -62,15 +71,16 @@ describe('the task tab row', () => {
     ])
   })
 
-  it('shows executed of total on a task with steps, and nothing on one without', () => {
+  it('links the executed-step count to Plan outside the task tab', () => {
     const row = tabs(null, new Map(), new Map<TaskId, StepTally>([['t1' as TaskId, { executed: 3, total: 7 }], ['t2' as TaskId, { executed: 0, total: 0 }]]))
     const tallies = row.findAll('[data-testid="working-set-task-tally"]')
 
     expect(tallies.map((tally) => tally.text())).toEqual(['3/7'])
-    expect(tallies[0]?.attributes('title')).toBe('3 of 7 steps executed')
-    expect(row.find('[data-testid="working-set-task-review"]').exists()).toBe(false)
+    expect(tallies[0]?.attributes('href')).toBe('/task/t1/plan')
+    expect(tallies[0]?.attributes('aria-label')).toBe('Open Plan for t1, 3 of 7 steps executed')
+    expect(row.find('[role="tab"] [data-testid="working-set-task-tally"]').exists()).toBe(false)
     expect(tallies[0]?.attributes('data-waiting')).toBeUndefined()
-    expect(tallies[0]?.classes()).not.toContain('bg-accent')
+    expect(tallies[0]?.classes()).toContain('key-quiet')
   })
 
   it('fills the counter in amber and says so while claimed steps wait for review', () => {
@@ -83,10 +93,10 @@ describe('the task tab row', () => {
     const tally = row.get('[data-testid="working-set-task-tally"]')
 
     expect(tally.attributes('data-waiting')).toBe('true')
-    expect(tally.classes()).toContain('bg-accent')
+    expect(tally.classes()).toContain('key-gold')
     expect(tally.text()).toBe('3/7')
-    expect(tally.attributes('title')).toBe('3 of 7 steps executed, 2 waiting for your review')
-    expect(tally.attributes('aria-label')).toBe('3 of 7 steps executed, 2 waiting for your review')
+    expect(tally.attributes('title')).toBe('Open Plan for t1, 3 of 7 steps executed, 2 waiting for your review')
+    expect(tally.attributes('aria-label')).toBe('Open Plan for t1, 3 of 7 steps executed, 2 waiting for your review')
   })
 
   it('selects a task or the task list when a tab is pressed', async () => {
