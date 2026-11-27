@@ -10,6 +10,7 @@ import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useChatStore } from '@/features/chat/store/chat.store'
 import type { Terminal } from '@/features/claude/model/terminal'
 import type { ProjectId, TaskId, TerminalId } from '@/model/branded'
+import { step } from '../project/project-task-fixtures'
 import { company, project, task } from './fixtures'
 
 vi.mock('@/features/workingset/api/working-set.api')
@@ -51,7 +52,7 @@ async function barAt(path: string): Promise<{ bar: ReturnType<typeof mount>; rou
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
-      { path: '/task/:id/:tab?', name: 'task', component: Page },
+      { path: '/task/:id/:tab?/:noteId?', name: 'task', component: Page },
       { path: '/projects/:id/:tab?', name: 'project-detail', component: Page },
       { path: '/console', name: 'console', component: Page },
       { path: '/settings', name: 'settings', component: Page }
@@ -90,6 +91,29 @@ describe('the working-set bar', () => {
     const { bar } = await barAt('/projects/vega')
 
     expect(bar.get('[data-testid="working-set-all-tasks"]').attributes('aria-selected')).toBe('true')
+  })
+
+  it.each(['/task/t1/description', '/task/t1/notes/n1', '/task/t2/plan', '/projects/vega', '/console'])('opens the shortcut’s Plan from %s', async (path) => {
+    useConsoleStore().steps = [step('s1', T1, 'DONE'), step('s2', T1, 'OPEN'), step('s3', T2, 'DRAFT')]
+    if (path === '/console') showTerminalOf(T1)
+    const { bar, router } = await barAt(path)
+    const key = bar.get('[data-testid="working-set-task-tally"]')
+    expect(bar.findAll('[data-testid="working-set-task-tally"]')).toHaveLength(1)
+    expect(key.attributes('aria-current')).toBeUndefined()
+
+    await key.trigger('click', { button: 0 })
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/task/t1/plan')
+    expect(markedTasks(bar)).toEqual(['true', 'false'])
+    expect(key.attributes('aria-current')).toBe('page')
+    expect(key.classes()).toContain('key-lit')
+
+    await bar.get('[data-testid="working-set-task"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/task/t1/description')
+    expect(key.attributes('aria-current')).toBeUndefined()
   })
 
   it('is hidden on other pages and while nothing is open', async () => {

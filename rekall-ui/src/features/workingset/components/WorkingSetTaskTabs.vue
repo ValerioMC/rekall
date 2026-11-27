@@ -11,7 +11,7 @@ import type { TaskId } from '@/model/branded'
 
 /**
  * Level 2 of the working-set bar: the project's task list, then a tab per open task. The dot is
- * the task's status, the bars its activity, the count its executed steps, amber while claims wait.
+ * the task's status, the bars its activity, the Plan key its executed steps, amber while claims wait.
  * A session adds a key that opens it, a terminal or a chat, lit while on screen.
  */
 const props = defineProps<{
@@ -58,10 +58,17 @@ function keyName(task: Task): string {
   return `Open the ${kind === 'CHAT' ? 'chat' : 'terminal'} of ${task.code}`
 }
 
-function tallyTitle(task: Task): string {
+function planLabel(task: Task): string {
   const tally = props.tallies.get(task.id)
-  const executed = `${tally?.executed ?? 0} of ${tally?.total ?? 0} steps executed`
-  return waitingCount(task) > 0 ? `${executed}, ${waitingCount(task)} waiting for your review` : executed
+  const label = `Open Plan for ${task.code}, ${tally?.executed ?? 0} of ${tally?.total ?? 0} steps executed`
+  const waiting = waitingCount(task)
+  return waiting > 0 ? `${label}, ${waiting} waiting for your review` : label
+}
+
+function tabWidth(task: Task): string {
+  const hasSession = props.sessionKinds.has(task.id)
+  if (tallyText(task)) return hasSession ? 'max-w-[302px]' : 'max-w-[274px]'
+  return hasSession ? 'max-w-[278px]' : 'max-w-[250px]'
 }
 </script>
 
@@ -88,9 +95,9 @@ function tallyTitle(task: Task): string {
     <div
       v-for="task in tasks"
       :key="task.id"
-      class="group/tab relative flex shrink-0 transition-colors duration-(--motion-quick) hover:bg-surface hover:text-text"
+      class="group/tab relative flex shrink-0 pr-1 transition-colors duration-(--motion-quick) hover:bg-surface hover:text-text"
       :class="[
-        sessionKinds.has(task.id) ? 'max-w-[278px]' : 'max-w-[250px]',
+        tabWidth(task),
         currentTaskId === task.id ? 'text-text after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-accent' : 'text-text-muted'
       ]"
       data-testid="working-set-task-tab"
@@ -114,7 +121,7 @@ function tallyTitle(task: Task): string {
       <button
         type="button"
         role="tab"
-        class="focus-ring flex min-w-0 cursor-pointer items-center gap-2 whitespace-nowrap pr-7"
+        class="focus-ring flex min-w-0 cursor-pointer items-center gap-2 whitespace-nowrap pr-2"
         :class="sessionKinds.has(task.id) ? 'pl-2' : 'pl-3'"
         :aria-selected="currentTaskId === task.id"
         :title="`${task.code} ${task.title}, ${TASK_ACTIVITY_LABEL[activityOf(task)]}`"
@@ -132,21 +139,33 @@ function tallyTitle(task: Task): string {
         </span>
         <span class="shrink-0 font-mono text-caption text-text-subtle">{{ task.code }}</span>
         <span class="truncate">{{ task.title }}</span>
-        <span
-          v-if="tallyText(task)"
-          class="shrink-0 font-mono text-caption tabular-nums"
-          :class="waitingCount(task) > 0 ? 'rounded-full bg-accent px-1.5 font-medium text-accent-ink' : 'text-text-subtle'"
-          :title="tallyTitle(task)"
-          :aria-label="tallyTitle(task)"
+      </button>
+      <RouterLink
+        v-if="tallyText(task)"
+        v-slot="{ href, navigate, isExactActive }"
+        :to="{ name: 'task', params: { id: task.id, tab: 'plan' } }"
+        custom
+      >
+        <a
+          :href="href"
+          class="focus-ring inline-flex h-[22px] shrink-0 items-center gap-1 self-center rounded-key px-1.5 font-mono text-caption tabular-nums"
+          :class="waitingCount(task) > 0 ? 'key-gold' : isExactActive ? 'key-lit' : 'key-quiet'"
+          :aria-current="isExactActive ? 'page' : undefined"
+          :title="planLabel(task)"
+          :aria-label="planLabel(task)"
           :data-waiting="waitingCount(task) > 0 ? 'true' : undefined"
           data-testid="working-set-task-tally"
+          @click="navigate"
         >
+          <svg class="size-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M1.7 4l1 1 1.7-1.9M6.5 4h5.8M1.7 9.5l1 1 1.7-1.9M6.5 9.5h5.8" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
           {{ tallyText(task) }}
-        </span>
-      </button>
+        </a>
+      </RouterLink>
       <button
         type="button"
-        class="focus-ring absolute right-1.5 top-1/2 grid size-[18px] -translate-y-1/2 cursor-pointer place-items-center rounded-key text-text-subtle opacity-0 transition-opacity duration-(--motion-quick) hover:bg-surface-hover hover:text-text focus-visible:opacity-100 group-hover/tab:opacity-100"
+        class="focus-ring ml-1 grid size-[18px] shrink-0 cursor-pointer place-items-center self-center rounded-key text-text-subtle opacity-0 transition-opacity duration-(--motion-quick) hover:bg-surface-hover hover:text-text focus-visible:opacity-100 group-hover/tab:opacity-100"
         :class="currentTaskId === task.id && 'opacity-100'"
         :aria-label="`Close ${task.code}`"
         :title="`Close ${task.code}`"
