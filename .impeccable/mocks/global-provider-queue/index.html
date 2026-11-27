@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RV-212 · Rekall console preview</title>
+    <link rel="icon" href="../../../rekall-ui/public/favicon.svg" />
+    <link rel="stylesheet" href="preview.css" />
+    <script defer src="preview.js"></script>
+  </head>
+  <body>
+    <header class="topbar" aria-label="Console">
+      <nav class="header-nav" aria-label="Console navigation">
+        <div class="rocker" role="group" aria-label="History">
+          <button class="icon-button" id="back" aria-label="Back" title="Back">
+            <i data-icon="left"></i>
+          </button>
+          <span aria-hidden="true"></span>
+          <button
+            class="icon-button"
+            id="forward"
+            aria-label="Forward"
+            title="Forward"
+          >
+            <i data-icon="right"></i>
+          </button>
+        </div>
+        <button
+          class="chrome-button"
+          id="sections-key"
+          popovertarget="sections-menu"
+          aria-haspopup="menu"
+          aria-expanded="false"
+        >
+          <i data-icon="menu"></i><span class="section-label">Tasks</span
+          ><i data-icon="down" class="chevron"></i>
+        </button>
+        <button
+          class="chrome-button project-key"
+          id="projects-key"
+          popovertarget="projects-menu"
+          aria-haspopup="menu"
+          aria-expanded="false"
+        >
+          <i data-icon="folder"></i><span id="current-project">Rekall vR</span
+          ><i data-icon="down" class="chevron"></i>
+        </button>
+        <a
+          class="home icon-button"
+          href="#projects"
+          aria-label="Home · Projects"
+          title="Projects"
+        >
+          <img
+            src="../../../rekall-ui/public/favicon.svg"
+            width="24"
+            height="24"
+            alt=""
+          />
+        </a>
+      </nav>
+      <button class="global-search" id="search-key" aria-haspopup="dialog">
+        <i data-icon="search"></i><span>Search or type an anchor</span
+        ><kbd>⌘K</kbd>
+      </button>
+      <div class="header-status">
+        <button
+          class="chrome-button provider-key"
+          id="provider-key"
+          popovertarget="provider-menu"
+          aria-haspopup="menu"
+          aria-expanded="false"
+          title="Session provider"
+        >
+          <i id="provider-mark" data-icon="codex"></i
+          ><span id="provider-label">Codex</span
+          ><i data-icon="down" class="chevron"></i>
+        </button>
+        <div class="capsule" aria-label="Console status">
+          <button id="usage-key" title="Usage" popovertarget="usage-menu">
+            <i data-icon="gauge"></i><span class="status-word">Usage</span>
+          </button>
+          <button
+            id="queue-key"
+            aria-label="Run queue"
+            title="Run queue"
+            aria-haspopup="dialog"
+          >
+            <i data-icon="queue"></i><span class="status-word">Queue</span
+            ><span class="count" id="queue-count">0</span>
+          </button>
+          <button
+            id="review-key"
+            title="Review"
+            aria-label="Review · 2 items"
+            data-route="review"
+          >
+            <i data-icon="check-circle"></i
+            ><span class="status-word">Review</span
+            ><span class="review-count">2</span>
+          </button>
+        </div>
+        <button
+          class="icon-button settings-key"
+          id="settings-key"
+          aria-label="Settings"
+          title="Settings"
+          data-route="settings"
+        >
+          <i data-icon="settings"></i>
+        </button>
+      </div>
+    </header>
+
+    <main id="screen"></main>
+    <button class="dock" id="session-dock" hidden>
+      <i data-icon="terminal"></i><span>1 session</span>
+    </button>
+    <div id="announcement" class="toast" role="status"></div>
+
+    <div
+      popover
+      class="menu"
+      id="sections-menu"
+      data-anchor="sections-key"
+      role="menu"
+      aria-label="Sections"
+    >
+      <button role="menuitem" tabindex="-1" autofocus data-route="projects">
+        <i data-icon="folder"></i>Projects
+      </button>
+      <button role="menuitem" tabindex="-1" data-route="task">
+        <i data-icon="list"></i>Tasks
+      </button>
+      <button role="menuitem" tabindex="-1" data-route="review">
+        <i data-icon="check-circle"></i>Review
+      </button>
+    </div>
+    <div
+      popover
+      class="menu"
+      id="projects-menu"
+      data-anchor="projects-key"
+      role="menu"
+      aria-label="Switch project"
+    >
+      <p class="menu-caption">Recent projects</p>
+      <button role="menuitem" tabindex="-1" autofocus data-route="rekall">
+        <i data-icon="folder"></i><span>Rekall vR<small>VFORGE</small></span>
+      </button>
+      <button role="menuitem" tabindex="-1" data-route="atlas">
+        <i data-icon="folder"></i><span>Atlas<small>VFORGE</small></span>
+      </button>
+    </div>
+    <div
+      popover
+      class="menu"
+      id="provider-menu"
+      data-anchor="provider-key"
+      data-align="end"
+      role="menu"
+      aria-label="Session provider"
+    ></div>
+    <div
+      popover
+      class="menu usage-menu"
+      id="usage-menu"
+      data-anchor="usage-key"
+      data-align="end"
+    >
+      <p class="menu-caption">Session usage</p>
+      <p class="menu-caption">No active usage limits in this preview.</p>
+    </div>
+    <div
+      popover
+      class="menu run-menu"
+      id="run-menu"
+      data-anchor="run-arrow"
+      data-align="end"
+      role="menu"
+      aria-label="More ways to run"
+    ></div>
+
+    <dialog
+      class="dialog queue-panel"
+      id="queue-panel"
+      aria-labelledby="queue-title"
+    >
+      <header class="dialog-head">
+        <div>
+          <h2 id="queue-title">Run queue</h2>
+          <p class="muted" id="queue-status">Idle</p>
+        </div>
+        <button
+          class="icon-button"
+          data-close
+          aria-label="Close run queue"
+          autofocus
+        >
+          <i data-icon="close"></i>
+        </button>
+      </header>
+      <div class="queue-body">
+        <section class="queue-order" aria-labelledby="order-title">
+          <h3 id="order-title">Order</h3>
+          <p class="muted empty-order" id="empty-order">
+            Pick a task to add it to the queue.
+          </p>
+          <ol id="queue-rows"></ol>
+          <div class="task-picker" id="task-picker">
+            <label class="field picker-field">
+              <i data-icon="plus"></i>
+              <input
+                id="task-query"
+                type="search"
+                role="combobox"
+                aria-label="Add a task to the queue"
+                placeholder="Add a task by title or anchor"
+                aria-autocomplete="list"
+                aria-controls="task-matches"
+                aria-expanded="false"
+                autocomplete="off"
+              />
+            </label>
+            <ul
+              class="picker-results"
+              id="task-matches"
+              role="listbox"
+              aria-label="Matching tasks"
+              hidden
+            ></ul>
+          </div>
+        </section>
+        <section class="queue-settings" aria-labelledby="queue-settings-title">
+          <h3 id="queue-settings-title">Queue settings</h3>
+          <label class="check-field"
+            ><input type="checkbox" /> Pause at usage ceiling</label
+          >
+          <label class="check-field"
+            ><input type="checkbox" /> Run sessions in parallel</label
+          >
+          <label class="form-field"
+            >Session view
+            <select aria-label="Queue session view">
+              <option>Terminal</option>
+              <option>Chat</option>
+            </select>
+          </label>
+        </section>
+      </div>
+      <footer class="dialog-foot">
+        <button class="button primary" id="queue-start" disabled>
+          Start queue
+        </button>
+      </footer>
+    </dialog>
+
+    <dialog
+      class="dialog launch-dialog"
+      id="launch-dialog"
+      aria-labelledby="launch-title"
+      aria-describedby="launch-copy"
+    >
+      <form id="launch-form">
+        <header class="dialog-head">
+          <div>
+            <h2 id="launch-title">Run in queue</h2>
+            <p class="launch-task">
+              <code class="chip" id="launch-code"></code
+              ><span id="launch-task"></span>
+            </p>
+          </div>
+          <button
+            class="icon-button"
+            type="button"
+            data-close
+            aria-label="Close queue configuration"
+          >
+            <i data-icon="close"></i>
+          </button>
+        </header>
+        <div class="launch-body">
+          <fieldset class="provider-field">
+            <legend>Provider</legend>
+            <div class="provider-choices" id="queue-providers"></div>
+          </fieldset>
+          <div class="launch-fields" id="launch-fields">
+            <label class="form-field">Model<select id="model"></select></label>
+            <label class="form-field"
+              >Effort<select id="effort"></select
+            ></label>
+          </div>
+          <div class="launch-state" id="launch-state" hidden></div>
+          <p class="muted" id="launch-copy"></p>
+        </div>
+        <footer class="dialog-foot">
+          <button class="button secondary" type="button" data-close>
+            Cancel
+          </button>
+          <button
+            class="button primary"
+            id="queue-confirm"
+            type="submit"
+          ></button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog
+      class="dialog search-dialog"
+      id="search-dialog"
+      aria-labelledby="search-title"
+    >
+      <header class="dialog-head">
+        <h2 id="search-title">Search Rekall</h2>
+        <button class="icon-button" data-close aria-label="Close search">
+          <i data-icon="close"></i>
+        </button>
+      </header>
+      <div class="search-body">
+        <label class="field"
+          ><i data-icon="search"></i
+          ><input
+            id="global-query"
+            type="search"
+            aria-label="Search tasks"
+            placeholder="Title, task code or anchor"
+            autofocus
+        /></label>
+        <div class="search-results" id="global-results"></div>
+      </div>
+    </dialog>
+
+    <dialog
+      class="dialog session-dialog"
+      id="session-dialog"
+      aria-labelledby="session-title"
+    >
+      <header class="dialog-head">
+        <h2 id="session-title">Session</h2>
+        <button class="icon-button" data-close aria-label="Hide session">
+          <i data-icon="close"></i>
+        </button>
+      </header>
+      <div class="session-body">
+        <p class="session-line" id="session-detail"></p>
+        <pre id="session-command"></pre>
+      </div>
+      <footer class="dialog-foot">
+        <button class="button secondary" id="end-session">Close session</button
+        ><button class="button primary" data-close>Back to task</button>
+      </footer>
+    </dialog>
+
+    <aside class="demo" aria-label="Preview controls">
+      <button class="demo-key" id="demo-key" popovertarget="demo-menu">
+        <i data-icon="sliders"></i>Preview states<i
+          data-icon="up"
+          class="chevron"
+        ></i>
+      </button>
+      <div
+        popover
+        class="menu demo-menu"
+        id="demo-menu"
+        data-anchor="demo-key"
+        data-align="end"
+        data-side="top"
+      >
+        <h3>Preview states</h3>
+        <label class="check-field"
+          ><input type="checkbox" id="missing-codex" /> Codex CLI missing</label
+        >
+        <label class="check-field"
+          ><input type="checkbox" id="catalog-fails" /> Codex catalog fails
+          once</label
+        >
+        <label class="check-field"
+          ><input type="checkbox" id="live-claude" /> RV-212 has a live Claude
+          Code session</label
+        >
+        <button id="reset" class="button secondary">Reset preview</button>
+      </div>
+    </aside>
+  </body>
+</html>
