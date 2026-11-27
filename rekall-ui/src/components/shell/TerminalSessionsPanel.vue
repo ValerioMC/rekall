@@ -49,7 +49,7 @@ async function stop(id: TerminalId): Promise<void> {
 async function logCommit(terminal: Terminal): Promise<void> {
   const taskId = terminal.taskId
   if (!taskId) return
-  const logged = await run(() => recordLatestCommit(taskId, terminal.stepId))
+  const logged = await run(() => recordLatestCommit(taskId, null))
   if (logged) toast.notify(`Logged “${logged.comment}”.`)
 }
 </script>

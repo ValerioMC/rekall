@@ -310,7 +310,6 @@ const FACT_BUTTON =
     <template v-if="awaitsDecision" #dock>
       <StepDecisionKeys
         :step="step"
-        :task="task"
         @accept="$emit('accept')"
         @send-back="$emit('send-back')"
         @mark-done="$emit('mark-done')"

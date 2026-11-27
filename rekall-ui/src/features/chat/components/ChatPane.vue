@@ -31,7 +31,7 @@ const router = useRouter()
 const openInPane = useOpenSessionInPane()
 const { selectedTask, projectChatId } = storeToRefs(useConsoleStore())
 const { activeTimeline } = storeToRefs(chat)
-const { session, others, status, sessionSteps } = useShownChat()
+const { session, others, status } = useShownChat()
 const { run } = useAsyncAction()
 
 const listRead = ref(false)
@@ -93,7 +93,6 @@ watch([() => selectedTask.value?.id ?? null, projectChatId], readSessions, { imm
     <div v-if="session" class="flex min-h-0 flex-1 flex-col @min-[1060px]/chat:flex-row">
       <ChatSessionFacts
         :session="session"
-        :steps="sessionSteps"
         :context="activeTimeline.context"
         :cost="activeTimeline.cost"
       />

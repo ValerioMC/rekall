@@ -10,54 +10,39 @@ const SECOND = 's-2' as TaskStepId
 
 const task = (reviewActive: boolean, reviewState: TaskStepState = 'OPEN') => ({ id: TASK, reviewActive, reviewState })
 const step = (id: TaskStepId, state: TaskStepState, taskId: TaskId = TASK) => ({ id, taskId, state })
-const live = (taskId: TaskId = TASK) => ({ taskId, live: true, mode: 'WORK' as const, stepId: null as TaskStepId | null })
-const discussion = (stepId: TaskStepId | null = null) => ({ ...live(), mode: 'DISCUSS' as const, stepId })
+const live = (taskId: TaskId = TASK) => ({ taskId, live: true, mode: 'WORK' as const })
+const discussion = () => ({ ...live(), mode: 'DISCUSS' as const })
 
-/** When a "Run here" button counts its session as still at work, read from live server state. */
+/** When the "Run here" key counts the task's session as still at work, read from live server state. */
 describe('a session at work', () => {
-  it('works a step while that step is running, and not a sibling of it', () => {
-    const steps = [step(FIRST, 'RUNNING'), step(SECOND, 'OPEN')]
-
-    expect(sessionAtWork(task(false), steps, [live()], FIRST)).toBe(true)
-    expect(sessionAtWork(task(false), steps, [live()], SECOND)).toBe(false)
-  })
-
-  it('is over for a step once it is claimed, whatever the terminal is doing', () => {
-    expect(sessionAtWork(task(false), [step(FIRST, 'CLAIMED')], [live()], FIRST)).toBe(false)
-  })
-
   it('follows the review line of a task with no checklist', () => {
-    expect(sessionAtWork(task(true, 'RUNNING'), [], [live()], null)).toBe(true)
-    expect(sessionAtWork(task(true, 'CLAIMED'), [], [live()], null)).toBe(false)
+    expect(sessionAtWork(task(true, 'RUNNING'), [], [live()])).toBe(true)
+    expect(sessionAtWork(task(true, 'CLAIMED'), [], [live()])).toBe(false)
   })
 
   it('works a checklist task while one of its steps runs, even with no terminal known', () => {
-    expect(sessionAtWork(task(false), [step(FIRST, 'RUNNING')], [], null)).toBe(true)
+    expect(sessionAtWork(task(false), [step(FIRST, 'RUNNING')], [])).toBe(true)
   })
 
   it('works a checklist task while its terminal is live and a step is still open', () => {
     const steps = [step(FIRST, 'CLAIMED'), step(SECOND, 'OPEN')]
 
-    expect(sessionAtWork(task(false), steps, [live()], null)).toBe(true)
-    expect(sessionAtWork(task(false), steps, [live(OTHER)], null)).toBe(false)
-    expect(sessionAtWork(task(false), steps, [{ ...live(), live: false }], null)).toBe(false)
+    expect(sessionAtWork(task(false), steps, [live()])).toBe(true)
+    expect(sessionAtWork(task(false), steps, [live(OTHER)])).toBe(false)
+    expect(sessionAtWork(task(false), steps, [{ ...live(), live: false }])).toBe(false)
   })
 
   it('does not count a discussion as work, so the open steps can still be run', () => {
-    expect(sessionAtWork(task(false), [step(FIRST, 'OPEN')], [discussion()], null)).toBe(false)
-  })
-
-  it('counts a discussion that a later run put on a step', () => {
-    expect(sessionAtWork(task(false), [step(FIRST, 'OPEN')], [discussion(FIRST)], null)).toBe(true)
+    expect(sessionAtWork(task(false), [step(FIRST, 'OPEN')], [discussion()])).toBe(false)
   })
 
   it('is over for a checklist task once every step is claimed or done', () => {
     const steps = [step(FIRST, 'CLAIMED'), step(SECOND, 'DONE')]
 
-    expect(sessionAtWork(task(false), steps, [live()], null)).toBe(false)
+    expect(sessionAtWork(task(false), steps, [live()])).toBe(false)
   })
 
   it('knows nothing of a task it cannot find', () => {
-    expect(sessionAtWork(null, [step(FIRST, 'RUNNING')], [live()], FIRST)).toBe(false)
+    expect(sessionAtWork(null, [step(FIRST, 'RUNNING')], [live()])).toBe(false)
   })
 })

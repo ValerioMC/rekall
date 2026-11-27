@@ -2,15 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { chatStatus, composerState } from '@/features/chat/lib/chat-status'
 import { describePermission } from '@/features/chat/lib/describe-permission'
 import { matchingCommands } from '@/features/chat/lib/slash-commands'
-import { sessionStep } from '@/features/chat/lib/step-chip'
 import { emptyTimeline } from '@/features/chat/lib/timeline'
-import type { TaskStep } from '@/features/steps/model/task-step'
-import type { TaskStepId } from '@/model/branded'
 import { chatSession } from './support'
-
-function steps(...startsSession: boolean[]): TaskStep[] {
-  return startsSession.map((starts, index) => ({ id: `s${index + 1}` as TaskStepId, startsSession: starts }) as TaskStep)
-}
 
 describe('chatStatus', () => {
   const connected = { connected: true, reconnecting: false }
@@ -54,22 +47,5 @@ describe('matchingCommands', () => {
     expect(matchingCommands('hello')).toEqual([])
     expect(matchingCommands('/model opus')).toEqual([])
     expect(matchingCommands('/c').map((command) => command.name)).toEqual(['/context', '/compact'])
-  })
-})
-
-describe('sessionStep', () => {
-  it('names the step by its number and title, with the steps its session covers', () => {
-    const checklist = steps(false, false, true, false, false)
-
-    expect(sessionStep('s4' as TaskStepId, checklist)).toEqual({
-      name: `Step 4 · ${checklist[3]!.title}`,
-      coverage: 'session covers steps 3 to 5'
-    })
-    expect(sessionStep('s1' as TaskStepId, steps(false, true))?.coverage).toBeNull()
-  })
-
-  it('names nothing for a session on no step or on a step it cannot find', () => {
-    expect(sessionStep(null, steps(false))).toBeNull()
-    expect(sessionStep('s9' as TaskStepId, steps(false))).toBeNull()
   })
 })

@@ -150,7 +150,6 @@ describe('the session kind on a terminal', () => {
     id: SESSION,
     projectId: 'bbbbbbbb-0000-4000-8000-000000000001',
     taskId: null,
-    stepId: null,
     anchors: 'project:vega',
     workingDir: '/code/vega',
     projectLabel: 'vega',

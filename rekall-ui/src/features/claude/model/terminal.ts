@@ -1,6 +1,6 @@
 import type { SessionProvider } from '@/features/claude/model/session-provider'
 import type { ConnectionKind } from '@/features/connection/model/connection'
-import type { ConnectionId, ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
+import type { ConnectionId, ProjectId, TaskId, TerminalId } from '@/model/branded'
 
 /**
  * What a terminal is opened to do: `WORK` types `/rk <anchor>`, `PLAN` types `/rk <anchor> plan`,
@@ -41,7 +41,6 @@ export interface Terminal {
   readonly id: TerminalId
   readonly projectId: ProjectId
   readonly taskId: TaskId | null
-  readonly stepId: TaskStepId | null
   readonly anchors: string
   readonly workingDir: string
   readonly projectLabel: string

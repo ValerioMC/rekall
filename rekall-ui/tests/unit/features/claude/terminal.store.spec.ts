@@ -4,7 +4,7 @@ import { flushPromises } from '@vue/test-utils'
 import { ApiError } from '@/api/client'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import type { Terminal } from '@/features/claude/model/terminal'
-import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
+import type { ProjectId, TaskId, TerminalId } from '@/model/branded'
 
 const api = {
   fetchTerminals: vi.fn(),
@@ -27,7 +27,6 @@ function terminal(over: Partial<Terminal> = {}): Terminal {
     id: 'term-1' as TerminalId,
     projectId: 'p-1' as ProjectId,
     taskId: TASK,
-    stepId: null as TaskStepId | null,
     anchors: 'project:vega task:report-builder',
     workingDir: '/code/vega',
     projectLabel: 'vega',

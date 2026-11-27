@@ -58,7 +58,6 @@ function terminal(): Terminal {
     id: 'term-1' as TerminalId,
     projectId: 'p-1' as ProjectId,
     taskId: TASK,
-    stepId: null as TaskStepId | null,
     anchors: 'project:vega task:report-builder',
     workingDir: '/code/vega',
     projectLabel: 'vega',
@@ -127,10 +126,10 @@ function menuLabels(): string[] {
   return [...document.body.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent?.trim() ?? '')
 }
 
-function mountButton(folder: string | null = '/code/vega', stepId: TaskStepId | null = null) {
+function mountButton(folder: string | null = '/code/vega') {
   useConsoleStore().releaseOnRun = releaseOnRun
   return mount(OpenTerminalButton, {
-    props: { taskId: TASK, folder, stepId },
+    props: { taskId: TASK, folder },
     attachTo: document.body,
     global: { stubs: { RouterLink: RouterLinkStub } }
   })
@@ -157,7 +156,8 @@ describe('the Run here button', () => {
     await wrapper.get('[data-testid="open-terminal"]').trigger('click')
     await flushPromises()
 
-    expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.objectContaining({ stepId: null }))
+    expect(openTerminal).toHaveBeenCalledWith({ taskId: TASK }, expect.anything())
+    expect(openTerminal.mock.calls[0]![1]).not.toHaveProperty('stepId')
     expect(openPane).not.toHaveBeenCalled()
     expect(push).not.toHaveBeenCalled()
   })
@@ -206,11 +206,11 @@ describe('the Run here button', () => {
     expect(button.attributes('data-phase')).toBe('idle')
   })
 
-  it('stays working while its step runs, refuses a press, and returns once the step is claimed', async () => {
+  it('stays working while a step runs, refuses a press, and returns once the step is claimed', async () => {
     const console_ = useConsoleStore()
     console_.tasks = [checklistTask()]
     console_.steps = [step('RUNNING')]
-    const wrapper = mountButton('/code/vega', STEP)
+    const wrapper = mountButton()
     const button = wrapper.get('[data-testid="open-terminal"]')
     expect(button.attributes('data-phase')).toBe('working')
 
@@ -224,11 +224,11 @@ describe('the Run here button', () => {
   })
 
   it('hands the launch over to the step once the server marks it running', async () => {
-    openTerminal.mockResolvedValue({ ...terminal(), stepId: STEP })
+    openTerminal.mockResolvedValue(terminal())
     const console_ = useConsoleStore()
     console_.tasks = [checklistTask()]
     console_.steps = [step('OPEN')]
-    const button = mountButton('/code/vega', STEP).get('[data-testid="open-terminal"]')
+    const button = mountButton().get('[data-testid="open-terminal"]')
 
     await button.trigger('click')
     console_.applyStepEvent(TASK, [step('RUNNING')])

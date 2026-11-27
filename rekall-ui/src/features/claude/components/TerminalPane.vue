@@ -80,7 +80,6 @@ async function restart(): Promise<void> {
       skipPermissions: current.skipPermissions,
       model: current.model ?? undefined,
       effort: current.effort ?? undefined,
-      stepId: current.stepId,
       kind: current.kind
     })
   }, 'Terminal restarted')
