@@ -184,6 +184,23 @@ describe('table editing', () => {
     expect(view.dom.querySelector('.cm-rk-table td[data-column="1"] strong')?.textContent).toBe('time')
   })
 
+  it('keeps a column of short cells on one line until an edit makes one of them long', () => {
+    const view = editorOn(TABLE)
+    const marks = (column: number): boolean[] =>
+      Array.from(view.dom.querySelectorAll(`.cm-rk-table [data-column="${column}"]`), (cell) =>
+        cell.classList.contains('rk-short-cell')
+      )
+    expect(marks(1)).toEqual([true, true])
+
+    const cell = view.dom.querySelector<HTMLElement>('.cm-rk-table td[data-column="1"]')!
+    cell.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    cell.textContent = 'tells the time to every service that asks for it'
+    cell.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+
+    expect(marks(0)).toEqual([true, true])
+    expect(marks(1)).toEqual([false, false])
+  })
+
   it('puts a cell back untouched on Escape', () => {
     const view = editorOn(TABLE)
     const cell = view.dom.querySelector<HTMLElement>('.cm-rk-table td[data-column="0"]')!

@@ -162,7 +162,7 @@
 .rekall-md .md-editor-preview ul,
 .rekall-md .md-editor-preview ol,
 .rekall-md .md-editor-preview blockquote,
-.rekall-md .md-editor-preview table,
+.rekall-md .md-editor-preview .rk-table-frame,
 .rekall-md .md-editor-preview pre {
   margin: 0 0 1em;
 }
@@ -300,9 +300,34 @@
   background: none;
 }
 
+/* A table wider than the column scrolls here rather than running past the page. */
+.rekall-md .md-editor-preview .rk-table-frame {
+  contain: inline-size;
+  overflow-x: auto;
+}
+
+/* The library's 6px bar leaves no thumb inside the console's 3px inset, so the frame takes the console's. */
+.rekall-md .md-editor-preview .rk-table-frame::-webkit-scrollbar {
+  height: 10px;
+}
+
+.rekall-md .md-editor-preview .rk-table-frame::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rekall-md .md-editor-preview .rk-table-frame::-webkit-scrollbar-thumb {
+  background-color: var(--color-border-strong);
+  border-radius: 8px;
+}
+
+.rekall-md .md-editor-preview .rk-table-frame::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-text-subtle);
+}
+
 .rekall-md .md-editor-preview table {
   display: table;
   width: auto;
+  margin: 0;
   border-collapse: separate;
   border-spacing: 0;
   border: 1px solid var(--color-border);
@@ -332,6 +357,11 @@
   background: var(--color-surface-raised);
   color: var(--color-text);
   font-weight: 600;
+}
+
+.rekall-md .md-editor-preview table .rk-short-cell,
+.rekall-md .md-editor-preview table .rk-short-cell code {
+  white-space: nowrap;
 }
 
 /*
