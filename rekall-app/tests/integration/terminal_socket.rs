@@ -49,12 +49,10 @@ async fn a_pane_gets_ready_then_output_sends_input_and_hears_the_end() {
     let company = app.a_company("Acme").await;
     let project = app.a_project_in(&company, "alpha", folder.path()).await;
     let task = app.a_task(&project, "one").await;
-    let step = app.a_step(&task, "First", None).await;
 
-    let opened = app.post(&format!("/api/tasks/{task}/terminals"), json!({ "stepId": step, "model": "sonnet" })).await;
+    let opened = app.post(&format!("/api/tasks/{task}/terminals"), json!({ "model": "sonnet" })).await;
     assert_eq!(opened.status, 201);
     assert_eq!(opened.str("anchors"), "task:AL-1");
-    assert_eq!(opened.str("stepId"), step);
     assert_eq!(opened.str("model"), "sonnet");
     assert_eq!(opened.get("live"), &json!(true));
     let id = opened.str("id");

@@ -1,13 +1,12 @@
 import { z } from 'zod'
 import { SESSION_PROVIDERS } from '@/features/claude/model/session-provider'
 import { ConnectionKindSchema } from '@/features/connection/api/schemas/connection.schema'
-import { asConnectionId, asProjectId, asTaskId, asTaskStepId, asTerminalId } from '@/model/branded'
+import { asConnectionId, asProjectId, asTaskId, asTerminalId } from '@/model/branded'
 
 export const TerminalSchema = z.object({
   id: z.string().uuid().transform(asTerminalId),
   projectId: z.string().uuid().transform(asProjectId),
   taskId: z.string().uuid().transform(asTaskId).nullable(),
-  stepId: z.string().uuid().transform(asTaskStepId).nullable(),
   anchors: z.string(),
   workingDir: z.string(),
   projectLabel: z.string(),

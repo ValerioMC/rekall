@@ -1,3 +1,5 @@
+use rekall_kernel::Id;
+
 use super::*;
 
 fn parsed(json: &str) -> OpenTerminalRequest {

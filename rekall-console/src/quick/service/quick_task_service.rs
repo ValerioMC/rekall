@@ -50,7 +50,6 @@ impl QuickTaskService {
 fn opening_of(command: &QuickTaskCommand, task_id: Id) -> OpenTerminalCommand {
     OpenTerminalCommand {
         target: TerminalTarget::Task(task_id),
-        step_id: None,
         provider: command.provider,
         skip_permissions: command.skip_permissions,
         model: command.model.clone(),

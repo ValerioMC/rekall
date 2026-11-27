@@ -4,7 +4,7 @@ import { useChatStore } from '@/features/chat/store/chat.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import type { ChatEvent } from '@/features/chat/model/chat-event'
 import type { Terminal } from '@/features/claude/model/terminal'
-import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
+import type { ProjectId, TaskId, TerminalId } from '@/model/branded'
 
 const chatApi = { sendMessage: vi.fn(), interrupt: vi.fn(), answerPermission: vi.fn() }
 const terminalApi = { fetchTerminals: vi.fn() }
@@ -30,7 +30,6 @@ function session(over: Partial<Terminal> = {}): Terminal {
     id: CHAT,
     projectId: 'p-1' as ProjectId,
     taskId: TASK,
-    stepId: null as TaskStepId | null,
     anchors: 'project:vega task:report-builder',
     workingDir: '/code/vega',
     projectLabel: 'vega',

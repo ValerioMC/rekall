@@ -2,7 +2,7 @@ import { defineComponent, h } from 'vue'
 import type { ToolInput } from '@/features/chat/model/chat-event'
 import type { ToolItem, UserItem } from '@/features/chat/model/timeline'
 import type { Terminal } from '@/features/claude/model/terminal'
-import type { ProjectId, TaskId, TaskStepId, TerminalId } from '@/model/branded'
+import type { ProjectId, TaskId, TerminalId } from '@/model/branded'
 
 export const MarkdownStub = defineComponent({
   props: { modelValue: { type: String, required: true } },
@@ -33,7 +33,6 @@ export function chatSession(over: Partial<Terminal> = {}): Terminal {
     id: CHAT_ID,
     projectId: 'p-1' as ProjectId,
     taskId: 't-1' as TaskId,
-    stepId: null as TaskStepId | null,
     anchors: 'project:vega task:report-builder',
     workingDir: '/code/vega',
     projectLabel: 'vega',

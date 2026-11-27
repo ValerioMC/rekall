@@ -40,7 +40,6 @@ impl InMemoryTerminalHost {
             id: Id::random(),
             project_id,
             task_id,
-            step_id: None,
             anchors: "project:vega".into(),
             working_dir: "/work/vega".into(),
             project_label: "vega".into(),
@@ -97,7 +96,7 @@ impl InMemoryTerminalHost {
 impl TerminalHost for InMemoryTerminalHost {
     async fn open(&self, opening: TerminalOpening) -> Result<TerminalView> {
         let view = TerminalView {
-            provider: opening.provider, mode: opening.mode.clone(), step_id: opening.step_id,
+            provider: opening.provider, mode: opening.mode.clone(),
             ..Self::session_on(opening.target, opening.kind)
         };
         self.openings.lock().expect("never poisoned").push(opening);

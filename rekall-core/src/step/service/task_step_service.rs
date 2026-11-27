@@ -333,43 +333,18 @@ impl TaskStepService {
         repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await
     }
 
-    pub async fn title_of(&self, step_id: Option<Id>) -> Result<Option<String>> {
-        let Some(step_id) = step_id else {
-            return Ok(None);
-        };
-        in_read!(&self.ctx, |tx| {
-            Ok::<_, RekallError>(repo::task_step::find_by_id(tx.db(), step_id).await?.map(|s| s.title))
-        })
-    }
-
-    /// Move a step `OPEN -> RUNNING` when a session opens on it, and say whether it moved. A
-    /// no-op past `OPEN`.
-    pub async fn mark_running(&self, step_id: Option<Id>) -> Result<bool> {
-        self.move_if(step_id, TaskStepState::Open, TaskStepState::Running).await
-    }
-
-    /// Drop a step `RUNNING -> OPEN` when its session ends without claiming it. A no-op otherwise.
-    pub async fn release_running(&self, step_id: Option<Id>) -> Result<()> {
-        self.move_if(step_id, TaskStepState::Running, TaskStepState::Open).await?;
-        Ok(())
-    }
-
-    async fn move_if(&self, step_id: Option<Id>, from: TaskStepState, to: TaskStepState) -> Result<bool> {
-        let Some(step_id) = step_id else {
-            return Ok(false);
-        };
+    /// Drops every `RUNNING` step of a task back to `OPEN`, for a session that ended without
+    /// claiming it. Publishes the checklist only when a step moved.
+    pub async fn release_all_running(&self, task_id: Id) -> Result<()> {
         in_write!(&self.ctx, |tx| {
-            let Some(before) = repo::task_step::find_by_id(tx.db(), step_id).await? else {
-                return Ok::<_, RekallError>(false);
-            };
-            if before.state != from {
-                return Ok(false);
+            let running: Vec<_> = load::steps_of(tx.db(), task_id).await?.into_iter().filter(|step| step.state.running()).collect();
+            if running.is_empty() {
+                return Ok::<_, RekallError>(());
             }
-            let mut step = before.clone();
-            step.mark_state(to);
-            repo::update_if_changed(tx.db(), &before, step, self.ctx.now()).await?;
-            self.publish_in(&mut tx, before.task_id).await?;
-            Ok(true)
+            for before in running {
+                self.open_in(&tx, before).await?;
+            }
+            self.publish_in(&mut tx, task_id).await
         })
     }
 
@@ -469,3 +444,7 @@ impl TaskStepService {
             .ok_or_else(|| RekallError::unknown_anchor(format!("No step with id {id}")))
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/unit/step/service/task_step_service_tests.rs"]
+mod tests;

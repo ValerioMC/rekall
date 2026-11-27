@@ -4,10 +4,9 @@ import { env } from '@/common/config/env'
 import type { SessionKind, Terminal, TerminalMode, TerminalTarget } from '@/features/claude/model/terminal'
 import type { DiagramKind } from '@/features/diagram/model/diagram'
 import type { SessionProvider } from '@/features/claude/model/session-provider'
-import type { TaskStepId, TerminalId } from '@/model/branded'
+import type { TerminalId } from '@/model/branded'
 
 export interface OpenTerminalInput {
-  stepId?: TaskStepId | null
   skipPermissions: boolean
   provider?: SessionProvider
   model?: string
@@ -36,7 +35,6 @@ export async function openTerminal(target: TerminalTarget, input: OpenTerminalIn
         method: 'POST',
         retry: 0,
         body: {
-          stepId: input.stepId ?? null,
           ...(input.provider ? { provider: input.provider } : {}),
           skipPermissions: input.skipPermissions,
           model: input.model && input.model !== 'default' ? input.model : null,

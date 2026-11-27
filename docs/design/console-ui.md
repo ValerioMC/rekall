@@ -209,7 +209,9 @@ is as wide as the window. The page-width choice (Narrow, Standard, Wide or Full,
 the right of the tab strip; Wide at first) sets only how wide the description editor is, centred
 in the page; the choice is kept in the browser and holds for every task. The header is two lines: the breadcrumb (company
 and project) with the task's actions at its right (Log commit, Open in terminal and
-Run here, each offered once), and the title alone beneath. The tab strip is Description, Plan,
+Run here, each offered once), and the title alone beneath. That **Run here** is the page's only run
+key, whatever step is selected: a session is opened on the task, never on a step.
+The tab strip is Description, Plan,
 Changes, Wrapup, Notes, Time and Deviations, with counts where a count means something (steps,
 logged commits, notes, deviations) and an amber one on Plan while a step waits for review; at its
 right is the width key. **Run here** uses the provider in the top bar for a new session, or
@@ -217,8 +219,8 @@ the live session’s provider (`useRunProvider`). The **Run here** menu (`RunMen
 that provider. Its running group opens the shared queue launch form, and its preparation
 group offers Discuss, Plan here, Plan a flow and Replan as the task permits.
 The arrow keys walk the menu items only, so they pass over the separator, and a menu with no room
-under its key, as in a step's dock, opens above it (`useAnchoredMenu`). A discussion holding no step
-does not turn the key to Working (`sessionAtWork`).
+under its key opens above it (`useAnchoredMenu`). A live discussion alone does not turn the key to
+Working; a running step does (`sessionAtWork`).
 Beside every tab sits the properties bar (`TaskRail`), 272px wide, folding to an icon bar that the
 browser remembers. Plan keeps its own choice and starts folded, so the steps and the step being read
 have the width; the other tabs start open. Open, it holds: the status pill that changes the status and the copyable `/rk` anchor on top,
@@ -328,9 +330,9 @@ the header, open on a claim and on a failed check and folded otherwise, so no co
 it. With the list hidden on a pane 1100px wide or more, the page gains a rail beside the detail
 that holds the history of the step (created, each send-back, the session, the claim, the
 acceptance), the evidence and the setup, and the chips stop being buttons. The dock holds Accept
-and Send back on a claim, and the session key and Mark done myself on an open or running step; a
-done step has none. A task handed in whole shows its own decision, Accept task or Send back, in
-the same place. Nothing but a person marks a step done, and Claude moves a step only up to
+and Send back on a claim, and Mark done myself alone on an open or running step; a done step has
+none. The session key is in the task page's header only, so the dock keeps to decisions about the
+step. A task handed in whole shows its own decision, Accept task or Send back, in the same place. Nothing but a person marks a step done, and Claude moves a step only up to
 claimed. The list and the frame share the step editor, so a title or detail typed in the frame is
 saved as it was in the old checklist.
 
@@ -603,7 +605,7 @@ by its session (`chat=…`), so a reload and Back work for both.
   a chat on no task), the status, the provider and anchors, **Other N sessions** (the other live
   chats; switching moves the bar's mark) and **Stop session**. A stopped task chat leaves the empty
   view; a stopped chat on no task goes to its project's page.
-- **Facts** (`ChatSessionFacts`): step, model, permissions, connections, context and cost, in a
+- **Facts** (`ChatSessionFacts`): model, permissions, connections, context and cost, in a
   272 px column from 1060 px of width and in one strip under the title below that.
 - **Conversation.** A column of 748 px at most, with the approval card and the message field pinned
   under it. Where the column reaches the dock (under 1100 px) the field's hint moves right.

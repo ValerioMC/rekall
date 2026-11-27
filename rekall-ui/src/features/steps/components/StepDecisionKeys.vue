@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import AppButton from '@/components/ui/AppButton.vue'
-import OpenTerminalButton from '@/features/claude/components/OpenTerminalButton.vue'
-import type { Task } from '@/features/catalog/model/catalog'
 import type { TaskStep } from '@/features/steps/model/task-step'
 
 /**
- * The keys a step's state offers a person, kept in the dock so they sit where reading ends:
- * accept or send back a claim, tick or hand an open step to a session. A done step has no key
- * here: reopening it is in the header. Only a person marks a step done.
+ * The keys a step's state offers a person, docked where reading ends: send back or accept a claim,
+ * or tick an open or running step by hand. A done step has none: reopening it is in the header.
+ * Only a person marks a step done.
  */
-defineProps<{ step: TaskStep; task: Task }>()
+defineProps<{ step: TaskStep }>()
 
 defineEmits<{ accept: []; 'send-back': []; 'mark-done': [] }>()
 </script>
@@ -21,9 +19,8 @@ defineEmits<{ accept: []; 'send-back': []; 'mark-done': [] }>()
       <AppButton variant="primary" data-testid="step-accept" @click="$emit('accept')">Accept</AppButton>
     </template>
 
-    <template v-else-if="step.state === 'OPEN' || step.state === 'RUNNING'">
-      <OpenTerminalButton :task-id="task.id" :step-id="step.id" :folder="task.projectRepoFolder" />
-      <AppButton data-testid="decision-mark-done" @click="$emit('mark-done')">Mark done myself</AppButton>
-    </template>
+    <AppButton v-else-if="step.state === 'OPEN' || step.state === 'RUNNING'" data-testid="decision-mark-done" @click="$emit('mark-done')">
+      Mark done myself
+    </AppButton>
   </div>
 </template>

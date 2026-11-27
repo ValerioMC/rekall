@@ -288,7 +288,6 @@ async fn a_terminal_on_a_project_with_connections_has_a_session_exactly_as_long_
 
     let view = terminals.open(TerminalOpening {
         target: TerminalTarget::Project(launch.project_id),
-        step_id: None,
         provider: SessionProvider::Claude,
         skip_permissions: false,
         model: None,
@@ -325,7 +324,6 @@ done
 
     let view = terminals.open(TerminalOpening {
         target: TerminalTarget::Project(launch.project_id),
-        step_id: None,
         provider: SessionProvider::Codex,
         skip_permissions: false,
         model: None,

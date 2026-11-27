@@ -74,7 +74,6 @@ function liveTerminal(): Terminal {
     id: 'term-1' as TerminalId,
     projectId: 'p1' as ProjectId,
     taskId: TASK,
-    stepId: null,
     anchors: ANCHOR,
     workingDir: '/code/vega',
     projectLabel: 'vega',

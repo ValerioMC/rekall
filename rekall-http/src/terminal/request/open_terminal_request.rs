@@ -2,12 +2,12 @@ use rekall_console::terminal::OpenTerminalCommand;
 use rekall_core::claude::{RewriteStyle, SessionKind, SessionProvider, TerminalMode, TerminalTarget};
 use rekall_core::vulnerability::rule::rules;
 use rekall_diagram::DiagramKind;
-use rekall_kernel::{jstr, Id, RekallError};
+use rekall_kernel::{jstr, RekallError};
 use serde::Deserialize;
 
 use crate::terminal::TerminalModeName;
 
-/// What the console sends to open a terminal. `stepId`, `model` and `effort` are optional; a
+/// What the console sends to open a terminal. `model` and `effort` are optional; a
 /// malformed or blank model, or an unknown effort, leaves the account default. A missing `mode` is
 /// [`TerminalMode::Work`], and a missing `kind` is a terminal session; `PLAN_FLOW` asks for a flow rather than a checklist, `REPLAN` for the task's draft and open steps to be redesigned, with the `request` as what the plan missed when there is one; `REVISE` for the pending entries of the task's thread to be evaluated; `REFINE` for the task to be gone through with the person and its decisions recorded; `DISCUSS` for the task to be talked over, nothing executed; `GENERATE` and
 /// `EXPLAIN` need a `request`, and `kinds` names the diagram types a generation draws; `ASSESS`
@@ -17,7 +17,6 @@ use crate::terminal::TerminalModeName;
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct OpenTerminalRequest {
-    pub step_id: Option<Id>,
     pub provider: SessionProvider,
     pub skip_permissions: Option<bool>,
     pub model: Option<String>,
@@ -35,7 +34,6 @@ impl OpenTerminalRequest {
         let mode = self.mode()?;
         Ok(OpenTerminalCommand {
             target,
-            step_id: self.step_id,
             provider: self.provider,
             skip_permissions: self.skip_permissions.unwrap_or(false),
             model: self.model,

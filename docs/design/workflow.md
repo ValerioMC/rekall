@@ -19,7 +19,7 @@ with a state says it.
 | Capped at 20,000 characters, like a wrapup | A step whose detail runs past a screen is a task, and the model has a level for that |
 | `ON DELETE CASCADE` on the task, like a wrapup | It describes one piece of one task and means nothing beside another |
 | A session can write `RUNNING` and `CLAIMED`, never `DONE` | `rekall_step` moves a step as far as claimed, which is what lets a session drive its own checklist. The last tick is a person in the console saying they reviewed the work: a session claiming its own work accepted is what the `CLAIMED`/`DONE` split exists to prevent. The navigator's progress count is built on `DONE` alone, so it still means "accepted" |
-| `DRAFT` is the creation default, and only the console leaves it | A new step is a line the checklist owner is still wording, not work: it is kept out of the `<steps>` block a session reads (counted only as `draft="N"` on the tag), `rekall_step` refuses to move it, `markRunning` skips it, and `reviewActive()` still treats a task that holds only drafts as stepless. `TaskStepService.edit` promotes `DRAFT -> OPEN` and sends an untouched `OPEN` step back; a step that has been started, claimed or done cannot return to draft, because the run behind it would be lost. `settleDraftsAtTail` keeps every draft after every non-draft in `position` order, so the numbering a session sees is the numbering the console shows. `stepCount` on `TaskResponse` counts non-draft steps; `draftStepCount` carries the rest |
+| `DRAFT` is the creation default, and only the console leaves it | A new step is a line the checklist owner is still wording, not work: it is kept out of the `<steps>` block a session reads (counted only as `draft="N"` on the tag), `rekall_step` refuses to move it, and `reviewActive()` still treats a task that holds only drafts as stepless. `TaskStepService.edit` promotes `DRAFT -> OPEN` and sends an untouched `OPEN` step back; a step that has been started, claimed or done cannot return to draft, because the run behind it would be lost. `settleDraftsAtTail` keeps every draft after every non-draft in `position` order, so the numbering a session sees is the numbering the console shows. `stepCount` on `TaskResponse` counts non-draft steps; `draftStepCount` carries the rest |
 
 A claim is accepted only after the project's checks pass (`done_check`, run by `CheckExecutionService`
 through the `CheckRunner` port, see `write-safety.md`). They run before `FlowService::transition`, so a
@@ -44,26 +44,21 @@ the block.
 **The live loop.** `TaskStepService` publishes a `StepStreamEvent` after every write, from the
 console or from MCP alike, carrying the affected task's whole checklist. `TaskReviewService`
 publishes a `TaskReviewEvent` when a stepless task's review line moves, and `WrapupService` a
-`WrapupStreamEvent` when a wrapup is written or deleted (the latter carrying the new
-`WrapupView`, or a `deleted` flag). `StepEventStream` in `rekall-http` holds each until the
-transaction commits and fans it out to every open console over `GET /api/steps/stream` as
-Server-Sent Events under the frame names `steps`, `task-review` and `wrapup`; `useStepStream`
-in the UI applies each to the store. A session moves a step to `RUNNING` over MCP and the
-console animates the move without a reload: the checklist node breathes, and the branch feeding
-it carries a band of light toward it. Opening a terminal on a step ("Run here") is the
-other way in: `PtyTerminalManager` moves that step to `RUNNING` on start through
-`TaskStepService.markRunning` and back to `OPEN` on close through `releaseRunning`, so the
-launch animates whether or not the console is on the checklist pane, and a terminal that dies
-without its step being claimed does not strand it. Both are no-ops unless the step is `OPEN`
-(start) or still `RUNNING` (end), so an MCP `claimed` or a console tick made meanwhile is never
-undone. There is one terminal per task: opening again while one is up is routed to it rather
-than spawning another, and if it names a different step the manager releases the old one and
-marks the new, so the running marker follows the terminal across a checklist the way it would
-in one terminal window. A task with no checklist takes the same path at task scope:
-`PtyTerminalManager` calls `TaskReviewService.sessionRunning(taskId, true)` on start and
-`(taskId, false)` on close, so the review line runs while the terminal is open on the task and
-no step. A wrapup written from a terminal-run session (over MCP) or by an MCP call lands in the
-pane with the claim it triggers rather than on the next reload.
+`WrapupStreamEvent` when a wrapup is written or deleted (the latter carrying the new `WrapupView`,
+or a `deleted` flag). `StepEventStream` in `rekall-http` holds each until the transaction commits
+and fans it out to every open console over `GET /api/steps/stream` as Server-Sent Events under the
+frame names `steps`, `task-review` and `wrapup`; `useStepStream` in the UI applies each to the
+store. A session moves a step to `RUNNING` over MCP and the console animates the move without a
+reload: the checklist node breathes, and the branch feeding it carries a band of light toward it.
+**Run here** opens the session on the task, never on a step, and opening it moves none: the session
+marks each step as it starts it. When a session that was given work ends,
+`TaskStepService::release_all_running` puts every step still `RUNNING` back to `OPEN`, so a session
+that dies without claiming its step does not strand it; a claimed or ticked step is left as it is.
+There is one session per task: opening again while one is up is routed to it rather than spawning
+another. A task with no checklist has its review line instead: the session host calls
+`TaskReviewService::session_running` with `true` on open and `false` on end, so the line runs while
+the session is on the task. A wrapup written from a terminal-run session (over MCP) or by an MCP
+call lands in the pane with the claim it triggers rather than on the next reload.
 
 ### Wrapup versions and freshness
 

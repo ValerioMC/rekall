@@ -2,13 +2,11 @@ use rekall_core::commit::StepSnapshotService;
 use rekall_core::feedback::FeedbackService;
 use rekall_core::review::TaskReviewService;
 use rekall_core::step::TaskStepService;
-use rekall_kernel::{Id, Result};
+use rekall_kernel::Id;
 use tracing::warn;
 
-/// Moves a task's step to `RUNNING` and back, or its review line on a task with no checklist,
-/// while a session is on it; a session on the task alone also gives back the thread entries it took
-/// and never answered. A failure is logged and never stops the session. When the work goes
-/// from open to running, the files already modified in the project's folder are recorded.
+/// Runs the review line of a task with no checklist while a session is on it, and gives back what
+/// an ended session held. A failure is logged and never stops the session.
 #[derive(Clone)]
 pub struct WorkMarker {
     task_steps: TaskStepService,
@@ -22,33 +20,34 @@ impl WorkMarker {
         Self { task_steps, task_review, step_snapshots, feedback }
     }
 
-    /// A session on a project alone has no task to mark.
-    pub async fn mark_running(&self, task_id: Option<Id>, step_id: Option<Id>) {
+    /// When the line starts running, the files already modified in the project's folder are
+    /// recorded. A session on a project alone has no task to mark.
+    pub async fn mark_review_running(&self, task_id: Option<Id>) {
         let Some(task_id) = task_id else { return };
-        let started: Result<bool> = match step_id {
-            Some(step_id) => self.task_steps.mark_running(Some(step_id)).await,
-            None => self.task_review.session_running(task_id, true).await,
-        };
-        match started {
-            Ok(true) => self.step_snapshots.take(task_id, step_id).await,
+        match self.task_review.session_running(task_id, true).await {
+            Ok(true) => self.step_snapshots.take(task_id, None).await,
             Ok(false) => {}
             Err(failed) => warn!(%failed, %task_id, "Could not mark session work running"),
         }
     }
 
-    pub async fn release_running(&self, task_id: Option<Id>, step_id: Option<Id>) {
+    /// For a session that was given work: whatever it left running goes back to open.
+    pub async fn release_running_steps(&self, task_id: Option<Id>) {
         let Some(task_id) = task_id else { return };
-        let result = match step_id {
-            Some(step_id) => self.task_steps.release_running(Some(step_id)).await,
-            None => self.task_review.session_running(task_id, false).await.map(|_| ()),
-        };
-        if let Err(failed) = result {
-            warn!(%failed, %task_id, "Could not release session work");
+        if let Err(failed) = self.task_steps.release_all_running(task_id).await {
+            warn!(%failed, %task_id, "Could not release the running steps of an ended session");
         }
-        if step_id.is_none() {
-            if let Err(failed) = self.feedback.release_running(task_id).await {
-                warn!(%failed, %task_id, "Could not give back the thread entries of an ended session");
-            }
+    }
+
+    /// The review line goes back to open, and the thread entries the session took and never
+    /// answered wait for the next run.
+    pub async fn release_review_and_thread(&self, task_id: Option<Id>) {
+        let Some(task_id) = task_id else { return };
+        if let Err(failed) = self.task_review.session_running(task_id, false).await {
+            warn!(%failed, %task_id, "Could not release the review line of an ended session");
+        }
+        if let Err(failed) = self.feedback.release_running(task_id).await {
+            warn!(%failed, %task_id, "Could not give back the thread entries of an ended session");
         }
     }
 }

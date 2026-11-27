@@ -105,7 +105,6 @@ pub(super) fn queue_opening(item: &RunQueueItemView, snapshot: &Snapshot) -> Ter
     };
     TerminalOpening {
         target: TerminalTarget::Task(item.task_id),
-        step_id: None,
         provider,
         skip_permissions,
         model,
