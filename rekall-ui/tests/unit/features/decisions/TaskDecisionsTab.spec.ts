@@ -74,6 +74,61 @@ describe('the Decisions tab', () => {
     expect(page.find('[data-testid="decision-ledger"]').exists()).toBe(false)
   })
 
+  it('searches the decisions, lists the ones that contain the string and counts them', async () => {
+    vi.mocked(api.fetchDecisions).mockResolvedValue({
+      decisions: [
+        answered('region', 'eu-west-1', { topic: 'Cluster' }),
+        answered('namespace', 'billing', { topic: 'Cluster' }),
+        decision('db-password', { topic: 'Secrets' })
+      ],
+      sessionBlock: '<decisions/>'
+    })
+    const page = mountTab()
+    await settle()
+
+    await page.get('[data-testid="decision-search"]').setValue('BILL')
+
+    expect(page.findAll('[data-testid="decision-row"]').map((row) => row.attributes('data-key'))).toEqual(['namespace'])
+    expect(page.findAll('[data-testid="decision-group"]')).toHaveLength(1)
+    expect(page.get('[data-testid="decision-group-count"]').text()).toBe('1 of 2 found')
+    expect(page.get('[data-testid="decision-search-count"]').text()).toBe('1 of 3 decisions')
+    expect(page.get('mark').text()).toBe('bill')
+  })
+
+  it('says no decision contains the string and clears the search from there', async () => {
+    vi.mocked(api.fetchDecisions).mockResolvedValue({ decisions: [answered('region', 'eu-west-1')], sessionBlock: '<decisions/>' })
+    const page = mountTab()
+    await settle()
+    await page.get('[data-testid="decision-search"]').setValue('zeppelin')
+
+    expect(page.get('[data-testid="decision-none"]').text()).toContain('No decision contains “zeppelin”')
+
+    await page.get('[data-testid="decision-none-clear"]').trigger('click')
+
+    expect(page.findAll('[data-testid="decision-row"]')).toHaveLength(1)
+    expect(page.get<HTMLInputElement>('[data-testid="decision-search"]').element.value).toBe('')
+    expect(page.get('[data-testid="decision-search-count"]').text()).toBe('')
+  })
+
+  it('hides the search over the session text and starts empty on another task', async () => {
+    vi.mocked(api.fetchDecisions).mockResolvedValue({ decisions: [answered('region', 'eu-west-1')], sessionBlock: '<decisions/>' })
+    const page = mountTab()
+    await settle()
+    await page.get('[data-testid="decision-search"]').setValue('eu')
+
+    await page.get('[data-testid="segment-read"]').trigger('click')
+    expect(page.find('[data-testid="decision-search"]').exists()).toBe(false)
+
+    await page.get('[data-testid="segment-ledger"]').trigger('click')
+    expect(page.get<HTMLInputElement>('[data-testid="decision-search"]').element.value).toBe('eu')
+
+    await page.setProps({ task: { ...task, id: 't-2' } as Task })
+    await settle()
+    await useConsoleStore().loadDecisions('t-2' as Task['id'])
+    await settle()
+    expect(page.get<HTMLInputElement>('[data-testid="decision-search"]').element.value).toBe('')
+  })
+
   it.each(['CLAUDE', 'CODEX'] as const)('refines with %s and shows its answer in the task ledger', async (provider) => {
     const preferred = provider === 'CODEX' ? 'CLAUDE' : 'CODEX'
     setPreferredProvider(preferred)

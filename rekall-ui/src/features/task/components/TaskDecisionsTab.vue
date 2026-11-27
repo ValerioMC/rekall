@@ -8,7 +8,9 @@ import DecisionLedger from '@/features/decisions/components/DecisionLedger.vue'
 import DecisionRowActions from '@/features/decisions/components/DecisionRowActions.vue'
 import DecisionSessionView from '@/features/decisions/components/DecisionSessionView.vue'
 import RefineButton from '@/features/decisions/components/RefineButton.vue'
-import DecisionsBand, { type DecisionsView } from '@/features/decisions/components/DecisionsBand.vue'
+import DecisionsBand from '@/features/decisions/components/DecisionsBand.vue'
+import DecisionsFindRow, { type DecisionsView } from '@/features/decisions/components/DecisionsFindRow.vue'
+import { searchDecisions } from '@/features/decisions/lib/decision-search'
 import { countDecisions } from '@/features/decisions/lib/decision-tally'
 import { NO_DECISIONS } from '@/features/decisions/model/decision'
 import { useConsoleStore } from '@/stores/console.store'
@@ -25,6 +27,8 @@ const store = useConsoleStore()
 const { decisionsByTask, steps } = storeToRefs(store)
 const view = ref<DecisionsView>('ledger')
 const adding = ref(false)
+const query = ref('')
+const findRow = ref<InstanceType<typeof DecisionsFindRow> | null>(null)
 
 const shown = computed(() => decisionsByTask.value[props.task.id] ?? NO_DECISIONS)
 const counts = computed(() => countDecisions(shown.value.decisions))
@@ -36,25 +40,38 @@ const stepChoices = computed(() =>
     .map((step, index) => ({ number: index + 1, title: step.title }))
 )
 const showsBlock = computed(() => view.value === 'read' && counts.value.total > 0)
+const finds = computed(() => searchDecisions(shown.value.decisions, query.value))
 
 watch(
   () => props.task.id,
-  (id) => void store.loadDecisions(id).catch(() => undefined),
+  (id) => {
+    query.value = ''
+    void store.loadDecisions(id).catch(() => undefined)
+  },
   { immediate: true }
 )
 </script>
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col" data-testid="decisions-tab">
-    <DecisionsBand v-model="view" :counts="counts">
+    <DecisionsBand :counts="counts">
       <template #actions>
         <RefineButton :task-id="task.id" :folder="task.projectRepoFolder" />
         <AppButton size="sm" :disabled="adding" data-testid="decision-add" @click="adding = true">Add decision</AppButton>
       </template>
     </DecisionsBand>
     <DecisionAddForm v-if="adding" :task-id="task.id" :steps="stepChoices" @added="adding = false" @cancel="adding = false" />
+    <DecisionsFindRow v-if="counts.total > 0" ref="findRow" v-model:view="view" v-model:query="query" :found="finds?.size ?? null" :total="counts.total" />
     <DecisionSessionView v-if="showsBlock" :block="shown.sessionBlock" :task-code="task.code" />
-    <DecisionLedger v-else-if="counts.total > 0" :task-id="task.id" :decisions="shown.decisions" :has-steps="hasSteps">
+    <DecisionLedger
+      v-else-if="counts.total > 0"
+      :task-id="task.id"
+      :decisions="shown.decisions"
+      :has-steps="hasSteps"
+      :query="query"
+      :finds="finds"
+      @clear-search="findRow?.clear()"
+    >
       <template #actions="{ decision }"><DecisionRowActions :decision="decision" /></template>
     </DecisionLedger>
     <div v-else-if="!adding" class="grid flex-1 place-items-center p-10">

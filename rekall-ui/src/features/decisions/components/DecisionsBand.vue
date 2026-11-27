@@ -1,14 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import PlanTube from '@/components/ui/PlanTube.vue'
-import SegmentedControl from '@/components/ui/SegmentedControl.vue'
 import { describeTally, type DecisionCounts } from '@/features/decisions/lib/decision-tally'
 
-export type DecisionsView = 'ledger' | 'read'
-
-/** Where the decisions stand and that the tab follows the conversation; the person switches between the ledger and what a session reads. */
+/** Where the decisions stand and that the tab follows the conversation, beside the tab's actions. */
 const props = defineProps<{ counts: DecisionCounts }>()
-const view = defineModel<DecisionsView>({ required: true })
 
 const tally = computed(() => describeTally(props.counts))
 </script>
@@ -24,16 +20,6 @@ const tally = computed(() => describeTally(props.counts))
     </div>
     <span class="flex-1" />
     <p class="text-small text-text-muted whitespace-nowrap">Updates as you talk in your session.</p>
-    <SegmentedControl
-      v-if="counts.total > 0"
-      v-model="view"
-      label="Show the decisions as"
-      size="sm"
-      :options="[
-        { value: 'ledger', label: 'Ledger' },
-        { value: 'read', label: 'As the session reads it' }
-      ]"
-    />
     <slot name="actions" />
   </section>
 </template>

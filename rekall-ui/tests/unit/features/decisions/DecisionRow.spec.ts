@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import DecisionRow from '@/features/decisions/components/DecisionRow.vue'
+import { searchDecisions } from '@/features/decisions/lib/decision-search'
 import type { Decision } from '@/features/decisions/model/decision'
 import { answered, decision, onHold } from './fixtures'
 
@@ -8,7 +9,55 @@ function row(entry: Decision, props: { hasSteps?: boolean; opened?: boolean } = 
   return mount(DecisionRow, { props: { decision: entry, hasSteps: props.hasSteps ?? false, opened: props.opened ?? false } })
 }
 
+function searchedRow(entry: Decision, query: string, opened = false) {
+  const find = searchDecisions([entry], query)?.get(entry.id)
+  return mount(DecisionRow, { props: { decision: entry, hasSteps: false, opened, query, find } })
+}
+
+const marked = (page: ReturnType<typeof row>) => page.findAll('mark').map((mark) => mark.text())
+
 describe('a decision row', () => {
+  it('underlines every occurrence of a searched string, as the text writes it', () => {
+    const page = searchedRow(answered('formats', 'PDF', { question: 'Is the pdf offered?' }), 'pdf')
+
+    expect(marked(page)).toEqual(['pdf', 'PDF'])
+    expect(page.get('mark').classes()).toContain('underline')
+    expect(page.find('[data-testid="decision-found"]').exists()).toBe(false)
+  })
+
+  it('quotes the first hidden place when the closed row shows no match, and names the others', () => {
+    const entry = answered('file', 'Downloads', {
+      why: 'Never overwrite.',
+      lines: [{ speaker: 'CLAUDE', text: 'Do we overwrite it?', spokenAt: '2026-11-23T14:34:00Z' }]
+    })
+    const page = searchedRow(entry, 'overwrite')
+
+    expect(page.get('[data-testid="decision-found"]').text()).toContain('Conversation')
+    expect(page.get('[data-testid="decision-excerpt"]').text()).toBe('Do we overwrite it?')
+    expect(page.get('[data-testid="decision-found"]').text()).toContain('and in why asked')
+    expect(marked(page)).toEqual(['overwrite'])
+  })
+
+  it('only names the hidden places when the closed row already shows a match', () => {
+    const page = searchedRow(answered('formats', 'PDF', { why: 'The PDF is read most.' }), 'pdf')
+
+    expect(page.get('[data-testid="decision-found"]').text()).toBe('Also in why asked')
+  })
+
+  it('drops the line when opened and underlines the matches where they are', () => {
+    const page = searchedRow(answered('file', 'Downloads', { why: 'Never overwrite.' }), 'overwrite', true)
+
+    expect(page.find('[data-testid="decision-found"]').exists()).toBe(false)
+    expect(page.get('[data-testid="decision-drawer"] mark').text()).toBe('overwrite')
+  })
+
+  it('keeps quoting a note the opened row cannot show', () => {
+    const entry = onHold('file', 'Waiting', { details: [{ text: 'Check overwrite', addedAt: '2026-11-23T14:34:00Z' }] })
+    const page = searchedRow(entry, 'overwrite', true)
+
+    expect(page.get('[data-testid="decision-excerpt"]').text()).toBe('Check overwrite')
+  })
+
   it('tells where an open question is being discussed and what was offered, the recommended option in bold', () => {
     const page = row(decision('db-password', { options: [{ label: 'Secret', effect: null, recommended: false }, { label: 'Vault', effect: null, recommended: true }] }))
 
