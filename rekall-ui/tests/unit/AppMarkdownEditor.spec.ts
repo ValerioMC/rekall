@@ -71,6 +71,17 @@ describe('AppMarkdownEditor', () => {
     expect(wrapper.findAll('td').length).toBe(2)
   })
 
+  it('frames a read table so it scrolls, and keeps its short columns on one line', async () => {
+    const wrapper = mount(AppMarkdownEditor, {
+      props: { modelValue: '| Step | Esito |\n|------|-------|\n| 1 | the run passed every check it was given |', readonly: true }
+    })
+    await flushPromises()
+    await nextTick()
+
+    expect(wrapper.find('.rk-table-frame > table').exists()).toBe(true)
+    expect(wrapper.findAll('td').map((cell) => cell.classes().includes('rk-short-cell'))).toEqual([true, false])
+  })
+
   it('highlights code without reaching for a cdn', async () => {
     const wrapper = mount(AppMarkdownEditor, {
       props: { modelValue: WITH_CODE, readonly: true }

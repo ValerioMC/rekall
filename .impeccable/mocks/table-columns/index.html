@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Table columns</title>
+<style>
+  @font-face { font-family: 'Fira Sans'; font-weight: 400; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 500; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 600; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Code'; font-weight: 300 700; src: url('../../../rekall-ui/node_modules/@fontsource-variable/fira-code/files/fira-code-latin-wght-normal.woff2') format('woff2'); }
+
+  :root {
+    --canvas: #0d1017; --surface: #151922; --raised: #1d2330; --hover: #262d3c;
+    --border: #2a3243; --border-strong: #3b4558;
+    --text: #f2f5f9; --muted: #a3acba; --subtle: #8c96a6;
+    --prose: color-mix(in srgb, var(--text) 72%, var(--muted));
+    --accent: #eaa43c; --accent-soft: #eaa43c24; --accent-strong: #ffd88e;
+    --anchor: #55c9ea; --safe: #3ddc97; --danger: #fb7185;
+    --sans: 'Fira Sans', ui-sans-serif, sans-serif;
+    --mono: 'Fira Code', ui-monospace, monospace;
+    --micro: 11px; --caption: 11.5px; --small: 12.5px; --body: 13.5px; --heading: 19px;
+    --key: 3px; --control: 5px; --card: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+  body { background: var(--canvas); color: var(--text); font: 400 var(--body)/1.4 var(--sans); -webkit-font-smoothing: antialiased; }
+  button, input { font: inherit; color: inherit; background: none; border: 0; }
+  button, label { cursor: pointer; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  ::selection { background: var(--accent-soft); color: var(--accent-strong); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 8px; border: 3px solid transparent; background-clip: padding-box; }
+
+  /* review controls: not part of the console */
+  .review { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--border); font-size: var(--small); color: var(--muted); }
+  .review b { color: var(--text); font-weight: 600; }
+  .group { display: flex; align-items: center; gap: 8px; }
+  .seg { display: flex; gap: 2px; height: 28px; padding: 2px; border: 1px solid var(--border); border-radius: var(--control); background: var(--canvas); }
+  .seg button { padding: 0 10px; border-radius: var(--key); color: var(--muted); white-space: nowrap; }
+  .seg button[aria-pressed="true"] { background: var(--raised); color: var(--text); }
+  .check { display: flex; align-items: center; gap: 6px; }
+  .check input { accent-color: var(--accent); }
+  .verdict { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--safe); }
+  .verdict[data-bad="true"] { color: var(--danger); }
+
+  /* the console pane the table is read and written in */
+  .stage { padding: 24px; }
+  .pane { width: var(--pane); max-width: 100%; margin: 0 auto; border: 1px solid var(--border); border-radius: var(--control); overflow: hidden; }
+  .toolbar { display: flex; gap: 16px; height: 36px; align-items: center; padding: 0 14px; border-bottom: 1px solid var(--border); color: var(--subtle); font-size: var(--small); }
+  .toolbar i { font-style: italic; }
+  .page { padding: 18px 0 24px; overflow-x: auto; color: var(--prose); line-height: 1.7; }
+  .page h2, .page p { padding: 0 18px; }
+  .page h2 { color: var(--text); font-size: 1.2em; font-weight: 600; line-height: 1.3; margin-bottom: 6px; }
+  .frame { padding: 10px 18px; }
+  table { border-collapse: separate; border-spacing: 0; border: 1px solid var(--border); border-radius: var(--control); font-size: 0.93em; }
+  th, td { min-width: 3em; padding: 0.45em 0.9em; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  th { background: var(--raised); color: var(--text); font-weight: 600; }
+  strong { color: var(--text); font-weight: 600; }
+  code { font-family: var(--mono); font-size: 0.86em; color: var(--text); background: var(--raised); border: 1px solid var(--border); border-radius: 5px; padding: 0.1em 0.38em; }
+
+  [data-mode="read"] td, [data-mode="read"] th { vertical-align: middle; }
+
+  /* write mode today: the editor's line wrapping reaches into every cell */
+  [data-view="today"][data-mode="write"] table { white-space: break-spaces; word-break: break-word; overflow-wrap: anywhere; }
+  /* proposed, and read mode today: a word is never split */
+  [data-view="proposed"] table, [data-mode="read"] table { white-space: normal; word-break: normal; overflow-wrap: break-word; }
+  /* a table wider than the page scrolls inside its own frame */
+  [data-mode="write"] .frame, [data-view="proposed"][data-read-scroll="true"] .frame { overflow-x: auto; }
+  .short { white-space: nowrap; }
+
+  .widths { display: flex; flex-wrap: wrap; gap: 6px 16px; width: var(--pane); max-width: 100%; margin: 10px auto 0; font: 400 var(--caption) var(--mono); color: var(--subtle); }
+</style>
+</head>
+<body>
+
+<div class="review">
+  <div class="group" role="group" aria-label="Version"><div class="seg" data-key="view">
+    <button data-value="today">Today</button><button data-value="proposed">Proposed</button>
+  </div></div>
+  <div class="group">Mode<div class="seg" data-key="mode">
+    <button data-value="write">Write</button><button data-value="read">Read</button>
+  </div></div>
+  <div class="group">Page<div class="seg" data-key="w">
+    <button data-value="wide">Wide</button><button data-value="standard">Standard</button><button data-value="narrow">Narrow</button>
+  </div></div>
+  <div class="group">Table<div class="seg" data-key="sample">
+    <button data-value="prose">Label + prose</button><button data-value="many">Many columns</button><button data-value="address">Long address</button>
+  </div></div>
+  <label class="check"><input type="checkbox" data-key="a"><span><b>Option A</b> short columns stay on one line</span></label>
+  <label class="check"><input type="checkbox" data-key="b"><span><b>Option B</b> wide tables scroll in read mode</span></label>
+  <output class="verdict" aria-live="polite"></output>
+</div>
+
+<main class="stage">
+  <div class="pane">
+    <div class="toolbar" aria-hidden="true"><b>B</b><i>I</i><s>S</s><span>H</span><span>“ ”</span><span>List</span><span>Code</span><span>Link</span><span>Table</span></div>
+    <article class="page">
+      <h2></h2>
+      <p></p>
+      <div class="frame"></div>
+    </article>
+  </div>
+  <div class="widths"></div>
+</main>
+
+<script>
+const SHORT_COLUMN_LIMIT = 30;
+const PANE_WIDTHS = { wide: '1280px', standard: '860px', narrow: '520px' };
+
+const SAMPLES = {
+  prose: {
+    title: 'Where the data comes from',
+    intro: 'One row per area the timeline reads, with the way each one is connected.',
+    head: ['Area', 'Source', 'What it provides', 'Integration route'],
+    rows: [
+      ['**Terminal session telemetry**', '**Claude Code hooks, reported to the local server and kept in the session store**', 'Token counts and their history, prompts and tool calls with their parameters, session events, stalled turns and runs that went past their limits', 'Programmatic access through a new reader beside the existing ones (modelled on the `*_service.rs` pattern), stored in the same database and shown on the timeline'],
+      ['**Operational context**', 'Project blueprint (*components and folders*), connection bindings, planning steps, run queue order, checks, session events', 'The context needed to tell a normal run from one that went wrong, step by step and session by session', 'Context data and retrieval filters shown alongside the timeline, read when a task is opened'],
+      ['**Project documentation**', 'User guides, operating procedures, **section pages**, engineering notes and the wrapups of the finished tasks', 'Evidence for assisted investigation, comparison with past faults, recovery procedures that worked before', 'The existing **section pages** pipeline (txt and markdown) and search (the console already calls `GET /api/search`)'],
+      ['**Dependency inventory**', '**Manifest files** in every component folder, with the lock file beside each of them', 'Package names, resolved versions and the advisories that reach them, with the verdict on each critical one', 'Read from disk by the inventory scan and replaced whole; no new dependency and no network call at read time'],
+      ['**Worktree simulator**', 'Local git worktrees, one per task branch (created from the main checkout)', 'Branch state, commits and diffs of a task, replay of a run, testing of a recovery before it reaches main', '**Not modified**: integration through its existing worktree service behind the provider-agnostic session interface'],
+      ['**Scheduled payload**', '**Run queue** and the order of its tasks, with the provider chosen for each one', 'Which task starts next, under which provider, and why it waits (a limit, a review or a running session)', 'A **small normalized record** published by the queue; consumers read it at runtime, with no copy of the database']
+    ]
+  },
+  many: {
+    title: 'Runs of the week',
+    intro: 'Ten columns: more than a narrow page can hold with whole words.',
+    head: ['Task', 'Status', 'Provider', 'Model', 'Started', 'Duration', 'Input tokens', 'Output tokens', 'Checks', 'Result'],
+    rows: [
+      ['RV-209', 'Done', 'Claude Code', 'claude-sonnet-5-5', '2026-11-24 09:14', '1 h 12 min', '1,204,331', '88,410', 'passed', 'Merged'],
+      ['RV-211', 'Done', 'Claude Code', 'claude-opus-5-5', '2026-11-25 14:02', '38 min', '640,118', '41,972', 'passed', 'Merged'],
+      ['RV-213', 'In progress', 'Claude Code', 'claude-sonnet-5-5', '2026-11-27 13:40', '14 min', '212,905', '12,044', 'waiting', 'Mockup']
+    ]
+  },
+  address: {
+    title: 'Addresses the project reaches',
+    intro: 'A long address beside short prose.',
+    head: ['Connection', 'Address', 'Used for'],
+    rows: [
+      ['**GitHub issues**', 'https://github.com/example-org/rekall/issues?q=is%3Aopen+label%3Aconsole+sort%3Aupdated-desc', 'Reading the open issues before a task is planned'],
+      ['**Local server**', '`http://localhost:47355/mcp`', 'The tools a session calls while it works']
+    ]
+  }
+};
+
+const state = { view: 'proposed', mode: 'write', w: 'wide', sample: 'prose', a: false, b: false };
+for (const [key, value] of new URLSearchParams(location.search)) {
+  state[key] = key === 'a' || key === 'b' ? value === '1' : value;
+}
+
+const inline = (text) => text
+  .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  .replace(/\(\*([^*]+?)\*\)/g, '(<em>$1</em>)')
+  .replace(/`(.+?)`/g, '<code>$1</code>');
+
+const plain = (text) => text.replace(/\*\*|\(\*|\*\)|`/g, '');
+
+function shortColumns(sample) {
+  return sample.head.map((title, column) =>
+    [title, ...sample.rows.map((row) => plain(row[column]))].every((text) => text.length <= SHORT_COLUMN_LIMIT));
+}
+
+function tableHtml(sample) {
+  const keepWhole = state.view === 'proposed' && state.a ? shortColumns(sample) : [];
+  const cell = (tag, text, column) => `<${tag}${keepWhole[column] ? ' class="short"' : ''}>${inline(text)}</${tag}>`;
+  const row = (tag, cells) => `<tr>${cells.map((text, column) => cell(tag, text, column)).join('')}</tr>`;
+  return `<table><thead>${row('th', sample.head)}</thead><tbody>${sample.rows.map((cells) => row('td', cells)).join('')}</tbody></table>`;
+}
+
+/* a word is split when its characters are laid out on more than one line; hyphenated words and addresses may break at their own marks */
+function splitWords(table) {
+  const walker = document.createTreeWalker(table, NodeFilter.SHOW_TEXT);
+  let count = 0;
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    for (const match of node.data.matchAll(/[A-Za-z0-9]+/g)) {
+      const range = document.createRange();
+      range.setStart(node, match.index);
+      range.setEnd(node, match.index + match[0].length);
+      const lines = new Set([...range.getClientRects()].filter((r) => r.width > 0).map((r) => Math.round(r.top)));
+      if (lines.size > 1) count += 1;
+    }
+  }
+  return count;
+}
+
+function render() {
+  const root = document.documentElement;
+  const sample = SAMPLES[state.sample];
+  root.style.setProperty('--pane', PANE_WIDTHS[state.w]);
+  document.body.dataset.view = state.view;
+  document.body.dataset.mode = state.mode;
+  document.body.dataset.readScroll = String(state.b);
+  document.querySelector('.toolbar').hidden = state.mode === 'read';
+  document.querySelector('.page h2').textContent = sample.title;
+  document.querySelector('.page p').textContent = sample.intro;
+  document.querySelector('.frame').innerHTML = tableHtml(sample);
+  document.querySelectorAll('.seg').forEach((seg) => seg.querySelectorAll('button').forEach((button) =>
+    button.setAttribute('aria-pressed', String(button.dataset.value === state[seg.dataset.key]))));
+  document.querySelectorAll('input[data-key]').forEach((input) => { input.checked = state[input.dataset.key]; });
+  measure();
+}
+
+function measure() {
+  const table = document.querySelector('table');
+  const frame = document.querySelector('.frame');
+  const split = splitWords(table);
+  const spill = Math.round(table.offsetWidth - (frame.clientWidth - 36));
+  const verdict = document.querySelector('.verdict');
+  const overflow = spill <= 0 ? 'fits the page'
+    : getComputedStyle(frame).overflowX === 'auto' ? 'wider than the page, scrolls' : 'runs past the page';
+  verdict.textContent = `${split} words split · ${overflow}`;
+  verdict.dataset.bad = String(split > 0 || overflow === 'runs past the page');
+  document.querySelector('.widths').textContent = 'column widths: ' +
+    [...table.querySelectorAll('th')].map((th) => `${th.textContent} ${Math.round(th.offsetWidth)}px`).join(' · ');
+}
+
+document.querySelector('.review').addEventListener('click', (event) => {
+  const button = event.target.closest('.seg button');
+  if (!button) return;
+  state[button.parentElement.dataset.key] = button.dataset.value;
+  render();
+});
+document.querySelector('.review').addEventListener('change', (event) => {
+  state[event.target.dataset.key] = event.target.checked;
+  render();
+});
+window.addEventListener('resize', measure);
+document.fonts.ready.then(render);
+render();
+</script>
+</body>
+</html>

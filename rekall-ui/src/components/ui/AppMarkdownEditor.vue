@@ -28,6 +28,7 @@ import { useFittedEditorHeight } from '@/composables/useFittedEditorHeight'
 import { useMermaidFences } from '@/composables/useMermaidFences'
 import { useReadModeSearch } from '@/composables/useReadModeSearch'
 import { useReferenceWidgets } from '@/composables/useReferenceWidgets'
+import { useShortTableColumns } from '@/composables/useShortTableColumns'
 import { useTableContextMenu } from '@/composables/useTableContextMenu'
 import type { ProjectComponent } from '@/features/project/model/project-component'
 import type { ProjectConnection } from '@/features/connection/model/connection'
@@ -147,6 +148,7 @@ const connectionChips = useReferenceChips(root, () => props.connections, paintCo
 const taskChips = useReferenceChips(root, () => props.tasks, paintTaskReferences)
 const pageChips = useReferenceChips(root, () => props.pages, paintPageReferences)
 const mermaidFences = useMermaidFences(root)
+const shortTableColumns = useShortTableColumns(root)
 
 useReferenceWidgets(editor, () => ({
   components: props.components,
@@ -161,6 +163,7 @@ function paintChips(): void {
   taskChips.paint()
   pageChips.paint()
   mermaidFences.paint()
+  shortTableColumns.paint()
 }
 
 // One source each for the editor's life; they read the props when asked, so a new list needs no reconfigure.

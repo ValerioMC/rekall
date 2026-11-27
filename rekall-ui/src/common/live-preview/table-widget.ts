@@ -7,6 +7,7 @@ import {
   type ColumnAlignment
 } from '@/common/live-preview/markdown-table'
 import { editTableCell } from '@/common/live-preview/table-edit'
+import { keepShortColumnsWhole } from '@/common/markdown/table-layout'
 
 /** Raised on the editor when a cell is right-clicked; the editor's owner shows the menu. */
 export const TABLE_MENU_EVENT = 'rk-table-menu'
@@ -67,6 +68,7 @@ export class TableWidget extends WidgetType {
     })
     frame.dataset.rows = String(grid.rows.length + 1)
     frame.dataset.columns = String(grid.header.length)
+    keepShortColumnsWhole(table)
     frame.replaceChildren(table)
   }
 }

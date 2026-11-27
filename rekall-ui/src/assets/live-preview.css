@@ -295,7 +295,9 @@
   color: var(--color-danger);
 }
 
+/* A table wider than the page scrolls in its frame instead of widening the writing surface. */
 .rekall-md .md-editor .cm-rk-table {
+  contain: inline-size;
   overflow-x: auto;
   cursor: default;
 }
@@ -307,6 +309,10 @@
   border-radius: var(--radius-control);
   overflow: hidden;
   font-size: 0.93em;
+  /* The editor's line wrapping breaks anywhere, which lets a column shrink to one letter. */
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 .rekall-md .md-editor .cm-rk-table th,
@@ -333,6 +339,11 @@
 .rekall-md .md-editor .cm-rk-table td:hover,
 .rekall-md .md-editor .cm-rk-table th:hover {
   background: var(--color-surface-hover);
+}
+
+.rekall-md .md-editor .cm-rk-table .rk-short-cell,
+.rekall-md .md-editor .cm-rk-table .rk-short-cell code {
+  white-space: nowrap;
 }
 
 /* The cell being written shows its markdown, in the code face, ringed in the caret's colour. */

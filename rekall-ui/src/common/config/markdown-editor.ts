@@ -12,6 +12,7 @@ import '@/assets/live-preview.css'
 import { markAnchorCode } from '@/common/config/anchor-code'
 import { markComponentReferences } from '@/common/markdown/component-reference'
 import { markMermaidFences } from '@/common/markdown/mermaid-fence'
+import { markTableFrames } from '@/common/markdown/table-layout'
 import { referenceCompletionIcons } from '@/common/markdown/reference-completion-icon'
 import { livePreview } from '@/common/live-preview/live-preview'
 import { pictureTransfer } from '@/features/picture/lib/picture-transfer'
@@ -25,6 +26,7 @@ config({
     markAnchorCode(md)
     markComponentReferences(md)
     markMermaidFences(md)
+    markTableFrames(md)
   },
   // linkShortener turns long slash-prefixed runs into an uneditable widget, which eats file paths.
   // The library parses CommonMark only; live preview needs GFM to see tables, tasks and strikethrough.
