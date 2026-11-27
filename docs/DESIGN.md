@@ -297,6 +297,11 @@ no choice pass no argument. A session opens on the account default over a malfor
 queue refuses it with a 400. The usage ceiling counts a model's weekly window for every value that
 names the family, such as `claude-opus-4-8`.
 
+In the console `useClaudeModelsStore` holds the last catalog answered and `ClaudeCodeSection` asks for
+it on every opening. `claude-model-choices.ts` turns it into the picker's options: without a catalog
+the family aliases, always with the saved value. Only a pick writes a preference, and
+`preferredModel` accepts any value shaped like one a launch takes.
+
 In the console, `HeaderNavigation` holds Back, Forward, the section menu and the project switcher
 on the left of the header. `AppHeaderChrome` draws the icon-only session provider selector on the
 right, a keycap tinted for its provider, beside the status capsule where `HeaderStatus` puts the
@@ -308,8 +313,9 @@ global choice for a new session. `usePlanTask` uses that resolution for Discuss,
 Refine. The session store handles launch conflicts and view fallback.
 
 `QueueLaunchDialog` starts with the global choice and the provider’s defaults. It limits Codex
-effort to the selected model’s catalog, submits only on confirmation, and keeps the draft on a
-refusal. The run menu adds and arms the queue, and the queue picker adds an entry.
+effort to the selected model’s catalog, offers the family aliases and the saved model for Claude
+Code, submits only on confirmation, and keeps the draft on a refusal. The run menu adds and arms the
+queue, and the queue picker adds an entry.
 `QueueOrderRow` reads the provider, model and effort tags from the saved queue item.
 Both queue write routes accept optional per-entry launch settings. For Claude Code, a
 `claudeOptions` object saves each choice, with null values delegating to the account. When the

@@ -6,6 +6,13 @@ import { installStorage } from '../../support/memoryStorage'
 describe('session provider choices', () => {
   beforeEach(installStorage)
 
+  it('carries a saved catalog model into the launch choices', () => {
+    setPreferredModel('claude-example-7[1m]')
+    setPreferredEffort('high')
+
+    expect(launchChoices('CLAUDE')).toMatchObject({ model: 'claude-example-7[1m]', effort: 'high' })
+  })
+
   it('uses the existing Claude defaults and keeps independent Codex preferences', () => {
     setPreferredModel('sonnet')
     setPreferredEffort('high')

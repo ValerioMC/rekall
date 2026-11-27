@@ -449,6 +449,12 @@ reasoning effort, permission switch, what the run queue does with them), stacked
 default chosen above. Only a stale registration's **Repair** is amber. **Protections** closes the section. The run
 queue panel groups its settings the same way: Both providers (session view, parallel sessions), Claude Code, Codex.
 
+In the Claude Code column (`ClaudeModelFields`) the select speaks the CLI's names and the line under it says what a new
+session gets: the `--model` value, the version an alias starts today, or that the CLI does not list the saved value. A
+resolved id joins the option's name only when the name does not say the version. Reading the models never disables a
+field; a failed read keeps what was offered and puts **Retry** in that line, which hands focus back to the select. The
+effort line names the model when it takes no effort, does not offer the saved level, or says nothing about levels.
+
 **Data and backup** is three titled panels: **Unused images** across the whole width, then Backups and Langfuse
 (`PictureCleanupPanel`, `usePictureCleanupStore`). At rest the first is one line saying what it finds and the key
 **Find unused images**; while a run goes on it is a gold progress bar with its percentage; a result is a preview of every
