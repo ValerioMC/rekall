@@ -256,7 +256,6 @@ async fn a_queued_provider_leaves_an_existing_session_on_the_task_alone() {
     let harness = harness(&world, reading(10.0));
     let existing = harness.terminals.open(TerminalOpening {
         target: TerminalTarget::Task(task.id),
-        step_id: None,
         provider: SessionProvider::Claude,
         skip_permissions: false,
         model: None,

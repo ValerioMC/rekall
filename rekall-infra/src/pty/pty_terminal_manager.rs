@@ -85,16 +85,11 @@ impl PtyTerminalManager {
 
     // ---------------------------------------------------------------- commands
 
-    /// Start a `claude` PTY for this target in its project's folder, with the `/rk` line of `mode`
-    /// typed first. A missing folder or CLI is a retriable conflict. A step id is marked
-    /// `RUNNING` while the terminal is on it; none means the task itself. A plan or a generate is
-    /// never on a step, so every mode but [`TerminalMode::Work`] drops the step id. A second open
-    /// on a target that already has a terminal reuses it: a work open is retargeted, and every
-    /// mode has its line typed into that session so it reloads what it is on as it stands.
+    /// Starts a PTY on this target, its `/rk` line typed first, or types the line into the
+    /// terminal already live there. A missing folder or CLI conflicts.
     pub async fn open(self: &Arc<Self>, opening: TerminalOpening) -> Result<TerminalView> {
-        let TerminalOpening { target, step_id, provider, skip_permissions, model, effort, mode, .. } = opening;
+        let TerminalOpening { target, provider, skip_permissions, model, effort, mode, .. } = opening;
         let launch = self.launch_service.resolve(target).await?;
-        let step_id = if mode.follows_steps() { step_id } else { None };
 
         let _gate = self.spawn_gate.lock().await;
         let prompt = session_command_prompt(provider, &mode.first_line(&launch.anchors));
@@ -106,9 +101,11 @@ impl PtyTerminalManager {
                     provider.label(),
                 )));
             }
-            let view = if mode.follows_steps() { self.retarget(&existing, step_id).await } else { existing.view() };
             self.write(existing.id, format!("{prompt}\r").as_bytes())?;
-            return Ok(view);
+            if mode.follows_steps() {
+                existing.given_work.store(true, Ordering::SeqCst);
+            }
+            return Ok(existing.view());
         }
 
         let directory = require_folder(&launch)?;
@@ -121,7 +118,7 @@ impl PtyTerminalManager {
         let environment = self.launcher.environment(id, &launch, &mode, &mut options).await?;
         let command = terminal_command(&binary, &options, &prompt, environment, directory);
 
-        let terminal = match self.register(id, launch.clone(), step_id, mode.clone(), options, command).await {
+        let terminal = match self.register(id, launch.clone(), mode.clone(), options, command).await {
             Ok(terminal) => terminal,
             Err(refused) => {
                 self.launcher.release(id);
@@ -130,7 +127,7 @@ impl PtyTerminalManager {
         };
 
         if mode.marks_running_in_terminal() {
-            self.marker.mark_running(launch.task_id, step_id).await;
+            self.marker.mark_review_running(launch.task_id).await;
         }
         info!(terminal_id = %id, %mode, anchors = %launch.anchors, working_dir = %launch.working_dir, "Opened terminal");
         Ok(terminal.view())
@@ -141,7 +138,6 @@ impl PtyTerminalManager {
         self: &Arc<Self>,
         id: Id,
         launch: TerminalLaunch,
-        step_id: Option<Id>,
         mode: TerminalMode,
         options: SessionOptions,
         command: CommandBuilder,
@@ -160,24 +156,10 @@ impl PtyTerminalManager {
             }
         };
         let provider = options.provider;
-        let terminal = spawn_terminal(id, launch, step_id, mode, options, command, self.scrollback_bytes, on_exit)
+        let terminal = spawn_terminal(id, launch, mode, options, command, self.scrollback_bytes, on_exit)
             .map_err(|failed| RekallError::conflict(format!("Could not start {}: {failed}", provider.label())))?;
         self.live_map().insert(id, terminal.clone());
         Ok(terminal)
-    }
-
-    /// Move the running marker to another step without touching the process.
-    async fn retarget(&self, terminal: &Arc<Terminal>, step_id: Option<Id>) -> TerminalView {
-        let current = terminal.step_id();
-        if let Some(step_id) = step_id {
-            if Some(step_id) != current {
-                self.marker.release_running(terminal.launch.task_id, current).await;
-                *terminal.step_id.lock().expect("never poisoned") = Some(step_id);
-                self.marker.mark_running(terminal.launch.task_id, Some(step_id)).await;
-            }
-        }
-        *terminal.last_activity_at.lock().expect("never poisoned") = Instant::now();
-        terminal.view()
     }
 
     /// Ends a terminal that has claimed the last step of its session and opens another on the
@@ -192,7 +174,6 @@ impl PtyTerminalManager {
         self.close(id, "The next step opens a new session.").await;
         self.open(TerminalOpening {
             target: terminal.launch.target(),
-            step_id: None,
             provider: view.provider,
             skip_permissions: view.skip_permissions,
             model: view.model,
@@ -342,11 +323,12 @@ impl PtyTerminalManager {
     }
 
     async fn release_work(&self, terminal: &Terminal) {
-        let step_id = terminal.step_id();
-        if !terminal.mode.marks_running_in_terminal() && step_id.is_none() {
-            return;
+        if terminal.given_work.load(Ordering::SeqCst) {
+            self.marker.release_running_steps(terminal.launch.task_id).await;
         }
-        self.marker.release_running(terminal.launch.task_id, step_id).await;
+        if terminal.mode.marks_running_in_terminal() {
+            self.marker.release_review_and_thread(terminal.launch.task_id).await;
+        }
     }
 
     fn announce_ended(&self, terminal: &Terminal) {

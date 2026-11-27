@@ -30,7 +30,6 @@ const KICK_SETTLE: Duration = Duration::from_millis(150);
 pub(super) fn spawn_terminal(
     id: Id,
     launch: TerminalLaunch,
-    step_id: Option<Id>,
     mode: TerminalMode,
     options: SessionOptions,
     command: CommandBuilder,
@@ -52,7 +51,7 @@ pub(super) fn spawn_terminal(
     let terminal = Arc::new(Terminal {
         id,
         launch,
-        step_id: Mutex::new(step_id),
+        given_work: AtomicBool::new(mode.follows_steps()),
         size: Mutex::new((DEFAULT_COLUMNS, DEFAULT_ROWS)),
         mode,
         provider: options.provider,

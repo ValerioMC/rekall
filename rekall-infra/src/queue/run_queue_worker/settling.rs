@@ -70,12 +70,8 @@ impl Worker {
     }
 
     pub(super) async fn release_running_steps(&self, task_id: Id) {
-        if let Some(state) = self.read_or_none(task_id).await {
-            for step_id in state.running_step_ids {
-                if let Err(failed) = self.steps.release_running(Some(step_id)).await {
-                    warn!(%failed, %step_id, "Run queue: releasing a step failed");
-                }
-            }
+        if let Err(failed) = self.steps.release_all_running(task_id).await {
+            warn!(%failed, %task_id, "Run queue: releasing the running steps failed");
         }
     }
 

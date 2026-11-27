@@ -1,5 +1,5 @@
-//! What every kind of `claude` session manager shares: the checklist marker a session moves while
-//! it works a task, the bus that announces every end, the loop that sweeps idle sessions, and what
+//! What every kind of `claude` session manager shares: the marker of the work a session holds on
+//! its task, the bus that announces every end, the loop that sweeps idle sessions, and what
 //! starting one takes from the machine.
 
 mod session_options;

@@ -132,7 +132,6 @@ impl ChatSessionManager {
         &self,
         id: Id,
         launch: TerminalLaunch,
-        step_id: Option<Id>,
         mode: TerminalMode,
         options: SessionOptions,
         command: Command,
@@ -143,27 +142,13 @@ impl ChatSessionManager {
             SessionProvider::Codex => spawn_codex_process(id, command, &options, Path::new(&launch.working_dir), first_line).await?,
         };
         if mode.follows_steps() {
-            self.marker.mark_running(launch.task_id, step_id).await;
+            self.marker.mark_review_running(launch.task_id).await;
         }
-        let session = Arc::new(ChatSession::new(id, launch, step_id, mode, options, process, self.backlog_bytes));
+        let session = Arc::new(ChatSession::new(id, launch, mode, options, process, self.backlog_bytes));
         session.publish(ChatBody::UserMessage { text: first_line.to_string() });
         self.live_map().insert(id, session.clone());
         tokio::spawn(follow_process(self.me.clone(), session.clone(), events));
         Ok(session)
-    }
-
-    /// Move the running marker to another step without touching the process.
-    async fn retarget(&self, session: &Arc<ChatSession>, step_id: Option<Id>) -> TerminalView {
-        let current = session.step_id();
-        if let Some(step_id) = step_id {
-            if Some(step_id) != current {
-                self.marker.release_running(session.launch.task_id, current).await;
-                *session.step_id.lock().expect("never poisoned") = Some(step_id);
-                self.marker.mark_running(session.launch.task_id, Some(step_id)).await;
-            }
-        }
-        session.touch();
-        session.view()
     }
 
     async fn close_session(&self, id: Id, reason: &str) -> Option<TerminalView> {
@@ -194,10 +179,17 @@ impl ChatSessionManager {
     async fn finish(&self, session: &Arc<ChatSession>, detail: &str) {
         session.end(session.process.exit_code().unwrap_or(-1), detail);
         self.launcher.release(session.id);
-        if session.mode.follows_steps() {
-            self.marker.release_running(session.launch.task_id, session.step_id()).await;
-        }
+        self.release_work(session).await;
         self.ended.announce(session.id, session.launch.task_id);
+    }
+
+    async fn release_work(&self, session: &ChatSession) {
+        if session.given_work.load(Ordering::SeqCst) {
+            self.marker.release_running_steps(session.launch.task_id).await;
+        }
+        if session.mode.follows_steps() {
+            self.marker.release_review_and_thread(session.launch.task_id).await;
+        }
     }
 }
 
@@ -219,17 +211,17 @@ async fn follow_process(manager: Weak<ChatSessionManager>, session: Arc<ChatSess
 impl TerminalHost for ChatSessionManager {
     async fn open(&self, opening: TerminalOpening) -> Result<TerminalView> {
         let _gate = self.spawn_gate.lock().await;
-        let TerminalOpening { target, step_id, provider, skip_permissions, ref model, ref effort, ref mode, .. } = opening;
+        let TerminalOpening { target, provider, skip_permissions, ref model, ref effort, ref mode, .. } = opening;
         let launch = self.launch_service.resolve(target).await?;
-        let follows_steps = mode.follows_steps();
-        let step_id = if follows_steps { step_id } else { None };
         let first_line = session_command_prompt(provider, &mode.first_line(&launch.anchors));
 
         if let Some(existing) = self.live_session_on(target) {
             opening.kind_for_live_session(&existing.view())?;
-            let view = if follows_steps { self.retarget(&existing, step_id).await } else { existing.view() };
             existing.say(&first_line)?;
-            return Ok(view);
+            if mode.follows_steps() {
+                existing.given_work.store(true, Ordering::SeqCst);
+            }
+            return Ok(existing.view());
         }
 
         let directory = require_folder(&launch)?;
@@ -248,7 +240,7 @@ impl TerminalHost for ChatSessionManager {
         let environment = self.launcher.environment(id, &launch, mode, &mut options).await?;
         let command = chat_command(&binary, &options, environment, directory);
 
-        let session = match self.register(id, launch.clone(), step_id, mode.clone(), options, command, &first_line).await {
+        let session = match self.register(id, launch.clone(), mode.clone(), options, command, &first_line).await {
             Ok(session) => session,
             Err(refused) => {
                 self.launcher.release(id);
@@ -297,7 +289,6 @@ impl TerminalHost for ChatSessionManager {
         self.close_session(id, "The next step opens a new session.").await;
         self.open(TerminalOpening {
             target: session.launch.target(),
-            step_id: None,
             provider: view.provider,
             skip_permissions: view.skip_permissions,
             model: view.model,

@@ -1,5 +1,5 @@
-//! The PTY terminal manager against a stand-in `claude`: launch arguments, the running marker,
-//! input and output, the exit path, the cap, and the refusals.
+//! The PTY terminal manager against a stand-in `claude`: launch arguments, what an ended session
+//! releases, input and output, the exit path, the cap, and the refusals.
 
 mod support;
 
@@ -18,7 +18,6 @@ use support::{eventually, world, Recorder};
 fn opening_on(target: TerminalTarget) -> TerminalOpening {
     TerminalOpening {
         target,
-        step_id: None,
         provider: SessionProvider::Claude,
         skip_permissions: false,
         model: None,
@@ -33,20 +32,18 @@ async fn a_terminal_starts_claude_in_the_project_folder_with_rk_typed_and_echoes
     let world = world().await;
     let project = world.project("alpha", Some(world.folder.path())).await;
     let task = world.task(&project, "one").await;
-    let step = world.step(&task, "First", 0, TaskStepState::Open).await;
     let terminals = world.terminals(8);
     let mut ended = terminals.subscribe_ended();
 
-    let view = terminals.open(TerminalOpening { step_id: Some(step.id), skip_permissions: true, model: Some("opus".into()), effort: Some("bogus".into()), ..opening_on(TerminalTarget::Task(task.id)) }).await.unwrap();
+    let view = terminals.open(TerminalOpening { skip_permissions: true, model: Some("opus".into()), effort: Some("bogus".into()), ..opening_on(TerminalTarget::Task(task.id)) }).await.unwrap();
     assert_eq!(view.task_id, Some(task.id));
     assert_eq!(view.project_id, project.id);
-    assert_eq!(view.step_id, Some(step.id));
     assert_eq!(view.anchors, "task:AL-1");
     assert!(view.skip_permissions);
     assert_eq!(view.model.as_deref(), Some("opus"));
     assert_eq!(view.effort, None, "an effort level the settings do not offer is dropped");
     assert!(view.live);
-    assert_eq!(world.step_state(&task, &step).await, TaskStepState::Running);
+    let started = world.step(&task, "First", 0, TaskStepState::Running).await;
 
     let recorder = Arc::new(Recorder::default());
     let (_, token) = terminals.attach(view.id, recorder.clone()).unwrap();
@@ -71,7 +68,7 @@ async fn a_terminal_starts_claude_in_the_project_folder_with_rk_typed_and_echoes
     eventually("the end notice", || async { recorder.ended.lock().unwrap().is_some() }).await;
     assert_eq!(*recorder.ended.lock().unwrap(), Some((3, "claude exited with code 3".to_string())));
     assert_eq!(terminals.live_count(), 0);
-    assert_eq!(world.step_state(&task, &step).await, TaskStepState::Open, "the running marker goes back");
+    assert_eq!(world.step_state(&task, &started).await, TaskStepState::Open, "the step it left running goes back");
     terminals.detach(view.id, token);
 
     assert!(matches!(terminals.write(view.id, b"late\n"), Err(RekallError::Conflict(_))));
@@ -82,12 +79,9 @@ async fn a_plan_terminal_opens_on_the_task_with_the_plan_line_and_a_plan_on_a_li
     let world = world().await;
     let project = world.project("alpha", Some(world.folder.path())).await;
     let task = world.task(&project, "one").await;
-    let step = world.step(&task, "First", 0, TaskStepState::Open).await;
     let terminals = world.terminals(8);
 
-    let view = terminals.open(TerminalOpening { step_id: Some(step.id), mode: TerminalMode::Plan, ..opening_on(TerminalTarget::Task(task.id)) }).await.unwrap();
-    assert_eq!(view.step_id, None, "a plan is on the task, never on a step");
-    assert_eq!(world.step_state(&task, &step).await, TaskStepState::Open);
+    let view = terminals.open(TerminalOpening { mode: TerminalMode::Plan, ..opening_on(TerminalTarget::Task(task.id)) }).await.unwrap();
 
     let recorder = Arc::new(Recorder::default());
     let (_, token) = terminals.attach(view.id, recorder.clone()).unwrap();
@@ -100,9 +94,8 @@ async fn a_plan_terminal_opens_on_the_task_with_the_plan_line_and_a_plan_on_a_li
     let (_, token) = terminals.attach(working.id, recorder.clone()).unwrap();
     eventually("the work line", || async { recorder.text().contains("ARGS:/rk task:AL-1") }).await;
 
-    let planned = terminals.open(TerminalOpening { step_id: Some(step.id), mode: TerminalMode::Plan, ..opening_on(TerminalTarget::Task(task.id)) }).await.unwrap();
+    let planned = terminals.open(TerminalOpening { mode: TerminalMode::Plan, ..opening_on(TerminalTarget::Task(task.id)) }).await.unwrap();
     assert_eq!(planned.id, working.id, "a plan on a task with a live session reuses it");
-    assert_eq!(planned.step_id, None);
     eventually("the typed plan line", || async { recorder.text().contains("GOT:/rk task:AL-1 plan") }).await;
     assert_eq!(terminals.live_count(), 1);
     terminals.detach(working.id, token);
@@ -178,37 +171,51 @@ async fn a_discuss_terminal_releases_nothing_however_it_ends() {
 }
 
 #[tokio::test]
-async fn a_discuss_terminal_put_on_a_step_by_a_work_open_releases_it_when_it_ends() {
+async fn a_discuss_terminal_never_given_work_leaves_a_running_step_running() {
     let world = world().await;
     let project = world.project("alpha", Some(world.folder.path())).await;
     let task = world.task(&project, "one").await;
-    let step = world.step(&task, "First", 0, TaskStepState::Open).await;
     let terminals = world.terminals(8);
     let discussion = terminals.open(TerminalOpening { mode: TerminalMode::Discuss, ..opening_on(TerminalTarget::Task(task.id)) }).await.unwrap();
+    let started = world.step(&task, "First", 0, TaskStepState::Running).await;
 
-    let working = terminals.open(TerminalOpening { step_id: Some(step.id), ..opening_on(TerminalTarget::Task(task.id)) }).await.unwrap();
-    assert_eq!((working.id, world.step_state(&task, &step).await), (discussion.id, TaskStepState::Running));
     terminals.close(discussion.id, "done").await;
 
-    assert_eq!(world.step_state(&task, &step).await, TaskStepState::Open);
+    assert_eq!(world.step_state(&task, &started).await, TaskStepState::Running);
 }
 
 #[tokio::test]
-async fn a_discuss_open_on_a_task_with_a_live_session_is_typed_into_it_and_keeps_its_step_running() {
+async fn a_discuss_terminal_later_given_run_here_releases_the_running_step_when_it_ends() {
     let world = world().await;
     let project = world.project("alpha", Some(world.folder.path())).await;
     let task = world.task(&project, "one").await;
-    let step = world.step(&task, "First", 0, TaskStepState::Open).await;
     let terminals = world.terminals(8);
-    let working = terminals.open(TerminalOpening { step_id: Some(step.id), ..opening_on(TerminalTarget::Task(task.id)) }).await.unwrap();
+    let discussion = terminals.open(TerminalOpening { mode: TerminalMode::Discuss, ..opening_on(TerminalTarget::Task(task.id)) }).await.unwrap();
+    let working = terminals.open(opening_on(TerminalTarget::Task(task.id))).await.unwrap();
+    assert_eq!(working.id, discussion.id);
+    let started = world.step(&task, "First", 0, TaskStepState::Running).await;
+
+    terminals.close(discussion.id, "done").await;
+
+    assert_eq!(world.step_state(&task, &started).await, TaskStepState::Open);
+}
+
+#[tokio::test]
+async fn a_discuss_open_on_a_task_with_a_live_session_is_typed_into_it_and_leaves_a_running_step_alone() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let terminals = world.terminals(8);
+    let working = terminals.open(opening_on(TerminalTarget::Task(task.id))).await.unwrap();
     let recorder = Arc::new(Recorder::default());
     terminals.attach(working.id, recorder.clone()).unwrap();
+    let started = world.step(&task, "First", 0, TaskStepState::Running).await;
 
     let discussion = terminals.open(TerminalOpening { mode: TerminalMode::Discuss, ..opening_on(TerminalTarget::Task(task.id)) }).await.unwrap();
 
-    assert_eq!((discussion.id, discussion.step_id), (working.id, Some(step.id)));
+    assert_eq!(discussion.id, working.id);
     eventually("the typed discuss line", || async { recorder.text().contains("GOT:/rk task:AL-1 discuss") }).await;
-    assert_eq!(world.step_state(&task, &step).await, TaskStepState::Running);
+    assert_eq!(world.step_state(&task, &started).await, TaskStepState::Running);
     terminals.close(working.id, "done").await;
 }
 
@@ -272,6 +279,20 @@ async fn closing_a_terminal_kills_it_announces_the_end_and_releases_the_task() {
     assert_eq!(detail, "Closed from the console.");
     assert!(!terminals.has_live_terminal_for(task.id));
     assert!(terminals.close(view.id, "again").await.is_none(), "closing is idempotent");
+}
+
+#[tokio::test]
+async fn closing_a_work_terminal_puts_the_step_it_left_running_back_to_open() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let terminals = world.terminals(8);
+    let view = terminals.open(opening_on(TerminalTarget::Task(task.id))).await.unwrap();
+    let started = world.step(&task, "First", 0, TaskStepState::Running).await;
+
+    terminals.close(view.id, "done").await;
+
+    assert_eq!(world.step_state(&task, &started).await, TaskStepState::Open);
 }
 
 #[tokio::test]
@@ -409,8 +430,8 @@ fn git_in(folder: &std::path::Path, args: &[&str]) {
     assert!(status.success(), "git {args:?} failed");
 }
 
-async fn snapshot_paths(world: &support::World, task: &rekall_store::task::Model, step: &rekall_store::task_step::Model) -> Option<Vec<String>> {
-    let snapshot = rekall_store::repository::step_snapshot::find(world.db(), task.id, Some(step.id)).await.unwrap()?;
+async fn snapshot_paths(world: &support::World, task: &rekall_store::task::Model) -> Option<Vec<String>> {
+    let snapshot = rekall_store::repository::step_snapshot::find(world.db(), task.id, None).await.unwrap()?;
     let files = rekall_store::repository::step_snapshot::files_of(world.db(), snapshot.id).await.unwrap();
     Some(files.into_iter().map(|file| file.path).collect())
 }
@@ -427,21 +448,20 @@ async fn work_that_starts_running_is_snapshotted_once_and_again_only_after_it_is
     enabled.auto_commit = Set(true);
     let project = enabled.update(world.db()).await.unwrap();
     let task = world.task(&project, "one").await;
-    let step = world.step(&task, "First", 0, TaskStepState::Open).await;
     let marker = world.work_marker();
 
-    marker.mark_running(Some(task.id), Some(step.id)).await;
+    marker.mark_review_running(Some(task.id)).await;
     std::fs::write(folder.join("during.txt"), "the session's own file").unwrap();
-    marker.mark_running(Some(task.id), Some(step.id)).await;
-    assert_eq!(snapshot_paths(&world, &task, &step).await, Some(vec!["before.txt".to_string()]));
+    marker.mark_review_running(Some(task.id)).await;
+    assert_eq!(snapshot_paths(&world, &task).await, Some(vec!["before.txt".to_string()]));
 
-    marker.release_running(Some(task.id), Some(step.id)).await;
-    marker.mark_running(Some(task.id), Some(step.id)).await;
-    assert_eq!(snapshot_paths(&world, &task, &step).await, Some(vec!["before.txt".to_string(), "during.txt".to_string()]));
+    marker.release_review_and_thread(Some(task.id)).await;
+    marker.mark_review_running(Some(task.id)).await;
+    assert_eq!(snapshot_paths(&world, &task).await, Some(vec!["before.txt".to_string(), "during.txt".to_string()]));
 }
 
 #[tokio::test]
-async fn a_session_on_the_task_alone_gives_back_the_entries_it_never_answered() {
+async fn an_ended_session_gives_back_the_entries_it_never_answered() {
     use rekall_store::{task_feedback, FeedbackKind, FeedbackState};
     use sea_orm::{ActiveModelTrait, IntoActiveModel};
     let world = world().await;
@@ -452,29 +472,10 @@ async fn a_session_on_the_task_alone_gives_back_the_entries_it_never_answered() 
     entry.into_active_model().insert(world.db()).await.unwrap();
     let marker = world.work_marker();
 
-    marker.release_running(Some(task.id), None).await;
+    marker.release_review_and_thread(Some(task.id)).await;
 
     let given_back = rekall_store::repository::task_feedback::find_by_seq(world.db(), task.id, 1).await.unwrap().unwrap();
     assert_eq!((given_back.state, given_back.pass), (FeedbackState::Pending, None));
-}
-
-#[tokio::test]
-async fn a_session_on_a_step_leaves_the_running_entries_of_the_thread_alone() {
-    use rekall_store::{task_feedback, FeedbackKind, FeedbackState};
-    use sea_orm::{ActiveModelTrait, IntoActiveModel};
-    let world = world().await;
-    let project = world.project("alpha", None).await;
-    let task = world.task(&project, "one").await;
-    let step = world.step(&task, "First", 0, TaskStepState::Running).await;
-    let mut entry = task_feedback::Model::new(task.id, 1, FeedbackKind::Implementation, "before".into(), "fix it".into(), rekall_kernel::Instant::now());
-    entry.take(1, rekall_kernel::Instant::now());
-    entry.into_active_model().insert(world.db()).await.unwrap();
-    let marker = world.work_marker();
-
-    marker.release_running(Some(task.id), Some(step.id)).await;
-
-    let kept = rekall_store::repository::task_feedback::find_by_seq(world.db(), task.id, 1).await.unwrap().unwrap();
-    assert_eq!((kept.state, kept.pass), (FeedbackState::Running, Some(1)));
 }
 
 #[tokio::test]

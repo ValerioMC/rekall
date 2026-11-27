@@ -170,20 +170,14 @@ async fn a_step_is_started_once_however_many_times_running_is_asked_for() {
     let world = world().await;
     let project = world.project("vega", None, true).await;
     let task = world.task(&project, "report-builder").await;
-    let step = world.step(&task, "First", 0, TaskStepState::Open).await;
+    world.step(&task, "First", 0, TaskStepState::Open).await;
+    let flow = &world.services.flow;
 
-    let first = world.services.steps.mark_running(Some(step.id)).await.unwrap();
-    let again = world.services.steps.mark_running(Some(step.id)).await.unwrap();
-    let from_the_tool = world
-        .services
-        .flow
-        .transition(Some("vega"), "report-builder", Some("1"), TaskStepState::Running, None, None)
-        .await
-        .unwrap();
+    let first = flow.transition(Some("vega"), "report-builder", Some("1"), TaskStepState::Running, None, None).await.unwrap();
+    let again = flow.transition(Some("vega"), "report-builder", Some("1"), TaskStepState::Running, None, None).await.unwrap();
 
-    assert!(first);
-    assert!(!again);
-    assert!(!from_the_tool.started);
+    assert!(first.started);
+    assert!(!again.started);
 }
 
 #[tokio::test]

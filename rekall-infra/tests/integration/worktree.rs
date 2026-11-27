@@ -430,7 +430,7 @@ mod pull_request_lifecycle {
         let sessions = SessionHosts::start(Arc::new(InMemoryTerminalHost::new()), Arc::new(InMemoryTerminalHost::new()), 4)
             .with_work_provider(db.services.terminal_launch.clone());
         let opened = sessions.open(TerminalOpening {
-            target: TerminalTarget::Task(task.id), step_id: None, provider, kind: SessionKind::Chat,
+            target: TerminalTarget::Task(task.id), provider, kind: SessionKind::Chat,
             mode: TerminalMode::Work, skip_permissions: false, model: None, effort: None,
         }).await.unwrap();
         sessions.close(opened.id, "Reopen after restart.").await;

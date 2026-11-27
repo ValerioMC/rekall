@@ -1,6 +1,6 @@
 //! The chat session manager against a stand-in headless `claude` that replays a fixture: opening,
-//! reuse, renewal, the running marker, the idle sweep, shutdown, a crash, and a client that
-//! reattaches from the last event it saw.
+//! reuse, renewal, what an ended session releases, the idle sweep, shutdown, a crash, and a client
+//! that reattaches from the last event it saw.
 
 mod support;
 
@@ -16,7 +16,7 @@ use rekall_infra::session::SessionLauncher;
 use rekall_infra::cli::{ClaudeCli, EnvironmentSource};
 use rekall_infra::ClaudeConfig;
 use rekall_kernel::{Id, RekallError};
-use rekall_store::{task, task_step, TaskStepState};
+use rekall_store::{task, TaskStepState};
 use support::{eventually, world, World};
 
 const FAKE_CLAUDE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/fake_claude.sh");
@@ -117,10 +117,13 @@ fn follow(chats: &Chats, id: Id) -> Follower {
     Follower { backlog, listener }
 }
 
-fn work_on(task: &task::Model, step: Option<&task_step::Model>) -> TerminalOpening {
+async fn review_state(world: &World, task: &task::Model) -> TaskStepState {
+    rekall_store::repository::task::find_by_id(world.db(), task.id).await.unwrap().unwrap().review_state
+}
+
+fn work_on(task: &task::Model) -> TerminalOpening {
     TerminalOpening {
         target: TerminalTarget::Task(task.id),
-        step_id: step.map(|step| step.id),
         provider: Default::default(),
         skip_permissions: true,
         model: Some("opus".into()),
@@ -137,7 +140,7 @@ fn codex_on(task: &task::Model, mode: TerminalMode) -> TerminalOpening {
         effort: Some("high".into()),
         skip_permissions: false,
         mode,
-        ..work_on(task, None)
+        ..work_on(task)
     }
 }
 
@@ -151,14 +154,14 @@ async fn codex_refines_in_chat_and_leaves_the_checklist_open() {
     let chats = chats(&world, 8, 120, &[]);
 
     let view = chats.manager.open(codex_on(&task, TerminalMode::Refine)).await.unwrap();
-    assert_eq!((view.provider, view.kind, view.mode, view.step_id), (SessionProvider::Codex, SessionKind::Chat, TerminalMode::Refine, None));
+    assert_eq!((view.provider, view.kind, view.mode), (SessionProvider::Codex, SessionKind::Chat, TerminalMode::Refine));
     let follower = follow(&chats, view.id);
     eventually("the Refine question", || async { follower.turn_finished() }).await;
     let first_turn = follower.events();
     assert!(matches!(&first_turn[0].body, ChatBody::UserMessage { text } if text.ends_with("task:AL-1 refine")));
     assert!(first_turn.iter().any(|event| matches!(&event.body, ChatBody::AssistantText { text, complete: false, .. } if text.contains("Which region"))));
 
-    let conflict = chats.manager.open(work_on(&task, None)).await.unwrap_err();
+    let conflict = chats.manager.open(work_on(&task)).await.unwrap_err();
     assert!(conflict.message().contains("Codex Chat"));
     chats.manager.send(view.id, "eu-west-1").unwrap();
     eventually("the Refine answer", || async { follower.outcomes().len() == 2 }).await;
@@ -320,36 +323,33 @@ async fn codex_chat_renews_in_the_worktree_with_the_same_options() {
 }
 
 #[tokio::test]
-async fn an_unsupported_codex_chat_leaves_no_live_session_or_running_step() {
+async fn an_unsupported_codex_chat_leaves_no_live_session_and_marks_nothing_running() {
     let world = world().await;
     install_codex(&world);
     let project = world.project("alpha", Some(world.folder.path())).await;
     let task = world.task(&project, "one").await;
-    let step = world.step(&task, "First", 0, TaskStepState::Open).await;
     let chats = chats(&world, 8, 120, &[("FAKE_CODEX_CHAT_UNSUPPORTED", "1")]);
-    let opening = TerminalOpening { step_id: Some(step.id), ..codex_on(&task, TerminalMode::Work) };
 
-    let error = chats.manager.open(opening).await.unwrap_err();
+    let error = chats.manager.open(codex_on(&task, TerminalMode::Work)).await.unwrap_err();
 
     assert!(error.message().starts_with("Codex Chat could not start."));
     assert!(error.message().contains("Unknown method thread/start"));
     assert_eq!(chats.manager.live_count(), 0);
-    assert_eq!(world.step_state(&task, &step).await, TaskStepState::Open);
+    assert_eq!(review_state(&world, &task).await, TaskStepState::Open);
 }
 
 #[tokio::test]
-async fn a_chat_session_starts_claude_in_the_project_folder_marks_the_step_and_streams_the_first_turn() {
+async fn a_chat_session_starts_claude_in_the_project_folder_marks_the_review_line_and_streams_the_first_turn() {
     let world = world().await;
     let project = world.project("alpha", Some(world.folder.path())).await;
     let task = world.task(&project, "one").await;
-    let step = world.step(&task, "First", 0, TaskStepState::Open).await;
     let chats = chats(&world, 8, 120, &[]);
 
-    let view = chats.manager.open(work_on(&task, Some(&step))).await.unwrap();
+    let view = chats.manager.open(work_on(&task)).await.unwrap();
 
-    assert_eq!((view.kind, view.live, view.step_id), (SessionKind::Chat, true, Some(step.id)));
+    assert_eq!((view.kind, view.live), (SessionKind::Chat, true));
     assert_eq!((view.anchors.as_str(), view.model.as_deref()), ("task:AL-1", Some("opus")));
-    assert_eq!(world.step_state(&task, &step).await, TaskStepState::Running);
+    assert_eq!(review_state(&world, &task).await, TaskStepState::Running);
     let follower = follow(&chats, view.id);
     eventually("the first turn to finish", || async { follower.turn_finished() }).await;
     let events = follower.events();
@@ -359,23 +359,62 @@ async fn a_chat_session_starts_claude_in_the_project_folder_marks_the_step_and_s
 }
 
 #[tokio::test]
-async fn a_second_open_on_the_task_reuses_the_session_and_moves_the_running_marker() {
+async fn a_second_open_on_the_task_reuses_the_session_and_sends_the_work_line_again() {
     let world = world().await;
     let project = world.project("alpha", Some(world.folder.path())).await;
     let task = world.task(&project, "one").await;
-    let first = world.step(&task, "First", 0, TaskStepState::Open).await;
-    let second = world.step(&task, "Second", 1, TaskStepState::Open).await;
     let chats = chats(&world, 8, 120, &[]);
-    let view = chats.manager.open(work_on(&task, Some(&first))).await.unwrap();
+    let view = chats.manager.open(work_on(&task)).await.unwrap();
 
-    let again = chats.manager.open(work_on(&task, Some(&second))).await.unwrap();
+    let again = chats.manager.open(work_on(&task)).await.unwrap();
 
     assert_eq!(again.id, view.id);
-    assert_eq!(again.step_id, Some(second.id));
     assert_eq!(chats.manager.live_count(), 1);
-    assert_eq!(world.step_state(&task, &first).await, TaskStepState::Open);
-    assert_eq!(world.step_state(&task, &second).await, TaskStepState::Running);
     eventually("the work line sent again", || async { chats.received_lines().len() == 2 }).await;
+}
+
+#[tokio::test]
+async fn closing_a_work_chat_puts_the_step_it_left_running_back_to_open() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let chats = chats(&world, 8, 120, &[]);
+    let view = chats.manager.open(work_on(&task)).await.unwrap();
+    let started = world.step(&task, "First", 0, TaskStepState::Running).await;
+
+    chats.manager.close(view.id, "done").await.unwrap();
+
+    assert_eq!(world.step_state(&task, &started).await, TaskStepState::Open);
+}
+
+#[tokio::test]
+async fn a_discuss_chat_never_given_work_leaves_a_running_step_running() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let chats = chats(&world, 8, 120, &[]);
+    let view = chats.manager.open(TerminalOpening { mode: TerminalMode::Discuss, ..work_on(&task) }).await.unwrap();
+    let started = world.step(&task, "First", 0, TaskStepState::Running).await;
+
+    chats.manager.close(view.id, "done").await.unwrap();
+
+    assert_eq!(world.step_state(&task, &started).await, TaskStepState::Running);
+}
+
+#[tokio::test]
+async fn a_discuss_chat_later_given_run_here_releases_the_running_step_when_it_ends() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let task = world.task(&project, "one").await;
+    let chats = chats(&world, 8, 120, &[]);
+    let discussion = chats.manager.open(TerminalOpening { mode: TerminalMode::Discuss, ..work_on(&task) }).await.unwrap();
+    let working = chats.manager.open(work_on(&task)).await.unwrap();
+    assert_eq!(working.id, discussion.id);
+    let started = world.step(&task, "First", 0, TaskStepState::Running).await;
+
+    chats.manager.close(discussion.id, "done").await.unwrap();
+
+    assert_eq!(world.step_state(&task, &started).await, TaskStepState::Open);
 }
 
 #[tokio::test]
@@ -383,9 +422,8 @@ async fn renewing_a_work_session_closes_it_and_opens_another_with_the_same_choic
     let world = world().await;
     let project = world.project("alpha", Some(world.folder.path())).await;
     let task = world.task(&project, "one").await;
-    let step = world.step(&task, "First", 0, TaskStepState::Open).await;
     let chats = chats(&world, 8, 120, &[]);
-    let view = chats.manager.open(work_on(&task, Some(&step))).await.unwrap();
+    let view = chats.manager.open(work_on(&task)).await.unwrap();
     let mut ended = chats.manager.subscribe_ended();
 
     let renewed = chats.manager.renew(view.id).await.unwrap();
@@ -403,7 +441,7 @@ async fn only_a_session_working_steps_can_be_renewed() {
     let project = world.project("alpha", Some(world.folder.path())).await;
     let task = world.task(&project, "one").await;
     let chats = chats(&world, 8, 120, &[]);
-    let plan = TerminalOpening { mode: TerminalMode::Plan, ..work_on(&task, None) };
+    let plan = TerminalOpening { mode: TerminalMode::Plan, ..work_on(&task) };
     let view = chats.manager.open(plan).await.unwrap();
 
     let refused = chats.manager.renew(view.id).await.unwrap_err();
@@ -414,13 +452,13 @@ async fn only_a_session_working_steps_can_be_renewed() {
 }
 
 #[tokio::test]
-async fn the_idle_sweep_closes_a_session_with_no_activity_and_releases_its_step() {
+async fn the_idle_sweep_closes_a_session_with_no_activity_and_releases_the_running_step() {
     let world = world().await;
     let project = world.project("alpha", Some(world.folder.path())).await;
     let task = world.task(&project, "one").await;
-    let step = world.step(&task, "First", 0, TaskStepState::Open).await;
     let chats = chats(&world, 8, 0, &[]);
-    let view = chats.manager.open(work_on(&task, Some(&step))).await.unwrap();
+    let view = chats.manager.open(work_on(&task)).await.unwrap();
+    let step = world.step(&task, "First", 0, TaskStepState::Running).await;
     tokio::time::sleep(Duration::from_millis(50)).await;
 
     chats.manager.sweep_idle().await;
@@ -435,7 +473,7 @@ async fn the_idle_sweep_leaves_a_session_waiting_on_a_permission_prompt_open() {
     let project = world.project("alpha", Some(world.folder.path())).await;
     let task = world.task(&project, "one").await;
     let chats = chats(&world, 8, 0, &[("FAKE_CLAUDE_FIXTURE", WAITING_FOR_PERMISSION)]);
-    let view = chats.manager.open(work_on(&task, None)).await.unwrap();
+    let view = chats.manager.open(work_on(&task)).await.unwrap();
     let follower = follow(&chats, view.id);
     eventually("the permission request", || async { follower.requested_permission().is_some() }).await;
     assert!(chats.manager.get(view.id).unwrap().awaiting_permission);
@@ -447,16 +485,16 @@ async fn the_idle_sweep_leaves_a_session_waiting_on_a_permission_prompt_open() {
 }
 
 #[tokio::test]
-async fn shutdown_ends_every_session_tells_its_clients_and_releases_the_markers() {
+async fn shutdown_ends_every_session_tells_its_clients_and_releases_the_running_steps() {
     let world = world().await;
     let project = world.project("alpha", Some(world.folder.path())).await;
     let one = world.task(&project, "one").await;
     let two = world.task(&project, "two").await;
-    let step_one = world.step(&one, "First", 0, TaskStepState::Open).await;
-    let step_two = world.step(&two, "First", 0, TaskStepState::Open).await;
     let chats = chats(&world, 8, 120, &[]);
-    let first = chats.manager.open(work_on(&one, Some(&step_one))).await.unwrap();
-    chats.manager.open(work_on(&two, Some(&step_two))).await.unwrap();
+    let first = chats.manager.open(work_on(&one)).await.unwrap();
+    chats.manager.open(work_on(&two)).await.unwrap();
+    let step_one = world.step(&one, "First", 0, TaskStepState::Running).await;
+    let step_two = world.step(&two, "First", 0, TaskStepState::Running).await;
     let listener = Arc::new(RecordingChatListener::new());
     chats.manager.attach(first.id, listener.clone(), 0).unwrap();
 
@@ -470,14 +508,14 @@ async fn shutdown_ends_every_session_tells_its_clients_and_releases_the_markers(
 }
 
 #[tokio::test]
-async fn a_process_that_crashes_releases_its_step_and_announces_the_end() {
+async fn a_process_that_crashes_releases_the_running_step_and_announces_the_end() {
     let world = world().await;
     let project = world.project("alpha", Some(world.folder.path())).await;
     let task = world.task(&project, "one").await;
-    let step = world.step(&task, "First", 0, TaskStepState::Open).await;
     let chats = chats(&world, 8, 120, &[("FAKE_CLAUDE_EXIT_CODE", "3"), ("FAKE_CLAUDE_EXIT_DELAY", "0.5")]);
     let mut ended = chats.manager.subscribe_ended();
-    let view = chats.manager.open(work_on(&task, Some(&step))).await.unwrap();
+    let view = chats.manager.open(work_on(&task)).await.unwrap();
+    let step = world.step(&task, "First", 0, TaskStepState::Running).await;
     let follower = follow(&chats, view.id);
 
     let end = tokio::time::timeout(Duration::from_secs(10), ended.recv()).await.unwrap().unwrap();
@@ -495,7 +533,7 @@ async fn attaching_after_a_seq_returns_only_the_newer_events() {
     let project = world.project("alpha", Some(world.folder.path())).await;
     let task = world.task(&project, "one").await;
     let chats = chats(&world, 8, 120, &[]);
-    let view = chats.manager.open(work_on(&task, None)).await.unwrap();
+    let view = chats.manager.open(work_on(&task)).await.unwrap();
     let first = follow(&chats, view.id);
     eventually("the first turn to finish", || async { first.turn_finished() }).await;
     let seen = first.events().last().map(|event| event.seq).unwrap();
@@ -517,10 +555,10 @@ async fn a_session_past_the_cap_is_refused_and_a_folder_that_is_gone_is_a_confli
     let two = world.task(&project, "two").await;
     let elsewhere = world.task(&lost, "three").await;
     let chats = chats(&world, 1, 120, &[]);
-    chats.manager.open(work_on(&one, None)).await.unwrap();
+    chats.manager.open(work_on(&one)).await.unwrap();
 
-    let capped = chats.manager.open(work_on(&two, None)).await.unwrap_err();
-    let missing = chats.manager.open(work_on(&elsewhere, None)).await.unwrap_err();
+    let capped = chats.manager.open(work_on(&two)).await.unwrap_err();
+    let missing = chats.manager.open(work_on(&elsewhere)).await.unwrap_err();
 
     assert!(matches!(capped, RekallError::Conflict(ref said) if said.contains("1 chat sessions")), "{capped:?}");
     assert!(matches!(missing, RekallError::Conflict(ref said) if said.contains("is not there")), "{missing:?}");
@@ -531,7 +569,7 @@ async fn open_waiting_on_permission(world: &World, fixture: &str) -> (Chats, Id,
     let project = world.project("alpha", Some(world.folder.path())).await;
     let task = world.task(&project, "one").await;
     let chats = chats(world, 8, 120, &[("FAKE_CLAUDE_FIXTURE", fixture)]);
-    let view = chats.manager.open(work_on(&task, None)).await.unwrap();
+    let view = chats.manager.open(work_on(&task)).await.unwrap();
     let follower = follow(&chats, view.id);
     eventually("the permission request", || async { follower.requested_permission().is_some() }).await;
     let request_id = follower.requested_permission().unwrap();

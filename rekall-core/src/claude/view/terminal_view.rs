@@ -10,7 +10,6 @@ pub struct TerminalView {
     pub id: Id,
     pub project_id: Id,
     pub task_id: Option<Id>,
-    pub step_id: Option<Id>,
     pub anchors: String,
     pub working_dir: String,
     pub project_label: String,

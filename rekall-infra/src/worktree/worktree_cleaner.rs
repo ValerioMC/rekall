@@ -215,7 +215,6 @@ impl Cleaner {
 fn merge_opening(task_id: Id, provider: SessionProvider, mode: TerminalMode) -> TerminalOpening {
     TerminalOpening {
         target: TerminalTarget::Task(task_id),
-        step_id: None,
         provider,
         skip_permissions: false,
         model: None,
