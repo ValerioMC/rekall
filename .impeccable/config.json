@@ -207,6 +207,15 @@
         ],
         "createdAt": "2026-11-27T08:57:23.815Z",
         "reason": "false positive: segmented control buttons fill the bordered container by design, as in the console's SegmentedControl.vue (assistant triage, not user confirmed)"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/table-columns/index.html"
+        ],
+        "createdAt": "2026-11-27T12:57:35.465Z",
+        "reason": "false positive: segmented control buttons fill the bordered container by design, and the mock toolbar text is vertically centred in a fixed 36px row (model triage, not user confirmed)"
       }
     ]
   }
