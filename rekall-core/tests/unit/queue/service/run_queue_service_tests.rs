@@ -4,7 +4,7 @@ use rekall_store::{company, project, task, task_step, ProjectStatus, TaskStepSta
 
 use super::*;
 use crate::claude::{CodexSessionOptions, SessionProvider};
-use crate::queue::QueueLaunch;
+use crate::queue::{ClaudeQueueOptions, QueueLaunch};
 use crate::EventBus;
 
 struct World {
@@ -64,6 +64,10 @@ async fn an_idle_queue_starts_with_the_task_it_is_given() {
 async fn queue_frames_carry_each_items_provider_and_validated_options() {
     let world = world().await;
     world.service.add(world.first, QueueLaunch::default()).await.unwrap();
+    world.service.add(world.third, QueueLaunch {
+        claude_options: Some(ClaudeQueueOptions { model: Some("Sonnet".into()), effort: Some("default".into()) }),
+        ..QueueLaunch::default()
+    }).await.unwrap();
     let mut events = world.events.subscribe();
     let launch = QueueLaunch {
         provider: SessionProvider::Codex,
@@ -72,6 +76,7 @@ async fn queue_frames_carry_each_items_provider_and_validated_options() {
             effort: Some("default".into()),
             skip_permissions: true,
         }),
+        ..QueueLaunch::default()
     };
 
     let view = world.service.add_and_arm(world.second, launch).await.unwrap();
@@ -80,8 +85,12 @@ async fn queue_frames_carry_each_items_provider_and_validated_options() {
 
     assert_eq!(frame.0, view);
     assert_eq!(view.items[0].launch, QueueLaunch::default());
-    assert_eq!(view.items[1].launch.provider, SessionProvider::Codex);
-    assert_eq!(view.items[1].launch.codex_options, Some(CodexSessionOptions {
+    assert_eq!(view.items[1].launch.claude_options, Some(ClaudeQueueOptions {
+        model: Some("sonnet".into()),
+        effort: None,
+    }));
+    assert_eq!(view.items[2].launch.provider, SessionProvider::Codex);
+    assert_eq!(view.items[2].launch.codex_options, Some(CodexSessionOptions {
         model: Some("example/codex".into()),
         effort: None,
         skip_permissions: true,

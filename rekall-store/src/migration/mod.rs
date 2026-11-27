@@ -74,6 +74,7 @@ mod m095_project_export;
 mod m096_tracker_picture;
 mod m097_run_queue_provider;
 mod m098_task_branch_delivery;
+mod m099_run_queue_claude_options;
 mod migration_support;
 mod migrator;
 

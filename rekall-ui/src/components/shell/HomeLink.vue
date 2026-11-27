@@ -3,7 +3,7 @@ import AppLogo from '@/components/ui/AppLogo.vue'
 import { useConsoleStore } from '@/stores/console.store'
 
 /**
- * The Rekall icon at the header's left edge. Pressing it opens the project list and clears the scope
+ * The Rekall icon in the header navigation. Pressing it opens the project list and clears the scope
  * left on, so no company or project narrows what the other screens show.
  */
 const consoleStore = useConsoleStore()

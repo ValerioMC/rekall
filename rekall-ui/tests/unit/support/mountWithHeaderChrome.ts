@@ -9,7 +9,7 @@ import type { Component } from 'vue'
  * its teleported content share — so `find`/`findAll`/`get`/`text`/`html` keep seeing it.
  */
 export function mountWithHeaderChrome(component: Component, options: MountingOptions<never> = {}) {
-  document.body.innerHTML = '<div id="app-header-extra"></div>'
+  document.body.innerHTML = '<div id="app-header-extra"></div><div id="app-header-actions"></div>'
   const wrapper = mount(component, { ...options, attachTo: document.body })
   const body = new DOMWrapper(document.body)
   return Object.assign(wrapper, {

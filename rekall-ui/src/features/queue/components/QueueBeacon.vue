@@ -82,7 +82,7 @@ const label = computed(() => {
 <template>
   <button
     type="button"
-    class="status-segment focus-ring group min-w-0 max-w-[340px] pl-1.5"
+    class="status-segment focus-ring group min-w-0 max-w-[340px] pl-1.5 @max-[24rem]:px-1.5"
     :class="
       queue.state === 'HOLDING'
         ? 'bg-warn-soft text-warn'
@@ -105,7 +105,7 @@ const label = computed(() => {
       :steps="progress.steps"
     />
 
-    <span class="flex min-w-0 items-baseline gap-1.5" data-testid="queue-beacon-line">
+    <span class="flex min-w-0 items-baseline gap-1.5 @max-[22rem]:hidden" data-testid="queue-beacon-line">
       <template v-if="queue.state === 'SCHEDULED'">
         <span class="sr-only @min-[43rem]:not-sr-only">Starts</span>
         <span class="font-mono tabular-nums text-accent">{{ clockLabel(queue.startAt, now) }}</span>

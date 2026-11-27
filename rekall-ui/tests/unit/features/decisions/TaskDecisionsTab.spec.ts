@@ -3,9 +3,10 @@ import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import * as api from '@/features/decisions/api/decisions.api'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
-import { preferredProvider, setPreferredProvider } from '@/common/config/session-launch'
+import { setPreferredProvider } from '@/common/config/session-launch'
 import TaskDecisionsTab from '@/features/task/components/TaskDecisionsTab.vue'
 import { useConsoleStore } from '@/stores/console.store'
+import type { Terminal } from '@/features/claude/model/terminal'
 import type { Task } from '@/features/catalog/model/catalog'
 import { answered, decision, TASK } from './fixtures'
 import { installStorage } from '../../support/memoryStorage'
@@ -23,11 +24,8 @@ async function settle(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve))
 }
 
-async function chooseRefine(page: ReturnType<typeof mountTab>, provider: 'CLAUDE' | 'CODEX'): Promise<void> {
+async function refine(page: ReturnType<typeof mountTab>): Promise<void> {
   await page.get('[data-testid="decision-refine"]').trigger('click')
-  const option = document.querySelector<HTMLButtonElement>(`[data-testid="session-provider-${provider}"]`)!
-  option.click()
-  option.click()
   await flushPromises()
 }
 
@@ -130,17 +128,15 @@ describe('the Decisions tab', () => {
   })
 
   it.each(['CLAUDE', 'CODEX'] as const)('refines with %s and shows its answer in the task ledger', async (provider) => {
-    const preferred = provider === 'CODEX' ? 'CLAUDE' : 'CODEX'
-    setPreferredProvider(preferred)
+    setPreferredProvider(provider)
     vi.mocked(api.fetchDecisions).mockResolvedValue({ decisions: [], sessionBlock: '' })
     const planForTask = vi.spyOn(useTerminalStore(), 'planForTask').mockResolvedValue({} as never)
     const page = mountTab()
     await settle()
 
-    await chooseRefine(page, provider)
+    await refine(page)
 
     expect(planForTask).toHaveBeenCalledTimes(1)
-    expect(preferredProvider()).toBe(preferred)
     expect(planForTask).toHaveBeenCalledWith(TASK, expect.objectContaining({ provider }), 'REFINE', '')
 
     vi.mocked(api.fetchDecisions).mockResolvedValue({
@@ -153,13 +149,26 @@ describe('the Decisions tab', () => {
     expect(page.get('[data-testid="decision-ledger"]').text()).toContain('eu-west-1')
   })
 
+  it('sends Refine to the task’s live Claude Code session with Codex selected', async () => {
+    setPreferredProvider('CODEX')
+    vi.mocked(api.fetchDecisions).mockResolvedValue({ decisions: [], sessionBlock: '' })
+    const terminals = useTerminalStore()
+    terminals.terminals = [{ taskId: TASK, live: true, provider: 'CLAUDE' } as Terminal]
+    const planForTask = vi.spyOn(terminals, 'planForTask').mockResolvedValue({} as never)
+    const page = mountTab({ ...task, projectRepoFolder: null })
+
+    await refine(page)
+
+    expect(planForTask).toHaveBeenCalledWith(TASK, expect.objectContaining({ provider: 'CLAUDE' }), 'REFINE', '')
+  })
+
   it('refuses to start a session when the project has no folder', async () => {
     vi.mocked(api.fetchDecisions).mockResolvedValue({ decisions: [], sessionBlock: '' })
     const planForTask = vi.spyOn(useTerminalStore(), 'planForTask').mockResolvedValue({} as never)
     const page = mountTab({ ...task, projectRepoFolder: null } as Task)
     await settle()
 
-    await chooseRefine(page, 'CODEX')
+    await refine(page)
 
     expect(planForTask).not.toHaveBeenCalled()
   })

@@ -1,3 +1,4 @@
+pub(super) mod claude_queue_options;
 pub(super) mod queue_launch;
 pub(super) mod run_queue_frame;
 pub(super) mod snapshot;

@@ -10,7 +10,7 @@ use tracing::{info, warn};
 use super::{Active, Worker};
 
 impl Worker {
-    pub(super) async fn launch(&mut self, item: RunQueueItemView, snapshot: &Snapshot) -> Result<()> {
+    pub(super) async fn launch(&mut self, item: RunQueueItemView, opening: TerminalOpening, parallel_sessions: i32) -> Result<()> {
         let before = match self.work.read(item.task_id).await {
             Ok(before) => before,
             Err(RekallError::UnknownAnchor(_)) => {
@@ -25,12 +25,12 @@ impl Worker {
             let reason = live_session_conflict(&existing);
             return self.queue.mark_item(item.id, RunQueueItemState::Failed, Some(&reason)).await;
         }
-        if self.works_on_its_own_branch(&item, snapshot.parallel_sessions).await {
+        if self.works_on_its_own_branch(&item, parallel_sessions).await {
             if let Err(refused) = self.worktrees.ensure(item.task_id).await {
                 return self.park(&item, &refused).await;
             }
         }
-        let opened = match self.terminals.open(queue_opening(&item, snapshot)).await {
+        let opened = match self.terminals.open(opening).await {
             Ok(opened) => opened,
             Err(refused @ (RekallError::Conflict(_) | RekallError::IllegalArgument(_) | RekallError::UnknownAnchor(_))) => {
                 return self.queue.mark_item(item.id, RunQueueItemState::Failed, Some(refused.message())).await;
@@ -88,10 +88,16 @@ impl Worker {
     }
 }
 
-fn queue_opening(item: &RunQueueItemView, snapshot: &Snapshot) -> TerminalOpening {
+pub(super) fn queue_opening(item: &RunQueueItemView, snapshot: &Snapshot) -> TerminalOpening {
     let provider = item.launch.provider;
     let (skip_permissions, model, effort) = match provider {
-        SessionProvider::Claude => (snapshot.skip_permissions, snapshot.model.clone(), snapshot.effort.clone()),
+        SessionProvider::Claude => {
+            let (model, effort) = match &item.launch.claude_options {
+                Some(options) => (options.model.clone(), options.effort.clone()),
+                None => (snapshot.model.clone(), snapshot.effort.clone()),
+            };
+            (snapshot.skip_permissions, model, effort)
+        }
         SessionProvider::Codex => {
             let options = item.launch.codex_options.clone().unwrap_or_default();
             (options.skip_permissions, options.model, options.effort)

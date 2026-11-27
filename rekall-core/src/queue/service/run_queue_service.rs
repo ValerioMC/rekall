@@ -9,8 +9,8 @@ use crate::{in_read, in_write, Ctx, Tx};
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel};
 
 use crate::queue::RunQueueFrame;
-use crate::queue::{BlockedItem, NextTurn, RunQueueView};
-use crate::claude::{SessionKind, EFFORT_LEVELS, MODEL_ALIASES};
+use crate::queue::{BlockedItem, ClaudeQueueOptions, NextTurn, RunQueueView};
+use crate::claude::SessionKind;
 
 use crate::queue::Snapshot;
 
@@ -66,8 +66,12 @@ impl RunQueueService {
             let mut queue = self.queue(&tx).await?;
             queue.ceiling_percent = ceiling_percent;
             queue.skip_permissions = skip_permissions;
-            queue.model = choice(model, &MODEL_ALIASES, "model")?;
-            queue.effort = choice(effort, &EFFORT_LEVELS, "effort")?;
+            let options = ClaudeQueueOptions::new(
+                model.filter(|value| !jstr::is_blank(value)),
+                effort.filter(|value| !jstr::is_blank(value)),
+            )?;
+            queue.model = options.model;
+            queue.effort = options.effort;
             queue.session_kind = session_kind;
             queue.parallel_sessions = parallel_sessions;
             self.publish(&mut tx, queue).await
@@ -330,19 +334,6 @@ async fn renumber(tx: &Tx, ordered: Vec<run_queue_item::Model>) -> Result<()> {
 
 async fn task_title(tx: &Tx, task_id: Id) -> Result<String> {
     Ok(repo::task::find_by_id(tx.db(), task_id).await?.map(|t| t.title).unwrap_or_default())
-}
-
-/// Blank or `default` is the account's own setting; anything else must be offered.
-fn choice(value: Option<&str>, allowed: &[&str], what: &str) -> Result<Option<String>> {
-    let Some(value) = value else { return Ok(None) };
-    if jstr::is_blank(value) || jstr::equals_ignore_case(jstr::strip(value), "default") {
-        return Ok(None);
-    }
-    let normalised = jstr::strip(value).to_lowercase();
-    if !allowed.contains(&normalised.as_str()) {
-        return Err(RekallError::illegal(format!("'{value}' is not a {what} Claude Code accepts.")));
-    }
-    Ok(Some(normalised))
 }
 
 #[cfg(test)]

@@ -3,7 +3,7 @@ use rekall_store::{project, run_queue_item, task, RunQueueItemState, SessionProv
 use serde::Serialize;
 
 use crate::claude::{CodexSessionOptions, StepProgress};
-use crate::queue::{QueueLaunch, RunQueueWaitView};
+use crate::queue::{ClaudeQueueOptions, QueueLaunch, RunQueueWaitView};
 
 /// One queued task, with enough of the task to name it without a second request, and its
 /// released steps with the one being worked (none for a task with no checklist), and the
@@ -41,6 +41,10 @@ impl RunQueueItemView {
             state: item.state,
             launch: QueueLaunch {
                 provider: item.provider,
+                claude_options: (item.provider == SessionProvider::Claude && item.claude_options_configured).then(|| ClaudeQueueOptions {
+                    model: item.claude_model.clone(),
+                    effort: item.claude_effort.clone(),
+                }),
                 codex_options: (item.provider == SessionProvider::Codex).then(|| CodexSessionOptions {
                     model: item.codex_model.clone(),
                     effort: item.codex_effort.clone(),

@@ -7,6 +7,7 @@ mod service;
 mod view;
 
 pub use port::queue_runner::QueueRunner;
+pub use model::claude_queue_options::ClaudeQueueOptions;
 pub use model::queue_launch::QueueLaunch;
 pub use model::run_queue_frame::RunQueueFrame;
 pub use view::run_queue_item_view::RunQueueItemView;

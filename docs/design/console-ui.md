@@ -75,7 +75,7 @@ console are gone; their tabs are on the task page.
 
 ### The grouped menu
 
-The Rekall mark to the left of the menu key opens the project list and clears the scope left on (`HomeLink`).
+Back and Forward precede the section menu and project switcher. The Rekall mark opens the project list and clears the scope left on (`HomeLink`). The provider selector sits after centered search, before status.
 
 The menu key in the header is three lines, the name of the screen on display, the alert total and a chevron
 (`AppNavMenu`, `nav-menu-label`); it opens every screen under its section:
@@ -212,12 +212,10 @@ and project) with the task's actions at its right (Log commit, Open in terminal 
 Run here, each offered once), and the title alone beneath. The tab strip is Description, Plan,
 Changes, Wrapup, Notes, Time and Deviations, with counts where a count means something (steps,
 logged commits, notes, deviations) and an amber one on Plan while a step waits for review; at its
-right is the width key. Left of the **Run here** key sits its provider switch
-(`SessionProviderSwitch`), two marks in a flat radio group: the lit one is what the key and its
-menu start. The choice is per task, kept in the browser (`useTaskProviderStore`), and a live
-session holds it on its own provider (`useRunProvider`). The **Run here** menu (`RunMenuArrow`)
-names that provider and is two groups split by a separator: running (Run in queue) and preparing
-(Discuss, Plan here, Plan a flow, Replan; Discuss is offered whatever steps the task has).
+right is the width key. **Run here** uses the provider in the top bar for a new session, or
+the live session’s provider (`useRunProvider`). The **Run here** menu (`RunMenuArrow`) names
+that provider. Its running group opens the shared queue launch form, and its preparation
+group offers Discuss, Plan here, Plan a flow and Replan as the task permits.
 The arrow keys walk the menu items only, so they pass over the separator, and a menu with no room
 under its key, as in a step's dock, opens above it (`useAnchoredMenu`). A discussion holding no step
 does not turn the key to Working (`sessionAtWork`).
@@ -533,17 +531,18 @@ an `icon` size and `pressed`, which lights a toggle as `key-lit` and sets `aria-
 toolbar keys stop being hand-built from the keycap utilities. A control drawn smaller than 24px
 takes `hit-target`, which grows the pointer target, not the glyph.
 
-The header is one 48px row (`--spacing-header`), a three-cell grid. The left cell holds the 24px
-mark, the menu key, the history arrows and the project key. The menu key is a bare three-line burger that opens every screen
+The header is one 48px row (`--spacing-header`), a three-cell grid. The left cell holds Back and
+Forward, the section menu, the project switcher and the Home mark in that order. The menu key opens every screen
 grouped under its section (`AppNavMenu`); its accessible label names the screen on display and sums
 the alerts, and each alert shows beside its entry. The centre cell, at most 620px, is the
 `/rk` field: at rest it shows the open task's or project's anchors as chips, and `⌘K` or a click opens
-the switcher. The right cell is one 36px `header-capsule` with the field's corner, usage, the run
-queue and the review count (`HeaderStatus`, segments drawn with `status-segment`), where review is
+the switcher. The right cell starts with the session provider, followed by a 36px `header-capsule`
+with usage, the run queue and the review count (`HeaderStatus`, segments drawn with `status-segment`), where review is
 the only amber segment because it is the only one asking for action; beside it the save dot, Tags
 and Settings (`header-key`). The save state is a dot whose word is for screen readers and the
-tooltip. The bar gives way under 1280px: the anchors keep only the last one and the review segment
-drops its words; under 1100px the `⌘K` hint goes. The usage segment opens the usage detail and the
+tooltip. As its cells narrow, the bar keeps the last anchor, shows the section menu as an icon and
+truncates the project name to fit. Status controls shorten their readings as space runs out,
+and the `⌘K` hint disappears under 1100px. The usage segment opens the usage detail and the
 queue segment opens the list of queued and running tasks.
 
 The run queue shows a task's steps in two places, from one value (`runProgress(queue).steps`: the

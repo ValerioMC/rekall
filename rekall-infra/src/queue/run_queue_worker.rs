@@ -18,6 +18,7 @@ use tracing::{info, warn};
 use super::usage_ceiling::Verdict;
 use super::RunQueueUsage;
 use rekall_core::queue::{NextTurn, RunQueueService, RunQueueView, Snapshot};
+use launch::queue_opening;
 
 mod launch;
 mod renewal;
@@ -212,8 +213,9 @@ impl Worker {
                     return Ok(());
                 }
             };
+            let opening = queue_opening(&next, &snapshot);
             let verdict = self.usage
-                .check(next.launch.provider, snapshot.ceiling_percent, snapshot.model.as_deref(), refresh_usage, &self.clock)
+                .check(opening.provider, snapshot.ceiling_percent, opening.model.as_deref(), refresh_usage, &self.clock)
                 .await;
             refresh_usage = false;
             if !verdict.clear {
@@ -223,7 +225,7 @@ impl Worker {
                 }
                 return Ok(());
             }
-            self.launch(next, &snapshot).await?;
+            self.launch(next, opening, snapshot.parallel_sessions).await?;
         }
     }
 

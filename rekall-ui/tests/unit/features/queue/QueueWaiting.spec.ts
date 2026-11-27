@@ -20,6 +20,7 @@ function item(id: string, waitingFor: RunQueueWait[] = [], state: RunQueueItem['
   return {
     id: asRunQueueItemId(id),
     provider: 'CLAUDE',
+    claudeOptions: null,
     codexOptions: null,
     taskId: asTaskId(`t-${id}`),
     taskTitle: `Task ${id}`,

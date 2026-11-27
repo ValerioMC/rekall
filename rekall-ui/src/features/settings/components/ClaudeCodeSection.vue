@@ -234,7 +234,7 @@ onMounted(() => void load())
       </SessionPermissionSwitch>
 
       <p class="border-t border-border px-5 py-3 text-small leading-relaxed text-text-subtle">
-        The run queue has its own Claude Code model, effort and permission setting, in its panel.
+        Choose the model and effort when you add a task to the run queue. Queue settings control permission prompts and model and effort defaults for older entries.
       </p>
     </template>
 

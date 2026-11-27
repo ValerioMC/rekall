@@ -21,11 +21,12 @@ export const RunQueueWaitSchema = z.object({
   inQueue: z.boolean()
 })
 
-const QueuedCodexOptionsSchema = z.object({
+const QueuedClaudeOptionsSchema = z.object({
   model: z.string().nullable(),
-  effort: z.string().nullable(),
-  skipPermissions: z.boolean()
+  effort: z.string().nullable()
 })
+
+const QueuedCodexOptionsSchema = QueuedClaudeOptionsSchema.extend({ skipPermissions: z.boolean() })
 
 export const RunQueueItemSchema = z.object({
   id: z.string().uuid().transform(asRunQueueItemId),
@@ -37,6 +38,7 @@ export const RunQueueItemSchema = z.object({
   position: z.number().int(),
   state: z.enum(RUN_QUEUE_ITEM_STATES),
   provider: z.enum(SESSION_PROVIDERS).default('CLAUDE'),
+  claudeOptions: QueuedClaudeOptionsSchema.nullable().default(null),
   codexOptions: QueuedCodexOptionsSchema.nullable().default(null),
   detail: z.string().nullable(),
   startedAt: z.string().nullable(),

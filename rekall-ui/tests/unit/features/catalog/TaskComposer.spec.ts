@@ -6,9 +6,8 @@ import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useToastStore } from '@/stores/toast.store'
 import { QUICK_TASK_HELP } from '@/features/catalog/lib/quick-task'
-import { preferredProvider, setCodexEffort, setCodexModel } from '@/common/config/session-launch'
+import { setCodexEffort, setCodexModel, setPreferredProvider } from '@/common/config/session-launch'
 import { installStorage } from '../../support/memoryStorage'
-import { installBothSessionProviders } from '../../support/sessionProviders'
 import { taskFixture } from '../../support/taskFixture'
 import type { QuickTaskStarted } from '@/features/catalog/api/quick-task.api'
 import type { Project } from '@/features/catalog/model/catalog'
@@ -76,8 +75,8 @@ describe('TaskComposer', () => {
     expect(create).not.toHaveBeenCalled()
   })
 
-  it('starts a quick task with Codex from the arrow menu', async () => {
-    installBothSessionProviders()
+  it('starts a quick task with the global provider', async () => {
+    setPreferredProvider('CODEX')
     setCodexModel('gpt-test')
     setCodexEffort('high')
     const create = vi.spyOn(useConsoleStore(), 'createQuickTask').mockResolvedValue(STARTED)
@@ -85,15 +84,14 @@ describe('TaskComposer', () => {
 
     await type(wrapper, 'Fix the typo')
     await wrapper.get('[data-testid="split-button-arrow"]').trigger('click')
-    expect(document.body.querySelector('[data-testid="split-button-option-CODEX"] svg')?.getAttribute('data-provider')).toBe('CODEX')
-    expect(document.body.querySelector('[data-testid="split-button-option-CLAUDE"] svg')?.getAttribute('data-provider')).toBe('CLAUDE')
-    document.body.querySelector<HTMLButtonElement>('[data-testid="split-button-option-CODEX"]')!.click()
+    expect(document.body.querySelector('[data-testid="split-button-option-CODEX"]')).toBeNull()
+    await wrapper.get('[data-testid="split-button-arrow"]').trigger('click')
+    await wrapper.get('[data-testid="quick-task-start"]').trigger('click')
     await flushPromises()
 
     expect(create).toHaveBeenCalledWith(PROJECT.id, expect.objectContaining({
       text: 'Fix the typo', provider: 'CODEX', model: 'gpt-test', effort: 'high'
     }))
-    expect(preferredProvider()).toBe('CLAUDE')
     expect(field(wrapper).value).toBe('')
     wrapper.unmount()
   })

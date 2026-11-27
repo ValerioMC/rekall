@@ -89,7 +89,7 @@ function verticalPlacement(box: DOMRect, menu: HTMLElement | null): Record<strin
 
 function menuItems(menu: HTMLElement | null): HTMLElement[] {
   if (!menu) return []
-  return [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+  return [...menu.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemradio"]')]
     .filter((item) => item.closest('[role="menu"]') === menu && !item.closest('[hidden]'))
 }
 

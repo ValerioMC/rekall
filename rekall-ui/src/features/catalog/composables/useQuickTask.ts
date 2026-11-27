@@ -4,12 +4,11 @@ import { useTerminalStore } from '@/features/claude/store/terminal.store'
 import { useOpenSession } from '@/features/claude/composables/useOpenSession'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { launchChoices } from '@/common/config/session-launch'
-import type { SessionProvider } from '@/features/claude/model/session-provider'
 import type { ProjectId } from '@/model/branded'
 
 export interface QuickTaskLauncher {
   readonly busy: ComputedRef<boolean>
-  start: (text: string, provider?: SessionProvider) => Promise<boolean>
+  start: (text: string) => Promise<boolean>
 }
 
 /** Starts a quick task on a project with the session preferences "Run here" uses, and shows its session. */
@@ -19,11 +18,11 @@ export function useQuickTask(projectId: ComputedRef<ProjectId>): QuickTaskLaunch
   const openSession = useOpenSession()
   const { run, isRunning } = useAsyncAction()
 
-  async function start(text: string, provider?: SessionProvider): Promise<boolean> {
+  async function start(text: string): Promise<boolean> {
     const started = await run(() =>
       store.createQuickTask(projectId.value, {
         text,
-        ...launchChoices(provider)
+        ...launchChoices()
       })
     )
     if (started === null) return false

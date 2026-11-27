@@ -5,7 +5,6 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import ChatPane from '@/features/chat/components/ChatPane.vue'
 import { useChatStore } from '@/features/chat/store/chat.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
-import { useTaskProviderStore } from '@/features/claude/store/taskProvider.store'
 import { setCodexEffort, setCodexModel, setPreferredProvider } from '@/common/config/session-launch'
 import type { ChatEvent } from '@/features/chat/model/chat-event'
 import { useConsoleStore } from '@/stores/console.store'
@@ -432,7 +431,7 @@ describe('the full-size chat', () => {
     })
 
     it('opens with the provider the task was switched to', async () => {
-      useTaskProviderStore().choose(TASK, 'CODEX')
+      setPreferredProvider('CODEX')
       sessions()
       showChatOf(TASK)
       const view = await mountPane()

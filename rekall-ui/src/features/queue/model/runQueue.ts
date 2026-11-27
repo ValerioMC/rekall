@@ -36,6 +36,11 @@ export interface RunQueueWait {
   readonly inQueue: boolean
 }
 
+export interface QueuedClaudeOptions {
+  readonly model: string | null
+  readonly effort: string | null
+}
+
 export interface QueuedCodexOptions {
   readonly model: string | null
   readonly effort: string | null
@@ -43,7 +48,7 @@ export interface QueuedCodexOptions {
 }
 
 export type QueueTaskRequest = { readonly taskId: TaskId } & (
-  | { readonly provider: 'CLAUDE' }
+  | { readonly provider: 'CLAUDE'; readonly claudeOptions: QueuedClaudeOptions }
   | { readonly provider: 'CODEX'; readonly codexOptions: QueuedCodexOptions }
 )
 
@@ -57,6 +62,7 @@ export interface RunQueueItem {
   readonly position: number
   readonly state: RunQueueItemState
   readonly provider: SessionProvider
+  readonly claudeOptions: QueuedClaudeOptions | null
   readonly codexOptions: QueuedCodexOptions | null
   readonly detail: string | null
   readonly startedAt: string | null

@@ -79,9 +79,10 @@ watch(saveState, (value, previous) => {
         </kbd>
       </button>
     </div>
-
-    <div class="@container flex min-w-0 items-center gap-4">
-      <div class="flex min-w-0 flex-1 justify-center">
+  </Teleport>
+  <Teleport to="#app-header-actions">
+    <div class="flex min-w-0 items-center justify-end gap-1.5">
+      <div class="flex min-w-0">
         <HeaderStatus />
       </div>
 

@@ -5,3 +5,7 @@ export type CodexModel = z.infer<typeof CodexModelsSchema>[number]
 export type CodexSetup = z.infer<typeof CodexSetupSchema>
 export type CodexUsage = z.infer<typeof CodexUsageSchema>
 export type CodexUsageWindow = z.infer<typeof CodexUsageWindowSchema>
+
+export function codexEffortLabel(effort: string): string {
+  return effort === 'xhigh' ? 'Extra high' : effort.charAt(0).toUpperCase() + effort.slice(1)
+}

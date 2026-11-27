@@ -89,8 +89,7 @@ impl RunQueueService {
     }
 
     async fn enqueue(&self, tx: &Tx, task_id: Id, launch: QueueLaunch) -> Result<()> {
-        let provider = launch.provider;
-        let codex_options = launch.into_codex_options()?;
+        let launch = launch.validated()?;
         let task = repo::task::find_by_id(tx.db(), task_id)
             .await?
             .ok_or_else(|| RekallError::unknown_anchor(format!("No task with id {task_id}")))?;
@@ -101,8 +100,13 @@ impl RunQueueService {
             return Err(RekallError::conflict(format!("'{}' is already in the queue.", task.title)));
         }
         let mut item = run_queue_item::Model::new(task_id, current.len() as i32, self.now());
-        item.provider = provider;
-        if let Some(options) = codex_options {
+        item.provider = launch.provider;
+        if let Some(options) = launch.claude_options {
+            item.claude_options_configured = true;
+            item.claude_model = options.model;
+            item.claude_effort = options.effort;
+        }
+        if let Some(options) = launch.codex_options {
             item.codex_model = options.model;
             item.codex_effort = options.effort;
             item.codex_skip_permissions = options.skip_permissions;

@@ -10,15 +10,17 @@ import { sessionAtWork } from '@/model/session-at-work'
 import { NOTHING_TO_RUN_MESSAGE, nothingToRun } from '@/model/nothing-to-run'
 import StepSeal from '@/features/steps/components/StepSeal.vue'
 import RunMenuArrow from '@/features/claude/components/RunMenuArrow.vue'
-import SessionProviderSwitch from '@/features/claude/components/SessionProviderSwitch.vue'
 import ReplanConfirm from '@/features/claude/components/ReplanConfirm.vue'
 import { usePlanTask } from '@/features/claude/composables/usePlanTask'
 import { useRunProvider } from '@/features/claude/composables/useRunProvider'
 import { useOpenSessionInPane } from '@/features/claude/composables/useOpenSessionInPane'
 import type { RunMenuAction } from '@/features/claude/model/runMenu'
 import type { Terminal } from '@/features/claude/model/terminal'
+import type { Task } from '@/features/catalog/model/catalog'
+import QueueLaunchDialog from '@/features/queue/components/QueueLaunchDialog.vue'
+import { queueSessionBlocker } from '@/features/queue/model/queue-launch'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
-import { queuePlacement } from '@/features/queue/model/runQueue'
+import { queuePlacement, type QueueTaskRequest } from '@/features/queue/model/runQueue'
 import { useReleaseOnRun } from '@/features/graph/composables/useReleaseOnRun'
 import type { TaskId, TaskStepId } from '@/model/branded'
 
@@ -29,7 +31,6 @@ import type { TaskId, TaskStepId } from '@/model/branded'
  * server answers, `done` the amber seal stamped in as a completed step's is, `working` the running
  * step's own seal turning until the session claims the work or ends. `done` and `working` share the
  * pressed key. Only `idle` takes a press.
- * The switch beside it picks the provider the key and its arrow start.
  * Its arrow also discusses the task, always, and plans it: a flow only while the task has no steps,
  * a replan only while draft or open steps can be replaced.
  */
@@ -63,7 +64,7 @@ const openInPane = useOpenSessionInPane()
 const { tasks, steps } = storeToRefs(console_)
 const { terminals: openTerminals } = storeToRefs(terminals)
 
-const { provider } = useRunProvider(() => props.taskId)
+const provider = useRunProvider(() => props.taskId)
 
 const planTask = usePlanTask(
   () => props.taskId,
@@ -73,6 +74,7 @@ const planTask = usePlanTask(
 
 const launchPhase = ref<LaunchPhase>('idle')
 const preparing = ref(false)
+const queueTask = ref<Task | null>(null)
 const handingOff = ref(false)
 const returning = ref(false)
 const pendingTimers = new Set<number>()
@@ -165,32 +167,33 @@ async function openSessionHere(): Promise<Terminal> {
   return opened
 }
 
-async function runInQueue(): Promise<void> {
-  if (busy.value) return
+function configureQueueLaunch(): void {
+  if (busy.value || queueTask.value) return
   if (!ready.value) {
     toast.notifyError(new Error(props.missingHint))
     return
   }
-  preparing.value = true
-  try {
-    await releaseBeforeRun(props.taskId)
-    const task = tasks.value.find((candidate) => candidate.id === props.taskId) ?? null
-    if (nothingToRun(task, steps.value, props.stepId)) {
-      toast.notifyError(new Error(NOTHING_TO_RUN_MESSAGE))
-      return
-    }
-    const chosen = provider.value
-    const queued = await run(() => runQueue.runInQueue(props.taskId, chosen))
-    if (queued === null) return
-    toast.notify(queuePlacement(runQueue.queue, props.taskId, chosen))
-  } finally {
-    preparing.value = false
-  }
+  queueTask.value = tasks.value.find((task) => task.id === props.taskId) ?? null
+}
+
+async function runInQueue(request: QueueTaskRequest): Promise<void> {
+  await releaseBeforeRun(request.taskId)
+  const task = tasks.value.find((candidate) => candidate.id === request.taskId) ?? null
+  if (nothingToRun(task, steps.value, props.stepId)) throw new Error(NOTHING_TO_RUN_MESSAGE)
+  const blocker = queueSessionBlocker(terminals.terminalForTask(request.taskId))
+  if (blocker) throw new Error(blocker)
+  await runQueue.runInQueue(request)
+  toast.notify(queuePlacement(runQueue.queue, request.taskId, request.provider))
+}
+
+function showQueuedTask(): void {
+  queueTask.value = null
+  runQueue.openPanel()
 }
 
 function chooseFromMenu(action: RunMenuAction): void {
-  if (action === 'RUN_IN_QUEUE') void runInQueue()
-  else planTask.start(action, provider.value)
+  if (action === 'RUN_IN_QUEUE') configureQueueLaunch()
+  else planTask.start(action)
 }
 
 onBeforeUnmount(() => {
@@ -201,7 +204,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="inline-flex shrink-0 items-center gap-1.5">
-    <SessionProviderSwitch :task-id="taskId" :busy="busy" />
     <div class="inline-flex shrink-0 items-stretch gap-px">
       <button
         type="button"
@@ -299,6 +301,16 @@ onBeforeUnmount(() => {
       />
     </div>
   </div>
+
+  <QueueLaunchDialog
+    v-if="queueTask"
+    :task="queueTask"
+    mode="run"
+    :submit="runInQueue"
+    @close="queueTask = null"
+    @complete="showQueuedTask"
+    @setup="queueTask = null"
+  />
 
   <ReplanConfirm
     v-if="planTask.isConfirmingReplan.value"

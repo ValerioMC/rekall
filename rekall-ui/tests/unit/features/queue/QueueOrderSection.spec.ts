@@ -17,6 +17,7 @@ function item(id: string, state: RunQueueItemState): RunQueueItem {
   return {
     id: asRunQueueItemId(id),
     provider: 'CLAUDE',
+    claudeOptions: null,
     codexOptions: null,
     taskId: asTaskId(`t-${id}`),
     taskTitle: `Report ${id}`,

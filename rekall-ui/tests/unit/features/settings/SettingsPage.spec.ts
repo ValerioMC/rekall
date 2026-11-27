@@ -81,9 +81,9 @@ describe('the Settings screen', () => {
     ])
   })
 
-  it('saves the default provider for new sessions and keeps both columns open', async () => {
+  it('saves the session provider for new sessions and keeps both columns open', async () => {
     const page = await mountAt('/settings/sessions')
-    const choice = page.get('[data-testid="default-provider"]')
+    const choice = page.get('[data-testid="session-provider"]')
     expect(choice.get('[data-testid="segment-CLAUDE"]').attributes('aria-pressed')).toBe('true')
 
     await choice.get('[data-testid="segment-CODEX"]').trigger('click')

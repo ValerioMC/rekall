@@ -153,6 +153,9 @@ onMounted(() => void loadUsage())
           <AppSelect id="queue-effort" v-model="effort" :options="EFFORT_OPTIONS" />
         </div>
       </div>
+      <p class="text-caption leading-relaxed text-text-muted">
+        The model and effort here are for older entries without saved launch settings. New entries use what you confirm.
+      </p>
       <div>
         <AppCheckbox v-model="skipPermissions" label="Skip permission prompts" data-testid="run-queue-skip" />
         <p class="mt-1.5 text-caption leading-relaxed" :class="skipPermissions ? 'text-text-subtle' : 'text-warn'">
@@ -165,7 +168,7 @@ onMounted(() => void loadUsage())
     <section aria-labelledby="queue-codex-heading" data-testid="run-queue-codex">
       <h3 id="queue-codex-heading" class="section-label mb-1">Codex</h3>
       <p class="text-caption leading-relaxed text-text-muted">
-        Each task keeps the model, effort and permissions set in Settings when you added it.
+        Each task keeps the model and effort you confirm and the bypass setting in effect when you add it.
       </p>
     </section>
   </aside>

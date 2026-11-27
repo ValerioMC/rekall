@@ -1,9 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { setCodexBypass, setCodexEffort, setCodexModel } from '@/common/config/session-launch'
-import { enqueueTask, runTaskInQueue } from '@/features/queue/api/runQueue.api'
+import { enqueueTask, fetchRunQueue, runTaskInQueue } from '@/features/queue/api/runQueue.api'
 import { EMPTY_RUN_QUEUE } from '@/features/queue/model/runQueue'
 import { asTaskId } from '@/model/branded'
-import { installStorage } from '../../support/memoryStorage'
 
 const client = vi.hoisted(() => vi.fn())
 
@@ -29,33 +27,46 @@ const item = {
 
 describe('the run queue API', () => {
   beforeEach(() => {
-    installStorage()
     client.mockReset()
   })
 
-  it('sends the Codex preferences for both Add and Run and reads the saved options', async () => {
-    setCodexModel('example/codex')
-    setCodexEffort('high')
-    setCodexBypass(true)
+  it('sends confirmed Codex options for both Add and Run and reads the saved options', async () => {
     const codexOptions = { model: 'example/codex', effort: 'high', skipPermissions: true }
     client.mockResolvedValue({ ...EMPTY_RUN_QUEUE, items: [{ ...item, provider: 'CODEX', codexOptions }] })
 
-    const added = await enqueueTask(taskId, 'CODEX')
-    const run = await runTaskInQueue(taskId, 'CODEX')
+    const launch = { taskId, provider: 'CODEX', codexOptions } as const
+    const added = await enqueueTask(launch)
+    const run = await runTaskInQueue(launch)
 
-    const request = { method: 'POST', retry: 0, body: { taskId, provider: 'CODEX', codexOptions } }
+    const request = { method: 'POST', retry: 0, body: launch }
     expect(client).toHaveBeenNthCalledWith(1, '/api/run-queue/items', request)
     expect(client).toHaveBeenNthCalledWith(2, '/api/run-queue/runs', request)
     expect(added.items[0]).toMatchObject({ provider: 'CODEX', codexOptions })
     expect(run.items[0]).toMatchObject({ provider: 'CODEX', codexOptions })
   })
 
+  it.each([
+    { model: 'sonnet', effort: 'high' },
+    { model: null, effort: null }
+  ])('round-trips Claude Code choices $model and $effort in both write responses', async (claudeOptions) => {
+    const launch = { taskId, provider: 'CLAUDE', claudeOptions } as const
+    client.mockResolvedValue({ ...EMPTY_RUN_QUEUE, items: [{ ...item, provider: 'CLAUDE', claudeOptions }] })
+
+    const added = await enqueueTask(launch)
+    const run = await runTaskInQueue(launch)
+
+    const request = { method: 'POST', retry: 0, body: launch }
+    expect(client).toHaveBeenNthCalledWith(1, '/api/run-queue/items', request)
+    expect(client).toHaveBeenNthCalledWith(2, '/api/run-queue/runs', request)
+    expect(added.items[0]?.claudeOptions).toEqual(claudeOptions)
+    expect(run.items[0]?.claudeOptions).toEqual(claudeOptions)
+  })
+
   it('reads a queue response without provider fields as Claude Code', async () => {
     client.mockResolvedValue({ ...EMPTY_RUN_QUEUE, items: [item] })
 
-    const queue = await enqueueTask(taskId, 'CLAUDE')
+    const queue = await fetchRunQueue()
 
-    expect(client).toHaveBeenCalledWith('/api/run-queue/items', { method: 'POST', retry: 0, body: { taskId, provider: 'CLAUDE' } })
-    expect(queue.items[0]).toMatchObject({ provider: 'CLAUDE', codexOptions: null })
+    expect(queue.items[0]).toMatchObject({ provider: 'CLAUDE', codexOptions: null, claudeOptions: null })
   })
 })

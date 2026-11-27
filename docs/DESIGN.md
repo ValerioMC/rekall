@@ -280,12 +280,23 @@ goes in the first, one that needs the machine in the second. The run queue's row
 `RunQueueService` in `rekall-core/src/queue/`, and how skills are grouped is `SkillGroupService` in
 `rekall-core/src/skill/`.
 
-In the console, a task's **Run here** takes its provider from `useRunProvider`: the live session's,
-else the one the task was switched to in this browser, else the Settings default.
-`SessionProviderMenu` supplies the provider choices for Decisions refinement and the queue task
-picker. `useAnchoredMenu` places a menu and handles keyboard focus outside the scrolling pane.
-Interactive actions pass the provider to the session store, which handles conflicts and view
-fallback. Queue actions save the provider on the item and its row displays the saved choice.
+In the console, `AppHeaderChrome` mounts one provider selector to the right of centered search,
+before status. Navigation is ordered Back, Forward, section, project and Home. The selector and
+Settings share the reactive preference in `session-launch.ts`, persisted in browser storage with
+a visit fallback. `useRunProvider` resolves task actions to the live session’s provider or the
+global choice for a new session. `usePlanTask` uses that resolution for Discuss, Plan, Replan and
+Refine. The session store handles launch conflicts and view fallback.
+
+`QueueLaunchDialog` starts with the global choice and the provider’s defaults. It limits Codex
+effort to the selected model’s catalog, submits only on confirmation, and keeps the draft on a
+refusal. The run menu adds and arms the queue, and the queue picker adds an entry.
+`QueueOrderRow` reads the provider, model and effort tags from the saved queue item.
+Both queue write routes accept optional per-entry launch settings. For Claude Code, a
+`claudeOptions` object saves each choice, with null values delegating to the account. When the
+object is omitted, the worker uses the queue-wide model and effort. Claude Code permissions and
+the session view still come from queue settings. The worker resolves the launch before checking
+usage so the model-specific limit applies to the model it opens. A fresh session on the same
+item keeps the running session's launch settings.
 
 ### Adding a field or a capability
 
@@ -358,7 +369,7 @@ Project ──< VulnerabilityExposure >── SecurityAdvisory
 | `company` | `name`, unique | `description` |
 | `project` | `label`, unique per company | `task_key` (two to four capital letters, unique across every company: the first half of its tasks' codes; migration `086-task-code`), `title`, `status`, `description`, `company_id`, `main_branch` (the branch a task's branch starts from and is merged into, null for the folder's current one; migration `075-task-manager`), `pull_request_flow` (whether accepted work reaches the main branch through a pull request, off by default; migration `081-pull-request-flow`) |
 | `task` | `code`, unique across every project | `number` (its place in its project, counted from 1: one past the highest the project holds), `label` (an internal slug, unique per project: the name of its branch and worktree, and what an anchor written before codes existed still names; migration `086-task-code`), `title`, `status`, `description`, `project_id`, `graph_laid_at` (when a deployment graph was laid on it), `release_skipped` (the project's release graph is not laid when the console runs it; migration `054-release-on-run`), `kind` (`TASK` or `EPIC`), `epic_id` (the epic of the same project it belongs to, set null when the epic is deleted; migration `055-epic`), `quick` (started from one line of text; at most one still open or running per project), `auto_accepted` (accepted by Rekall when the wrapup landed, not by a person; cleared when the review line moves again; migration `063-quick-task`) |
-| `run_queue_item` | through its task | `provider` defaults to Claude Code, including for existing rows. Codex entries store their own model, effort and permission preference. Queue reads and events carry the saved choice (migration `097-run-queue-provider`). The worker uses it to open the configured view through `SessionHosts` and check the provider's account limits before dispatch and at claim boundaries. |
+| `run_queue_item` | through its task | `provider` defaults to Claude Code, including for existing rows. Codex entries store their own model, effort and permission preference (migration `097-run-queue-provider`). Claude Code entries can store a model and effort, including explicit account defaults. Migration `099-run-queue-claude-options` marks existing rows as inheriting queue settings. Queue reads and events carry the saved options. |
 | `task_pull_request` | through its task | `task_id` (the key: one row per task of a project with the pull request flow on, once its work was first claimed), `number` and `url` (the pull request, or GitLab merge request, open for its branch), `failure` (why it was not opened or not merged, cleared by the next move that works), `merged_at` (when the host merged it); deleted with its task (migrations `082-task-pull-request` and `083-pull-request-merged`) |
 | `task_tracker_link` | through its task | `task_id` (the key: one row per task that was ever pushed to its project's task manager, none for one that was not), `issue_key` and `issue_url` (the issue the task manager holds for it), `sync_error` (why the last write there failed, cleared by the next that works), `synced_fingerprint` (a fingerprint of the title and description last written, which says whether the task changed since); deleted with its task (migrations `075-task-manager`, `080-task-tracker-link` and `085-task-tracker-synced-content`) |
 | `tracker_picture` | through its task | `task_id`, `destination` (the repository the picture was uploaded to, or the Jira issue holding the attachment, as a web address) and `picture_path` (under `images/`, without `/api/images/`, so a row is no use of the picture): together the key. `remote_reference` (how the tracker refers to its copy), `created_at`; written once per upload, deleted with its task (migration `096-tracker-picture`) |
