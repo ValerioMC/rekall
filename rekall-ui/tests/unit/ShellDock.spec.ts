@@ -9,8 +9,8 @@ import { useClaudeCommandUpdateStore } from '@/features/claude/store/claudeComma
 import { useToastStore } from '@/stores/toast.store'
 import { useOpenSession } from '@/features/claude/composables/useOpenSession'
 import type { Terminal } from '@/features/claude/model/terminal'
-import type { ProjectId, TaskId, TerminalId, TimeEntryId } from '@/model/branded'
-import type { Task } from '@/features/catalog/model/catalog'
+import type { CompanyId, ProjectId, TaskId, TerminalId, TimeEntryId } from '@/model/branded'
+import type { Company, Project, Task } from '@/features/catalog/model/catalog'
 import type { TimeEntry } from '@/features/time/model/time-entry'
 
 const terminalApi = {
@@ -94,6 +94,37 @@ const task: Task = {
   updatedAt: '2026-09-10T10:00:00Z'
 }
 
+const company: Company = {
+  id: 'c-1' as CompanyId,
+  name: 'Acme',
+  description: null,
+  logoImageVersion: 'v1',
+  projectCount: 1,
+  taskCount: 1,
+  updatedAt: '2026-09-10T10:00:00Z'
+}
+
+const project: Project = {
+  id: 'p-1' as ProjectId,
+  label: 'vega',
+  taskKey: 'VG',
+  title: 'Vega Platform',
+  status: 'ACTIVE',
+  icon: 'rocket',
+  iconImageVersion: null,
+  description: null,
+  blueprintMarkdown: null,
+  repoFolder: '/code/vega',
+  autoCommit: false,
+  mainBranch: null,
+  pullRequestFlow: false,
+  companyId: company.id,
+  companyName: company.name,
+  taskCount: 1,
+  anchor: 'project:vega',
+  updatedAt: '2026-09-10T10:00:00Z'
+}
+
 function terminal(over: Partial<Terminal> = {}): Terminal {
   return {
     id: 'term-1' as TerminalId,
@@ -139,6 +170,8 @@ async function mountDock(open: Terminal[], entries: TimeEntry[] = []) {
   setActivePinia(createPinia())
   const console = useConsoleStore()
   const terminals = useTerminalStore()
+  console.companies = [company]
+  console.projects = [project]
   console.tasks = [task]
   console.timeEntries = entries
   terminals.terminals = open
@@ -343,6 +376,22 @@ describe('ShellDock', () => {
 
       expect(wrapper.find('[data-testid="dock-panel"]').exists()).toBe(false)
       expect(wrapper.find('[data-testid="running-dock-toggle"]').exists()).toBe(true)
+    })
+  })
+
+  describe.each([
+    { segment: 'terminal-dock-toggle', sessions: [terminal()], entries: [], panel: 'sessions' },
+    { segment: 'terminal-dock-toggle', sessions: [terminal({ taskId: null })], entries: [], panel: 'sessions off a task' },
+    { segment: 'running-dock-toggle', sessions: [], entries: [running()], panel: 'running' }
+  ])('an entry of the $panel panel', ({ segment, sessions, entries }) => {
+    it('names its company and project and shows the mark of each', async () => {
+      const { wrapper } = await mountDock(sessions, entries)
+
+      await wrapper.get(`[data-testid="${segment}"]`).trigger('click')
+
+      expect(wrapper.get('[data-testid="dock-entry-identity"]').text()).toMatch(/^Acme\s*\/\s*Vega Platform$/)
+      expect(wrapper.get('[data-testid="company-mark-image"] img').attributes('src')).toContain('c-1')
+      expect(wrapper.find('[data-testid="dock-entry-marks"] [data-testid="project-mark-glyph"]').exists()).toBe(true)
     })
   })
 

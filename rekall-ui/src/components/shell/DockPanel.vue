@@ -48,7 +48,7 @@ const emit = defineEmits<{ close: [] }>()
       </button>
     </header>
 
-    <ul class="max-h-[300px] overflow-y-auto p-1.5">
+    <ul class="max-h-[min(66vh,480px)] overflow-y-auto p-1.5">
       <slot />
     </ul>
   </section>
