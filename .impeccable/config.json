@@ -198,6 +198,15 @@
         ],
         "createdAt": "2026-11-26T17:37:12.316Z",
         "reason": "user confirmed the mockup as drawn (RV-201 decision tab-design-approval); it mirrors the console's own tab metrics and DESIGN.md type scale"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision-search/index.html"
+        ],
+        "createdAt": "2026-11-27T08:57:23.815Z",
+        "reason": "false positive: segmented control buttons fill the bordered container by design, as in the console's SegmentedControl.vue (assistant triage, not user confirmed)"
       }
     ]
   }

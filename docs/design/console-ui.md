@@ -235,6 +235,15 @@ standing line, for the step. The console store's `useContextFills` slice loads a
 opens (`GET /api/context-fill?taskId=`) and replaces it whole when a `context-fill` frame arrives. It is not
 `ContextSizeChip`, which measures what `/rk` hands a session, nor `TaskTokenChip`, which counts tokens generated.
 
+**Decisions** is a band over a find row over the ledger. The band says where the decisions stand and holds
+Refine and Add decision. The find row (`DecisionsFindRow`) holds what changes how the list is looked at: the
+search with its count, and the switch between **Ledger** and **As the session reads it**; the search is hidden
+over the session text and starts empty on another task. `searchDecisions` runs in the browser over the
+decisions already loaded, matching the string as typed, ignoring case, and never the key. A match is a 2px amber
+underline with no fill (`DecisionFoundText`). What a closed row does not show gets one line under it
+(`DecisionFoundLine`): a quote of the first such place when the row shows no match, their names otherwise. An
+opened row drops the line, except for the notes of an unanswered decision, which it has no place for.
+
 **Plan** is one row over a workspace. The row (`PlanBar`) spans the tab, never folds and stays
 whatever is selected or whichever view is open: the plan tube with the line that says who has to
 act (and the drafts still to promote), the adherence figures as one line (accepted first time, sent
