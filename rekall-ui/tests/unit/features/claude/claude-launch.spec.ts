@@ -46,8 +46,13 @@ describe('preferredModel', () => {
     expect(preferredModel()).toBe('opus')
   })
 
-  it('falls back to the account default for an unknown stored value', () => {
-    storage.set('rekall.claude.model', 'gpt-5')
+  it('reads back a release it has never heard of, as spelled', () => {
+    setPreferredModel('claude-Example-7[1m]')
+    expect(preferredModel()).toBe('claude-Example-7[1m]')
+  })
+
+  it.each(['--help', 'two words', 'a'.repeat(151), ''])('falls back to the account default for %j', (stored) => {
+    storage.set('rekall.claude.model', stored)
     expect(preferredModel()).toBe('default')
   })
 })

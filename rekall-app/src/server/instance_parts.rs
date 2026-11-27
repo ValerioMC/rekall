@@ -134,6 +134,7 @@ pub(super) fn connection_probe_of(options: &StartOptions) -> Arc<dyn ConnectionP
 
 /// The terminal and chat sessions one instance hosts, and the broker that hands each its credentials.
 pub(super) struct Sessions {
+    pub cli: ClaudeCli,
     pub broker: Arc<CredentialBroker>,
     pub terminals: Arc<PtyTerminalManager>,
     pub chats: Arc<ChatSessionManager>,
@@ -160,14 +161,14 @@ pub(super) fn open_sessions(
     )
     .with_readable_pictures(pictures_folder));
     let work_marker = WorkMarker::new(services.steps.clone(), services.review.clone(), services.step_snapshots.clone(), services.feedback.clone());
-    let launcher = SessionLauncher::new(cli, broker.clone(), TelemetrySettingsService::new(ctx.clone(), secrets.clone()))
+    let launcher = SessionLauncher::new(cli.clone(), broker.clone(), TelemetrySettingsService::new(ctx.clone(), secrets.clone()))
         .with_guard_port(served_port);
     let terminals = PtyTerminalManager::new(services.terminal_launch.clone(), launcher.clone(), work_marker.clone(), claude_config);
     let chats = ChatSessionManager::new(services.terminal_launch.clone(), launcher, work_marker, claude_config);
     let pty_terminals = Arc::new(PtyTerminals::new(terminals.clone()));
     let hosts: Arc<dyn TerminalHost> = Arc::new(SessionHosts::start(pty_terminals.clone(), chats.clone(), claude_config.max_sessions)
         .with_work_provider(services.terminal_launch.clone()));
-    Sessions { broker, terminals, chats, pty_terminals, hosts }
+    Sessions { cli, broker, terminals, chats, pty_terminals, hosts }
 }
 
 /// The run queue's worker, and the worktrees it and the console's branch actions share.

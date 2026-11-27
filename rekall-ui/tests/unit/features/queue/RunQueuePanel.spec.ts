@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
+import { setPreferredEffort, setPreferredModel } from '@/common/config/claude-launch'
 import { preferredProvider, setCodexBypass, setPreferredProvider } from '@/common/config/session-launch'
 import { useCodexStore } from '@/features/codex/store/codex.store'
 import { installStorage } from '../../support/memoryStorage'
@@ -255,6 +256,25 @@ describe('the run queue panel', () => {
     expect(row.get('[data-testid="run-queue-model"]').text()).toBe('Sonnet')
     expect(row.get('[data-testid="run-queue-effort"]').text()).toBe('High')
     reopened.unmount()
+  })
+
+  it('confirms the Claude Code model saved in Settings when nothing is overridden', async () => {
+    setPreferredModel('claude-example-7[1m]')
+    setPreferredEffort('high')
+    api.enqueueTask.mockResolvedValue(queue({}))
+    const wrapper = await mountPanel(queue({}))
+    await selectTask(wrapper)
+    const dialog = launchDialog()
+
+    expect(dialog.get<HTMLSelectElement>('[data-testid="queue-launch-model"] select').element.value).toBe('claude-example-7[1m]')
+    expect(dialog.get<HTMLSelectElement>('[data-testid="queue-launch-effort"] select').element.value).toBe('high')
+    await dialog.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(api.enqueueTask).toHaveBeenCalledWith({
+      taskId: 't-queue', provider: 'CLAUDE', claudeOptions: { model: 'claude-example-7[1m]', effort: 'high' }
+    })
+    wrapper.unmount()
   })
 
   it('retains the order and returns focus to the picker on cancel', async () => {

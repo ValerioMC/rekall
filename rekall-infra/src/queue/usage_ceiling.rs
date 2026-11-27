@@ -101,7 +101,13 @@ fn counts(window_key: &str, model: Option<&str>) -> bool {
     if ALWAYS.contains(&window_key) {
         return true;
     }
-    model.is_some_and(|model| window_key == format!("weekly_{model}"))
+    window_key.strip_prefix("weekly_").zip(model).is_some_and(|(family, model)| is_of_family(model, family))
+}
+
+/// An alias and a versioned value both name their family as one of their parts: `opus[1m]`,
+/// `claude-opus-4-8`.
+fn is_of_family(model: &str, family: &str) -> bool {
+    model.split(|separator: char| !separator.is_ascii_alphanumeric()).any(|part| part.eq_ignore_ascii_case(family))
 }
 
 #[cfg(test)]

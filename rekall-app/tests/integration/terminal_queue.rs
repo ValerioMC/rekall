@@ -547,6 +547,35 @@ async fn add_and_run_store_each_provider_through_restart_recovery() {
 }
 
 #[tokio::test]
+async fn a_saved_versioned_choice_reaches_the_claude_code_the_queue_starts() {
+    let stubs = tempfile::tempdir().unwrap();
+    let stub = stubs.path().join("fake-claude-arguments.sh");
+    std::fs::write(&stub, "#!/bin/sh\nprintf '%s\\n' \"$@\" > arguments.part\nmv arguments.part arguments.txt\nwhile IFS= read -r line; do :; done\n").unwrap();
+    std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let app = app_with(
+        &[("rekall.claude.cli-path", stub.to_str().unwrap()), ("rekall.run-queue.tick-seconds", "1")],
+        StartOptions { no_restart: true, ..StartOptions::default() },
+    )
+    .await;
+    let folder = tempfile::tempdir().unwrap();
+    let task = a_task_with_folder(&app, folder.path()).await;
+
+    let queued = app.post("/api/run-queue/runs", json!({
+        "taskId": task, "claudeOptions": { "model": "claude-example-7[1m]", "effort": "High" }
+    })).await;
+
+    assert_eq!(queued.status, 200, "{}", queued.text);
+    assert_eq!(queued.body["items"][0]["claudeOptions"], json!({ "model": "claude-example-7[1m]", "effort": "high" }));
+    let arguments = folder.path().join("arguments.txt");
+    await_until(10, || async { arguments.exists() }).await;
+    let passed = std::fs::read_to_string(&arguments).unwrap();
+    assert_contains!(passed, "--model\nclaude-example-7[1m]\n", "--effort\nhigh\n");
+    app.post("/api/run-queue/stop", json!({})).await;
+    close_live_terminals(&app).await;
+    app.stop().await;
+}
+
+#[tokio::test]
 async fn invalid_provider_options_do_not_enqueue_or_arm() {
     let q = queue_app().await;
     let task = q.task("report-builder", "Report builder").await;
@@ -565,7 +594,7 @@ async fn invalid_provider_options_do_not_enqueue_or_arm() {
     })).await;
     assert_eq!(wrong_provider.status, 400);
     for (path, provider, claude_options) in [
-        ("/api/run-queue/items", "CLAUDE", json!({ "model": "gpt-test" })),
+        ("/api/run-queue/items", "CLAUDE", json!({ "model": "--help" })),
         ("/api/run-queue/runs", "CLAUDE", json!({ "effort": "extreme" })),
         ("/api/run-queue/runs", "CLAUDE", json!({ "model": " " })),
         ("/api/run-queue/runs", "CODEX", json!({})),

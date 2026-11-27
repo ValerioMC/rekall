@@ -1,11 +1,11 @@
+import { preferredModel } from '@/common/config/claude-launch'
 import { codexPreferences, launchChoices } from '@/common/config/session-launch'
 import type { SelectOption } from '@/components/ui/AppSelect.vue'
+import { claudeModelOptions } from '@/features/claude/lib/claude-model-choices'
 import {
   CLAUDE_EFFORT_CHOICES,
-  CLAUDE_MODEL_CHOICES,
   claudeEffortChoiceLabel,
   claudeEffortLabel,
-  claudeModelChoiceLabel,
   claudeModelLabel
 } from '@/features/claude/model/claude'
 import { SESSION_PROVIDER_LABEL, sessionViewLabel, type SessionProvider } from '@/features/claude/model/session-provider'
@@ -21,7 +21,6 @@ export interface QueueLaunchDraft {
 }
 
 const ACCOUNT_DEFAULT: SelectOption = { value: 'default', label: 'Account default' }
-const CLAUDE_MODELS = CLAUDE_MODEL_CHOICES.map((value) => ({ value, label: claudeModelChoiceLabel(value) }))
 const CLAUDE_EFFORTS = CLAUDE_EFFORT_CHOICES.map((value) => ({ value, label: claudeEffortChoiceLabel(value) }))
 
 export function queueLaunchDefaults(provider: SessionProvider): QueueLaunchDraft {
@@ -30,7 +29,7 @@ export function queueLaunchDefaults(provider: SessionProvider): QueueLaunchDraft
 }
 
 export function queueModelOptions(provider: SessionProvider, models: readonly CodexModel[]): readonly SelectOption[] {
-  if (provider === 'CLAUDE') return CLAUDE_MODELS
+  if (provider === 'CLAUDE') return claudeModelOptions(null, preferredModel())
   return [ACCOUNT_DEFAULT, ...models.map(({ model, displayName }) => ({ value: model, label: displayName }))]
 }
 

@@ -74,7 +74,7 @@ impl Model {
     pub fn validate(&self) -> Result<(), RekallError> {
         Violations::new("RunQueue")
             .in_range("parallelSessions", self.parallel_sessions, PARALLEL_SESSIONS_MIN, PARALLEL_SESSIONS_MAX)
-            .max_length("model", self.model.as_deref(), 20)
+            .max_length("model", self.model.as_deref(), 150)
             .max_length("effort", self.effort.as_deref(), 20)
             .max_length("holdReason", self.hold_reason.as_deref(), 500)
             .finish()

@@ -53,6 +53,15 @@ fn a_models_weekly_window_counts_only_when_the_queue_runs_that_model() {
 }
 
 #[test]
+fn a_versioned_or_long_context_model_counts_against_its_familys_weekly_window() {
+    let usage = reading(vec![limit("session", 10.0, Some(session_reset())), limit("weekly_opus", 99.0, Some(week_reset()))]);
+    for model in ["opus[1m]", "claude-opus-4-8", "claude-opus-4-8[1m]", "us.anthropic.claude-Opus-v1:0"] {
+        assert!(!check_claude(&usage, 90, Some(model), now()).clear, "{model}");
+    }
+    assert!(check_claude(&usage, 90, Some("claude-sonnet-5"), now()).clear);
+}
+
+#[test]
 fn an_unreadable_reading_holds_a_queue_that_has_a_ceiling() {
     let verdict = check_claude(&ClaudeUsageView::unavailable(), 80, None, now());
     assert!(!verdict.clear);

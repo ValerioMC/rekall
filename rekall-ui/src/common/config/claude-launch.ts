@@ -1,9 +1,7 @@
 import {
   CLAUDE_EFFORT_CHOICES,
-  CLAUDE_MODEL_CHOICES,
   SESSION_VIEWS,
   type ClaudeEffortChoice,
-  type ClaudeModelChoice,
   type SessionView
 } from '@/features/claude/model/claude'
 import type { SessionKind } from '@/features/claude/model/terminal'
@@ -12,6 +10,9 @@ const STORAGE_KEY = 'rekall.claude.skip-permissions'
 const MODEL_KEY = 'rekall.claude.model'
 const EFFORT_KEY = 'rekall.claude.effort'
 const SESSION_KIND_KEY = 'rekall.claude.session-kind'
+// The shape a launch accepts (`claude_model_choice` on the server), so any release's value is kept.
+const MODEL_VALUE = /^[a-z0-9][a-z0-9_.:/@-]*(\[1m\])?$/i
+const MODEL_MAX_LENGTH = 150
 
 export function skipsPermissions(): boolean {
   try {
@@ -29,18 +30,16 @@ export function setSkipsPermissions(value: boolean): void {
 }
 
 /** The model a new in-app session is started with. 'default' leaves the account setting alone. */
-export function preferredModel(): ClaudeModelChoice {
+export function preferredModel(): string {
   try {
-    const stored = window.localStorage.getItem(MODEL_KEY)
-    return (CLAUDE_MODEL_CHOICES as readonly string[]).includes(stored ?? '')
-      ? (stored as ClaudeModelChoice)
-      : 'default'
+    const stored = window.localStorage.getItem(MODEL_KEY) ?? ''
+    return stored.length <= MODEL_MAX_LENGTH && MODEL_VALUE.test(stored) ? stored : 'default'
   } catch {
     return 'default'
   }
 }
 
-export function setPreferredModel(value: ClaudeModelChoice): void {
+export function setPreferredModel(value: string): void {
   try {
     window.localStorage.setItem(MODEL_KEY, value)
   } catch {

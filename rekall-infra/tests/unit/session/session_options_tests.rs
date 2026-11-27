@@ -1,10 +1,24 @@
 use super::*;
 
 #[test]
-fn only_the_offered_model_and_effort_values_pass() {
-    assert_eq!(normalise(Some(" Opus "), &MODEL_ALIASES).as_deref(), Some("opus"));
-    assert_eq!(normalise(Some("gpt"), &MODEL_ALIASES), None);
-    assert_eq!(normalise(None, &EFFORT_LEVELS), None);
+fn a_versioned_choice_reaches_claude_code_as_the_provider_spells_it() {
+    let options = SessionOptions::chosen(false, Some("claude-example-7[1m]"), Some("High"));
+
+    assert_eq!(options.arguments(), ["--model", "claude-example-7[1m]", "--effort", "high"].map(OsString::from));
+}
+
+#[test]
+fn an_alias_is_passed_in_lowercase() {
+    let options = SessionOptions::chosen(false, Some(" Sonnet "), Some("high"));
+
+    assert_eq!(options.arguments(), ["--model", "sonnet", "--effort", "high"].map(OsString::from));
+}
+
+#[test]
+fn the_account_default_and_a_malformed_choice_pass_no_override() {
+    for (model, effort) in [(None, None), (Some("default"), Some("default")), (Some("--help"), Some("extreme")), (Some(" "), Some(""))] {
+        assert!(SessionOptions::chosen(false, model, effort).arguments().is_empty(), "{model:?} {effort:?}");
+    }
 }
 
 #[test]

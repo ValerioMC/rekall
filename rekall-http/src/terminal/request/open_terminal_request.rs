@@ -7,8 +7,8 @@ use serde::Deserialize;
 
 use crate::terminal::TerminalModeName;
 
-/// What the console sends to open a terminal. `model` and `effort` are optional; an
-/// unknown or blank model or effort leaves the account default. A missing `mode` is
+/// What the console sends to open a terminal. `model` and `effort` are optional; a
+/// malformed or blank model, or an unknown effort, leaves the account default. A missing `mode` is
 /// [`TerminalMode::Work`], and a missing `kind` is a terminal session; `PLAN_FLOW` asks for a flow rather than a checklist, `REPLAN` for the task's draft and open steps to be redesigned, with the `request` as what the plan missed when there is one; `REVISE` for the pending entries of the task's thread to be evaluated; `REFINE` for the task to be gone through with the person and its decisions recorded; `DISCUSS` for the task to be talked over, nothing executed; `GENERATE` and
 /// `EXPLAIN` need a `request`, and `kinds` names the diagram types a generation draws; `ASSESS`
 /// needs the GHSA id of the `advisory` to judge, and `ASSESS_ALL` judges every one not judged yet;

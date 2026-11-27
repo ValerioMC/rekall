@@ -46,7 +46,16 @@ export function claudeSessionUsage(usage: ClaudeUsage): ClaudeUsageLimit | null 
   return usage.limits.find((limit) => limit.key === 'session') ?? usage.limits[0] ?? null
 }
 
-/** Claude Code `--model` aliases plus 'default' for leaving the account setting alone. */
+/** One entry of the installed CLI's catalog; `value` is what a session starts with. The effort fields are null when the CLI omits them. */
+export interface ClaudeModel {
+  readonly value: string
+  readonly displayName: string
+  readonly resolvedModel: string | null
+  readonly supportsEffort: boolean | null
+  readonly supportedEffortLevels: readonly string[] | null
+}
+
+/** Claude Code `--model` aliases plus 'default', offered until the CLI's catalog is read. */
 export const CLAUDE_MODEL_CHOICES = ['default', 'sonnet', 'fable', 'opus', 'haiku'] as const
 export type ClaudeModelChoice = (typeof CLAUDE_MODEL_CHOICES)[number]
 

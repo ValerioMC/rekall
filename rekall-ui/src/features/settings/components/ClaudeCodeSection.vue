@@ -3,36 +3,24 @@ import { computed, onMounted, ref } from 'vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import CopyGlyph from '@/components/ui/CopyGlyph.vue'
 import AppButton from '@/components/ui/AppButton.vue'
-import AppSelect from '@/components/ui/AppSelect.vue'
-import ProviderField from '@/features/settings/components/ProviderField.vue'
+import ClaudeModelFields from '@/features/settings/components/ClaudeModelFields.vue'
 import ProviderPanel from '@/features/settings/components/ProviderPanel.vue'
 import SessionPermissionSwitch from '@/features/settings/components/SessionPermissionSwitch.vue'
 import { storeToRefs } from 'pinia'
 import { useClaudeConnectionStore } from '@/features/claude/store/claudeConnection.store'
 import { useClaudeCommandUpdateStore } from '@/features/claude/store/claudeCommandUpdate.store'
+import { useClaudeModelsStore } from '@/features/claude/store/claudeModels.store'
 import CommandUpdateMark from '@/features/claude/components/CommandUpdateMark.vue'
 import { useToastStore } from '@/stores/toast.store'
-import {
-  preferredEffort,
-  preferredModel,
-  setPreferredEffort,
-  setPreferredModel,
-  setSkipsPermissions,
-  skipsPermissions
-} from '@/common/config/claude-launch'
-import {
-  CLAUDE_EFFORT_CHOICES,
-  CLAUDE_MODEL_CHOICES,
-  claudeEffortChoiceLabel,
-  claudeModelChoiceLabel
-} from '@/features/claude/model/claude'
-import type { ClaudeConnectionStatus, ClaudeEffortChoice, ClaudeModelChoice } from '@/features/claude/model/claude'
+import { setSkipsPermissions, skipsPermissions } from '@/common/config/claude-launch'
+import type { ClaudeConnectionStatus } from '@/features/claude/model/claude'
 
 const toast = useToastStore()
 
 const connection = useClaudeConnectionStore()
 const { installation } = storeToRefs(connection)
 const { updating: updatingCommands } = storeToRefs(useClaudeCommandUpdateStore())
+const modelCatalog = useClaudeModelsStore()
 const loading = ref(true)
 const installing = ref(false)
 const installed = ref(false)
@@ -110,26 +98,6 @@ function chooseSkipPermissions(value: boolean): void {
   setSkipsPermissions(value)
 }
 
-const modelChoices = CLAUDE_MODEL_CHOICES.map((value) => ({ value, label: claudeModelChoiceLabel(value) }))
-const model = ref<ClaudeModelChoice>(preferredModel())
-
-function chooseModel(value: string): void {
-  const choice = CLAUDE_MODEL_CHOICES.find((candidate) => candidate === value)
-  if (!choice) return
-  model.value = choice
-  setPreferredModel(choice)
-}
-
-const effortChoices = CLAUDE_EFFORT_CHOICES.map((value) => ({ value, label: claudeEffortChoiceLabel(value) }))
-const effort = ref<ClaudeEffortChoice>(preferredEffort())
-
-function chooseEffort(value: string): void {
-  const choice = CLAUDE_EFFORT_CHOICES.find((candidate) => candidate === value)
-  if (!choice) return
-  effort.value = choice
-  setPreferredEffort(choice)
-}
-
 async function copyCommand(): Promise<void> {
   const command = installation.value?.manualCommand
   if (!command || !navigator.clipboard) return
@@ -138,7 +106,10 @@ async function copyCommand(): Promise<void> {
   window.setTimeout(() => (copied.value = false), 1500)
 }
 
-onMounted(() => void load())
+onMounted(() => {
+  void load()
+  void modelCatalog.load()
+})
 </script>
 
 <template>
@@ -193,35 +164,7 @@ onMounted(() => void load())
         </p>
       </div>
 
-      <ProviderField label="Model" field-id="claude-model">
-        <template #control="{ describedBy }">
-          <AppSelect
-            id="claude-model"
-            :model-value="model"
-            :options="modelChoices"
-            :described-by="describedBy"
-            data-testid="claude-model"
-            @update:model-value="chooseModel"
-          />
-        </template>
-        Adds <code class="font-mono text-text-muted">--model</code>. Each name is Claude Code’s latest model of that
-        family; Account default leaves your own setting alone.
-      </ProviderField>
-
-      <ProviderField label="Reasoning effort" field-id="claude-effort">
-        <template #control="{ describedBy }">
-          <AppSelect
-            id="claude-effort"
-            :model-value="effort"
-            :options="effortChoices"
-            :described-by="describedBy"
-            data-testid="claude-effort"
-            @update:model-value="chooseEffort"
-          />
-        </template>
-        Adds <code class="font-mono text-text-muted">--effort</code>. A higher level thinks longer and spends more, on
-        models that support extended thinking.
-      </ProviderField>
+      <ClaudeModelFields />
 
       <SessionPermissionSwitch
         label="Open sessions without permission prompts"

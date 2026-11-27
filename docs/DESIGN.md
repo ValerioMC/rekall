@@ -133,7 +133,7 @@ is found by opening one folder per crate:
 | `commit`, `diagram`, `token`, `search`, `context` | logged commits and what they and the working tree changed, stored diagrams, token usage, search, context assembly and its size. `TaskChangesService` keeps up to sixteen task-scoped Changes snapshots for five minutes. The file index carries metadata from capped patches, and hunk reads parse the selected file spans from the same captured patches. |
 | `context_fill` | the last share of its context window a chat held at the end of a turn, per task and per step (`ContextFillService`, the only writer of `context_fill`; the console reads it) |
 | `quick` | the quick task: a task started from one line of text with its session opened at once, accepted without a review when Claude's wrapup lands; console and HTTP only, the acceptance itself is in `review` and `wrapup` |
-| `skill`, `tag`, `queue`, `claude` | skill assignments, tags, the run queue, what a session launch needs |
+| `skill`, `tag`, `queue`, `claude` | skill assignments, tags, the run queue, what a session launch needs and the model catalog of the installed Claude Code |
 | `codex` | the Codex CLI port for the model catalog, account limits and Rekall setup. The console calls it through its service and HTTP routes. Infrastructure runs the CLI and its App Server. The header draws both provider readings with the same account usage meter. |
 | `chat` | the shared conversation and approval events (`ChatEvent`) and ports (`ChatPipe`, `ChatListener`) in `rekall-core`. In `rekall-infra`, `StreamParser` reads Claude Code’s stream JSON and `CodexChat` uses the Codex app-server transport over stdio. `CodexChat` maps command, file-change and MCP tool approvals to the same permission events and sends the corresponding app-server reply. `ChatSessionManager` keeps their event journal and session lifecycle, and `SessionHosts` routes openings to Chat or Terminal. The `chat` service and routes handle input and event replay. The `terminal` routes open, list and close either kind. |
 | `backup`, `settings`, `version` | the backups of the open database and restoring one, the registered database folders and the restart onto another, the update check; no table behind them, so no folder in `rekall-store` |
@@ -280,6 +280,28 @@ goes in the first, one that needs the machine in the second. The run queue's row
 `RunQueueService` in `rekall-core/src/queue/`, and how skills are grouped is `SkillGroupService` in
 `rekall-core/src/skill/`.
 
+The models Claude Code offers come from the installed CLI. `ClaudeModelReader` is the port,
+`ClaudeModelService` in `rekall-console` serves it as `GET /api/claude/models`, apart from the MCP
+registration status, and `CliClaudeModelReader` in `rekall-infra` implements it with the executable
+and login-shell environment sessions launch with. Each read starts the CLI in an empty folder in
+stream JSON with no prompt, no tools, no saved session and safe mode, sends only the `initialize`
+control message and kills the process once it answers or after fifteen seconds. Nothing is cached. A
+missing, unsupported or silent CLI is a 409. `value` is what a session starts with; the effort
+fields are null when the CLI omits them.
+
+A launch checks a chosen model for its shape, never against that catalog, so saved choices are read
+while the CLI cannot answer. `claude_model_choice` in `rekall-core` takes an alias in any case, or
+any value of up to 150 bytes that starts with a letter or digit, holds only letters, digits and
+`-_.:/@`, and may end in `[1m]`, passed as spelled. The effort is one of five levels. `default` and
+no choice pass no argument. A session opens on the account default over a malformed value; the run
+queue refuses it with a 400. The usage ceiling counts a model's weekly window for every value that
+names the family, such as `claude-opus-4-8`.
+
+In the console `useClaudeModelsStore` holds the last catalog answered and `ClaudeCodeSection` asks for
+it on every opening. `claude-model-choices.ts` turns it into the picker's options: without a catalog
+the family aliases, always with the saved value. Only a pick writes a preference, and
+`preferredModel` accepts any value shaped like one a launch takes.
+
 In the console, `HeaderNavigation` holds Back, Forward, the section menu and the project switcher
 on the left of the header. `AppHeaderChrome` draws the icon-only session provider selector on the
 right, a keycap tinted for its provider, beside the status capsule where `HeaderStatus` puts the
@@ -291,8 +313,9 @@ global choice for a new session. `usePlanTask` uses that resolution for Discuss,
 Refine. The session store handles launch conflicts and view fallback.
 
 `QueueLaunchDialog` starts with the global choice and the provider’s defaults. It limits Codex
-effort to the selected model’s catalog, submits only on confirmation, and keeps the draft on a
-refusal. The run menu adds and arms the queue, and the queue picker adds an entry.
+effort to the selected model’s catalog, offers the family aliases and the saved model for Claude
+Code, submits only on confirmation, and keeps the draft on a refusal. The run menu adds and arms the
+queue, and the queue picker adds an entry.
 `QueueOrderRow` reads the provider, model and effort tags from the saved queue item.
 Both queue write routes accept optional per-entry launch settings. For Claude Code, a
 `claudeOptions` object saves each choice, with null values delegating to the account. When the
