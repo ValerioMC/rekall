@@ -26,10 +26,10 @@ function choose(candidate: SessionProvider): void {
   <button
     ref="trigger"
     type="button"
-    class="focus-ring flex h-8 shrink-0 items-center gap-1.5 rounded-control border border-border bg-surface px-2 text-small text-text-muted hover:bg-surface-raised hover:text-text"
-    :class="unavailable && 'border-warn text-warn'"
+    class="focus-ring grid size-8 shrink-0 cursor-pointer place-items-center rounded-control border bg-surface transition-colors hover:bg-surface-raised"
+    :class="unavailable ? 'border-warn' : 'border-border'"
     :aria-label="`Session provider · ${label}${unavailable ? ' unavailable' : ''}`"
-    :title="unavailable ?? 'Session provider'"
+    :title="unavailable ?? `Session provider · ${label}`"
     aria-haspopup="menu"
     :aria-expanded="open"
     data-testid="header-session-provider"
@@ -38,10 +38,6 @@ function choose(candidate: SessionProvider): void {
     @keydown.up.prevent="show"
   >
     <SessionProviderMark :provider="provider" />
-    <span class="hidden @min-[25rem]:inline">{{ label }}</span>
-    <svg class="size-3.5 shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-    </svg>
   </button>
 
   <Teleport to="body">

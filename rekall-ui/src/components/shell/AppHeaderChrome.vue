@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import HeaderSessionProvider from '@/components/shell/HeaderSessionProvider.vue'
 import HeaderNavigation from '@/components/shell/HeaderNavigation.vue'
 import WindowsWindowControls from '@/components/console/WindowsWindowControls.vue'
 import { desktopPlatform, isDesktopApp } from '@/common/native/desktop'
@@ -26,7 +25,6 @@ const clearsTrafficLights = platform === 'macos'
       <div id="app-header-extra" class="contents"></div>
 
       <div class="@container col-start-3 row-start-1 flex min-w-0 items-center justify-end gap-1.5">
-        <HeaderSessionProvider />
         <div id="app-header-actions" class="contents"></div>
       </div>
     </div>

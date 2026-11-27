@@ -532,11 +532,12 @@ toolbar keys stop being hand-built from the keycap utilities. A control drawn sm
 takes `hit-target`, which grows the pointer target, not the glyph.
 
 The header is one 48px row (`--spacing-header`), a three-cell grid. The left cell holds Back and
-Forward, the section menu, the project switcher and the Home mark in that order. The menu key opens every screen
+Forward, the section menu, the project switcher and the icon-only session provider selector in that
+order. The selector is a 32px square with the same corners as the section menu key. The menu key opens every screen
 grouped under its section (`AppNavMenu`); its accessible label names the screen on display and sums
 the alerts, and each alert shows beside its entry. The centre cell, at most 620px, is the
 `/rk` field: at rest it shows the open task's or project's anchors as chips, and `⌘K` or a click opens
-the switcher. The right cell starts with the session provider, followed by a 36px `header-capsule`
+the switcher. The right cell holds a 36px `header-capsule`
 with usage, the run queue and the review count (`HeaderStatus`, segments drawn with `status-segment`), where review is
 the only amber segment because it is the only one asking for action; beside it the save dot, Tags
 and Settings (`header-key`). The save state is a dot whose word is for screen readers and the

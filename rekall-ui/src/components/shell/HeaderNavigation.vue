@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppNavMenu from '@/components/console/AppNavMenu.vue'
-import HomeLink from '@/components/shell/HomeLink.vue'
 import HeaderProjectSwitch from '@/components/shell/HeaderProjectSwitch.vue'
+import HeaderSessionProvider from '@/components/shell/HeaderSessionProvider.vue'
 import HistoryArrows from '@/components/shell/HistoryArrows.vue'
 </script>
 
@@ -10,6 +10,6 @@ import HistoryArrows from '@/components/shell/HistoryArrows.vue'
     <HistoryArrows />
     <AppNavMenu />
     <HeaderProjectSwitch />
-    <HomeLink />
+    <HeaderSessionProvider />
   </div>
 </template>

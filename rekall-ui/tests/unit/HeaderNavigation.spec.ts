@@ -17,7 +17,8 @@ async function mountNavigation() {
   const router = createRouter({ history: createMemoryHistory(), routes })
   await router.push('/')
   await router.isReady()
-  return mount(HeaderNavigation, { global: { plugins: [router] }, attachTo: document.body })
+  const wrapper = mount(HeaderNavigation, { global: { plugins: [router] }, attachTo: document.body })
+  return { router, wrapper }
 }
 
 describe('the header navigation', () => {
@@ -26,24 +27,25 @@ describe('the header navigation', () => {
     setActivePinia(createPinia())
   })
 
-  it('orders history, sections, project and Home in the DOM', async () => {
-    const wrapper = await mountNavigation()
-    const order = ['history-back', 'history-forward', 'nav-menu-trigger', 'header-project-switch', 'home-link']
+  it('orders history, sections, project and the session provider in the DOM', async () => {
+    const { wrapper } = await mountNavigation()
+    const order = ['history-back', 'history-forward', 'nav-menu-trigger', 'header-project-switch', 'header-session-provider']
     const selector = order.map((id) => `[data-testid="${id}"]`).join(', ')
 
     expect(wrapper.findAll(selector).map((control) => control.attributes('data-testid'))).toEqual(order)
+    expect(wrapper.find('[data-testid="home-link"]').exists()).toBe(false)
   })
 
-  it('opens the menu without taking the history arrows away', async () => {
-    const wrapper = await mountNavigation()
+  it('opens the Projects list from the section menu', async () => {
+    const { router, wrapper } = await mountNavigation()
     await wrapper.get('[data-testid="nav-menu-trigger"]').trigger('click')
+    await wrapper.get('[data-testid="nav-menu-list"] a[href="/projects"]').trigger('click')
     await flushPromises()
-    expect(wrapper.find('[data-testid="nav-menu-list"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="history-back"]').exists()).toBe(true)
+    expect(router.currentRoute.value.name).toBe('projects')
   })
 
   it('folds the menu back on a press outside it', async () => {
-    const wrapper = await mountNavigation()
+    const { wrapper } = await mountNavigation()
     await wrapper.get('[data-testid="nav-menu-trigger"]').trigger('click')
     document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
     await flushPromises()

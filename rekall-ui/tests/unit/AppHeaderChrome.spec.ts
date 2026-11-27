@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, shallowMount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { defineComponent } from 'vue'
@@ -8,6 +8,8 @@ import { useCodexStore } from '@/features/codex/store/codex.store'
 import SharedSessionSection from '@/features/settings/components/SharedSessionSection.vue'
 import { installStorage } from './support/memoryStorage'
 import AppHeaderChrome from '@/components/shell/AppHeaderChrome.vue'
+
+vi.mock('@/features/vulnerability/api/vulnerabilities.api')
 
 describe('the header drag region', () => {
   afterEach(() => {
@@ -36,6 +38,9 @@ describe('the header session provider', () => {
     const { header, router } = await mountHeader()
     const key = header.get('[data-testid="header-session-provider"]')
     expect(key.attributes('aria-label')).toContain('Claude Code')
+    expect(key.text()).toBe('')
+    expect(key.findAll('svg')).toHaveLength(1)
+    expect(key.get('svg').attributes('data-provider')).toBe('CLAUDE')
 
     await key.trigger('keydown', { key: 'ArrowDown' })
     expect(document.activeElement).toBe(providerOption('Claude Code'))
@@ -47,6 +52,7 @@ describe('the header session provider', () => {
 
     await router.push('/tasks/2')
     expect(key.attributes('aria-label')).toContain('Codex')
+    expect(key.get('svg').attributes('data-provider')).toBe('CODEX')
     expect(window.localStorage.getItem('rekall.session.provider')).toBe('CODEX')
     header.unmount()
 
@@ -97,7 +103,7 @@ async function mountHeader() {
   await router.push('/tasks/1')
   const header = mount(AppHeaderChrome, {
     attachTo: document.body,
-    global: { plugins: [router], stubs: { HeaderNavigation: true } }
+    global: { plugins: [router] }
   })
   return { header, router }
 }
