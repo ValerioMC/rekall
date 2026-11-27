@@ -34,6 +34,31 @@ describe('the header session provider', () => {
     setActivePinia(createPinia())
   })
 
+  it('sits between the search and the actions, ahead of the live status', async () => {
+    const { header } = await mountHeader()
+    const order = ['#app-header-extra', '[data-testid="header-session-provider"]', '#app-header-status', '#app-header-actions']
+
+    const found = [...header.element.querySelectorAll(order.join(', '))]
+    expect(found.map((element) => order.find((selector) => element.matches(selector)))).toEqual(order)
+    expect(header.get('[data-testid="header-session"]').find('#app-header-status').exists()).toBe(true)
+    header.unmount()
+  })
+
+  it('stands in its own keycap outside the status capsule, tinted for the provider it holds', async () => {
+    const { header } = await mountHeader()
+    const key = header.get('[data-testid="header-session-provider"]')
+    expect(header.get('#app-header-status').find('[data-testid="header-session-provider"]').exists()).toBe(false)
+    expect(key.classes()).toContain('provider-keycap')
+    expect(key.classes()).toContain('[--provider-tint:var(--color-brand-claude)]')
+
+    await key.trigger('click')
+    providerOption('Codex').click()
+    await flushPromises()
+    expect(key.classes()).toContain('[--provider-tint:var(--color-text)]')
+    header.unmount()
+    setPreferredProvider('CLAUDE')
+  })
+
   it('selects by keyboard and preserves the choice across navigation and remount', async () => {
     const { header, router } = await mountHeader()
     const key = header.get('[data-testid="header-session-provider"]')
@@ -87,6 +112,7 @@ describe('the header session provider', () => {
     const key = header.get('[data-testid="header-session-provider"]')
 
     expect(key.attributes('aria-label')).toContain('Codex unavailable')
+    expect(key.classes()).toContain('[--provider-edge:var(--color-warn)]')
     await key.trigger('click')
     expect(providerOption('Codex').getAttribute('aria-disabled')).toBe('true')
     expect(document.querySelector('[role="menu"] a')?.getAttribute('href')).toBe('/settings/sessions')

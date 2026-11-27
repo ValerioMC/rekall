@@ -162,7 +162,7 @@ A blue-slate ground, warm gold for action, one cool cyan for anchors, and status
 
 ## Layout
 
-Screens are a title and a sub-navigation over a table, a list with a detail pane, or a queue beside a decision. Every page sits in one centred column of 1320px with 32px side padding (`page-column`), so a screen keeps its left edge when you move to its sub-navigation neighbour; a list with a detail pane is a bordered card inside that column, not a full-bleed workspace. Review uses the width it has. The first row of a project page is the scope bar: the project switcher as the page's title and what to know about it; the page's one action is the composer under it on a project's Tasks page. The header is one 48px row on a three-cell grid: the menu key, which names the screen on display, and the history arrows, the `/rk` search at the exact centre (240px to 620px), and the status capsule with tags and settings. Rows are 36px and controls 32px on a 4px rhythm; a project's task ledger offers Comfortable and Compact. Under 1280px the header sheds its words before it moves anything, and under 1100px the ⌘K hint goes. There is no mobile layout.
+Screens are a title and a sub-navigation over a table, a list with a detail pane, or a queue beside a decision. Every page sits in one centred column of 1320px with 32px side padding (`page-column`), so a screen keeps its left edge when you move to its sub-navigation neighbour; a list with a detail pane is a bordered card inside that column, not a full-bleed workspace. Review uses the width it has. The first row of a project page is the scope bar: the project switcher as the page's title and what to know about it; the page's one action is the composer under it on a project's Tasks page. The header is one 48px row on a three-cell grid: the menu key, which names the screen on display, and the history arrows; the `/rk` search at the exact centre (240px to 620px); and on the right the session provider keycap and the status capsule (account usage, run queue and review count), centred together in the room before the capsule with tags and settings. Rows are 36px and controls 32px on a 4px rhythm; a project's task ledger offers Comfortable and Compact. Under 1280px the header sheds its words before it moves anything, and under 1100px the ⌘K hint goes. There is no mobile layout.
 
 ## Elevation & Depth
 
@@ -204,7 +204,10 @@ Tabs under a title at body size (13.5px), with a count each in Fira Sans tabular
 Flat: a 1px Field Edge border over the canvas tone. Focus swaps the edge for amber and adds a one-pixel ring of it, two pixels in all and no halo. Invalid turns the edge rose.
 
 ### Header Capsule
-A 36px surface capsule with a hairline, holding usage, the run queue and the review count as segments; review is the only amber one.
+A 36px surface capsule with a hairline, grouping segments or keys. The status capsule holds the account usage, the run queue and the review count, parted by hairlines; review is the only amber segment. A screen with no status draws no status capsule.
+
+### Provider Keycap
+The session provider selector is a 36px square beside the status capsule: an icon-only key with an 18px mark, 8px corners and a 3px bottom edge. Its fill and edge are tinted with the colour of the provider it holds (Claude coral, Codex the text tone), brighter on hover. The tint names a brand, not a state; an unavailable provider turns the edge yellow.
 
 ### Plan Tube and Step Seal
 The plan tube is a glossy gold fill in a sunk trough, green when complete, with a sheen while a session works. The step seal is a ring that stays open on a claimed step and closes on hover, ripples and pops once on acceptance, and shows a comet and ticks while running. Only a person marks a step done.

@@ -280,8 +280,11 @@ goes in the first, one that needs the machine in the second. The run queue's row
 `RunQueueService` in `rekall-core/src/queue/`, and how skills are grouped is `SkillGroupService` in
 `rekall-core/src/skill/`.
 
-In the console, `HeaderNavigation` holds Back, Forward, the section menu, the project switcher and
-the icon-only session provider selector on the left of the header. The selector and
+In the console, `HeaderNavigation` holds Back, Forward, the section menu and the project switcher
+on the left of the header. `AppHeaderChrome` draws the icon-only session provider selector on the
+right, a keycap tinted for its provider, beside the status capsule where `HeaderStatus` puts the
+account usage, the run queue and the review count; the two are centred in the room before the
+header actions. The selector and
 Settings share the reactive preference in `session-launch.ts`, persisted in browser storage with
 a visit fallback. `useRunProvider` resolves task actions to the live session’s provider or the
 global choice for a new session. `usePlanTask` uses that resolution for Discuss, Plan, Replan and

@@ -24,24 +24,17 @@ onUnmounted(queue.closePanel)
 </script>
 
 <template>
-  <div
-    class="header-capsule min-w-0 shrink"
-    role="group"
-    aria-label="Live status"
-    data-testid="header-status"
-  >
-    <AccountUsageMeter provider="CLAUDE" :reading="claude" :show-provider="codexInstalled" />
-    <template v-if="codexInstalled">
-      <span class="h-4 w-px bg-border" aria-hidden="true" />
-      <AccountUsageMeter provider="CODEX" :reading="codex" show-provider />
-    </template>
+  <AccountUsageMeter provider="CLAUDE" :reading="claude" :show-provider="codexInstalled" />
+  <template v-if="codexInstalled">
     <span class="h-4 w-px bg-border" aria-hidden="true" />
-    <QueueBeacon />
-    <template v-if="reviewQueue.length">
-      <span class="h-4 w-px bg-border" aria-hidden="true" />
-      <ReviewQueueButton />
-    </template>
-  </div>
+    <AccountUsageMeter provider="CODEX" :reading="codex" show-provider />
+  </template>
+  <span class="h-4 w-px bg-border" aria-hidden="true" />
+  <QueueBeacon />
+  <template v-if="reviewQueue.length">
+    <span class="h-4 w-px bg-border" aria-hidden="true" />
+    <ReviewQueueButton />
+  </template>
 
   <Teleport to="body">
     <Transition name="dialog">

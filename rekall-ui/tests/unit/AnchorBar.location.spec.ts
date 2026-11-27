@@ -52,6 +52,14 @@ describe('the anchor bar, at rest', () => {
     wrapper.unmount()
   })
 
+  it('puts the live status in its own header slot, apart from the actions', () => {
+    const wrapper = render()
+
+    expect(wrapper.find('#app-header-status header-status-stub').exists()).toBe(true)
+    expect(wrapper.find('#app-header-actions header-status-stub').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('opens the command palette when pressed', async () => {
     const wrapper = render()
 

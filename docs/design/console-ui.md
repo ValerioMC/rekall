@@ -532,19 +532,26 @@ toolbar keys stop being hand-built from the keycap utilities. A control drawn sm
 takes `hit-target`, which grows the pointer target, not the glyph.
 
 The header is one 48px row (`--spacing-header`), a three-cell grid. The left cell holds Back and
-Forward, the section menu, the project switcher and the icon-only session provider selector in that
-order. The selector is a 32px square with the same corners as the section menu key. The menu key opens every screen
+Forward, the section menu and the project switcher in that order. The menu key opens every screen
 grouped under its section (`AppNavMenu`); its accessible label names the screen on display and sums
 the alerts, and each alert shows beside its entry. The centre cell, at most 620px, is the
 `/rk` field: at rest it shows the open task's or project's anchors as chips, and `⌘K` or a click opens
-the switcher. The right cell holds a 36px `header-capsule`
-with usage, the run queue and the review count (`HeaderStatus`, segments drawn with `status-segment`), where review is
-the only amber segment because it is the only one asking for action; beside it the save dot, Tags
-and Settings (`header-key`). The save state is a dot whose word is for screen readers and the
-tooltip. As its cells narrow, the bar keeps the last anchor, shows the section menu as an icon and
-truncates the project name to fit. Status controls shorten their readings as space runs out,
-and the `⌘K` hint disappears under 1100px. The usage segment opens the usage detail and the
-queue segment opens the list of queued and running tasks.
+the switcher. The right cell opens with the icon-only provider selector and the status capsule,
+centred together in the room between the `/rk` field and the header actions. The selector is a 36px
+`provider-keycap` tinted by `--provider-tint` for the provider it holds; an unavailable provider
+repaints its edge in the warn tone (`--provider-edge`). On task screens `HeaderStatus` (teleported
+into `#app-header-status`, itself a `header-capsule`) fills the capsule with the account usage, the
+run queue and the review count (segments drawn with `status-segment`, parted by hairlines), where
+review is the only amber segment because it is the only one asking for action. Other screens leave
+the capsule empty, which hides it, and show the selector alone. At the right edge are the save
+dot, Tags and Settings (`header-key`). The save state is a dot whose word is for screen readers and the tooltip. Each side
+keeps at least 30rem (38rem from 1536px) before the `/rk` field grows past 240px. As its cells
+narrow, the bar keeps the last anchor, shows the section menu as an icon and truncates the project
+name to fit. Status controls shorten their readings as space runs out: the queue strand gives way
+first, the usage rings leave a right cell between 24rem and 30rem when both providers show, and
+under 24rem the visible percentages give way to the usage detail. The `⌘K` hint disappears under
+1100px. A usage segment opens the usage detail and the queue segment opens the list of queued and
+running tasks.
 
 The run queue shows a task's steps in two places, from one value (`runProgress(queue).steps`: the
 steps that count, how many are settled, the current one; a claim settles a step because the queue

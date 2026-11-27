@@ -6,6 +6,11 @@ import SessionProviderMark from '@/features/claude/components/SessionProviderMar
 import { useSessionProviderOptions } from '@/features/claude/composables/useSessionProviderOptions'
 import { SESSION_PROVIDER_LABEL, type SessionProvider } from '@/features/claude/model/session-provider'
 
+const PROVIDER_TINT: Readonly<Record<SessionProvider, string>> = {
+  CLAUDE: '[--provider-tint:var(--color-brand-claude)]',
+  CODEX: '[--provider-tint:var(--color-text)]'
+}
+
 const trigger = ref<HTMLButtonElement | null>(null)
 const { open, menu, placement, show, toggle, close, handleKeydown } = useAnchoredMenu(() => trigger.value, 224)
 const { options, missing } = useSessionProviderOptions()
@@ -26,8 +31,8 @@ function choose(candidate: SessionProvider): void {
   <button
     ref="trigger"
     type="button"
-    class="focus-ring grid size-8 shrink-0 cursor-pointer place-items-center rounded-control border bg-surface transition-colors hover:bg-surface-raised"
-    :class="unavailable ? 'border-warn' : 'border-border'"
+    class="provider-keycap focus-ring shrink-0 cursor-pointer"
+    :class="[PROVIDER_TINT[provider], unavailable && '[--provider-edge:var(--color-warn)]']"
     :aria-label="`Session provider · ${label}${unavailable ? ' unavailable' : ''}`"
     :title="unavailable ?? `Session provider · ${label}`"
     aria-haspopup="menu"
@@ -37,7 +42,7 @@ function choose(candidate: SessionProvider): void {
     @keydown.down.prevent="show"
     @keydown.up.prevent="show"
   >
-    <SessionProviderMark :provider="provider" />
+    <SessionProviderMark :provider="provider" :size="18" />
   </button>
 
   <Teleport to="body">

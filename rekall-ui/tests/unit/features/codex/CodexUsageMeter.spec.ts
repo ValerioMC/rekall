@@ -79,6 +79,24 @@ describe('account usage in the header', () => {
     }
   })
 
+  it('joins the queue to the usage meters with a separator', async () => {
+    vi.mocked(fetchCodexUsage).mockResolvedValue({ status: 'CLI_MISSING' })
+    const header = mountHeader()
+    await flushPromises()
+
+    const queue = header.get('queue-beacon-stub').element
+    expect(queue.previousElementSibling?.getAttribute('aria-hidden')).toBe('true')
+    expect(queue.previousElementSibling?.previousElementSibling?.getAttribute('data-testid')).toBe('claude-usage')
+  })
+
+  it('opens the capsule on the first reading, with no separator ahead of it', async () => {
+    vi.mocked(fetchCodexUsage).mockResolvedValue({ status: 'CLI_MISSING' })
+    const header = mountHeader()
+    await flushPromises()
+
+    expect(header.get('[data-testid="claude-usage"]').element.previousElementSibling).toBeNull()
+  })
+
   it('omits the Codex meter when the CLI is missing', async () => {
     vi.mocked(fetchCodexUsage).mockResolvedValue({ status: 'CLI_MISSING' })
     const header = mountHeader()

@@ -105,7 +105,7 @@ const label = computed(() => {
       :steps="progress.steps"
     />
 
-    <span class="flex min-w-0 items-baseline gap-1.5 @max-[22rem]:hidden" data-testid="queue-beacon-line">
+    <span class="flex min-w-0 items-baseline gap-1.5 @max-[26rem]:hidden" data-testid="queue-beacon-line">
       <template v-if="queue.state === 'SCHEDULED'">
         <span class="sr-only @min-[43rem]:not-sr-only">Starts</span>
         <span class="font-mono tabular-nums text-accent">{{ clockLabel(queue.startAt, now) }}</span>
@@ -140,7 +140,7 @@ const label = computed(() => {
 
     <span
       v-if="beads.length"
-      class="flex min-w-0 items-center gap-[3px] overflow-hidden @max-[26rem]:hidden"
+      class="flex min-w-0 shrink-[1000] items-center gap-[3px] overflow-hidden @max-[26rem]:hidden"
       data-testid="queue-beacon-strand"
     >
       <QueueBead

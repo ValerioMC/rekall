@@ -983,7 +983,7 @@
  * side drops its labels, before either could run under the search.
  */
 @utility app-header-grid {
-  --header-side-min: 26rem;
+  --header-side-min: 30rem;
   grid-template-columns:
     minmax(0, 1fr)
     clamp(15rem, calc(100% - 2 * (var(--header-side-min) + 1rem)), 38.75rem)
@@ -1027,6 +1027,26 @@
   &:hover:not(:disabled) {
     background: var(--color-surface-hover);
     color: var(--color-text);
+  }
+}
+
+/*
+ * The header's session provider: a square key as tall as a capsule, with a deeper bottom edge,
+ * tinted in its provider's colour (`--provider-tint`). `--provider-edge` repaints the edge alone.
+ */
+@utility provider-keycap {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--provider-edge, color-mix(in srgb, var(--provider-tint) 55%, transparent));
+  border-bottom-width: 3px;
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--provider-tint) 16%, var(--color-surface));
+  transition: background-color var(--motion-quick) ease;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--provider-tint) 26%, var(--color-surface));
   }
 }
 

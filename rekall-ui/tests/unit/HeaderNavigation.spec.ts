@@ -27,13 +27,14 @@ describe('the header navigation', () => {
     setActivePinia(createPinia())
   })
 
-  it('orders history, sections, project and the session provider in the DOM', async () => {
+  it('orders history, sections and project in the DOM', async () => {
     const { wrapper } = await mountNavigation()
-    const order = ['history-back', 'history-forward', 'nav-menu-trigger', 'header-project-switch', 'header-session-provider']
+    const order = ['history-back', 'history-forward', 'nav-menu-trigger', 'header-project-switch']
     const selector = order.map((id) => `[data-testid="${id}"]`).join(', ')
 
     expect(wrapper.findAll(selector).map((control) => control.attributes('data-testid'))).toEqual(order)
     expect(wrapper.find('[data-testid="home-link"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="header-session-provider"]').exists()).toBe(false)
   })
 
   it('opens the Projects list from the section menu', async () => {

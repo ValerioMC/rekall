@@ -157,7 +157,7 @@ function dismiss(): void {
     >
       <span
         class="relative grid size-[22px] place-items-center"
-        :class="showProvider && '@max-[20rem]:hidden'"
+        :class="showProvider && '@max-[20rem]:hidden @min-[24rem]:@max-[30rem]:hidden'"
         aria-hidden="true"
       >
         <svg class="size-[22px] -rotate-90" viewBox="0 0 22 22" fill="none">

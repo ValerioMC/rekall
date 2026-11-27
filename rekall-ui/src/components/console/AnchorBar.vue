@@ -80,51 +80,48 @@ watch(saveState, (value, previous) => {
       </button>
     </div>
   </Teleport>
+  <Teleport to="#app-header-status">
+    <HeaderStatus />
+  </Teleport>
   <Teleport to="#app-header-actions">
-    <div class="flex min-w-0 items-center justify-end gap-1.5">
-      <div class="flex min-w-0">
-        <HeaderStatus />
-      </div>
-
-      <div class="header-capsule" role="group" aria-label="Tools">
-        <!-- The dot's colour carries the save state; the word stays for screen readers and as the tooltip. -->
-        <p
-          class="grid size-5 place-items-center text-small"
-          :class="saveState === 'unsaved' ? 'text-warn' : 'text-text-subtle'"
-          :title="SAVE_LABEL[saveState]"
-          role="status"
-          aria-live="polite"
-          data-testid="save-state"
-        >
-          <span
-            class="size-1.5 rounded-full transition-colors"
-            :class="[SAVE_DOT[saveState], justSaved && 'settle']"
-            aria-hidden="true"
+    <div class="header-capsule" role="group" aria-label="Tools">
+      <!-- The dot's colour carries the save state; the word stays for screen readers and as the tooltip. -->
+      <p
+        class="grid size-5 place-items-center text-small"
+        :class="saveState === 'unsaved' ? 'text-warn' : 'text-text-subtle'"
+        :title="SAVE_LABEL[saveState]"
+        role="status"
+        aria-live="polite"
+        data-testid="save-state"
+      >
+        <span
+          class="size-1.5 rounded-full transition-colors"
+          :class="[SAVE_DOT[saveState], justSaved && 'settle']"
+          aria-hidden="true"
+        />
+        <span class="sr-only">{{ SAVE_LABEL[saveState] }}</span>
+      </p>
+      <button
+        type="button"
+        class="header-key focus-ring"
+        data-testid="tags-trigger"
+        aria-label="Tags"
+        title="Tags"
+        @click="emit('openTags')"
+      >
+        <!-- Drawn in the chrome's grey like the cog beside it: a lit crimson glyph here was the
+             only coloured icon in the bar, and colour up here means state, not a menu. -->
+        <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M3.5 12.1V4.6a1.1 1.1 0 0 1 1.1-1.1h7.5a1.1 1.1 0 0 1 .78.32l7.8 7.8a1.1 1.1 0 0 1 0 1.56l-7.5 7.5a1.1 1.1 0 0 1-1.56 0l-7.8-7.8a1.1 1.1 0 0 1-.32-.78Z"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linejoin="round"
           />
-          <span class="sr-only">{{ SAVE_LABEL[saveState] }}</span>
-        </p>
-        <button
-          type="button"
-          class="header-key focus-ring"
-          data-testid="tags-trigger"
-          aria-label="Tags"
-          title="Tags"
-          @click="emit('openTags')"
-        >
-          <!-- Drawn in the chrome's grey like the cog beside it: a lit crimson glyph here was the
-               only coloured icon in the bar, and colour up here means state, not a menu. -->
-          <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-              d="M3.5 12.1V4.6a1.1 1.1 0 0 1 1.1-1.1h7.5a1.1 1.1 0 0 1 .78.32l7.8 7.8a1.1 1.1 0 0 1 0 1.56l-7.5 7.5a1.1 1.1 0 0 1-1.56 0l-7.8-7.8a1.1 1.1 0 0 1-.32-.78Z"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linejoin="round"
-            />
-            <circle cx="8.2" cy="8.2" r="1.5" fill="currentColor" />
-          </svg>
-        </button>
-        <SettingsTrigger @open="emit('openSettings')" />
-      </div>
+          <circle cx="8.2" cy="8.2" r="1.5" fill="currentColor" />
+        </svg>
+      </button>
+      <SettingsTrigger @open="emit('openSettings')" />
     </div>
   </Teleport>
 </template>
