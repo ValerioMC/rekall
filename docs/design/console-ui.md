@@ -348,7 +348,8 @@ task shows the empty state, and a failed first read offers **Try again**. A trac
 what is compared: **All changes**
 (each file as the logged commits left it), a **repository** (only when the task changed more than
 one), a **step** (the commits logged against it), one **commit**, or a **working tree** a session has
-not committed yet (indigo, with a pulsing dot), one per repository. A file tree on
+not committed yet (indigo, with a pulsing dot), one per repository. The track has a fixed height
+and scrolls horizontally when its controls exceed the available width. A file tree on
 the left lists every file of the task as folders that open and close, with its added and removed lines in
 the chosen scope (a folder shows the sum of the files below it); a folder that holds only another
 folder reads as one element (`rekall-core/src/commit/model`), as an IDE compacts empty packages, and

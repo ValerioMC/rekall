@@ -32,7 +32,7 @@ function classOf(target: ChangeScope): string {
 </script>
 
 <template>
-  <div class="flex min-w-0 items-center gap-1 overflow-x-auto rounded-card border border-border bg-canvas p-0.75" role="group" aria-label="What to compare" data-testid="change-scope-track">
+  <div class="flex h-12 min-w-0 items-center gap-1 overflow-x-auto overflow-y-hidden rounded-card border border-border bg-canvas p-1" role="group" aria-label="What to compare" data-testid="change-scope-track">
     <button type="button" :class="[BUTTON, classOf({ kind: 'all' })]" :aria-pressed="scope.kind === 'all'" title="Everything the sessions changed for this task" data-testid="scope-all" @click="emit('select', { kind: 'all' })">
       All changes
     </button>
