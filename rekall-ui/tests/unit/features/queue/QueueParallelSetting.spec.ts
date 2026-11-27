@@ -61,6 +61,6 @@ describe('the run queue settings', () => {
   })
 
   it('says where a queued Codex task takes its settings from', () => {
-    expect(aside('1').get('[data-testid="run-queue-codex"]').text()).toContain('set in Settings when you added it')
+    expect(aside('1').get('[data-testid="run-queue-codex"]').text()).toContain('model and effort you confirm')
   })
 })

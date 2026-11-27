@@ -149,13 +149,17 @@ function dismiss(): void {
     <button
       ref="trigger"
       type="button"
-      class="status-segment focus-ring group text-text-muted hover:text-text @max-[24rem]:gap-1 @max-[24rem]:px-1.5"
+      class="status-segment focus-ring group text-text-muted hover:text-text @max-[24rem]:gap-1 @max-[24rem]:px-1"
       :aria-label="triggerLabel"
       :aria-expanded="open"
       :aria-busy="reading"
       @click="onTrigger"
     >
-      <span class="relative grid size-[22px] place-items-center" aria-hidden="true">
+      <span
+        class="relative grid size-[22px] place-items-center"
+        :class="showProvider && '@max-[20rem]:hidden'"
+        aria-hidden="true"
+      >
         <svg class="size-[22px] -rotate-90" viewBox="0 0 22 22" fill="none">
           <circle
             cx="11"
@@ -195,7 +199,7 @@ function dismiss(): void {
       <SessionProviderMark v-if="showProvider" :provider="provider" />
 
       <template v-if="state === 'ok' && session">
-        <span class="font-mono tabular-nums" :class="TEXT[severity]">
+        <span class="font-mono tabular-nums @max-[24rem]:sr-only" :class="TEXT[severity]">
           {{ percentLabel(session) }}
         </span>
         <span v-if="!showProvider" class="hidden font-mono text-caption text-text-subtle @min-[37rem]:inline">

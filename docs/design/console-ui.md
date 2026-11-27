@@ -531,17 +531,18 @@ an `icon` size and `pressed`, which lights a toggle as `key-lit` and sets `aria-
 toolbar keys stop being hand-built from the keycap utilities. A control drawn smaller than 24px
 takes `hit-target`, which grows the pointer target, not the glyph.
 
-The header is one 48px row (`--spacing-header`), a three-cell grid. The left cell holds the 24px
-mark, the menu key, the history arrows and the project key. The menu key is a bare three-line burger that opens every screen
+The header is one 48px row (`--spacing-header`), a three-cell grid. The left cell holds Back and
+Forward, the section menu, the project switcher and the Home mark in that order. The menu key opens every screen
 grouped under its section (`AppNavMenu`); its accessible label names the screen on display and sums
 the alerts, and each alert shows beside its entry. The centre cell, at most 620px, is the
 `/rk` field: at rest it shows the open task's or project's anchors as chips, and `⌘K` or a click opens
-the switcher. The right cell is one 36px `header-capsule` with the field's corner, usage, the run
-queue and the review count (`HeaderStatus`, segments drawn with `status-segment`), where review is
+the switcher. The right cell starts with the session provider, followed by a 36px `header-capsule`
+with usage, the run queue and the review count (`HeaderStatus`, segments drawn with `status-segment`), where review is
 the only amber segment because it is the only one asking for action; beside it the save dot, Tags
 and Settings (`header-key`). The save state is a dot whose word is for screen readers and the
-tooltip. The bar gives way under 1280px: the anchors keep only the last one and the review segment
-drops its words; under 1100px the `⌘K` hint goes. The usage segment opens the usage detail and the
+tooltip. As its cells narrow, the bar keeps the last anchor, shows the section menu as an icon and
+truncates the project name to fit. Status controls shorten their readings as space runs out,
+and the `⌘K` hint disappears under 1100px. The usage segment opens the usage detail and the
 queue segment opens the list of queued and running tasks.
 
 The run queue shows a task's steps in two places, from one value (`runProgress(queue).steps`: the

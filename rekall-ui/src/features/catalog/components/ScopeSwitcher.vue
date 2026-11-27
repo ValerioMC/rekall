@@ -179,13 +179,13 @@ function newProject(): void {
 </script>
 
 <template>
-  <div class="relative" data-testid="scope-switcher">
+  <div class="relative" :class="isHeader && 'min-w-0'" data-testid="scope-switcher">
     <button
       v-if="isHeader"
       ref="trigger"
       type="button"
       data-testid="scope-trigger"
-      class="focus-ring flex h-8 max-w-60 cursor-pointer items-center gap-2 rounded-control border border-border bg-surface px-2 text-left text-body font-medium text-text transition-colors duration-(--motion-quick) hover:bg-surface-raised"
+      class="focus-ring flex h-8 w-full max-w-60 cursor-pointer items-center gap-2 rounded-control border border-border bg-surface px-2 text-left text-body font-medium text-text transition-colors duration-(--motion-quick) hover:bg-surface-raised"
       :class="isOpen && 'bg-surface-raised'"
       aria-haspopup="listbox"
       :aria-expanded="isOpen"
@@ -194,7 +194,7 @@ function newProject(): void {
     >
       <ProjectMark v-if="markedProject" :project-id="markedProject.id" :icon="markedProject.icon" :image-version="markedProject.iconImageVersion" :size="20" />
       <span v-else class="mx-1.5 size-2 shrink-0 rotate-45 rounded-key bg-accent" aria-hidden="true" />
-      <span class="truncate max-[1279px]:hidden" data-testid="scope-trigger-title">{{ markedProject?.title ?? 'Projects' }}</span>
+      <span class="min-w-0 truncate" data-testid="scope-trigger-title">{{ markedProject?.title ?? 'Projects' }}</span>
       <svg
         class="size-3.5 shrink-0 text-text-subtle transition-transform duration-(--motion-move)"
         :class="isOpen && 'rotate-180 text-text'"

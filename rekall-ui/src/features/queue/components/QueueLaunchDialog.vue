@@ -208,7 +208,7 @@ onMounted(() => {
                 :placeholder="choicesUnavailable ? '—' : undefined"
                 :disabled="fieldsDisabled || effortOptions.length < 2"
                 data-testid="queue-launch-effort"
-                @update:model-value="draft.effort = $event"
+                @update:model-value="draft = { ...draft, effort: $event }"
               />
             </div>
           </div>

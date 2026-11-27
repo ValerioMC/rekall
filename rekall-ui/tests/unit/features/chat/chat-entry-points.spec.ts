@@ -109,7 +109,7 @@ describe('the entry points', () => {
     const openPane = vi.spyOn(useConsoleStore(), 'openTerminal')
     const button = mount(OpenTerminalButton, { props: { taskId: TASK, folder: '/code/vega' }, attachTo: document.body })
 
-    await button.get(`[data-testid=provider-switch-${provider}]`).trigger('click')
+    setPreferredProvider(provider)
     await button.get('[data-testid=run-menu-arrow]').trigger('click')
     document.body.querySelector<HTMLElement>('[data-testid=plan-here]')?.click()
     await flushPromises()
