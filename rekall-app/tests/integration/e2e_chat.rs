@@ -106,8 +106,7 @@ async fn open_chat(app: &App, folder: &std::path::Path) -> String {
     let company = app.a_company("Acme").await;
     let project = app.a_project_in(&company, "alpha", folder).await;
     let task = app.a_task(&project, "one").await;
-    let step = app.a_step(&task, "First", None).await;
-    let opened = app.post(&format!("/api/tasks/{task}/terminals"), json!({ "stepId": step, "kind": "CHAT", "skipPermissions": true })).await;
+    let opened = app.post(&format!("/api/tasks/{task}/terminals"), json!({ "kind": "CHAT", "skipPermissions": true })).await;
     assert_eq!(opened.status, 201);
     assert_eq!(opened.str("kind"), "CHAT");
     opened.str("id")

@@ -10,11 +10,12 @@ use super::chat_process::ChatProcess;
 use super::event_journal::EventJournal;
 use crate::session::SessionOptions;
 
-/// One live chat session: its process, the task and step it works, and the journal its clients follow.
+/// One live chat session: its process, the task it works, and the journal its clients follow.
 pub(super) struct ChatSession {
     pub(super) id: Id,
     pub(super) launch: TerminalLaunch,
-    pub(super) step_id: Mutex<Option<Id>>,
+    /// Opened to work, or sent a work line since: its end releases the task's running steps.
+    pub(super) given_work: AtomicBool,
     /// What it was opened to do; only a session in a mode that follows steps can be followed by a new session.
     pub(super) mode: TerminalMode,
     pub(super) provider: SessionProvider,
@@ -34,7 +35,6 @@ impl ChatSession {
     pub(super) fn new(
         id: Id,
         launch: TerminalLaunch,
-        step_id: Option<Id>,
         mode: TerminalMode,
         options: SessionOptions,
         process: ChatProcess,
@@ -44,7 +44,7 @@ impl ChatSession {
         Self {
             id,
             launch,
-            step_id: Mutex::new(step_id),
+            given_work: AtomicBool::new(mode.follows_steps()),
             mode,
             provider: options.provider,
             skip_permissions: options.skip_permissions,
@@ -67,16 +67,11 @@ impl ChatSession {
         !self.pending().is_empty()
     }
 
-    pub(super) fn step_id(&self) -> Option<Id> {
-        *self.step_id.lock().expect("never poisoned")
-    }
-
     pub(super) fn view(&self) -> TerminalView {
         TerminalView {
             id: self.id,
             project_id: self.launch.project_id,
             task_id: self.launch.task_id,
-            step_id: self.step_id(),
             anchors: self.launch.anchors.clone(),
             working_dir: self.launch.working_dir.clone(),
             project_label: self.launch.project_label.clone(),

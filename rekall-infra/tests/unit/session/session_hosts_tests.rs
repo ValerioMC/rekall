@@ -19,7 +19,7 @@ fn hosts(max_sessions: usize) -> Hosts {
 }
 
 fn opening(target: TerminalTarget, kind: SessionKind) -> TerminalOpening {
-    TerminalOpening { target, step_id: None, provider: Default::default(), skip_permissions: false, model: None, effort: None, mode: TerminalMode::Work, kind }
+    TerminalOpening { target, provider: Default::default(), skip_permissions: false, model: None, effort: None, mode: TerminalMode::Work, kind }
 }
 
 #[tokio::test]

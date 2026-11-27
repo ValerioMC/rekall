@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
+import { defineComponent, h, type PropType } from 'vue'
 import type * as VueRouter from 'vue-router'
+import TaskActions from '@/features/task/components/TaskActions.vue'
 import TaskPlanTab from '@/features/task/components/TaskPlanTab.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useToastStore } from '@/stores/toast.store'
@@ -130,6 +132,34 @@ function render() {
         AppConfirm: {
           template: '<div data-testid="confirm"><button data-testid="confirm-yes" @click="$emit(\'confirm\')" /></div>'
         }
+      }
+    }
+  })
+}
+
+/** The task page as far as running goes: the header's actions over the Plan tab. */
+const TaskPageWithPlan = defineComponent({
+  props: { task: { type: Object as PropType<Task>, required: true } },
+  setup: (props) => () => h('div', [h(TaskActions, { task: props.task }), h(TaskPlanTab, { task: props.task })])
+})
+
+function renderPage() {
+  return mount(TaskPageWithPlan, {
+    props: { task: useConsoleStore().tasks[0]! },
+    attachTo: document.body,
+    global: {
+      plugins: [pinia],
+      stubs: {
+        RouterLink: RouterLinkStub,
+        AppMarkdownEditor: true,
+        LaunchClaudeCodeButton: true,
+        LogCommitButton: true,
+        ConvertToEpicButton: true,
+        TaskDeleteButton: true,
+        CommitReferenceList: true,
+        TaskBranchPanel: true,
+        GraphAttachPanel: true,
+        StepFlowView: true
       }
     }
   })
@@ -510,6 +540,17 @@ describe('TaskPlanTab', () => {
 
     await tab.findAll('[data-testid="plan-step-title"]')[1]!.trigger('click')
     expect(tab.find('[data-testid="decision-actions"]').exists()).toBe(false)
+  })
+
+  it.each(['OPEN', 'RUNNING'] as const)('leaves the header key as the only Run here while the selected step is %s', async (state) => {
+    seed([makeStep('s1', 0, state)])
+    const page = renderPage()
+
+    await page.get('[data-testid="plan-step-title"]').trigger('click')
+
+    expect(page.findAll('[data-testid="open-terminal"]')).toHaveLength(1)
+    expect(page.get('[data-testid="task-actions"]').find('[data-testid="open-terminal"]').exists()).toBe(true)
+    expect(page.get('[data-testid="decision-actions"]').find('[data-testid="open-terminal"]').exists()).toBe(false)
   })
 
   it('renames the step in place from its heading and saves what was typed', async () => {

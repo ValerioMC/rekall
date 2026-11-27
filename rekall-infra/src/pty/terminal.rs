@@ -15,7 +15,8 @@ use super::scrollback::Scrollback;
 pub(super) struct Terminal {
     pub(super) id: Id,
     pub(super) launch: TerminalLaunch,
-    pub(super) step_id: Mutex<Option<Id>>,
+    /// Opened to work, or typed a work line since: its end releases the task's running steps.
+    pub(super) given_work: AtomicBool,
     /// The last size the pane asked for, as (columns, rows). Its lock also serialises every
     /// resize, so the kick's delayed restore cannot undo a resize that landed meanwhile.
     pub(super) size: Mutex<(u16, u16)>,
@@ -42,16 +43,11 @@ impl Terminal {
         self.exit.borrow().is_none()
     }
 
-    pub(super) fn step_id(&self) -> Option<Id> {
-        *self.step_id.lock().expect("never poisoned")
-    }
-
     pub(super) fn view(&self) -> TerminalView {
         TerminalView {
             id: self.id,
             project_id: self.launch.project_id,
             task_id: self.launch.task_id,
-            step_id: self.step_id(),
             anchors: self.launch.anchors.clone(),
             working_dir: self.launch.working_dir.clone(),
             project_label: self.launch.project_label.clone(),

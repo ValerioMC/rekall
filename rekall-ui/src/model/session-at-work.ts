@@ -1,29 +1,17 @@
 import type { Task } from '@/features/catalog/model/catalog'
 import type { TaskStep } from '@/features/steps/model/task-step'
 import type { Terminal } from '@/features/claude/model/terminal'
-import type { TaskStepId } from '@/model/branded'
 
-/**
- * Whether a session is still working what a "Run here" button launches, read from what the server
- * already reports live. A step is worked while it is `RUNNING`: the server marks it when its
- * terminal opens and moves it on a claim or when the terminal ends. A stepless task follows its
- * own review line the same way. A checklist task launched as a whole is worked while one of its
- * steps runs, or while its terminal is live and a step is still open. A discussion that holds no
- * step is talk, not work.
- */
+/** Work is on while the review line or a step is `RUNNING`, or a live session that is no discussion has an open step left. */
 export function sessionAtWork(
   task: Pick<Task, 'id' | 'reviewActive' | 'reviewState'> | null,
-  steps: readonly Pick<TaskStep, 'id' | 'taskId' | 'state'>[],
-  terminals: readonly Pick<Terminal, 'taskId' | 'live' | 'mode' | 'stepId'>[],
-  stepId: TaskStepId | null
+  steps: readonly Pick<TaskStep, 'taskId' | 'state'>[],
+  terminals: readonly Pick<Terminal, 'taskId' | 'live' | 'mode'>[]
 ): boolean {
   if (!task) return false
-  if (stepId) return steps.some((step) => step.id === stepId && step.state === 'RUNNING')
   if (task.reviewActive) return task.reviewState === 'RUNNING'
   const own = steps.filter((step) => step.taskId === task.id)
   if (own.some((step) => step.state === 'RUNNING')) return true
-  const working = terminals.some(
-    (terminal) => terminal.taskId === task.id && terminal.live && (terminal.mode !== 'DISCUSS' || terminal.stepId !== null)
-  )
+  const working = terminals.some((terminal) => terminal.taskId === task.id && terminal.live && terminal.mode !== 'DISCUSS')
   return working && own.some((step) => step.state === 'OPEN')
 }

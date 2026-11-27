@@ -112,8 +112,8 @@ the `Agent` call that started it (`None` in the main conversation), so the windo
 last entry of `usage.iterations`, which is the turn's last API call, over the `contextWindow` of the model in `modelUsage` that
 wrote most (`turn_context.rs`). `result.usage` as a whole sums every call of the turn and is not used for it. Both `cost_usd`
 and `context` are `None` when the line carries none (a local command, an older `claude`). When a turn finishes with a
-`context`, `ChatSessionManager` records it through `ContextFillService` for the session's task and its current step (the
-step `retarget` moved it to); a session on a project alone records nothing, and a failure is logged and the turn goes on.
+`context`, `ChatSessionManager` records it through `ContextFillService` for the session's task; a session on a project
+alone records nothing, and a failure is logged and the turn goes on.
 `GET /api/context-fill?taskId=` returns the stored fills of a task and the console's event stream carries them as a
 `context-fill` frame. `EventJournal`
 numbers and keeps them, which is what lets a reader that reconnects resume from `Last-Event-ID`.
@@ -146,18 +146,20 @@ another is opened on the same task with the same model, effort and permissions, 
 session boundary (4.3 in [workflow.md](workflow.md)) gives the next step a clean context. The pane switches to the new terminal
 once the old one's end reaches it (`terminal.store`'s `followNextSession`).
 
-One terminal per task. Opening again on a task that already has one is routed to it; opening on
-a different step releases the step it was on and marks the new (see [workflow.md](workflow.md)). A plan open is always on
-the task, never a step, and on a task that already has a terminal it types the plan line into it
-rather than spawning a second. The checklist marker is `WorkMarker` (`rekall-infra/src/session/`):
-`TaskStepService.markRunning` / `releaseRunning` for a step, `TaskReviewService.sessionRunning` for a
-stepless task, on open and on every way the terminal ends. A `TerminalMode::Discuss` terminal is the
-exception (`TerminalMode::only_discusses`): its open marks nothing, so no step or review line turns
-running and no snapshot is taken. Close, shutdown and exit all give work back through
-`release_work`, which does nothing for a discussion holding no step. A work open typed into a live
-discussion retargets it: the step it names is marked, and released when the terminal ends; one that
-names no step marks nothing. `EndedBus` there carries the ends and
-`spawn_idle_sweep` runs the idle sweep, both written for any kind of session manager.
+One session per task. Opening again on a task that already has one is routed to it and types the new mode's line
+into it rather than spawning a second. A session is opened on the task, never on a step: it marks each step it starts
+itself, through `rekall_step`. What a session holds and gives back is `WorkMarker` (`rekall-infra/src/session/`):
+
+- **Marked on open.** `TaskReviewService::session_running` runs the review line of a stepless task, and a snapshot of
+  the working tree is taken. A `Discuss` or `Refine` terminal marks nothing (`TerminalMode::marks_running_in_terminal`).
+- **Running steps.** A live session keeps whether it was given work: opened in `Work` mode, or typed a work line later.
+  On every way it ends, such a session calls `TaskStepService::release_all_running`, which puts all of the task's
+  `RUNNING` steps back to `OPEN`; the run queue calls the same operation. A session never given work releases no step.
+- **Review line and thread.** Released with the entries the session took and never answered: by a terminal in any mode
+  but `Discuss` and `Refine`, and by a chat opened in `Work` mode.
+
+`EndedBus` there carries the ends and `spawn_idle_sweep` runs the idle sweep, both written for any kind of session
+manager.
 
 Nothing is persisted. There is no row behind a terminal, so `TerminalLaunchService` (in
 `rekall-core`, against the entities) only resolves a task id to its folder and anchors, and a

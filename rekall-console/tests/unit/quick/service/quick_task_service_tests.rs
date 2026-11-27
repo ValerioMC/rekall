@@ -68,7 +68,6 @@ fn view_on(target: &TerminalTarget) -> TerminalView {
         id: Id::random(),
         project_id: Id::random(),
         task_id,
-        step_id: None,
         anchors: "project:app".into(),
         working_dir: "/work/app".into(),
         project_label: "app".into(),

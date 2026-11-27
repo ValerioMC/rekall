@@ -12,7 +12,6 @@ fn view() -> TerminalView {
         id: Id::random(),
         project_id: Id::random(),
         task_id: None,
-        step_id: None,
         anchors: "project:vega".into(),
         working_dir: "/work".into(),
         project_label: "vega".into(),

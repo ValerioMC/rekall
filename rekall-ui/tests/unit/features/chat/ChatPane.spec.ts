@@ -9,8 +9,7 @@ import { setCodexEffort, setCodexModel, setPreferredProvider } from '@/common/co
 import type { ChatEvent } from '@/features/chat/model/chat-event'
 import { useConsoleStore } from '@/stores/console.store'
 import type { Terminal } from '@/features/claude/model/terminal'
-import type { TaskStep } from '@/features/steps/model/task-step'
-import type { TaskId, TaskStepId, TerminalId } from '@/model/branded'
+import type { TaskId, TerminalId } from '@/model/branded'
 import { CHAT_ID, MarkdownStub, chatSession } from './support'
 import { taskFixture } from '../../support/taskFixture'
 import { installStorage } from '../../support/memoryStorage'
@@ -115,9 +114,8 @@ describe('the full-size chat', () => {
     expect(view.find('[data-testid=chat-input]').exists()).toBe(true)
   })
 
-  it('lists the session\'s step, permissions, context and cost beside the conversation', async () => {
-    useConsoleStore().steps = [{ id: 's1' as TaskStepId, taskId: TASK, title: 'Write the CSV file', state: 'OPEN', startsSession: false, position: 0 } as TaskStep]
-    sessions(chatSession({ stepId: 's1' as TaskStepId, model: 'opus' }))
+  it('lists the session\'s model, permissions, context and cost beside the conversation', async () => {
+    sessions(chatSession({ model: 'opus' }))
     showChatOf(TASK)
     const view = await mountPane()
 
@@ -133,7 +131,6 @@ describe('the full-size chat', () => {
     await flushPromises()
 
     const facts = view.get('[data-testid=chat-facts]').text()
-    expect(facts).toContain('Step 1 · Write the CSV file')
     expect(facts).toContain('opus')
     expect(facts).toContain('permissions on')
     expect(view.get('[data-testid=chat-readout-context]').text()).toBe('context 34%')

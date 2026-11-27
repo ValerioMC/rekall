@@ -77,7 +77,7 @@ export const useTerminalStore = defineStore('terminal', () => {
 
   async function planForTask(
     taskId: TaskId,
-    input: Omit<OpenTerminalInput, 'stepId' | 'mode'>,
+    input: Omit<OpenTerminalInput, 'mode'>,
     mode: PlanMode | RewriteMode = 'PLAN',
     message = ''
   ): Promise<Terminal> {

@@ -21,7 +21,7 @@ pub const REQUEST_MAX_CHARACTERS: usize = 2000;
 /// `MergePullRequest` does the same for a task whose pull request conflicts with `base`, then
 /// pushes the branch;
 /// `Rewrite` has it replace the task's description, correcting its wording or restructuring it.
-/// Only `Work` follows a step.
+/// Only `Work` works the task's steps.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum TerminalMode {
     #[default]

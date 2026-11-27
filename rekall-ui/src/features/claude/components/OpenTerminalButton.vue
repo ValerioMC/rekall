@@ -22,7 +22,7 @@ import { queueSessionBlocker } from '@/features/queue/model/queue-launch'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { queuePlacement, type QueueTaskRequest } from '@/features/queue/model/runQueue'
 import { useReleaseOnRun } from '@/features/graph/composables/useReleaseOnRun'
-import type { TaskId, TaskStepId } from '@/model/branded'
+import type { TaskId } from '@/model/branded'
 
 /**
  * Starts the task's session: a chat opens full-size, a terminal leaves the pane it was pressed on
@@ -38,10 +38,9 @@ const props = withDefaults(
   defineProps<{
     taskId: TaskId
     folder: string | null
-    stepId?: TaskStepId | null
     missingHint?: string
   }>(),
-  { stepId: null, missingHint: "Set this project's folder on its page to open a terminal from it" }
+  { missingHint: "Set this project's folder on its page to open a terminal from it" }
 )
 
 type LaunchPhase = 'idle' | 'launching' | 'waiting' | 'done'
@@ -81,12 +80,7 @@ const pendingTimers = new Set<number>()
 
 const ready = computed(() => Boolean(props.folder))
 const atWork = computed(() =>
-  sessionAtWork(
-    tasks.value.find((task) => task.id === props.taskId) ?? null,
-    steps.value,
-    openTerminals.value,
-    props.stepId
-  )
+  sessionAtWork(tasks.value.find((task) => task.id === props.taskId) ?? null, steps.value, openTerminals.value)
 )
 const phase = computed<ButtonPhase>(() => {
   if (launchPhase.value !== 'idle') return launchPhase.value
@@ -134,7 +128,7 @@ async function launch(): Promise<void> {
   await releaseBeforeRun(props.taskId)
   preparing.value = false
   const task = tasks.value.find((candidate) => candidate.id === props.taskId) ?? null
-  if (nothingToRun(task, steps.value, props.stepId)) {
+  if (nothingToRun(task, steps.value)) {
     toast.notifyError(new Error(NOTHING_TO_RUN_MESSAGE))
     return
   }
@@ -159,10 +153,7 @@ async function launch(): Promise<void> {
 }
 
 async function openSessionHere(): Promise<Terminal> {
-  const opened = await terminals.openForTask(props.taskId, {
-    stepId: props.stepId,
-    ...launchChoices(provider.value)
-  })
+  const opened = await terminals.openForTask(props.taskId, launchChoices(provider.value))
   if (opened.kind === 'CHAT') openInPane(opened)
   return opened
 }
@@ -179,7 +170,7 @@ function configureQueueLaunch(): void {
 async function runInQueue(request: QueueTaskRequest): Promise<void> {
   await releaseBeforeRun(request.taskId)
   const task = tasks.value.find((candidate) => candidate.id === request.taskId) ?? null
-  if (nothingToRun(task, steps.value, props.stepId)) throw new Error(NOTHING_TO_RUN_MESSAGE)
+  if (nothingToRun(task, steps.value)) throw new Error(NOTHING_TO_RUN_MESSAGE)
   const blocker = queueSessionBlocker(terminals.terminalForTask(request.taskId))
   if (blocker) throw new Error(blocker)
   await runQueue.runInQueue(request)

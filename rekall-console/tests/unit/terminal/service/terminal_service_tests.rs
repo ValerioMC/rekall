@@ -69,7 +69,6 @@ fn view_on(target: &TerminalTarget) -> TerminalView {
         id: Id::random(),
         project_id,
         task_id,
-        step_id: None,
         anchors: "project:vega".into(),
         working_dir: "/work/vega".into(),
         project_label: "vega".into(),
@@ -90,7 +89,7 @@ fn view_on(target: &TerminalTarget) -> TerminalView {
 }
 
 fn command(target: TerminalTarget, mode: TerminalMode) -> OpenTerminalCommand {
-    OpenTerminalCommand { target, step_id: None, provider: Default::default(), skip_permissions: true, model: Some("sonnet".into()), effort: None, mode, kind: SessionKind::Terminal }
+    OpenTerminalCommand { target, provider: Default::default(), skip_permissions: true, model: Some("sonnet".into()), effort: None, mode, kind: SessionKind::Terminal }
 }
 
 struct Seed {

@@ -9,7 +9,7 @@ import { useClaudeCommandUpdateStore } from '@/features/claude/store/claudeComma
 import { useToastStore } from '@/stores/toast.store'
 import { useOpenSession } from '@/features/claude/composables/useOpenSession'
 import type { Terminal } from '@/features/claude/model/terminal'
-import type { ProjectId, TaskId, TaskStepId, TerminalId, TimeEntryId } from '@/model/branded'
+import type { ProjectId, TaskId, TerminalId, TimeEntryId } from '@/model/branded'
 import type { Task } from '@/features/catalog/model/catalog'
 import type { TimeEntry } from '@/features/time/model/time-entry'
 
@@ -99,7 +99,6 @@ function terminal(over: Partial<Terminal> = {}): Terminal {
     id: 'term-1' as TerminalId,
     projectId: 'p-1' as ProjectId,
     taskId: TASK,
-    stepId: null as TaskStepId | null,
     anchors: task.anchor,
     workingDir: '/code/vega',
     projectLabel: 'vega',
@@ -383,15 +382,15 @@ describe('ShellDock', () => {
       expect(terminalApi.closeTerminal).toHaveBeenCalledWith('term-1')
     })
 
-    it('logs the latest commit for a session with the task and step it was opened on', async () => {
+    it('logs the latest commit for a session against its task alone', async () => {
       recordLatestCommit.mockResolvedValue({ comment: 'Wire up the button' })
-      const { wrapper } = await mountDock([terminal({ stepId: 'step-1' as TaskStepId })])
+      const { wrapper } = await mountDock([terminal()])
 
       await wrapper.get('[data-testid="terminal-dock-toggle"]').trigger('click')
       await wrapper.get('[data-testid="terminal-dock-log-commit"]').trigger('click')
       await flushPromises()
 
-      expect(recordLatestCommit).toHaveBeenCalledWith(TASK, 'step-1')
+      expect(recordLatestCommit).toHaveBeenCalledWith(TASK, null)
       expect(useToastStore().toasts[0]?.message).toBe('Logged “Wire up the button”.')
     })
 
