@@ -98,6 +98,38 @@ async fn queue_frames_carry_each_items_provider_and_validated_options() {
 }
 
 #[tokio::test]
+async fn a_versioned_claude_choice_is_saved_for_an_item_and_for_the_whole_queue() {
+    let world = world().await;
+    let versioned = "claude-example-long-context-7[1m]";
+    world.service.add(world.first, QueueLaunch {
+        claude_options: Some(ClaudeQueueOptions { model: Some(versioned.into()), effort: Some("High".into()) }),
+        ..QueueLaunch::default()
+    }).await.unwrap();
+
+    world.service.update_settings(None, false, Some(versioned), Some("high"), rekall_store::SessionKind::Terminal, 1).await.unwrap();
+    let saved = world.service.view().await.unwrap();
+
+    assert_eq!(saved.items[0].launch.claude_options, Some(ClaudeQueueOptions {
+        model: Some(versioned.into()),
+        effort: Some("high".into()),
+    }));
+    assert_eq!(saved.model.as_deref(), Some(versioned));
+}
+
+#[tokio::test]
+async fn a_malformed_claude_choice_is_refused_and_nothing_is_queued() {
+    let world = world().await;
+
+    let refused = world.service.add(world.first, QueueLaunch {
+        claude_options: Some(ClaudeQueueOptions { model: Some("--help".into()), effort: None }),
+        ..QueueLaunch::default()
+    }).await.unwrap_err();
+
+    assert!(matches!(refused, RekallError::IllegalArgument(_)));
+    assert!(world.service.view().await.unwrap().items.is_empty());
+}
+
+#[tokio::test]
 async fn a_running_queue_only_appends_the_task() {
     let world = world().await;
     world.service.add_and_arm(world.first, QueueLaunch::default()).await.unwrap();

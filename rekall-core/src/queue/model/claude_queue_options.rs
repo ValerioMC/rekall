@@ -1,7 +1,7 @@
-use rekall_kernel::{jstr, RekallError, Result};
+use rekall_kernel::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::claude::{EFFORT_LEVELS, MODEL_ALIASES};
+use crate::claude::{claude_effort_choice, claude_model_choice};
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -12,21 +12,6 @@ pub struct ClaudeQueueOptions {
 
 impl ClaudeQueueOptions {
     pub fn new(model: Option<&str>, effort: Option<&str>) -> Result<Self> {
-        Ok(Self {
-            model: choice(model, &MODEL_ALIASES, "model")?,
-            effort: choice(effort, &EFFORT_LEVELS, "effort")?,
-        })
+        Ok(Self { model: claude_model_choice(model)?, effort: claude_effort_choice(effort)? })
     }
-}
-
-fn choice(value: Option<&str>, allowed: &[&str], what: &str) -> Result<Option<String>> {
-    let Some(value) = value else { return Ok(None) };
-    let normalised = jstr::strip(value).to_lowercase();
-    if normalised == "default" {
-        return Ok(None);
-    }
-    if !allowed.contains(&normalised.as_str()) {
-        return Err(RekallError::illegal(format!("'{value}' is not a {what} Claude Code accepts.")));
-    }
-    Ok(Some(normalised))
 }

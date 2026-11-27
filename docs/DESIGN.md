@@ -289,6 +289,14 @@ control message and kills the process once it answers or after fifteen seconds. 
 missing, unsupported or silent CLI is a 409. `value` is what a session starts with; the effort
 fields are null when the CLI omits them.
 
+A launch checks a chosen model for its shape, never against that catalog, so saved choices are read
+while the CLI cannot answer. `claude_model_choice` in `rekall-core` takes an alias in any case, or
+any value of up to 150 bytes that starts with a letter or digit, holds only letters, digits and
+`-_.:/@`, and may end in `[1m]`, passed as spelled. The effort is one of five levels. `default` and
+no choice pass no argument. A session opens on the account default over a malformed value; the run
+queue refuses it with a 400. The usage ceiling counts a model's weekly window for every value that
+names the family, such as `claude-opus-4-8`.
+
 In the console, `HeaderNavigation` holds Back, Forward, the section menu and the project switcher
 on the left of the header. `AppHeaderChrome` draws the icon-only session provider selector on the
 right, a keycap tinted for its provider, beside the status capsule where `HeaderStatus` puts the

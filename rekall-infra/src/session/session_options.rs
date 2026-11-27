@@ -1,8 +1,9 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use rekall_core::claude::{CodexSessionOptions, SessionProvider, EFFORT_LEVELS, MODEL_ALIASES};
-use rekall_kernel::{jstr, Result};
+use rekall_core::claude::{claude_effort_choice, claude_model_choice, CodexSessionOptions, SessionProvider};
+use rekall_kernel::Result;
+use tracing::warn;
 
 #[derive(Clone, Debug, Default)]
 pub struct SessionOptions {
@@ -17,8 +18,8 @@ impl SessionOptions {
     pub fn chosen(skip_permissions: bool, model: Option<&str>, effort: Option<&str>) -> Self {
         Self {
             skip_permissions,
-            model: normalise(model, &MODEL_ALIASES),
-            effort: normalise(effort, &EFFORT_LEVELS),
+            model: or_account_default(claude_model_choice(model)),
+            effort: or_account_default(claude_effort_choice(effort)),
             ..Self::default()
         }
     }
@@ -61,9 +62,12 @@ impl SessionOptions {
     }
 }
 
-fn normalise(value: Option<&str>, allowed: &[&str]) -> Option<String> {
-    let trimmed = jstr::strip(value?).to_lowercase();
-    allowed.contains(&trimmed.as_str()).then_some(trimmed)
+/// A session still opens over a malformed choice, leaving that one to the account.
+fn or_account_default(choice: Result<Option<String>>) -> Option<String> {
+    choice.unwrap_or_else(|refusal| {
+        warn!(%refusal, "Opening the session on the account default");
+        None
+    })
 }
 
 #[cfg(test)]

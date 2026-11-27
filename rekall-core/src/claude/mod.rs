@@ -20,7 +20,7 @@ pub use view::claude_model::ClaudeModel;
 pub use view::claude_usage_view::ClaudeUsageView;
 pub use model::covering_document::{CoveringDocument, CoveringKind};
 pub use model::installation::Installation;
-pub use model::launch_choices::{EFFORT_LEVELS, MODEL_ALIASES};
+pub use model::launch_choices::{claude_effort_choice, claude_model_choice};
 pub use model::limit::Limit;
 pub use model::memory_analysis::MemoryAnalysis;
 pub use model::memory_group::MemoryGroup;
