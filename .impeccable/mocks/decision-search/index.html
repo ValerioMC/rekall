@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Search in Decisions</title>
+<style>
+  @font-face { font-family: 'Fira Sans'; font-weight: 400; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 500; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Sans'; font-weight: 600; src: url('../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fira Code'; font-weight: 300 700; src: url('../../../rekall-ui/node_modules/@fontsource-variable/fira-code/files/fira-code-latin-wght-normal.woff2') format('woff2'); }
+
+  :root {
+    --canvas: #0d1017; --surface: #151922; --raised: #1d2330; --hover: #262d3c;
+    --border: #2a3243; --border-strong: #3b4558; --border-field: #5e6a82;
+    --text: #f2f5f9; --muted: #a3acba; --subtle: #8c96a6;
+    --accent: #eaa43c; --accent-strong: #ffd88e; --accent-deep: #a8651a; --accent-soft: #eaa43c24; --accent-ink: #2b1804;
+    --anchor: #55c9ea; --session-strong: #b4b9ff;
+    --safe: #3ddc97; --safe-soft: #3ddc971a; --warn: #f3c04a; --warn-soft: #f3c04a1a;
+    --sans: 'Fira Sans', ui-sans-serif, -apple-system, sans-serif;
+    --mono: 'Fira Code', ui-monospace, Menlo, monospace;
+    --micro: 11px; --caption: 11.5px; --small: 12.5px; --body: 13.5px; --title: 15px; --heading: 19px;
+    --key: 3px; --control: 5px; --card: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { background: var(--canvas); color: var(--text); font: 400 var(--body)/1.4 var(--sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
+  button, input { font: inherit; color: inherit; background: none; border: 0; text-align: left; }
+  button { cursor: pointer; }
+  button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  ::selection { background: var(--accent-soft); color: var(--accent-strong); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 9999px; border: 2px solid var(--canvas); }
+  [hidden] { display: none !important; }
+  .mono { font-family: var(--mono); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* the one new mark: a word the search found */
+  mark { background: none; color: inherit; text-decoration: underline solid var(--accent); text-decoration-thickness: 2px; text-underline-offset: 3px; text-decoration-skip-ink: none; }
+
+  .app { display: flex; flex-direction: column; height: 100vh; min-width: 1100px; }
+  .topbar { height: 48px; flex: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 620px) minmax(0, 1fr); gap: 12px; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .brand { font-weight: 600; font-size: var(--title); }
+  .rk { height: 32px; display: flex; align-items: center; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--card); background: var(--surface); color: var(--subtle); font-size: var(--small); }
+  .capsule { justify-self: end; height: 36px; display: flex; align-items: center; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--card); background: var(--surface); color: var(--muted); font-size: var(--small); }
+
+  .head { flex: none; padding: 10px 24px 12px; border-bottom: 1px solid var(--border); }
+  .crumbs { color: var(--subtle); font-size: var(--small); }
+  h1 { margin-top: 4px; font-size: var(--heading); font-weight: 500; }
+
+  .body { flex: 1; min-height: 0; display: flex; }
+  .rail { flex: none; width: 272px; padding: 16px; display: grid; align-content: start; gap: 18px; background: var(--surface); border-right: 1px solid var(--border); font-size: var(--small); color: var(--muted); }
+  .pill { justify-self: start; height: 22px; display: inline-flex; align-items: center; padding: 0 9px; border-radius: 9999px; border: 1px solid var(--border-strong); font-size: var(--caption); font-weight: 500; color: var(--text); }
+  .chip { justify-self: start; padding: 2px 7px; border: 1px solid var(--border); border-radius: var(--key); background: var(--canvas); font: 400 var(--caption) var(--mono); color: var(--anchor); }
+  .rail h3 { font-size: var(--caption); font-weight: 500; color: var(--subtle); margin-bottom: 4px; }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .tabs { flex: none; height: 40px; display: flex; gap: 22px; padding: 0 24px; border-bottom: 1px solid var(--border); }
+  .tab { position: relative; display: flex; align-items: center; gap: 6px; color: var(--muted); white-space: nowrap; }
+  .tab small { font-size: var(--micro); color: var(--subtle); font-variant-numeric: tabular-nums; }
+  .tab[aria-current] { color: var(--text); }
+  .tab[aria-current]::after { content: ""; position: absolute; inset: auto 0 -1px; height: 2px; background: var(--accent); border-radius: var(--key); }
+
+  .band { flex: none; display: flex; align-items: center; gap: 16px; padding: 12px 24px; border-bottom: 1px solid var(--border); }
+  .progress { flex: 0 1 460px; min-width: 280px; display: grid; gap: 8px; }
+  .tube { height: 10px; border-radius: 9999px; background: #0a0d13; box-shadow: inset 0 2px 4px rgb(0 0 0 / .5), 0 1px 0 rgb(255 255 255 / .035); overflow: hidden; }
+  .tube i { display: block; height: 100%; border-radius: 9999px; background: linear-gradient(180deg, var(--accent-strong), var(--accent) 45%, var(--accent-deep)); }
+  .tally { font-size: var(--small); color: var(--muted); }
+  .tally b { color: var(--text); font-weight: 600; }
+  .sp { flex: 1; }
+  .live { font-size: var(--small); color: var(--muted); white-space: nowrap; }
+  .btn { height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: var(--control); font-size: var(--small); font-weight: 500; white-space: nowrap; }
+  .btn.secondary { background: var(--raised); border: 1px solid var(--border-strong); }
+  .btn.secondary:hover { background: var(--hover); }
+  .btn.primary { background: var(--accent); border: 1px solid var(--accent-deep); color: var(--accent-ink); font-weight: 600; }
+
+  /* the find row: how the list is looked at */
+  .find { flex: none; display: flex; align-items: center; gap: 14px; padding: 10px 24px; }
+  .field { flex: 0 1 440px; min-width: 260px; height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 4px 0 10px; border: 1px solid var(--border-field); border-radius: var(--control); background: var(--canvas); cursor: text; }
+  .field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .field svg { width: 14px; height: 14px; flex: none; color: var(--subtle); }
+  .field input { flex: 1; min-width: 0; height: 100%; outline: 0; caret-color: var(--accent); }
+  .field input::placeholder { color: var(--subtle); }
+  .clear { width: 24px; height: 24px; flex: none; display: grid; place-items: center; border-radius: var(--key); }
+  .clear:hover { background: var(--raised); }
+  .clear:hover svg { color: var(--text); }
+  .count { font-size: var(--small); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .seg { display: flex; gap: 2px; height: 28px; padding: 2px; border: 1px solid var(--border); border-radius: var(--control); background: var(--surface); }
+  .seg button { padding: 0 12px; border-radius: var(--key); font-size: var(--small); color: var(--muted); white-space: nowrap; }
+  .seg button[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: 0 1px 2px rgb(0 0 0 / .5); }
+
+  .ledger { flex: 1; min-height: 0; overflow-y: auto; padding: 0 16px 24px; container-type: inline-size; }
+  .cols { display: grid; grid-template-columns: 28px minmax(0, 5fr) minmax(0, 4fr) minmax(0, 11.5rem); column-gap: 14px; }
+  .lhead { position: sticky; top: 0; z-index: 2; padding: 8px; background: var(--canvas); border-bottom: 1px solid var(--border); font-size: var(--caption); font-weight: 500; color: var(--subtle); }
+  .lhead span:last-child, .source { text-align: right; }
+  .grp { display: flex; align-items: baseline; gap: 10px; padding: 20px 8px 6px; }
+  .grp h2 { font-size: var(--body); font-weight: 600; }
+  .grp .n { font: 400 var(--caption) var(--mono); color: var(--subtle); }
+  .grp .rule { flex: 1; height: 1px; background: var(--border); align-self: center; }
+  .item { border-radius: var(--control); }
+  .item.open { margin: 4px 0; background: var(--surface); box-shadow: inset 0 0 0 1px #eaa43c59; }
+  .row { width: 100%; align-items: start; row-gap: 6px; padding: 10px 8px; border-radius: var(--control); }
+  .item:not(.open) .row:hover { background: var(--hover); }
+  .row > span { display: block; min-width: 0; }
+  .q { display: block; line-height: 1.35; text-wrap: pretty; }
+  .meta { display: flex; align-items: center; gap: 10px; margin-top: 2px; font-size: var(--caption); color: var(--subtle); }
+  .a { line-height: 1.35; overflow-wrap: anywhere; }
+  .dim { color: var(--subtle); display: block; }
+  .offered { display: block; margin-top: 2px; font-size: var(--caption); color: var(--subtle); }
+  .hold { color: var(--warn); }
+  .was { margin-left: 6px; font-size: var(--caption); color: var(--subtle); }
+  .detail { display: block; margin-top: 2px; font-size: var(--small); color: var(--muted); }
+  .source { font-size: var(--caption); color: var(--muted); white-space: nowrap; }
+  .seal { width: 22px; height: 22px; margin-top: 1px; display: grid !important; place-items: center; border-radius: 50%; border: 1.5px solid var(--border-field); color: var(--muted); }
+  .seal svg { width: 12px; height: 12px; }
+  .seal.answered { background: var(--safe); border-color: var(--safe); color: var(--canvas); }
+  .seal.hold { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+  .item.open .seal.asking { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+  /* where a word was found when the closed row does not show it */
+  .row > .found { grid-column: 2 / -1; display: flex; align-items: baseline; gap: 10px; min-width: 0; font-size: var(--small); color: var(--muted); }
+  .found b { flex: none; font-size: var(--caption); font-weight: 500; color: var(--subtle); }
+  .found .excerpt { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding-bottom: 3px; }
+  .found .also { flex: none; font-size: var(--caption); color: var(--subtle); }
+
+  .drawer { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px 40px; padding: 4px 16px 18px 50px; }
+  @container (min-width: 56rem) { .drawer { grid-template-columns: minmax(0, 1fr) 18.75rem; } }
+  .col { display: grid; gap: 18px; align-content: start; max-width: 72ch; min-width: 0; }
+  .drawer h3 { margin-bottom: 6px; font-size: var(--caption); font-weight: 500; color: var(--subtle); }
+  .lines, .opts { list-style: none; display: grid; gap: 6px; }
+  .lines li { display: grid; grid-template-columns: 4.6rem minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 6px 10px; border-radius: var(--control); background: var(--canvas); font-size: var(--small); }
+  .who { font-size: var(--caption); font-weight: 500; color: var(--subtle); }
+  .who.you { color: var(--session-strong); }
+  .opts li { padding: 6px 10px; border-radius: var(--control); }
+  .opts li.chosen { background: var(--raised); }
+  .opts strong { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+  .opts p { font-size: var(--small); color: var(--muted); }
+  .tag { height: 18px; display: inline-flex; align-items: center; padding: 0 6px; border: 1px solid var(--border-strong); border-radius: var(--key); font-size: var(--micro); font-weight: 500; color: var(--muted); }
+  .tag.yours { border-color: #3ddc974d; background: var(--safe-soft); color: var(--safe); }
+  .aside { display: grid; gap: 18px; align-content: start; font-size: var(--small); color: var(--muted); line-height: 1.55; }
+
+  .none { display: grid; justify-items: center; gap: 12px; padding: 72px 24px; text-align: center; }
+  .none p { max-width: 60ch; overflow-wrap: anywhere; }
+  .none strong { display: block; font-size: var(--title); font-weight: 600; }
+  .none span { color: var(--subtle); }
+
+  .block { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 24px 24px; }
+  .block pre { max-width: 55rem; white-space: pre-wrap; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--card); font: 400 var(--small)/1.7 var(--mono); }
+
+  /* mockup control, not part of the design */
+  .states { position: fixed; right: 16px; bottom: 16px; z-index: 10; display: flex; align-items: center; gap: 4px; padding: 6px 6px 6px 12px; border: 1px dashed var(--border-field); border-radius: var(--card); background: var(--surface); font-size: var(--small); color: var(--subtle); }
+  .states button { height: 26px; padding: 0 10px; border-radius: var(--control); color: var(--text); }
+  .states button:hover { background: var(--raised); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <span class="brand">Rekall</span>
+    <div class="rk">Search or type an anchor</div>
+    <div class="capsule">1 session</div>
+  </header>
+  <div class="head">
+    <div class="crumbs">Atlas / RK-42</div>
+    <h1>Export a task as a document</h1>
+  </div>
+  <div class="body">
+    <aside class="rail" aria-label="Task properties">
+      <span class="pill">To do</span>
+      <span class="chip">task:RK-42</span>
+      <div><h3>Labels</h3>export</div>
+      <div><h3>Context</h3>6.2k tokens</div>
+    </aside>
+    <div class="main">
+      <nav class="tabs" aria-label="Task">
+        <span class="tab">Description</span>
+        <span class="tab" aria-current="page">Decisions <small id="tabCount"></small></span>
+        <span class="tab">Plan <small>3</small></span>
+        <span class="tab">Wrapup</span>
+        <span class="tab">Notes <small>1</small></span>
+        <span class="tab">Time</span>
+      </nav>
+      <section class="band" aria-label="Where the decisions stand">
+        <div class="progress">
+          <div class="tube"><i id="tube"></i></div>
+          <p class="tally" id="tally"></p>
+        </div>
+        <span class="sp"></span>
+        <p class="live">Updates as you talk in your session.</p>
+        <button class="btn primary" type="button">Refine ▾</button>
+        <button class="btn secondary" type="button">Add decision</button>
+      </section>
+      <div class="find">
+        <label class="field" id="field">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>
+          <span class="sr">Search decisions</span>
+          <input id="query" type="text" placeholder="Search decisions" autocomplete="off" spellcheck="false">
+          <button class="clear" id="clear" type="button" aria-label="Clear search" hidden>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="m4.5 4.5 7 7m0-7-7 7"/></svg>
+          </button>
+        </label>
+        <span class="count" id="count" role="status" aria-live="polite"></span>
+        <span class="sp"></span>
+        <div class="seg" role="group" aria-label="Show the decisions as">
+          <button type="button" id="asLedger" aria-pressed="true">Ledger</button>
+          <button type="button" id="asRead" aria-pressed="false">As the session reads it</button>
+        </div>
+      </div>
+      <div class="ledger" id="ledger"></div>
+      <div class="block" id="block" hidden><pre id="pre"></pre></div>
+    </div>
+  </div>
+</div>
+<div class="states" aria-label="Mockup states">
+  <span>Mockup:</span>
+  <button type="button" data-q="">No search</button>
+  <button type="button" data-q="pdf">pdf</button>
+  <button type="button" data-q="overwrite">overwrite</button>
+  <button type="button" data-q="zeppelin">no match</button>
+</div>
+
+<script>
+const claude = (text) => ({ who: 'Assistant', text });
+const you = (text) => ({ who: 'You', text });
+const DECISIONS = [
+  { key: 'export-format', topic: 'Format', state: 'answered', question: 'Which formats does the export offer?', answer: 'PDF and Word',
+    why: 'The task says “a document” without naming a format.',
+    options: [{ label: 'PDF and Word', effect: 'Two writers over one shared layout.' }, { label: 'PDF only', effect: 'The smallest change. Word users copy the text by hand.' }],
+    lines: [claude('Should the export produce a PDF, a Word file, or both?'), you('Both. People edit the Word one.')] },
+  { key: 'page-size', topic: 'Format', state: 'answered', question: 'Which page size does the document use?', answer: 'A4', was: 'Letter',
+    why: 'The writer needs a fixed size before it can break pages.', options: [], lines: [you('A4 everywhere.')] },
+  { key: 'pdf-writer', topic: 'Format', state: 'open', question: 'How is the PDF drawn?',
+    why: 'Drawing it on the server keeps the file identical on every machine.',
+    options: [{ label: 'On the server', effect: 'One bundled writer, no browser involved.', recommended: true }, { label: 'Print from the browser', effect: 'The result follows the browser’s print settings.' }],
+    lines: [claude('I can draw it on the server or print the page from the browser.')] },
+  { key: 'finished-steps', topic: 'Contents', state: 'answered', question: 'Do finished steps appear in the export?', answer: 'Yes, titles only',
+    details: ['Their detail stays out, as it does in the session context.'], why: 'A finished step no longer carries work.', options: [], lines: [] },
+  { key: 'notes', topic: 'Contents', state: 'answered', question: 'Are notes included?', answer: 'Only the ones chosen in the dialog',
+    why: 'Some notes are working material that should not leave the machine.', options: [], lines: [you('Let me pick them, none ticked at the start.')] },
+  { key: 'diagrams', topic: 'Contents', state: 'hold', question: 'Are diagrams drawn or printed as source?', hold: 'waiting to see how Mermaid renders in the PDF writer',
+    why: 'A wrapup often carries a sequence diagram.', options: [], lines: [] },
+  { key: 'order', topic: 'Contents', state: 'answered', question: 'What opens the document?', answer: 'The wrapup, before the checklist',
+    why: 'Whoever reads the exported PDF wants the current state first.', options: [], lines: [] },
+  { key: 'destination', topic: 'Delivery', state: 'answered', question: 'Where is the file saved?', answer: 'The browser’s download folder',
+    why: 'The desktop window and the browser must behave the same way.', options: [],
+    lines: [claude('If a file with the same name is already there, do we overwrite it or add a number?'), you('Add a number. Never overwrite.')] },
+  { key: 'file-name', topic: 'Delivery', state: 'answered', question: 'What is the file named?', answer: 'Task code and title, for example RK-42-export-a-task.pdf',
+    why: 'The name has to say which task it came from.', options: [], lines: [] },
+  { key: 'export-log', topic: 'Delivery', state: 'open', question: 'Is the export logged on the task?', why: 'Nothing records that a file left Rekall.', options: [], lines: [] }
+].map((d) => ({ details: [], ...d }));
+
+const view = { query: '', open: null, as: 'ledger' };
+const $ = (id) => document.getElementById(id);
+const escape = (text) => text.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const needle = () => view.query.trim().toLowerCase();
+const has = (text) => needle() !== '' && String(text ?? '').toLowerCase().includes(needle());
+
+function mark(text) {
+  const wanted = needle();
+  if (!wanted) return escape(text);
+  const lowered = text.toLowerCase();
+  let out = '', from = 0;
+  for (let at = lowered.indexOf(wanted); at !== -1; at = lowered.indexOf(wanted, from)) {
+    out += escape(text.slice(from, at)) + `<mark>${escape(text.slice(at, at + wanted.length))}</mark>`;
+    from = at + wanted.length;
+  }
+  return out + escape(text.slice(from));
+}
+
+/* the text a closed row shows, and the places only an opened row shows */
+const rowTexts = (d) => [d.question, ...(d.state === 'open' ? d.options.map((o) => o.label) : d.state === 'hold' ? [d.hold] : [d.answer, d.was, ...d.details])];
+const hiddenPlaces = (d) => [
+  ['Conversation', d.lines.map((l) => l.text)],
+  ['Options', d.options.flatMap((o) => (d.state === 'open' ? [o.effect] : [o.label, o.effect]))],
+  ['Why asked', [d.why]]
+].map(([name, texts]) => ({ name, text: texts.find(has) })).filter((place) => place.text !== undefined);
+const matches = (d) => !needle() || has(d.topic) || rowTexts(d).some(has) || hiddenPlaces(d).length > 0;
+
+/* cuts a long text so the found word stays in sight */
+function excerpt(text) {
+  const at = text.toLowerCase().indexOf(needle());
+  return at > 48 ? '…' + text.slice(text.indexOf(' ', at - 40) + 1) : text;
+}
+
+function foundLine(d) {
+  const places = hiddenPlaces(d);
+  if (view.open === d.key || places.length === 0) return '';
+  const names = (list) => list.map((p) => p.name.toLowerCase()).join(', ');
+  if (rowTexts(d).some(has) || has(d.topic)) return `<span class="found"><span class="also">Also in ${names(places)}</span></span>`;
+  const [first, ...rest] = places;
+  return `<span class="found"><b>${first.name}</b><span class="excerpt">${mark(excerpt(first.text))}</span>${rest.length ? `<span class="also">and in ${names(rest)}</span>` : ''}</span>`;
+}
+
+function answerCell(d) {
+  if (d.state === 'open') {
+    const offered = d.options.length ? `<span class="offered">Offered: ${d.options.map((o) => mark(o.label)).join(' · ')}</span>` : '';
+    return `<span class="dim">Still being discussed in the terminal</span>${offered}`;
+  }
+  if (d.state === 'hold') return `<span class="hold">On hold: ${mark(d.hold)}</span>`;
+  const was = d.was ? `<span class="was">changed 11:04, was ${mark(d.was)}</span>` : '';
+  return `${mark(d.answer)}${was}${d.details.map((t) => `<span class="detail">${mark(t)}</span>`).join('')}`;
+}
+
+const SEAL = {
+  open: ['asking', 'Open', '<path stroke-width="1.6" d="M6 6.1a2.1 2.1 0 1 1 3.5 1.6c-.9.6-1.5 1.1-1.5 2.1M8 12.4v.1"/>'],
+  answered: ['answered', 'Answered', '<path stroke-width="1.8" d="M3.2 8.4 6.6 11.6 12.8 4.8"/>'],
+  hold: ['hold', 'On hold', '<path stroke-width="1.8" d="M6 4.5v7M10 4.5v7"/>']
+};
+
+function drawer(d) {
+  const lines = d.lines.length ? `<section><h3>In the conversation</h3><ul class="lines">${d.lines.map((l) => `<li><span class="who ${l.who === 'You' ? 'you' : ''}">${l.who}</span><span>${mark(l.text)}</span></li>`).join('')}</ul></section>` : '';
+  const opts = d.options.length ? `<section><h3>Options</h3><ul class="opts">${d.options.map((o) => `<li class="${o.label === d.answer ? 'chosen' : ''}"><strong>${mark(o.label)}${o.recommended ? '<span class="tag">Recommended</span>' : ''}${o.label === d.answer ? '<span class="tag yours">Your answer</span>' : ''}</strong><p>${mark(o.effect)}</p></li>`).join('')}</ul></section>` : '';
+  return `<div class="drawer"><div class="col">${lines}${opts}</div><aside class="aside"><div><h3>Why this was asked</h3><p>${mark(d.why)}</p></div></aside></div>`;
+}
+
+function rowHtml(d) {
+  const [tone, label, glyph] = SEAL[d.state];
+  const open = view.open === d.key;
+  return `<div class="item ${open ? 'open' : ''}">
+    <button type="button" class="row cols" data-key="${d.key}" aria-expanded="${open}">
+      <span class="seal ${tone}" role="img" aria-label="${label}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${glyph}</svg></span>
+      <span><span class="q">${mark(d.question)}</span><span class="meta">Asked in the session</span></span>
+      <span class="a">${answerCell(d)}</span>
+      <span class="source">Terminal</span>
+      ${foundLine(d)}
+    </button>${open ? drawer(d) : ''}</div>`;
+}
+
+function ledgerHtml(shown) {
+  if (shown.length === 0) {
+    return `<div class="none"><p><strong>No decision contains “${escape(view.query.trim())}”</strong><span>Questions, answers, options, conversations and reasons were searched.</span></p><button type="button" class="btn secondary" data-clear>Clear search</button></div>`;
+  }
+  const groups = [...new Set(shown.map((d) => d.topic))].map((topic) => {
+    const rows = shown.filter((d) => d.topic === topic);
+    const all = DECISIONS.filter((d) => d.topic === topic);
+    const tally = needle() ? `${rows.length} of ${all.length} found` : `${all.filter((d) => d.state === 'answered').length} of ${all.length} answered`;
+    return `<section aria-label="${topic}"><div class="grp"><h2>${mark(topic)}</h2><span class="n">${tally}</span><span class="rule"></span></div>${rows.map(rowHtml).join('')}</section>`;
+  });
+  return `<div class="lhead cols" aria-hidden="true"><span></span><span>Question</span><span>Answer</span><span>Recorded from</span></div>${groups.join('')}`;
+}
+
+function render() {
+  const shown = DECISIONS.filter(matches);
+  const reading = view.as === 'read';
+  $('ledger').innerHTML = ledgerHtml(shown);
+  $('ledger').hidden = reading;
+  $('block').hidden = !reading;
+  $('field').hidden = reading;
+  $('count').hidden = reading;
+  $('count').textContent = needle() ? `${shown.length} of ${DECISIONS.length} decisions` : '';
+  $('clear').hidden = view.query === '';
+  $('asLedger').setAttribute('aria-pressed', String(!reading));
+  $('asRead').setAttribute('aria-pressed', String(reading));
+}
+
+function search(query) {
+  view.query = query;
+  $('query').value = query;
+  view.open = null;
+  render();
+  $('ledger').scrollTop = 0;
+}
+
+function setUp() {
+  const answered = DECISIONS.filter((d) => d.state === 'answered').length;
+  const open = DECISIONS.filter((d) => d.state === 'open').length;
+  $('tabCount').textContent = DECISIONS.length;
+  $('tube').style.width = `${(answered / DECISIONS.length) * 100}%`;
+  $('tally').innerHTML = `<b>${open} questions still open.</b> ${answered} of ${DECISIONS.length} answered, 1 on hold. Loaded when it runs.`;
+  $('pre').textContent = DECISIONS.map((d) => `${d.key}: ${d.state === 'answered' ? d.answer : d.state === 'hold' ? 'on hold: ' + d.hold : '? ' + d.question}`).join('\n');
+  $('query').addEventListener('input', (event) => search(event.target.value));
+  $('clear').addEventListener('click', (event) => { event.preventDefault(); search(''); $('query').focus(); });
+  $('asLedger').addEventListener('click', () => { view.as = 'ledger'; render(); });
+  $('asRead').addEventListener('click', () => { view.as = 'read'; render(); });
+  $('ledger').addEventListener('click', (event) => {
+    if (event.target.closest('[data-clear]')) { search(''); $('query').focus(); return; }
+    const row = event.target.closest('[data-key]');
+    if (!row) return;
+    view.open = view.open === row.dataset.key ? null : row.dataset.key;
+    render();
+    document.querySelector(`[data-key="${row.dataset.key}"]`).focus({ preventScroll: true });
+  });
+  document.querySelector('.states').addEventListener('click', (event) => {
+    if (event.target.dataset.q !== undefined) { view.as = 'ledger'; search(event.target.dataset.q); }
+  });
+  const params = new URLSearchParams(location.search);
+  search(params.get('q') ?? '');
+  view.open = params.get('open');
+  render();
+}
+setUp();
+</script>
+</body>
+</html>
