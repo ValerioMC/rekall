@@ -498,11 +498,23 @@ async fn add_and_run_store_each_provider_through_restart_recovery() {
     let codex = id(&app.post("/api/tasks", json!({
         "label": "second", "title": "Second", "status": "IN_PROGRESS", "projectId": project
     })).await);
+    let account_default = id(&app.post("/api/tasks", json!({
+        "label": "third", "title": "Third", "status": "IN_PROGRESS", "projectId": project
+    })).await);
+    let mut events = app.open_stream().await;
 
-    let added = app.post("/api/run-queue/items", json!({ "taskId": claude })).await;
+    let added = app.post("/api/run-queue/items", json!({
+        "taskId": claude, "claudeOptions": { "model": " Sonnet ", "effort": "HIGH" }
+    })).await;
     assert_eq!(added.status, 200);
     assert_eq!(added.body["items"][0]["provider"], "CLAUDE");
     assert!(added.body["items"][0]["codexOptions"].is_null());
+    assert_eq!(added.body["items"][0]["claudeOptions"], json!({ "model": "sonnet", "effort": "high" }));
+    events.await_line("event:run-queue", 5).await;
+    let frame = events.await_line("data:", 5).await;
+    assert_eq!(serde_json::from_str::<Value>(frame.strip_prefix("data:").unwrap()).unwrap(), added.body);
+    drop(events);
+
     let scheduled = app.post("/api/run-queue/start", json!({ "startAt": Instant::now().plus_minutes(60).to_string() })).await;
     assert_eq!(scheduled.str("state"), "SCHEDULED");
 
@@ -512,6 +524,12 @@ async fn add_and_run_store_each_provider_through_restart_recovery() {
     assert_eq!(mixed.str("state"), "SCHEDULED");
     assert_eq!(mixed.body["items"][1]["provider"], "CODEX");
     assert_eq!(mixed.body["items"][1]["codexOptions"], options);
+    assert!(mixed.body["items"][1]["claudeOptions"].is_null());
+    let delegated = app.post("/api/run-queue/runs", json!({
+        "taskId": account_default, "claudeOptions": { "model": "default", "effort": null }
+    })).await;
+    assert_eq!(delegated.status, 200);
+    assert_eq!(delegated.body["items"][2]["claudeOptions"], json!({ "model": null, "effort": null }));
     app.execute("UPDATE run_queue_item SET state = 'RUNNING' WHERE task_id = ?", vec![support::uuid_value(&codex)]).await;
     app.stop().await;
 
@@ -520,6 +538,7 @@ async fn add_and_run_store_each_provider_through_restart_recovery() {
     let recovered = reopened.get("/api/run-queue").await;
     assert_eq!(recovered.str("state"), "SCHEDULED");
     assert_eq!(recovered.body["items"][0], mixed.body["items"][0]);
+    assert_eq!(recovered.body["items"][2], delegated.body["items"][2]);
     let recovered_codex = &recovered.body["items"][1];
     assert_eq!(recovered_codex["state"], "QUEUED");
     assert_eq!(recovered_codex["provider"], "CODEX");
@@ -545,6 +564,17 @@ async fn invalid_provider_options_do_not_enqueue_or_arm() {
         "taskId": task, "codexOptions": { "effort": "high" }
     })).await;
     assert_eq!(wrong_provider.status, 400);
+    for (path, provider, claude_options) in [
+        ("/api/run-queue/items", "CLAUDE", json!({ "model": "gpt-test" })),
+        ("/api/run-queue/runs", "CLAUDE", json!({ "effort": "extreme" })),
+        ("/api/run-queue/runs", "CLAUDE", json!({ "model": " " })),
+        ("/api/run-queue/runs", "CODEX", json!({})),
+        ("/api/run-queue/items", "CLAUDE", json!({ "skipPermissions": true })),
+    ] {
+        assert_eq!(q.app.post(path, json!({
+            "taskId": task, "provider": provider, "claudeOptions": claude_options
+        })).await.status, 400, "{provider} options {claude_options}");
+    }
     assert_eq!(q.app.post("/api/run-queue/items", json!({ "taskId": task, "provider": "OTHER" })).await.status, 400);
     assert_eq!(q.queue_state().await, "IDLE");
     assert_eq!(q.queue().await["items"], json!([]));

@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
-use rekall_core::queue::{QueueLaunch, QueueRunner, RunQueueFrame, RunQueueService};
+use rekall_core::queue::{ClaudeQueueOptions, QueueLaunch, QueueRunner, RunQueueFrame, RunQueueService};
 use rekall_core::claude::{StepProgressState, TerminalMode, TerminalOpening, TerminalTarget, TerminalView};
 use rekall_core::codex::{CodexClient, CodexModel, CodexSetup, CodexUsage, CodexUsageWindow};
 use rekall_infra::queue::{RunQueueRunner, RunQueueUsage};
@@ -84,19 +84,41 @@ async fn a_mixed_queue_dispatches_each_terminal_with_its_own_options() {
     world.install_codex(support::STUB_CLAUDE);
     let project = world.project("alpha", Some(world.folder.path())).await;
     let claude = world.task(&project, "claude").await;
-    world.step(&claude, "Only", 0, TaskStepState::Open).await;
+    world.step(&claude, "First", 0, TaskStepState::Open).await;
+    let next_step = world.step(&claude, "Second", 1, TaskStepState::Open).await;
+    world.services.step_bindings.begin_session(next_step.id, true).await.unwrap();
     let codex = world.task(&project, "codex").await;
-    let harness = harness(&world, reading(10.0));
-    harness.queue.update_settings(None, true, Some("sonnet"), Some("low"), SessionKind::Terminal, 1).await.unwrap();
-    harness.queue.add(claude.id, QueueLaunch::default()).await.unwrap();
+    let mut claude_usage = reading(10.0);
+    claude_usage.limits.push(Limit {
+        key: "weekly_opus".into(),
+        label: "Weekly · Opus".into(),
+        percent: 95.0,
+        severity: Severity::Normal,
+        resets_at: Some(Instant::now().plus_minutes(60)),
+    });
+    let codex_usage = Arc::new(CodexReading { usage: Mutex::new(CodexUsage::Unavailable), refreshes: AtomicUsize::new(0) });
+    codex_usage.set(10.0, Instant::now().plus_minutes(60));
+    let usage = RunQueueUsage { claude: Arc::new(FixedUsage(Mutex::new(claude_usage))), codex: codex_usage };
+    let queue = RunQueueService::new(world.services.ctx.clone());
+    let harness = terminal_runner(&world, queue, usage, rekall_core::system_clock());
+    harness.queue.update_settings(Some(80), true, Some("haiku"), Some("low"), SessionKind::Terminal, 1).await.unwrap();
+    harness.queue.add(claude.id, QueueLaunch {
+        claude_options: Some(ClaudeQueueOptions::new(Some("sonnet"), Some("high")).unwrap()),
+        ..QueueLaunch::default()
+    }).await.unwrap();
     harness.queue.add(codex.id, codex_launch()).await.unwrap();
+    harness.queue.update_settings(Some(80), true, Some("opus"), Some("max"), SessionKind::Terminal, 1).await.unwrap();
     harness.runner.start(&harness.queue, None).await.unwrap();
 
     eventually("Claude's terminal", || async { harness.terminals.has_live_terminal_for(claude.id) }).await;
     let first = harness.terminals.list().pop().unwrap();
-    assert_eq!((first.provider, first.kind), (SessionProvider::Claude, SessionKind::Terminal));
-    assert_eq!((first.model.as_deref(), first.effort.as_deref(), first.skip_permissions), (Some("sonnet"), Some("low"), true));
-    claim(&world, "claude", "Only").await;
+    assert_claude_terminal_options(&first, Some("sonnet"), Some("high"));
+    claim(&world, "claude", "First").await;
+    eventually("Claude's renewed terminal", || async {
+        harness.terminals.list().iter().any(|session| session.live && session.task_id == Some(claude.id) && session.id != first.id)
+    }).await;
+    assert_claude_terminal_options(&harness.terminals.list()[0], Some("sonnet"), Some("high"));
+    claim(&world, "claude", "Second").await;
 
     eventually("Codex's terminal", || async { harness.terminals.has_live_terminal_for(codex.id) }).await;
     let second = harness.terminals.list().pop().unwrap();
@@ -105,10 +127,41 @@ async fn a_mixed_queue_dispatches_each_terminal_with_its_own_options() {
     harness.runner.stop().await.unwrap();
 }
 
+#[tokio::test]
+async fn account_defaults_and_inherited_queue_settings_dispatch_differently() {
+    let world = world().await;
+    let project = world.project("alpha", Some(world.folder.path())).await;
+    let delegated = world.task(&project, "delegated").await;
+    world.step(&delegated, "Only", 0, TaskStepState::Open).await;
+    let inherited = world.task(&project, "inherited").await;
+    let harness = harness(&world, reading(10.0));
+    harness.queue.add(delegated.id, QueueLaunch {
+        claude_options: Some(ClaudeQueueOptions::default()),
+        ..QueueLaunch::default()
+    }).await.unwrap();
+    harness.queue.add(inherited.id, QueueLaunch::default()).await.unwrap();
+    harness.queue.update_settings(None, true, Some("opus"), Some("low"), SessionKind::Terminal, 1).await.unwrap();
+    harness.runner.start(&harness.queue, None).await.unwrap();
+
+    eventually("the task using the account defaults", || async { harness.terminals.has_live_terminal_for(delegated.id) }).await;
+    assert_claude_terminal_options(&harness.terminals.list()[0], None, None);
+    claim(&world, "delegated", "Only").await;
+
+    eventually("the task inheriting queue settings", || async { harness.terminals.has_live_terminal_for(inherited.id) }).await;
+    assert_claude_terminal_options(&harness.terminals.list()[0], Some("opus"), Some("low"));
+    harness.runner.stop().await.unwrap();
+}
+
+fn assert_claude_terminal_options(session: &TerminalView, model: Option<&str>, effort: Option<&str>) {
+    assert_eq!((session.provider, session.kind), (SessionProvider::Claude, SessionKind::Terminal));
+    assert_eq!((session.model.as_deref(), session.effort.as_deref(), session.skip_permissions), (model, effort, true));
+}
+
 fn codex_launch() -> QueueLaunch {
     QueueLaunch {
         provider: SessionProvider::Codex,
         codex_options: Some(CodexSessionOptions::new(false, Some("gpt-test"), Some("high")).unwrap()),
+        ..QueueLaunch::default()
     }
 }
 

@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use rekall_core::claude::{ClaudeUsageView, CodexSessionOptions, InMemoryTerminalHost, Limit, SessionKind, SessionProvider, Severity, TerminalHost, UsageReader};
-use rekall_core::queue::{QueueLaunch, QueueRunner, RunQueueService};
+use rekall_core::queue::{ClaudeQueueOptions, QueueLaunch, QueueRunner, RunQueueService};
 use rekall_infra::chat::ChatSessionManager;
 use rekall_infra::session::SessionLauncher;
 use rekall_infra::cli::{ClaudeCli, EnvironmentSource};
@@ -242,17 +242,22 @@ async fn the_shared_hosts_open_both_saved_providers_in_chat() {
         Duration::from_millis(50),
     );
     queue.update_settings(None, true, Some("sonnet"), Some("low"), SessionKind::Chat, 1).await.unwrap();
-    queue.add(claude.id, QueueLaunch::default()).await.unwrap();
+    queue.add(claude.id, QueueLaunch {
+        claude_options: Some(ClaudeQueueOptions::new(Some("sonnet"), Some("high")).unwrap()),
+        ..QueueLaunch::default()
+    }).await.unwrap();
     queue.add(codex.id, QueueLaunch {
         provider: SessionProvider::Codex,
         codex_options: Some(CodexSessionOptions::new(false, Some("gpt-test"), Some("high")).unwrap()),
+        ..QueueLaunch::default()
     }).await.unwrap();
+    queue.update_settings(None, true, Some("opus"), Some("max"), SessionKind::Chat, 1).await.unwrap();
     runner.start(&queue, None).await.unwrap();
 
     eventually("the Claude chat prompt", || async { std::fs::read_to_string(&received).is_ok_and(|lines| lines.contains("/rk task:AL-1")) }).await;
     let first = hosts.list().pop().unwrap();
     assert_eq!((first.provider, first.kind), (SessionProvider::Claude, SessionKind::Chat));
-    assert!(first.skip_permissions);
+    assert_eq!((first.model.as_deref(), first.effort.as_deref(), first.skip_permissions), (Some("sonnet"), Some("high"), true));
     claim(&world, "claude", "Only").await;
 
     eventually("the Codex chat prompt", || async {
