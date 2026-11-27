@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
+import { DOMWrapper, flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import OpenTerminalButton from '@/features/claude/components/OpenTerminalButton.vue'
 import { useConsoleStore } from '@/stores/console.store'
 import { useToastStore } from '@/stores/toast.store'
@@ -46,7 +46,7 @@ const STEP = 's-1' as TaskStepId
 
 /** Only what the button reads of a task and a step; the rest of the record plays no part. */
 function checklistTask(): Task {
-  return { id: TASK, reviewActive: false, reviewState: 'OPEN' } as Task
+  return { id: TASK, title: 'Report builder', anchor: 'task:VG-1', reviewActive: false, reviewState: 'OPEN' } as Task
 }
 
 function step(state: TaskStep['state']): TaskStep {
@@ -82,6 +82,7 @@ function queueItem(taskId: TaskId, position: number, state: RunQueueItem['state'
   return {
     id: asRunQueueItemId(`item-${position}`),
     provider: 'CLAUDE',
+    claudeOptions: null,
     codexOptions: null,
     taskId,
     taskTitle: 'Task',
@@ -106,15 +107,19 @@ function menuButton(testid: string): HTMLButtonElement {
   return document.body.querySelector<HTMLButtonElement>(`[data-testid="${testid}"]`)!
 }
 
-async function chooseRunInQueue(
-  wrapper: ReturnType<typeof mountButton>,
-  provider: Terminal['provider'] = 'CLAUDE'
-): Promise<void> {
-  setPreferredProvider(provider)
+async function openQueueLaunch(wrapper: ReturnType<typeof mountButton>): Promise<void> {
+  if (useConsoleStore().tasks.length === 0) useConsoleStore().tasks = [checklistTask()]
   await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
-  const entry = menuButton('run-in-queue')
-  entry.click()
-  entry.click()
+  menuButton('run-in-queue').click()
+  await flushPromises()
+}
+
+function queueDialog(): DOMWrapper<Element> {
+  return new DOMWrapper(document.querySelector('[data-testid="queue-launch-dialog"]')!)
+}
+
+async function confirmQueueLaunch(): Promise<void> {
+  await queueDialog().get('form').trigger('submit')
   await flushPromises()
 }
 
@@ -355,7 +360,7 @@ describe('the Run here button', () => {
 
     await wrapper.get('[data-testid="run-menu-arrow"]').trigger('click')
 
-    expect(menuButton('run-in-queue').textContent).toContain('Close it before the queue starts this task.')
+    expect(menuButton('run-in-queue').textContent).toContain('Close the live Claude Code Terminal before queueing this task.')
     wrapper.unmount()
   })
 
@@ -415,17 +420,43 @@ describe('the Run here button', () => {
     wrapper.unmount()
   })
 
-  it.each(['CLAUDE', 'CODEX'] as const)('queues once with %s and identifies the provider in feedback', async (provider) => {
-    runTaskInQueue.mockResolvedValue(queueWith([{ ...queueItem(TASK, 0, 'RUNNING'), provider }]))
+  it('confirms the queue override once through add and arm', async () => {
+    setPreferredProvider('CODEX')
+    useCodexStore().setup = { status: 'CLI_MISSING' }
+    const choice = { model: 'sonnet', effort: 'high' }
+    runTaskInQueue.mockResolvedValue(queueWith([{ ...queueItem(TASK, 0, 'RUNNING'), claudeOptions: choice }]))
     const toast = useToastStore()
     const wrapper = mountButton()
 
-    await chooseRunInQueue(wrapper, provider)
+    await openQueueLaunch(wrapper)
+    const dialog = queueDialog()
+    expect(dialog.text()).toContain('Codex CLI is not installed.')
+    expect(runTaskInQueue).not.toHaveBeenCalled()
+    await dialog.get('input[value="CLAUDE"]').setValue(true)
+    await dialog.get('[data-testid="queue-launch-model"] select').setValue('sonnet')
+    await dialog.get('[data-testid="queue-launch-effort"] select').setValue('high')
+    const form = dialog.get('form')
+    await Promise.all([form.trigger('submit'), form.trigger('submit')])
+    await flushPromises()
 
     expect(runTaskInQueue).toHaveBeenCalledTimes(1)
-    expect(runTaskInQueue).toHaveBeenCalledWith(TASK, provider)
+    expect(runTaskInQueue).toHaveBeenCalledWith({ taskId: TASK, provider: 'CLAUDE', claudeOptions: choice })
     expect(openTerminal).not.toHaveBeenCalled()
-    expect(toast.toasts[0]?.message).toBe(`Running with ${provider === 'CODEX' ? 'Codex' : 'Claude Code'}`)
+    expect(toast.toasts[0]?.message).toBe('Running with Claude Code')
+    wrapper.unmount()
+  })
+
+  it('cancels without writing and restores the menu arrow focus', async () => {
+    const wrapper = mountButton()
+    await openQueueLaunch(wrapper)
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await flushPromises()
+
+    expect(document.querySelector('[data-testid="queue-launch-dialog"]')).toBeNull()
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="run-menu-arrow"]').element)
+    expect(releaseOnRun).not.toHaveBeenCalled()
+    expect(runTaskInQueue).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
@@ -437,20 +468,23 @@ describe('the Run here button', () => {
     const toast = useToastStore()
     const wrapper = mountButton()
 
-    await chooseRunInQueue(wrapper)
+    await openQueueLaunch(wrapper)
+    await confirmQueueLaunch()
 
     expect(toast.toasts[0]?.message).toBe('Queued with Claude Code · 2 ahead')
     wrapper.unmount()
   })
 
-  it('shows the refusal as a toast when the task is already queued', async () => {
+  it('keeps launch choices and shows the refusal when the server refuses the request', async () => {
     runTaskInQueue.mockRejectedValue(new Error('Already in the queue'))
-    const toast = useToastStore()
     const wrapper = mountButton()
 
-    await chooseRunInQueue(wrapper)
+    await openQueueLaunch(wrapper)
+    await queueDialog().get('[data-testid="queue-launch-model"] select').setValue('sonnet')
+    await confirmQueueLaunch()
 
-    expect(toast.toasts[0]?.message).toContain('Already in the queue')
+    expect(queueDialog().get('[role="alert"]').text()).toContain('Already in the queue')
+    expect(queueDialog().get<HTMLSelectElement>('[data-testid="queue-launch-model"] select').element.value).toBe('sonnet')
     wrapper.unmount()
   })
 
@@ -458,7 +492,7 @@ describe('the Run here button', () => {
     const toast = useToastStore()
     const wrapper = mountButton(null)
 
-    await chooseRunInQueue(wrapper)
+    await openQueueLaunch(wrapper)
 
     expect(runTaskInQueue).not.toHaveBeenCalled()
     expect(toast.toasts[0]?.message).toContain('folder')
@@ -469,13 +503,13 @@ describe('the Run here button', () => {
     const console_ = useConsoleStore()
     console_.tasks = [checklistTask()]
     console_.steps = [step('CLAIMED'), { ...step('DRAFT'), id: 's-2' as TaskStepId }]
-    const toast = useToastStore()
     const wrapper = mountButton()
 
-    await chooseRunInQueue(wrapper)
+    await openQueueLaunch(wrapper)
+    await confirmQueueLaunch()
 
     expect(runTaskInQueue).not.toHaveBeenCalled()
-    expect(toast.toasts[0]?.message).toContain('Nothing to run')
+    expect(queueDialog().get('[role="alert"]').text()).toContain('Nothing to run')
     wrapper.unmount()
   })
 
@@ -611,7 +645,6 @@ describe('planning from the Run here arrow', () => {
     setPreferredProvider('CODEX')
     openTerminal.mockResolvedValue({ ...terminal(), provider: 'CODEX' })
     const wrapper = mountPlanning()
-    setPreferredProvider('CODEX')
 
     await choose(wrapper, testid)
 

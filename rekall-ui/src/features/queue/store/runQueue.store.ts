@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { SessionProvider } from '@/features/claude/model/session-provider'
 import {
   clearSettledItems,
   dequeueItem,
@@ -15,11 +14,11 @@ import {
 import {
   EMPTY_RUN_QUEUE,
   runProgress,
+  type QueueTaskRequest,
   type RunQueue,
   type RunQueueItemId,
   type RunQueueSettings
 } from '@/features/queue/model/runQueue'
-import type { TaskId } from '@/model/branded'
 
 /**
  * The run queue as the console holds it. The server is the only place it runs, so every action
@@ -48,12 +47,12 @@ export const useRunQueueStore = defineStore('runQueue', () => {
     apply(await saveRunQueueSettings(settings))
   }
 
-  async function add(taskId: TaskId, provider: SessionProvider = 'CLAUDE'): Promise<void> {
-    apply(await enqueueTask(taskId, provider))
+  async function add(launch: QueueTaskRequest): Promise<void> {
+    apply(await enqueueTask(launch))
   }
 
-  async function runInQueue(taskId: TaskId, provider: SessionProvider = 'CLAUDE'): Promise<void> {
-    apply(await runTaskInQueue(taskId, provider))
+  async function runInQueue(launch: QueueTaskRequest): Promise<void> {
+    apply(await runTaskInQueue(launch))
   }
 
   async function remove(itemId: RunQueueItemId): Promise<void> {

@@ -10,13 +10,13 @@ import QueueOrderRow from '@/features/queue/components/QueueOrderRow.vue'
 import QueueTaskPicker from '@/features/queue/components/QueueTaskPicker.vue'
 import { isSettled, type RunProgress, type RunQueue, type RunQueueItem } from '@/features/queue/model/runQueue'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
-import type { SessionProvider } from '@/features/claude/model/session-provider'
+import type { Task } from '@/features/catalog/model/catalog'
 import type { TaskId } from '@/model/branded'
 
 const props = defineProps<{ queue: RunQueue; progress: RunProgress; busy: boolean }>()
 
 const emit = defineEmits<{
-  add: [taskId: TaskId, provider: SessionProvider]
+  add: [task: Task]
   /** `index` is the item's new place among the waiting ones. */
   move: [item: RunQueueItem, index: number]
   remove: [item: RunQueueItem]
@@ -36,10 +36,6 @@ const hasSettled = computed(() => items.value.some((item) => isSettled(item.stat
 function blockingSession(item: RunQueueItem) {
   if (item.state !== 'FAILED' || !item.detail?.includes('is already open on this task.')) return null
   return terminals.terminalForTask(item.taskId)
-}
-
-function add(taskId: TaskId, provider: SessionProvider): void {
-  emit('add', taskId, provider)
 }
 
 function waitingIndex(item: RunQueueItem): number {
@@ -81,7 +77,7 @@ function moveBy(item: RunQueueItem, delta: number): void {
       >
         <p class="text-body font-medium text-text">Nothing queued</p>
         <p class="max-w-[46ch] text-small leading-relaxed text-text-muted">
-          Add the tasks you want run, in the order you want them. Each task runs with the provider you choose when adding it.
+          Add the tasks you want run, in the order you want them. Choose launch settings for each task when you add it.
         </p>
       </div>
 
@@ -106,7 +102,7 @@ function moveBy(item: RunQueueItem, delta: number): void {
     </div>
 
     <div class="border-t border-border px-6 py-3">
-      <QueueTaskPicker :excluded="excluded" :disabled="busy" @pick="add" />
+      <QueueTaskPicker :excluded="excluded" :disabled="busy" @pick="emit('add', $event)" />
     </div>
   </section>
 </template>

@@ -19,6 +19,7 @@ function item(id: string, state: RunQueueItemState): RunQueueItem {
   return {
     id: asRunQueueItemId(id),
     provider: 'CLAUDE',
+    claudeOptions: null,
     codexOptions: null,
     taskId: asTaskId(`t-${id}`),
     taskTitle: `Report ${id}`,
@@ -46,6 +47,16 @@ function mountRow(state: RunQueueItemState, over: Record<string, unknown> = {}) 
 }
 
 describe('a run queue row', () => {
+  it('distinguishes legacy queue settings from explicit account defaults on its tags', () => {
+    const legacy = mountRow('QUEUED')
+    const explicit = mountRow('QUEUED', { item: { ...item('a', 'QUEUED'), claudeOptions: { model: null, effort: null } } })
+
+    expect(legacy.get('[data-testid="run-queue-model"]').text()).toBe('Queue model')
+    expect(legacy.get('[data-testid="run-queue-effort"]').text()).toBe('Queue effort')
+    expect(explicit.get('[data-testid="run-queue-model"]').text()).toBe('Account default')
+    expect(explicit.get('[data-testid="run-queue-effort"]').text()).toBe('Account default')
+  })
+
   it('lets a waiting task move both ways and come off, saying which way it moved', async () => {
     const row = mountRow('QUEUED')
 

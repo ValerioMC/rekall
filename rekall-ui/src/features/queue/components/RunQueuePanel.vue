@@ -14,13 +14,14 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirm from '@/components/ui/AppConfirm.vue'
 import AppDialog from '@/components/ui/AppDialog.vue'
 import CloseGlyph from '@/components/ui/CloseGlyph.vue'
+import QueueLaunchDialog from '@/features/queue/components/QueueLaunchDialog.vue'
 import QueueOrderSection from '@/features/queue/components/QueueOrderSection.vue'
 import QueueSettingsAside from '@/features/queue/components/QueueSettingsAside.vue'
 import QueueStatusLine from '@/features/queue/components/QueueStatusLine.vue'
 import { useRunQueueStore } from '@/features/queue/store/runQueue.store'
 import { useConsoleStore } from '@/stores/console.store'
 import { useTerminalStore } from '@/features/claude/store/terminal.store'
-import { SESSION_PROVIDER_LABEL, type SessionProvider } from '@/features/claude/model/session-provider'
+import { SESSION_PROVIDER_LABEL } from '@/features/claude/model/session-provider'
 import { useOpenSession } from '@/features/claude/composables/useOpenSession'
 import { useToastStore } from '@/stores/toast.store'
 import { useNow } from '@/composables/useNow'
@@ -31,9 +32,10 @@ import {
   fromLocalInputValue,
   suggestedStart,
   toLocalInputValue,
+  type QueueTaskRequest,
   type RunQueueItem
 } from '@/features/queue/model/runQueue'
-import type { TaskId } from '@/model/branded'
+import type { Task } from '@/features/catalog/model/catalog'
 
 const emit = defineEmits<{ close: [] }>()
 
@@ -49,6 +51,7 @@ const now = useNow(15_000)
 const closeButton = ref<HTMLButtonElement | null>(null)
 const busy = ref(false)
 const confirmingStop = ref(false)
+const queueTask = ref<Task | null>(null)
 
 // ---------------------------------------------------------------- settings
 
@@ -81,11 +84,14 @@ async function act(action: () => Promise<void>): Promise<void> {
   }
 }
 
-function add(taskId: TaskId, provider: SessionProvider): void {
-  void act(async () => {
-    await store.add(taskId, provider)
-    toast.notify(queuePlacement(queue.value, taskId, provider))
-  })
+async function add(launch: QueueTaskRequest): Promise<void> {
+  await store.add(launch)
+  toast.notify(queuePlacement(queue.value, launch.taskId, launch.provider))
+}
+
+function closeForSetup(): void {
+  queueTask.value = null
+  emit('close')
 }
 
 function moveTo(item: RunQueueItem, index: number): void {
@@ -191,8 +197,7 @@ onMounted(async () => {
       <div class="min-w-0">
         <h2 class="text-title font-semibold tracking-[-0.01em] text-text">Run queue</h2>
         <p class="text-small text-text-subtle">
-          Tasks run one after another, each with its selected provider, until everything on it is
-          claimed.
+          Tasks run with their saved launch settings until their work is claimed.
         </p>
       </div>
       <button
@@ -214,7 +219,7 @@ onMounted(async () => {
         :queue="queue"
         :progress="progress"
         :busy="busy"
-        @add="add"
+        @add="queueTask = $event"
         @move="moveTo"
         @remove="remove"
         @clear="clearSettled"
@@ -265,6 +270,15 @@ onMounted(async () => {
       </AppButton>
     </footer>
     <template #overlay>
+      <QueueLaunchDialog
+        v-if="queueTask"
+        :task="queueTask"
+        mode="add"
+        :submit="add"
+        @close="queueTask = null"
+        @complete="queueTask = null"
+        @setup="closeForSetup"
+      />
       <Transition name="dialog">
         <AppConfirm
           v-if="confirmingStop"

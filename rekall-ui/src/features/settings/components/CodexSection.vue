@@ -8,6 +8,7 @@ import ProviderField from '@/features/settings/components/ProviderField.vue'
 import ProviderPanel from '@/features/settings/components/ProviderPanel.vue'
 import SessionPermissionSwitch from '@/features/settings/components/SessionPermissionSwitch.vue'
 import { codexPreferences, setCodexBypass, setCodexEffort, setCodexModel } from '@/common/config/session-launch'
+import { codexEffortLabel } from '@/features/codex/model/codex'
 import { useCodexStore } from '@/features/codex/store/codex.store'
 import { useToastStore } from '@/stores/toast.store'
 
@@ -35,17 +36,13 @@ const effortOptions = computed(() => {
   const selected = models.value.find((item) => item.model === model.value)
   const offered = selected?.supportedReasoningEfforts.map(({ reasoningEffort }) => ({
     value: reasoningEffort,
-    label: effortLabel(reasoningEffort)
+    label: codexEffortLabel(reasoningEffort)
   })) ?? []
   if (effort.value !== 'default' && !offered.some((item) => item.value === effort.value) && !selected) {
     offered.push({ value: effort.value, label: effort.value })
   }
   return [{ value: 'default', label: 'Account default' }, ...offered]
 })
-
-function effortLabel(value: string): string {
-  return value === 'xhigh' ? 'Extra high' : value.charAt(0).toUpperCase() + value.slice(1)
-}
 
 async function load(): Promise<void> {
   loading.value = true
@@ -167,7 +164,7 @@ onMounted(() => void load())
       </SessionPermissionSwitch>
 
       <p class="border-t border-border px-5 py-3 text-small leading-relaxed text-text-subtle">
-        A queued Codex task keeps the settings it had here when it was added to the run queue.
+        A queued Codex task keeps the model and effort you confirm and the bypass setting in effect when you add it.
       </p>
     </template>
 

@@ -8,7 +8,7 @@ import { SESSION_PROVIDER_LABEL, type SessionProvider } from '@/features/claude/
 
 const trigger = ref<HTMLButtonElement | null>(null)
 const { open, menu, placement, show, toggle, close, handleKeydown } = useAnchoredMenu(() => trigger.value, 224)
-const { options, missing } = useSessionProviderOptions(() => null)
+const { options, missing } = useSessionProviderOptions()
 const provider = computed(preferredProvider)
 const label = computed(() => SESSION_PROVIDER_LABEL[provider.value])
 const unavailable = computed(() => missing(provider.value))
@@ -64,9 +64,9 @@ function choose(candidate: SessionProvider): void {
         tabindex="-1"
         class="focus-ring flex w-full items-center gap-2 rounded-control px-2.5 py-2 text-left text-small hover:bg-surface"
         :class="option.unavailable ? 'text-text-muted' : 'cursor-pointer text-text'"
-        :aria-checked="option.preferred"
+        :aria-checked="option.provider === provider"
         :aria-disabled="Boolean(option.unavailable)"
-        :data-menu-initial="option.preferred ? '' : undefined"
+        :data-menu-initial="option.provider === provider ? '' : undefined"
         @click="choose(option.provider)"
       >
         <SessionProviderMark :provider="option.provider" />
@@ -74,7 +74,7 @@ function choose(candidate: SessionProvider): void {
           {{ SESSION_PROVIDER_LABEL[option.provider] }}
           <span v-if="option.unavailable" class="block text-caption">CLI is not installed</span>
         </span>
-        <svg v-if="option.preferred" class="size-4 shrink-0 text-accent" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <svg v-if="option.provider === provider" class="size-4 shrink-0 text-accent" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path d="m3.5 8 3 3 6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
       </button>

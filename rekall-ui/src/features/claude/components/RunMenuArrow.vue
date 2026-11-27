@@ -4,6 +4,8 @@ import { useAnchoredMenu } from '@/composables/useAnchoredMenu'
 import SessionProviderMark from '@/features/claude/components/SessionProviderMark.vue'
 import { useSessionProviderOptions } from '@/features/claude/composables/useSessionProviderOptions'
 import { SESSION_PROVIDER_LABEL, type SessionProvider } from '@/features/claude/model/session-provider'
+import { useTerminalStore } from '@/features/claude/store/terminal.store'
+import { queueSessionBlocker } from '@/features/queue/model/queue-launch'
 import type { RunMenuAction } from '@/features/claude/model/runMenu'
 import type { TaskId } from '@/model/branded'
 
@@ -33,18 +35,20 @@ const ENTRIES: Record<RunMenuAction, { label: string; testid: string }> = {
 }
 
 const arrow = ref<HTMLButtonElement | null>(null)
-const providerOptions = useSessionProviderOptions(() => props.taskId)
-const queueOptions = useSessionProviderOptions(() => props.taskId, () => true)
-const unavailable = computed(() => providerOptions.missing(props.provider))
-const queueWarning = computed(
-  () => queueOptions.options().find((option) => option.provider === props.provider)?.detail ?? null
-)
+const terminals = useTerminalStore()
+const { missing } = useSessionProviderOptions()
+const unavailable = computed(() => missing(props.provider))
+const queueWarning = computed(() => queueSessionBlocker(terminals.terminalForTask(props.taskId)))
 const menuLabel = computed(() => `More ways to run with ${SESSION_PROVIDER_LABEL[props.provider]}`)
 
 const { open, menu, placement, toggle, close, handleKeydown } = useAnchoredMenu(() => arrow.value, MENU_WIDTH)
 
+function isDisabled(action: RunMenuAction): boolean {
+  return action !== 'RUN_IN_QUEUE' && unavailable.value !== null
+}
+
 function choose(action: RunMenuAction): void {
-  if (props.busy || unavailable.value) return
+  if (props.busy || isDisabled(action)) return
   close(true)
   emit('choose', action)
 }
@@ -124,12 +128,12 @@ function choose(action: RunMenuAction): void {
           role="menuitem"
           tabindex="-1"
           class="focus-ring flex w-full items-start justify-between gap-3 rounded-control px-2.5 py-2 text-left transition-colors hover:bg-surface"
-          :class="unavailable ? 'cursor-default' : 'cursor-pointer'"
-          :aria-disabled="unavailable ? true : undefined"
+          :class="isDisabled(action) ? 'cursor-default' : 'cursor-pointer'"
+          :aria-disabled="isDisabled(action) || undefined"
           :data-testid="ENTRIES[action].testid"
           @click="choose(action)"
         >
-          <span class="text-small font-medium" :class="unavailable ? 'text-text-muted' : 'text-text'">
+          <span class="text-small font-medium" :class="isDisabled(action) ? 'text-text-muted' : 'text-text'">
             {{ ENTRIES[action].label }}
             <span v-if="action === 'RUN_IN_QUEUE' && queueWarning" class="mt-0.5 block text-caption font-normal leading-snug text-text-muted">
               {{ queueWarning }}

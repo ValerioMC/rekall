@@ -75,7 +75,7 @@ console are gone; their tabs are on the task page.
 
 ### The grouped menu
 
-The Rekall mark to the left of the menu key opens the project list and clears the scope left on (`HomeLink`).
+Back and Forward precede the section menu and project switcher. The Rekall mark opens the project list and clears the scope left on (`HomeLink`). The provider selector sits after centered search, before status.
 
 The menu key in the header is three lines, the name of the screen on display, the alert total and a chevron
 (`AppNavMenu`, `nav-menu-label`); it opens every screen under its section:
@@ -212,12 +212,10 @@ and project) with the task's actions at its right (Log commit, Open in terminal 
 Run here, each offered once), and the title alone beneath. The tab strip is Description, Plan,
 Changes, Wrapup, Notes, Time and Deviations, with counts where a count means something (steps,
 logged commits, notes, deviations) and an amber one on Plan while a step waits for review; at its
-right is the width key. Left of the **Run here** key sits its provider switch
-(`SessionProviderSwitch`), two marks in a flat radio group: the lit one is what the key and its
-menu start. The choice is per task, kept in the browser (`useTaskProviderStore`), and a live
-session holds it on its own provider (`useRunProvider`). The **Run here** menu (`RunMenuArrow`)
-names that provider and is two groups split by a separator: running (Run in queue) and preparing
-(Discuss, Plan here, Plan a flow, Replan; Discuss is offered whatever steps the task has).
+right is the width key. **Run here** uses the provider in the top bar for a new session, or
+the live session’s provider (`useRunProvider`). The **Run here** menu (`RunMenuArrow`) names
+that provider. Its running group opens the shared queue launch form, and its preparation
+group offers Discuss, Plan here, Plan a flow and Replan as the task permits.
 The arrow keys walk the menu items only, so they pass over the separator, and a menu with no room
 under its key, as in a step's dock, opens above it (`useAnchoredMenu`). A discussion holding no step
 does not turn the key to Working (`sessionAtWork`).

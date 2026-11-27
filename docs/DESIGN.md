@@ -286,6 +286,11 @@ Settings share the reactive preference in `session-launch.ts`, persisted in brow
 a visit fallback. `useRunProvider` resolves task actions to the live session’s provider or the
 global choice for a new session. `usePlanTask` uses that resolution for Discuss, Plan, Replan and
 Refine. The session store handles launch conflicts and view fallback.
+
+`QueueLaunchDialog` starts with the global choice and the provider’s defaults. It limits Codex
+effort to the selected model’s catalog, submits only on confirmation, and keeps the draft on a
+refusal. The run menu adds and arms the queue, and the queue picker adds an entry.
+`QueueOrderRow` reads the provider, model and effort tags from the saved queue item.
 Both queue write routes accept optional per-entry launch settings. For Claude Code, a
 `claudeOptions` object saves each choice, with null values delegating to the account. When the
 object is omitted, the worker uses the queue-wide model and effort. Claude Code permissions and

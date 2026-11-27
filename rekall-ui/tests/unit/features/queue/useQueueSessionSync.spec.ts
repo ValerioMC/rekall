@@ -20,6 +20,7 @@ function item(state: RunQueueItem['state']): RunQueueItem {
   return {
     id: asRunQueueItemId('item-1'),
     provider: 'CLAUDE',
+    claudeOptions: null,
     codexOptions: null,
     taskId: asTaskId('task-1'),
     taskTitle: 'Report builder',

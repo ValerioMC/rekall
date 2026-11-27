@@ -2,20 +2,17 @@
 import { codedTitle } from '@/features/catalog/model/task-code'
 /**
  * Adds a task to the queue by typing: its title, its label or its anchor, the same three ways the
- * console finds a task anywhere else. Arrow keys move through the matches, Enter opens the provider choices, Escape clears. A task already waiting or running in the queue is not offered; one whose
+ * console finds a task anywhere else. Arrow keys move through the matches, Enter opens launch settings, Escape clears. A task already waiting or running in the queue is not offered; one whose
  * work is all claimed still is, and says so, because the queue will only skip it.
  */
 import { computed, ref, useId } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useConsoleStore } from '@/stores/console.store'
 import { isEpic, type Task } from '@/features/catalog/model/catalog'
-import SessionProviderMenu from '@/features/claude/components/SessionProviderMenu.vue'
-import { useAnchoredMenu } from '@/composables/useAnchoredMenu'
-import type { SessionProvider } from '@/features/claude/model/session-provider'
 import type { TaskId } from '@/model/branded'
 
 const props = defineProps<{ excluded: ReadonlySet<TaskId>; disabled?: boolean }>()
-const emit = defineEmits<{ pick: [taskId: TaskId, provider: SessionProvider] }>()
+const emit = defineEmits<{ pick: [task: Task] }>()
 
 const MAX_MATCHES = 8
 
@@ -25,8 +22,6 @@ const active = ref(0)
 const open = ref(false)
 const listId = useId()
 const input = ref<HTMLInputElement | null>(null)
-const chosenTask = ref<Task | null>(null)
-const { open: choosingProvider, menu, placement, show, close, handleKeydown } = useAnchoredMenu(() => input.value, 240)
 
 /** Finished tasks sink to the bottom: queueing one is allowed, rarely meant. An epic is never run. */
 const matches = computed<Task[]>(() => {
@@ -53,18 +48,12 @@ function workLine(task: Task): string {
 }
 
 function pick(task: Task | undefined): void {
-  if (!task || props.disabled || choosingProvider.value) return
-  chosenTask.value = task
-  void show()
-}
-
-function add(provider: SessionProvider): void {
-  const task = chosenTask.value
-  if (!task || !choosingProvider.value || props.disabled) return
+  if (!task || props.disabled) return
   query.value = ''
   active.value = 0
-  close(true)
-  emit('pick', task.id, provider)
+  input.value?.focus()
+  open.value = false
+  emit('pick', task)
 }
 
 function move(delta: number): void {
@@ -93,7 +82,7 @@ function onInput(): void {
       autocomplete="off"
       spellcheck="false"
       :disabled="disabled"
-      :aria-expanded="open && !choosingProvider && matches.length > 0"
+      :aria-expanded="open && matches.length > 0"
       :aria-controls="listId"
       :aria-activedescendant="open && matches[active] ? `${listId}-${active}` : undefined"
       aria-label="Add a task to the queue"
@@ -110,7 +99,7 @@ function onInput(): void {
     />
     <Transition name="popover">
       <ul
-        v-if="open && !choosingProvider && matches.length"
+        v-if="open && matches.length"
         :id="listId"
         role="listbox"
         class="absolute inset-x-0 bottom-full z-(--z-overlay) mb-1.5 max-h-[300px] overflow-y-auto rounded-card border border-border-strong bg-surface-raised py-1 shadow-modal"
@@ -135,19 +124,5 @@ function onInput(): void {
         </li>
       </ul>
     </Transition>
-    <Teleport to="body">
-      <div
-        v-if="choosingProvider && chosenTask"
-        ref="menu"
-        role="menu"
-        :aria-label="`Provider for ${chosenTask.title}`"
-        class="fixed z-(--z-popover) overflow-y-auto rounded-card border border-border-strong bg-surface-raised p-1 shadow-lift"
-        :style="placement"
-        data-anchored-menu
-        @keydown="handleKeydown"
-      >
-        <SessionProviderMenu :task-id="chosenTask.id" :busy="disabled" queueing @choose="add" />
-      </div>
-    </Teleport>
   </div>
 </template>

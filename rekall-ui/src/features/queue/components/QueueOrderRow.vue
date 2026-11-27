@@ -11,6 +11,7 @@ import { SESSION_PROVIDER_LABEL, sessionViewLabel } from '@/features/claude/mode
 import type { Terminal } from '@/features/claude/model/terminal'
 import AppButton from '@/components/ui/AppButton.vue'
 import QueueBead from '@/features/queue/components/QueueBead.vue'
+import { queueLaunchLabels } from '@/features/queue/model/queue-launch'
 import QueueStepList from '@/features/queue/components/QueueStepList.vue'
 import {
   finishedNote,
@@ -40,6 +41,8 @@ const stepsOpen = computed(() => chosenOpen.value ?? props.item.state === 'RUNNI
 const progress = computed(() => stepProgress(props.item))
 const stepListId = computed(() => `queue-steps-${props.item.id}`)
 const reason = computed(() => finishedNote(props.item) ?? waitingNote(props.item) ?? props.item.detail)
+const launchLabels = computed(() => queueLaunchLabels(props.item))
+const TAG_CLASS = 'inline-flex max-w-full items-center gap-1 rounded-key border border-border bg-surface-raised px-1.5 text-caption leading-5 text-text-muted'
 const unqueued = computed(() => unqueuedDependencies(props.item))
 
 function toggleSteps(): void {
@@ -99,10 +102,16 @@ const MOVE_BUTTON =
       <span class="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 text-caption">
         <span class="truncate font-mono text-anchor">{{ item.anchor }}</span>
         <span class="shrink-0" :class="STATE_TONE[item.state]">{{ STATE_WORD[item.state] }}</span>
-        <span class="inline-flex shrink-0 items-center gap-1 text-text-muted" data-testid="run-queue-provider">
+      </span>
+      <span class="mt-1 flex min-w-0 flex-wrap gap-1" role="group" aria-label="Saved launch settings">
+        <span :class="TAG_CLASS" data-testid="run-queue-provider">
           <SessionProviderMark :provider="item.provider" :size="12" />
           {{ SESSION_PROVIDER_LABEL[item.provider] }}
         </span>
+        <span :class="TAG_CLASS" data-testid="run-queue-model" title="Model">
+          <span class="truncate">{{ launchLabels.model }}</span>
+        </span>
+        <span :class="TAG_CLASS" data-testid="run-queue-effort" title="Effort">{{ launchLabels.effort }}</span>
       </span>
       <span v-if="reason" class="text-caption leading-snug text-text-muted" data-testid="run-queue-reason">{{ reason }}</span>
       <span
