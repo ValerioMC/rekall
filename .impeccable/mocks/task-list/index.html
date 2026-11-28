@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Task list</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Fira+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --canvas: #0d1017; --surface: #151922; --raised: #1d2330; --hover: #262d3c;
+    --border: #2a3243; --border-strong: #3b4558; --field: #5e6a82;
+    --text: #f2f5f9; --muted: #a3acba; --subtle: #8c96a6;
+    --accent: #eaa43c; --accent-soft: #eaa43c24; --accent-strong: #ffd88e; --accent-ink: #2b1804;
+    --anchor: #55c9ea; --anchor-soft: #55c9ea1c; --anchor-line: #55c9ea45;
+    --session: #7c83f7; --session-strong: #b4b9ff;
+    --safe: #3ddc97; --danger: #fb7185; --filed: #8fa89d; --filed-soft: #8fa89d14; --filed-line: #8fa89d33;
+    --epic: #a99bff; --epic-soft: #a99bff1c;
+    --sans: 'Fira Sans', ui-sans-serif, sans-serif; --mono: 'Fira Code', ui-monospace, monospace;
+    --micro: 11px; --caption: 11.5px; --small: 12.5px; --body: 13.5px; --heading: 19px;
+    --key: 3px; --control: 5px; --card: 8px;
+    --lift: 0 1px 2px rgb(0 0 0 / .55), 0 10px 22px -8px rgb(0 0 0 / .65);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+  body { background: var(--canvas); color: var(--text); font: 400 var(--body)/1.4 var(--sans); -webkit-font-smoothing: antialiased; }
+  button, input { font: inherit; color: inherit; background: none; border: 0; }
+  button, label { cursor: pointer; }
+  button:disabled { cursor: default; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  ::selection { background: var(--accent-soft); color: var(--accent-strong); }
+  input { caret-color: var(--accent); }
+  input[type="checkbox"] { accent-color: var(--accent); width: 14px; height: 14px; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 8px; border: 3px solid transparent; background-clip: padding-box; }
+  svg { display: block; flex: none; }
+
+  /* review controls: not part of the console */
+  .harness { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 28px; padding: 10px 20px; background: #000; border-bottom: 2px solid var(--border-strong); font-size: var(--small); color: var(--muted); }
+  .harness b { color: var(--text); font-weight: 600; }
+  .harness .group { display: flex; align-items: center; gap: 10px; }
+  .harness label { display: flex; align-items: center; gap: 6px; }
+  .harness .note { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .seg { display: flex; gap: 2px; height: 28px; padding: 2px; border: 1px solid var(--border); border-radius: var(--control); background: var(--canvas); }
+  .seg button { padding: 0 10px; border-radius: var(--key); color: var(--muted); white-space: nowrap; display: flex; align-items: center; }
+  .seg button[aria-pressed="true"] { background: var(--raised); color: var(--text); }
+
+  /* console frame, drawn at the chosen width and scaled to fit this window */
+  .console { margin: 0 auto; background: var(--canvas); border-inline: 1px solid var(--border); display: flex; flex-direction: column; }
+  .topbar { height: 48px; display: grid; grid-template-columns: 1fr minmax(240px, 620px) 1fr; align-items: center; gap: 16px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .menukey { justify-self: start; display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--card); background: var(--surface); font-weight: 600; }
+  .search { height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--field); border-radius: var(--card); font: var(--caption) var(--mono); color: var(--anchor); }
+  .capsule { justify-self: end; height: 36px; display: flex; align-items: center; padding: 0 14px; border: 1px solid var(--border); border-radius: var(--card); background: var(--surface); font-size: var(--small); color: var(--accent-strong); }
+  .page { padding: 0 32px; flex: 1; display: flex; flex-direction: column; }
+  .scope { display: flex; align-items: center; gap: 12px; padding: 20px 0 10px; font-size: var(--heading); }
+  .scope .company { color: var(--muted); }
+  .scope b { font-weight: 500; }
+  .anchor-chip { font: var(--caption) var(--mono); color: var(--anchor); background: var(--surface); border: 1px solid var(--border); border-radius: var(--key); padding: 3px 8px; white-space: nowrap; }
+  .subnav { display: flex; flex-wrap: wrap; align-items: center; column-gap: 2px; border-bottom: 1px solid var(--border); }
+  .tab { position: relative; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; color: var(--muted); }
+  .tab:hover { color: var(--text); }
+  .tab[aria-selected="true"] { color: var(--text); }
+  .tab[aria-selected="true"]::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--accent); }
+  .count { font-size: var(--caption); font-variant-numeric: tabular-nums; color: var(--subtle); }
+  .count.hot { background: var(--accent); color: var(--accent-ink); border-radius: 99px; padding: 0 6px; font-weight: 500; line-height: 16px; }
+  .composer { display: flex; align-items: center; gap: 10px; height: 44px; margin-top: 14px; padding: 0 5px 0 14px; border: 1px solid var(--field); border-radius: var(--card); color: var(--subtle); }
+  .composer .folder { margin-left: auto; font: var(--caption) var(--mono); }
+  .adherence { display: flex; align-items: center; gap: 24px; height: 40px; margin-top: 10px; padding: 0 14px; border: 1px solid var(--border); border-radius: var(--card); background: var(--surface); font-size: var(--small); color: var(--muted); white-space: nowrap; overflow: hidden; }
+  .adherence b { font: 400 var(--body) var(--mono); color: var(--text); margin-left: 4px; }
+
+  .key { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--control); background: var(--raised); white-space: nowrap; }
+  .key:hover:not(:disabled) { background: var(--hover); }
+  .key.sm { height: 28px; padding: 0 10px; font-size: var(--small); }
+  .key.ghost { background: none; border-color: transparent; color: var(--muted); }
+  .key.ghost:hover:not(:disabled) { background: var(--raised); color: var(--text); }
+  .key:disabled { color: var(--subtle); background: var(--surface); }
+  .key.primary { background: var(--accent); border-color: var(--accent-ink); color: var(--accent-ink); font-weight: 600; }
+
+  /* toolbar: tabs left, filters right; wraps to a second line when they do not fit */
+  .views { margin-top: 10px; }
+  .tools { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 0; }
+  .field { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: 1px solid var(--field); border-radius: var(--control); color: var(--subtle); }
+  .field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .field input { width: 220px; outline: 0; color: var(--text); font-size: var(--small); }
+  .field input::placeholder { color: var(--subtle); }
+  .drop { position: relative; }
+  .filter { background: none; font-size: var(--small); color: var(--muted); }
+  .filter.on { background: var(--raised); border-color: var(--field); color: var(--text); }
+  .filter .value { max-width: 150px; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  .menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; min-width: 220px; padding: 6px; border: 1px solid var(--border-strong); border-radius: var(--card); background: var(--raised); box-shadow: var(--lift); }
+  .menu label { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 8px; border-radius: var(--control); font-size: var(--small); white-space: nowrap; }
+  .menu label:hover { background: var(--hover); }
+  .menu label .count { margin-left: auto; padding-left: 16px; }
+  .menu h4 { font-size: var(--caption); font-weight: 500; color: var(--subtle); padding: 8px 8px 4px; }
+  .menu .foot { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; display: flex; justify-content: flex-end; }
+  .menu .seg { margin: 2px 8px 6px; }
+
+  /* the ledger */
+  .body { flex: 1; display: flex; gap: 16px; align-items: flex-start; }
+  .ledger { flex: 1; min-width: 0; align-self: stretch; display: flex; flex-direction: column; }
+  .cols { display: grid; grid-template-columns: var(--template); align-items: center; column-gap: 14px; padding: 0 12px; }
+  .head { height: 36px; border-bottom: 1px solid var(--border); font-size: var(--caption); color: var(--subtle); position: sticky; top: 0; background: var(--canvas); z-index: 20; }
+  .sort { display: flex; align-items: center; gap: 4px; height: 28px; color: var(--subtle); white-space: nowrap; min-width: 0; }
+  .sort:hover { color: var(--text); }
+  .sort svg { opacity: 0; }
+  .sort:hover svg { opacity: .5; }
+  .sort.on { color: var(--text); }
+  .sort.on svg { opacity: 1; }
+  .end { justify-self: end; text-align: right; }
+  .row { height: 44px; border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); color: var(--muted); }
+  .compact .row { height: 34px; }
+  .row:hover { background: var(--surface); }
+  .row > * { min-width: 0; }
+  .row.epic { background: var(--epic-soft); }
+  .row.epic:hover { background: color-mix(in srgb, var(--epic) 17%, var(--canvas)); }
+  .row.open, .row.picked { background: var(--raised); color: var(--text); }
+  .row.filed { color: var(--filed); }
+  .chev { width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--key); color: var(--subtle); }
+  .chev:hover { background: var(--hover); color: var(--text); }
+  .chev svg { transition: transform .18s cubic-bezier(.16, 1, .3, 1); }
+  .chev[aria-expanded="true"] svg { transform: rotate(90deg); }
+  .mark { width: 14px; height: 14px; border-radius: 99px; border: 1.5px solid var(--accent); position: relative; justify-self: center; }
+  .mark::after { content: ''; position: absolute; inset: 3.5px; border-radius: 99px; background: var(--accent); }
+  .mark.running { border-color: var(--session); } .mark.running::after { background: var(--session-strong); animation: pulse 1.7s ease-in-out infinite; }
+  .mark.review::after { inset: 2px; }
+  .mark.todo { border-color: var(--subtle); } .mark.todo::after { background: var(--subtle); }
+  .mark.backlog { border-color: var(--border-strong); } .mark.backlog::after { background: var(--border-strong); }
+  .mark.blocked { border-color: var(--danger); } .mark.blocked::after { background: var(--danger); }
+  .mark.filed { border-color: var(--safe); background: var(--safe); } .mark.filed::after { display: none; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  .code { font: var(--caption) var(--mono); color: var(--anchor); white-space: nowrap; }
+  .filed .code { color: var(--filed); }
+  .title { display: flex; align-items: center; gap: 8px; }
+  .title a { color: var(--text); font-weight: 500; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-underline-offset: 3px; cursor: pointer; }
+  .title a:hover { text-decoration: underline; text-decoration-color: var(--accent); }
+  .filed .title a { color: var(--muted); font-weight: 400; }
+  .epic .title a { font-weight: 600; }
+  .title.nested { padding-left: 18px; }
+  .badge { flex: none; font-size: var(--caption); padding: 0 6px; border: 1px solid var(--border); border-radius: var(--key); color: var(--muted); }
+  .badge.epicname { flex: 0 1 auto; min-width: 0; max-width: 40%; border: 0; background: var(--epic-soft); color: var(--epic); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--small); }
+  .line .lead { font-weight: 500; margin-right: 8px; }
+  .line.running { color: var(--session-strong); }
+  .line.review .lead { color: var(--accent-strong); }
+  .line.review { color: var(--text); }
+  .line.summary { color: var(--subtle); }
+  .tag { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; height: 22px; padding: 0 8px; border: 1px solid color-mix(in srgb, var(--tag) 35%, var(--border)); background: color-mix(in srgb, var(--tag) 8%, var(--surface)); border-radius: var(--control); font-size: var(--caption); color: var(--text); white-space: nowrap; }
+  .tag i { width: 7px; height: 7px; border-radius: 2px; background: var(--tag); flex: none; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border: 1px solid var(--border); border-radius: 99px; font-size: var(--caption); font-weight: 500; white-space: nowrap; color: var(--muted); }
+  .pill:hover { filter: brightness(1.15); }
+  .pill.progress { border-color: #eaa43c59; background: var(--accent-soft); color: var(--accent-strong); }
+  .pill.review { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .pill.running { border-color: #7c83f759; background: #7c83f726; color: var(--session-strong); }
+  .pill.running::before { content: ''; width: 6px; height: 6px; border-radius: 99px; background: var(--session); animation: pulse 2s infinite; }
+  .pill.blocked { border-color: #fb718559; background: #fb71851a; color: var(--danger); }
+  .pill.filed { border-color: var(--filed-line); background: var(--filed-soft); color: var(--filed); }
+  .plan { display: flex; align-items: center; gap: 10px; font: var(--caption) var(--mono); }
+  .tube { flex: 1; min-width: 0; max-width: 130px; height: 8px; border-radius: 99px; background: #080b10; box-shadow: inset 0 2px 4px rgb(0 0 0 / .5), 0 1px 0 rgb(255 255 255 / .035); display: flex; overflow: hidden; }
+  .tube b { background: linear-gradient(#ffd88e, #eaa43c 55%, #c27a22); }
+  .tube.complete b { background: linear-gradient(#a6f2cd, #3ddc97 55%, #14804f); }
+  .tube u { background: repeating-linear-gradient(135deg, #eaa43c 0 3px, #eaa43c40 3px 6px); }
+  .num { font: var(--caption) var(--mono); font-variant-numeric: tabular-nums; color: var(--subtle); white-space: nowrap; }
+  .pr { font: var(--caption) var(--mono); white-space: nowrap; color: var(--muted); }
+  .pr.merged { color: var(--safe); } .pr.failed { color: var(--danger); }
+  .actions { display: flex; justify-content: flex-end; gap: 2px; visibility: hidden; }
+  .row:hover .actions, .row:focus-within .actions, .row.open .actions { visibility: visible; }
+  .iconkey { width: 26px; height: 26px; display: grid; place-items: center; border-radius: var(--control); color: var(--subtle); }
+  .iconkey:hover { background: var(--hover); color: var(--text); }
+  .iconkey.del:hover { color: var(--danger); }
+
+  .peek { padding: 12px 16px 14px 86px; background: var(--raised); border-bottom: 1px solid var(--border-strong); font-size: var(--small); color: var(--muted); }
+  .peek p { max-width: 74ch; margin: 8px 0; }
+  .claim { display: flex; align-items: center; gap: 10px; min-height: 36px; border-top: 1px solid var(--border); color: var(--text); max-width: 900px; }
+  .claim .spring { margin-left: auto; }
+  .peekfoot { display: flex; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); max-width: 900px; }
+
+  .inspector { width: 392px; flex: none; align-self: stretch; border-left: 1px solid var(--border); }
+  .inspector .stick { position: sticky; top: 0; padding: 14px 0 14px 16px; }
+  .inspector h3 { font-size: 15px; font-weight: 600; margin: 8px 0; }
+  .inspector .peek { padding: 0; background: none; border: 0; }
+  .inspector .facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 12px 0; font-size: var(--small); }
+  .inspector .facts dt { color: var(--subtle); }
+
+  .empty { padding: 64px 16px; text-align: center; color: var(--subtle); display: grid; gap: 12px; justify-items: center; }
+  .empty b { color: var(--text); font-size: 15px; }
+
+  .pager { position: sticky; bottom: 0; margin-top: auto; display: flex; align-items: center; justify-content: flex-end; gap: 20px; height: 52px; padding: 0 12px 0 250px; border-top: 1px solid var(--border); background: var(--canvas); font-size: var(--small); color: var(--muted); z-index: 15; white-space: nowrap; }
+  .dock { position: absolute; left: 0; top: 8px; display: flex; align-items: center; height: 36px; gap: 14px; padding: 0 16px; border: 1px solid var(--border-strong); border-radius: 99px; background: var(--surface); color: var(--text); box-shadow: var(--lift); }
+  .dock i { width: 1px; height: 18px; background: var(--border-strong); }
+  .pager .range { margin-right: auto; font-variant-numeric: tabular-nums; }
+  .pager .size { display: flex; align-items: center; gap: 8px; }
+  .pages { display: flex; gap: 4px; }
+  .pages button, .pages span { min-width: 28px; height: 28px; padding: 0 6px; display: grid; place-items: center; border-radius: var(--control); border: 1px solid transparent; font-variant-numeric: tabular-nums; }
+  .pages button:hover:not(:disabled) { background: var(--raised); color: var(--text); }
+  .pages button[aria-current="page"] { border-color: var(--accent); color: var(--text); }
+  .pages button:disabled { color: var(--border-strong); }
+</style>
+</head>
+<body>
+
+<div class="harness">
+  <div class="group"><b>Window width</b><div class="seg" id="widths"></div></div>
+  <div class="group"><b>Options, not in the proposal unless you pick them</b>
+    <label><input type="checkbox" id="optSide"> A. Side preview</label>
+    <label><input type="checkbox" id="optColumns"> B. Column chooser</label>
+  </div>
+  <div class="note" id="note"></div>
+</div>
+
+<div class="console" id="console">
+  <div class="topbar">
+    <div class="menukey">Projects</div>
+    <div class="search">/rk <span class="anchor-chip">project:vega</span></div>
+    <div class="capsule">4 to review</div>
+  </div>
+  <div class="page">
+    <div class="scope"><span class="company">Northwind</span><span class="company">/</span><b>Vega</b><span class="anchor-chip">/rk project:vega</span></div>
+    <div class="subnav">
+      <span class="tab" aria-selected="true">Tasks <span class="count">214</span></span><span class="tab">Blueprint</span><span class="tab">Pages</span><span class="tab">Components</span><span class="tab">Diagrams</span><span class="tab">Deployment</span><span class="tab">Connections</span><span class="tab">Settings</span>
+    </div>
+    <div class="composer"><span>+</span><span>Describe a change, or a task to plan</span><span class="folder">…/vega</span><button class="key" disabled>Start quick task</button></div>
+    <div class="adherence"><span style="color:var(--text);font-weight:500">Plan adherence</span><span>Accepted first time <b>388 of 402</b></span><span>Sent back <b>11</b></span><span>Deviations <b>47</b></span></div>
+
+    <div class="subnav views">
+      <div role="tablist" id="tabs" style="display:flex"></div>
+      <div class="tools">
+        <div class="field"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input id="query" placeholder="Search title, code or step" aria-label="Search the tasks" autocomplete="off"></div>
+        <div id="filters" style="display:contents"></div>
+        <div class="drop" id="viewDrop"></div>
+      </div>
+    </div>
+
+    <div class="body">
+      <div class="ledger" id="ledger"></div>
+      <aside class="inspector" id="inspector" hidden></aside>
+    </div>
+  </div>
+</div>
+
+<script>
+const TAGS = { ui: '#55a8ea', backend: '#46c9b0', infra: '#f0955a', docs: '#b8a98a', bug: '#e263b0' }
+const KIND_LABEL = { running: 'Session working', review: 'Awaiting review', progress: 'In progress', todo: 'To do', blocked: 'Blocked', backlog: 'Backlog', filed: 'Filed' }
+const KIND_ORDER = ['running', 'review', 'progress', 'blocked', 'todo', 'backlog', 'filed']
+const VIEWS = [
+  ['needs', 'Needs me', (t) => t.claimed > 0],
+  ['running', 'Running', (t) => t.kind === 'running'],
+  ['open', 'Open', (t) => t.kind !== 'filed'],
+  ['filed', 'Filed', (t) => t.kind === 'filed'],
+  ['all', 'All', () => true]
+]
+
+function task(n, title, kind, tag, plan, step, extra = {}) {
+  const [done, claimed, total] = plan
+  return { n, code: `VG-${n}`, title, kind, tag, done, claimed, total, step, epic: null, isEpic: false, quick: false, notes: 0, tokens: 0, minutes: 0, age: 1, issue: null, pr: null, ...extra }
+}
+
+const OPEN = [
+  task(214, 'Paginate the audit log', 'running', 'ui', [1, 0, 4], 'Wire the pager to the audit store', { epic: 201, notes: 1, tokens: 9100, minutes: 42, age: 0.001, issue: 188 }),
+  task(213, 'Retry webhooks with backoff', 'review', 'backend', [1, 2, 3], 'Persist the attempt count and the next run', { epic: 205, notes: 2, tokens: 184000, minutes: 190, age: 0.12, issue: 187, pr: [241, 'open'] }),
+  task(212, 'Exported CSV drops the time zone', 'review', 'bug', [0, 1, 1], 'Write the offset in every timestamp column', { tokens: 22400, minutes: 25, age: 0.4, issue: 186, pr: [240, 'open'] }),
+  task(211, 'Move the session cache to its own volume', 'progress', 'infra', [2, 0, 5], 'Copy the warm entries before the switch', { notes: 3, tokens: 96300, minutes: 310, age: 1, issue: 183 }),
+  task(210, 'Search across audit entries', 'todo', 'ui', [0, 0, 3], 'Index actor, action and target', { epic: 201, tokens: 4030, minutes: 0, age: 2 }),
+  task(209, 'Rate limit the public endpoints', 'blocked', 'backend', [1, 0, 4], 'Wait for the gateway to expose the client id', { notes: 1, tokens: 67400, minutes: 128, age: 2, issue: 179, pr: [233, 'failed'] }),
+  task(208, 'Signed payloads for outgoing webhooks', 'progress', 'backend', [0, 0, 2], 'Sign the raw body, not the parsed one', { epic: 205, tokens: 6190, minutes: 12, age: 3 }),
+  task(207, 'Describe the release checklist', 'todo', 'docs', [0, 0, 0], 'One page a new maintainer can follow without asking anybody.', { quick: true, age: 4 }),
+  task(206, 'Dead letter queue screen', 'backlog', 'ui', [0, 0, 0], 'Show what failed for good, why, and a key to send it again.', { epic: 205, age: 6 }),
+  task(205, 'Webhook delivery', 'progress', 'backend', [0, 0, 0], 'Deliveries that survive a restart and can be inspected.', { isEpic: true, notes: 2, tokens: 12000, age: 3 }),
+  task(204, 'Upgrade the build image', 'todo', 'infra', [0, 0, 1], 'Pin the base image by digest', { age: 8, issue: 171 }),
+  task(203, 'Empty state of the billing tab', 'backlog', 'ui', [0, 0, 0], 'Say what billing will show once the first invoice exists.', { age: 11 }),
+  task(202, 'Login redirects twice on Safari', 'progress', 'bug', [3, 0, 4], 'Cover the second redirect with a test', { notes: 1, tokens: 51800, minutes: 96, age: 12, issue: 168, pr: [229, 'open'] }),
+  task(201, 'Audit trail', 'progress', 'ui', [0, 0, 0], 'Everything that changed, who did it and when.', { isEpic: true, notes: 4, tokens: 8800, age: 1 }),
+  task(198, 'Rotate the signing keys', 'blocked', 'infra', [0, 0, 2], 'Needs the vault role from the platform team', { age: 19, issue: 160 }),
+  task(190, 'Archive old invoices', 'backlog', 'backend', [0, 0, 0], 'Move invoices older than seven years to cold storage.', { age: 33 })
+]
+
+const VERBS = ['Add', 'Fix', 'Refactor', 'Document', 'Speed up', 'Simplify', 'Harden', 'Migrate', 'Test']
+const THINGS = ['the import job', 'password reset', 'the billing export', 'tenant provisioning', 'the health endpoint', 'invoice numbering', 'the audit filter', 'webhook retries', 'the settings form', 'database backups', 'the login screen', 'the usage report', 'API pagination', 'error messages', 'the deploy script']
+const SUMMARIES = ['Keep the run resumable after a restart.', 'Say which row failed and why.', 'Cover the refusal paths with tests.', 'Move the rule out of the controller.', 'Give a new tenant working defaults.', 'Stop the page jumping while it loads.', 'Write down how to roll it back.']
+function filedTask(n, index) {
+  const total = index % 5
+  const tags = Object.keys(TAGS)
+  return task(n, `${VERBS[index % VERBS.length]} ${THINGS[(index * 7) % THINGS.length]}`, 'filed', tags[(index * 3 + Math.floor(index / 5)) % tags.length], [total, 0, total],
+    SUMMARIES[(index * 3) % SUMMARIES.length], { quick: total === 0, notes: index % 4 === 0 ? 1 : 0, tokens: 4000 + ((index * 7919) % 190000), minutes: 8 + ((index * 37) % 400), age: 1 + index * 0.9, issue: total ? n - 25 : null, pr: total ? [n + 12, 'merged'] : null })
+}
+const openNumbers = new Set(OPEN.map((t) => t.n))
+const TASKS = [...OPEN]
+for (let n = 200, index = 0; n >= 1; n -= 1) if (!openNumbers.has(n)) TASKS.push(filedTask(n, index++))
+for (let n = 1000; TASKS.length < 214; n += 1) TASKS.push(filedTask(n, n))
+
+const state = { view: 'open', query: '', filters: { status: new Set(), tag: new Set(), epic: new Set(), type: new Set() }, sort: 'task', desc: true, page: 1, size: 25, density: 'comfortable', open: null, picked: 214, menu: null, folded: new Set(), width: 'window', side: false, chooser: false, hidden: new Set() }
+
+const typeOf = (t) => (t.isEpic ? 'Epic' : t.quick ? 'Quick' : 'Planned')
+const epicName = (id) => TASKS.find((t) => t.n === id)?.title ?? 'No epic'
+const FILTERS = [
+  ['status', 'Status', (t) => t.kind, (v) => KIND_LABEL[v], KIND_ORDER],
+  ['tag', 'Tag', (t) => t.tag, (v) => v, Object.keys(TAGS)],
+  ['epic', 'Epic', (t) => (t.isEpic ? t.n : t.epic ?? 0), (v) => epicName(v), [201, 205, 0]],
+  ['type', 'Type', typeOf, (v) => v, ['Planned', 'Quick', 'Epic']]
+]
+
+const SORT_VALUE = {
+  task: (t) => t.n, title: (t) => t.title.toLowerCase(), status: (t) => -KIND_ORDER.indexOf(t.kind), tag: (t) => t.tag,
+  plan: (t) => (t.total ? (t.done + t.claimed) / t.total : -1), notes: (t) => t.notes, tokens: (t) => t.tokens, time: (t) => t.minutes, updated: (t) => -t.age
+}
+
+const icon = (d) => `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`
+const CHEVRON = icon('m6 3.5 4.5 4.5L6 12.5')
+const compactNumber = (v) => (v >= 1000 ? `${(v / 1000).toFixed(v >= 100000 ? 0 : 1)}k` : v || '')
+const duration = (m) => (m === 0 ? '' : m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`)
+const ageLabel = (d) => (d < 0.01 ? '1m' : d < 1 ? `${Math.round(d * 24)}h` : d < 60 ? `${Math.round(d)}d` : `${Math.round(d / 30)}mo`)
+
+/* id, header, grid track, narrowest list width that shows it, sortable, end aligned */
+const COLUMNS = [
+  { id: 'peek', head: '', track: '24px' },
+  { id: 'mark', head: '', track: '16px' },
+  { id: 'task', head: 'Task', track: '64px', sort: true },
+  { id: 'title', head: 'Title', track: null, sort: true },
+  { id: 'step', head: 'Step or summary', track: 'minmax(0,1.15fr)', from: 1560, optional: true },
+  { id: 'tag', head: 'Tag', track: '104px', from: 1300, sort: true, optional: true },
+  { id: 'status', head: 'Status', track: '134px', sort: true },
+  { id: 'plan', head: 'Plan', track: '170px', sort: true },
+  { id: 'delivery', head: 'Issue and PR', track: '150px', from: 1900, optional: true },
+  { id: 'notes', head: 'Notes', track: '52px', from: 1700, sort: true, end: true, optional: true },
+  { id: 'tokens', head: 'Tokens', track: '70px', from: 1180, sort: true, end: true, optional: true },
+  { id: 'time', head: 'Time', track: '72px', from: 1700, sort: true, end: true, optional: true },
+  { id: 'updated', head: 'Updated', track: '66px', sort: true, end: true },
+  { id: 'actions', head: '', track: '56px' }
+]
+
+function visibleColumns(width) {
+  return COLUMNS.filter((c) => !state.hidden.has(c.id) && width >= (c.from ?? 0))
+}
+function template(columns) {
+  const withStep = columns.some((c) => c.id === 'step')
+  return columns.map((c) => c.track ?? (withStep ? 'minmax(260px,1fr)' : 'minmax(240px,1fr)')).join(' ')
+}
+
+function stepCell(t) {
+  const lead = t.kind === 'running' ? 'Working' : t.claimed ? 'Claimed' : t.total && t.kind !== 'filed' ? `Step ${t.done + 1}` : ''
+  const tone = t.kind === 'running' ? 'running' : t.claimed ? 'review' : lead ? '' : 'summary'
+  return `<span class="line ${tone}" title="${t.step}">${lead ? `<span class="lead">${lead}</span>` : ''}${t.step}</span>`
+}
+
+function cell(column, t, context) {
+  const members = context.members
+  switch (column) {
+    case 'peek': return members
+      ? `<button class="chev" data-fold="${t.n}" aria-expanded="${!state.folded.has(t.n)}" aria-label="Fold the epic" style="color:var(--epic)">${CHEVRON}</button>`
+      : `<button class="chev" data-peek="${t.n}" aria-expanded="${state.open === t.n}" aria-label="Preview ${t.code}">${CHEVRON}</button>`
+    case 'mark': return `<span class="mark ${t.kind}" aria-hidden="true"></span>`
+    case 'task': return `<span class="code">${t.code}</span>`
+    case 'title': return `<span class="title ${context.nested ? 'nested' : ''}"><a tabindex="0" title="Open ${t.title}">${t.title}</a>${context.epicChip ? `<span class="badge epicname">${epicName(t.epic)}</span>` : ''}${t.quick ? '<span class="badge">Quick</span>' : ''}</span>`
+    case 'step': return stepCell(t)
+    case 'tag': return `<span><span class="tag" style="--tag:${TAGS[t.tag]}"><i></i>${t.tag}</span></span>`
+    case 'status': return `<span><button class="pill ${t.kind}">${t.claimed ? `${t.claimed} to review` : KIND_LABEL[t.kind]}</button></span>`
+    case 'plan':
+      if (members) return `<span class="num" style="color:var(--epic)">${members.length} tasks</span>`
+      if (!t.total) return '<span class="num">no steps</span>'
+      return `<span class="plan"><span class="tube ${t.done === t.total ? 'complete' : ''}"><b style="width:${(t.done / t.total) * 100}%"></b><u style="width:${(t.claimed / t.total) * 100}%"></u></span>${t.done}/${t.total}</span>`
+    case 'delivery': return `<span class="pr ${t.pr?.[1] ?? ''}">${t.issue ? `#${t.issue}` : ''}${t.pr ? ` · PR ${t.pr[0]} ${t.pr[1]}` : ''}</span>`
+    case 'notes': return `<span class="num end">${t.notes || ''}</span>`
+    case 'tokens': return `<span class="num end">${compactNumber(t.tokens)}</span>`
+    case 'time': return `<span class="num end">${duration(t.minutes)}</span>`
+    case 'updated': return `<span class="num end">${ageLabel(t.age)}</span>`
+    default: return `<span class="actions"><button class="iconkey" title="Copy /rk task:${t.code}" aria-label="Copy anchor">${icon('M5.5 5.500h7v7h-7zM3.5 10.5v-7h7')}</button><button class="iconkey del" title="Delete task" aria-label="Delete task">${icon('M3 4.500h10M6.5 4.5V3h3v1.5M4.5 4.500l.5 8.500h6l.5-8.500')}</button></span>`
+  }
+}
+
+function matches(t, skip) {
+  const words = state.query.toLowerCase().split(/\s+/).filter(Boolean)
+  const haystack = `${t.title} ${t.code} ${t.step}`.toLowerCase()
+  if (!words.every((w) => haystack.includes(w))) return false
+  return FILTERS.every(([id, , valueOf]) => id === skip || state.filters[id].size === 0 || state.filters[id].has(valueOf(t)))
+}
+const inView = (t) => VIEWS.find(([id]) => id === state.view)[2](t)
+
+function compare(a, b) {
+  const x = SORT_VALUE[state.sort](a), y = SORT_VALUE[state.sort](b)
+  const order = x < y ? -1 : x > y ? 1 : 0
+  return (state.desc ? -order : order) || b.n - a.n
+}
+
+/* one block per task, or per epic with the tasks listed under it: a block is never split across pages */
+function blocks(rows) {
+  const epics = new Set(rows.filter((t) => t.isEpic).map((t) => t.n))
+  return [...rows].sort(compare).filter((t) => !epics.has(t.epic)).map((t) => ({ row: t, members: t.isEpic ? rows.filter((m) => m.epic === t.n).sort(compare) : null }))
+}
+function pagesOf(list) {
+  const pages = [[]]
+  let used = 0
+  for (const block of list) {
+    const size = 1 + (block.members?.length ?? 0)
+    if (used > 0 && used + size > state.size) { pages.push([]); used = 0 }
+    pages[pages.length - 1].push(block)
+    used += size
+  }
+  return pages
+}
+
+function peekBody(t) {
+  const claims = Array.from({ length: t.claimed }, (_, i) => `<div class="claim"><span class="mark review"></span>${i === 0 ? t.step : 'Cover the failure path with a test'}<span class="spring"></span><button class="key sm ghost">Send back</button><button class="key sm ${i === 0 ? 'primary' : ''}">Accept</button></div>`).join('')
+  return `<span class="anchor-chip">/rk task:${t.code}</span><p>${claims ? 'Work handed in for your review.' : t.step}</p>${claims}<div class="peekfoot"><button class="key sm">Open task</button>${t.kind === 'filed' ? '' : '<button class="key sm">Run here</button>'}</div>`
+}
+
+function rowHtml(t, columns, context = {}) {
+  const classes = ['cols', 'row', t.kind === 'filed' ? 'filed' : '', context.members ? 'epic' : '', state.open === t.n ? 'open' : '', state.side && state.picked === t.n ? 'picked' : ''].join(' ')
+  const row = `<div class="${classes}" role="row" data-row="${t.n}">${columns.map((c) => cell(c.id, t, context)).join('')}</div>`
+  return row + (!state.side && state.open === t.n ? `<div class="peek">${peekBody(t)}</div>` : '')
+}
+
+function headHtml(columns) {
+  return `<div class="cols head" role="row">${columns.map((c) => {
+    if (!c.sort) return `<span class="${c.end ? 'end' : ''}">${c.head}</span>`
+    const on = state.sort === c.id
+    return `<span class="${c.end ? 'end' : ''}" role="columnheader" aria-sort="${on ? (state.desc ? 'descending' : 'ascending') : 'none'}"><button class="sort ${on ? 'on' : ''}" data-sort="${c.id}">${c.head}${icon(on && !state.desc ? 'M8 13V3.5m-3.500 3.500L8 3.500l3.500 3.500' : 'M8 3v9.500m-3.500-3.500L8 12.500 11.500 9')}</button></span>`
+  }).join('')}</div>`
+}
+
+function pageNumbers(current, count) {
+  const wanted = [...new Set([1, current - 1, current, current + 1, count])].filter((p) => p >= 1 && p <= count).sort((a, b) => a - b)
+  return wanted.flatMap((p, i) => (i && p - wanted[i - 1] > 1 ? [null, p] : [p]))
+}
+function pagerHtml(pages, total) {
+  const current = state.page, count = pages.length
+  const length = (page) => page.reduce((sum, b) => sum + 1 + (b.members?.length ?? 0), 0)
+  const before = pages.slice(0, current - 1).reduce((sum, page) => sum + length(page), 0)
+  const nav = count > 1 ? `<div class="pages"><button data-page="${current - 1}" ${current === 1 ? 'disabled' : ''} aria-label="Previous page">${icon('M10 3.500 5.500 8 10 12.500')}</button>${pageNumbers(current, count).map((p) => (p ? `<button data-page="${p}" ${p === current ? 'aria-current="page"' : ''}>${p}</button>` : '<span>…</span>')).join('')}<button data-page="${current + 1}" ${current === count ? 'disabled' : ''} aria-label="Next page">${CHEVRON}</button></div>` : ''
+  return `<nav class="pager" aria-label="Pages of tasks"><span class="dock" aria-hidden="true">1 in progress<i></i>1 session</span><span class="range">${before + 1}–${before + length(pages[current - 1])} of ${total} tasks</span><span class="size">Rows per page<div class="seg">${[25, 50, 100].map((s) => `<button data-size="${s}" aria-pressed="${state.size === s}">${s}</button>`).join('')}</div></span>${nav}</nav>`
+}
+
+function filtersHtml() {
+  const keys = FILTERS.map(([id, label, valueOf, name, order]) => {
+    const rows = TASKS.filter((t) => inView(t) && matches(t, id))
+    const chosen = [...state.filters[id]]
+    const options = order.map((v) => [v, rows.filter((t) => valueOf(t) === v).length]).filter(([v, n]) => n || state.filters[id].has(v))
+    const summary = chosen.length ? `<span class="value">${name(chosen[0])}${chosen.length > 1 ? ` +${chosen.length - 1}` : ''}</span>` : ''
+    const menu = state.menu === id ? `<div class="menu">${options.map(([v, n]) => `<label><input type="checkbox" data-filter="${id}" data-value="${v}" ${state.filters[id].has(v) ? 'checked' : ''}>${name(v)}<span class="count">${n}</span></label>`).join('') || '<h4>Nothing to filter in this view</h4>'}${chosen.length ? `<div class="foot"><button class="key sm ghost" data-reset="${id}">Reset</button></div>` : ''}</div>` : ''
+    return `<div class="drop"><button class="key filter ${chosen.length ? 'on' : ''}" data-menu="${id}" aria-expanded="${state.menu === id}">${label}${summary}${icon('m4 6 4 4 4-4')}</button>${menu}</div>`
+  }).join('')
+  const active = state.query || Object.values(state.filters).some((s) => s.size)
+  return keys + (active ? '<button class="key ghost" data-clear>Clear</button>' : '')
+}
+
+function viewHtml() {
+  const chooser = state.chooser ? `<h4>Columns</h4>${COLUMNS.filter((c) => c.optional).map((c) => `<label><input type="checkbox" data-column="${c.id}" ${state.hidden.has(c.id) ? '' : 'checked'}>${c.head}<span class="count">from ${c.from}px</span></label>`).join('')}` : ''
+  const menu = state.menu === 'view' ? `<div class="menu" style="min-width:260px"><h4>Row density</h4><div class="seg">${['comfortable', 'compact'].map((d) => `<button data-density="${d}" aria-pressed="${state.density === d}">${d[0].toUpperCase() + d.slice(1)}</button>`).join('')}</div>${chooser}</div>` : ''
+  return `<button class="key ghost" data-menu="view" aria-expanded="${state.menu === 'view'}">${icon('M2.500 5h6m3 0h2M2.500 11h2m3 0h6M10 3.500v3M6 9.500v3')}View</button>${menu}`
+}
+
+function render() {
+  const frame = document.getElementById('console')
+  const width = state.width === 'window' ? Math.max(1100, window.innerWidth) : state.width
+  const zoom = Math.min(1, document.documentElement.clientWidth / width)
+  frame.style.width = `${width}px`
+  frame.style.zoom = zoom
+  frame.style.minHeight = `${Math.max(760, (window.innerHeight - document.querySelector('.harness').offsetHeight) / zoom)}px`
+  const sideShown = state.side && width >= 1600
+  const listWidth = width - 64 - (sideShown ? 408 : 0)
+  const columns = visibleColumns(listWidth + 64)
+  const rows = TASKS.filter((t) => inView(t) && matches(t))
+  const pages = pagesOf(blocks(rows))
+  state.page = Math.min(state.page, pages.length)
+
+  document.getElementById('tabs').innerHTML = VIEWS.map(([id, label, rule]) => {
+    const count = id === 'needs' ? TASKS.reduce((s, t) => s + t.claimed, 0) : TASKS.filter(rule).length
+    return `<button class="tab" role="tab" data-view="${id}" aria-selected="${state.view === id}">${label}<span class="count ${id === 'needs' ? 'hot' : ''}">${count}</span></button>`
+  }).join('')
+  document.getElementById('filters').innerHTML = filtersHtml()
+  document.getElementById('viewDrop').innerHTML = viewHtml()
+
+  const body = pages[state.page - 1].map((b) => {
+    if (!b.members) return rowHtml(b.row, columns, { epicChip: !!b.row.epic })
+    const nested = state.folded.has(b.row.n) ? '' : b.members.map((m) => rowHtml(m, columns, { nested: true })).join('')
+    return rowHtml(b.row, columns, { members: b.members }) + nested
+  }).join('')
+  const empty = '<div class="empty"><b>No task matches.</b>Nothing in this view passes the search and the filters.<button class="key" data-clear>Clear search and filters</button></div>'
+  const ledger = document.getElementById('ledger')
+  ledger.className = `ledger ${state.density}`
+  ledger.style.setProperty('--template', template(columns))
+  ledger.innerHTML = headHtml(columns) + (rows.length ? body + pagerHtml(pages, rows.length) : empty)
+
+  const inspector = document.getElementById('inspector')
+  const picked = TASKS.find((t) => t.n === state.picked)
+  inspector.hidden = !sideShown
+  if (sideShown) inspector.innerHTML = `<div class="stick"><button class="pill ${picked.kind}">${KIND_LABEL[picked.kind]}</button><h3>${picked.title}</h3><dl class="facts"><dt>Tag</dt><dd>${picked.tag}</dd><dt>Plan</dt><dd>${picked.total ? `${picked.done} of ${picked.total} steps done` : 'No steps'}</dd><dt>Epic</dt><dd>${picked.epic ? epicName(picked.epic) : 'None'}</dd><dt>Time</dt><dd>${duration(picked.minutes) || 'None tracked'}</dd></dl><div class="peek">${peekBody(picked)}</div></div>`
+
+  document.querySelectorAll('#widths button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.width === String(state.width))))
+  const extra = columns.filter((c) => c.from).map((c) => c.head.toLowerCase())
+  document.getElementById('note').textContent = `${width}px wide, shown at ${Math.round(zoom * 100)}%. Added by width: ${extra.join(', ') || 'none'}.${state.side && !sideShown ? ' Side preview needs 1600px.' : ''}`
+}
+
+function toggle(set, value) { set.has(value) ? set.delete(value) : set.add(value) }
+function clearAll() { state.query = ''; document.getElementById('query').value = ''; Object.values(state.filters).forEach((s) => s.clear()) }
+
+document.getElementById('widths').innerHTML = [1280, 1440, 1920, 2560, 'window'].map((w) => `<button data-width="${w}">${w === 'window' ? 'This window' : w}</button>`).join('')
+document.getElementById('query').addEventListener('input', (e) => { state.query = e.target.value; state.page = 1; render() })
+document.addEventListener('change', (e) => {
+  const input = e.target
+  if (input.id === 'optSide') state.side = input.checked
+  else if (input.id === 'optColumns') { state.chooser = input.checked; state.menu = input.checked ? 'view' : null; if (!input.checked) state.hidden.clear() }
+  else if (input.dataset.column) toggle(state.hidden, input.dataset.column)
+  else if (input.dataset.filter) { toggle(state.filters[input.dataset.filter], input.dataset.filter === 'epic' ? Number(input.dataset.value) : input.dataset.value); state.page = 1 }
+  render()
+})
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.harness label')) return
+  const hit = e.target.closest('button, [data-row]')
+  const insideMenu = e.target.closest('.menu')
+  if (!hit) { if (state.menu && !insideMenu) { state.menu = null; render() } return }
+  const d = hit.dataset
+  if (d.width) state.width = d.width === 'window' ? 'window' : Number(d.width)
+  else if (d.view) { state.view = d.view; state.page = 1; state.open = null; state.filters.status.clear() }
+  else if (d.menu) state.menu = state.menu === d.menu ? null : d.menu
+  else if (d.reset) { state.filters[d.reset].clear(); state.page = 1 }
+  else if ('clear' in d) { clearAll(); state.page = 1 }
+  else if (d.sort) { state.desc = state.sort === d.sort ? !state.desc : d.sort !== 'title' && d.sort !== 'tag'; state.sort = d.sort; state.page = 1 }
+  else if (d.page) { state.page = Number(d.page); state.open = null; window.scrollTo({ top: 0 }) }
+  else if (d.size) { state.size = Number(d.size); state.page = 1 }
+  else if (d.density) state.density = d.density
+  else if (d.fold) toggle(state.folded, Number(d.fold))
+  else if (d.peek) { const n = Number(d.peek); state.picked = n; state.open = state.open === n ? null : n }
+  else if (d.row && state.side) state.picked = Number(d.row)
+  else if (d.row) state.open = state.open === Number(d.row) ? null : Number(d.row)
+  else return
+  if (!d.menu && !insideMenu) state.menu = null
+  render()
+})
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.menu) { state.menu = null; render() } })
+window.addEventListener('resize', render)
+
+const params = new URLSearchParams(location.search)
+if (params.get('width')) state.width = Number(params.get('width'))
+if (params.get('view')) state.view = params.get('view')
+if (params.get('menu')) state.menu = params.get('menu')
+if (params.get('side')) { state.side = true; document.getElementById('optSide').checked = true }
+if (params.get('peek')) state.open = Number(params.get('peek'))
+render()
+</script>
+</body>
+</html>
