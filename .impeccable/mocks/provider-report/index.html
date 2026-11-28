@@ -136,6 +136,16 @@
     .token-parts dt { font-family: var(--sans); color: var(--muted); font-size: var(--caption); white-space: nowrap; }
     .token-parts dd { margin: 0; font-size: var(--caption); }
     .footnote { padding: 7px 16px; color: var(--muted); font-size: var(--small); }
+    .overall-scope { display: flex; align-items: center; gap: 8px; }
+    .overall-scope select {
+      height: 32px;
+      padding-inline: 9px;
+      border: 1px solid var(--strong-border);
+      border-radius: var(--control);
+      background: var(--surface);
+      color: var(--text);
+      font: var(--small) var(--sans);
+    }
     .segmented { display: flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: var(--control); background: var(--surface); }
     .segmented button { height: 26px; min-width: 60px; padding-inline: 10px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: var(--muted); font-size: var(--small); }
     .segmented button:hover { color: var(--text); }
@@ -214,7 +224,18 @@
       <p>Token usage and closures across all companies and projects.</p>
     </header>
     <section aria-labelledby="overall-title">
-      <div class="section-heading"><h2 id="overall-title">Overall</h2><p>All time</p></div>
+      <div class="section-heading">
+        <h2 id="overall-title">Overall</h2>
+        <div class="overall-scope" role="group" aria-label="Overall date range">
+          <select id="overall-grouping" aria-label="Overall grouping">
+            <option value="all">All time</option>
+            <option value="week">Week</option>
+            <option value="month">Month</option>
+            <option value="year">Year</option>
+          </select>
+          <select id="overall-period" aria-label="Overall period (UTC)" hidden></select>
+        </div>
+      </div>
       <div class="ledger">
         <table class="totals" aria-labelledby="overall-title">
           <colgroup><col><col><col><col><col><col></colgroup>
@@ -329,6 +350,7 @@
     const monthDate = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
     const groupButtons = [...document.querySelectorAll('[data-group]')];
     const selectedByGroup = new Map();
+    const selectedOverallByGroup = new Map();
     const element = id => document.getElementById(id);
 
     function periodKey(date, grouping) {
@@ -433,8 +455,7 @@
         </dl>`;
     }
 
-    function renderOverall() {
-      const { tokens, closures, total } = figuresOf(() => true);
+    function renderOverall({ tokens, closures, total }) {
       const combined = tokens.claude.map((value, index) => value + tokens.codex[index]);
       element('overall-figures').innerHTML = `
         <tr class="tokens">
@@ -447,6 +468,27 @@
         </tr>
         ${[['tasks', 'Tasks closed'], ['steps', 'Steps closed']].map(([metric, label]) => `
           <tr><th scope="row">${label}</th>${credits.map(credit => numberCell(closures[credit][metric], { className: credit === 'unrecorded' ? '' : 'boundary' })).join('')}${numberCell(total[metric], { className: 'boundary sum' })}</tr>`).join('')}`;
+    }
+
+    function selectOverallScope() {
+      const grouping = element('overall-grouping').value;
+      const periodSelect = element('overall-period');
+      periodSelect.hidden = grouping === 'all';
+      if (grouping === 'all') {
+        renderOverall(figuresOf(() => true));
+        return;
+      }
+      const periods = periodsOf(grouping);
+      periodSelect.replaceChildren(...periods.map(period => new Option(period.label, period.key)));
+      periodSelect.value = selectedOverallByGroup.get(grouping) ?? periods[0].key;
+      selectOverallPeriod();
+    }
+
+    function selectOverallPeriod() {
+      const grouping = element('overall-grouping').value;
+      const key = element('overall-period').value;
+      selectedOverallByGroup.set(grouping, key);
+      renderOverall(figuresOf(date => periodKey(date, grouping) === key));
     }
 
     function periodFigures(period) {
@@ -509,7 +551,9 @@
         for (const table of ['overall', 'period']) element(`${table}-${provider}`).innerHTML = providerMark(provider);
       }
       for (const button of groupButtons) button.addEventListener('click', () => renderPeriods(button.dataset.group));
-      renderOverall();
+      element('overall-grouping').addEventListener('change', selectOverallScope);
+      element('overall-period').addEventListener('change', selectOverallPeriod);
+      selectOverallScope();
       renderPeriods('month');
     }
 
