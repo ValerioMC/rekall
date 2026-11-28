@@ -12,7 +12,7 @@ import { useToastStore } from '@/stores/toast.store'
  * The pill that names a task's state and changes its status from a menu. The pill says what the
  * work is doing now; the menu marks the stored status. Presses stop here so a row stays closed.
  */
-const props = defineProps<{ row: TaskRow }>()
+const props = defineProps<{ row: TaskRow; label?: string }>()
 
 const emit = defineEmits<{ changed: [] }>()
 
@@ -55,7 +55,7 @@ async function setStatus(id: string): Promise<void> {
         @keydown.enter.stop
       >
         <StatusPill :tone="TASK_ROW_KIND_TONE[row.kind]" :live="row.running" class="transition-colors duration-(--motion-quick) group-hover/status:brightness-125">
-          {{ TASK_ROW_KIND_LABEL[row.kind] }}
+          {{ label ?? TASK_ROW_KIND_LABEL[row.kind] }}
           <svg
             class="-mr-0.5 size-2.5 opacity-0 transition-[opacity,transform] duration-(--motion-quick) group-hover/status:opacity-100 group-focus-visible/status:opacity-100 group-hover/row:opacity-70"
             :class="open && 'rotate-180 opacity-100'"

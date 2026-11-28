@@ -39,7 +39,7 @@ function openTask(taskId: TaskId): void {
 <template>
   <div class="flex min-h-0 flex-1 flex-col" data-testid="tasks-section">
     <TaskComposer v-if="target" class="mt-4" :project="target" :choices="choices" @choose="choose" @plan="planTask" />
-    <ProjectAdherenceCard v-if="projectInView" class="mt-3" :project-id="projectInView" :task-count="rows.length" @open="openTask" />
+    <ProjectAdherenceCard v-if="projectInView" class="mt-3 shrink-0" :project-id="projectInView" :task-count="rows.length" @open="openTask" />
 
     <SubNav v-model="view" class="mt-3" :items="tabs" label="Task views">
       <template #trailing><ProjectTaskTools /></template>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { epicEntries } from '@/features/project/lib/epic-entries'
+import { epicEntries, tasksInEntry } from '@/features/project/lib/epic-entries'
 import { taskRows } from '@/features/task/lib/task-rows'
 import { task } from './project-task-fixtures'
 import type { TaskId } from '@/model/branded'
@@ -39,5 +39,13 @@ describe('epicEntries', () => {
     const [entry] = epicEntries(rowsOf(task('RK-1', { kind: 'EPIC' })), noTitle)
 
     expect(entry).toMatchObject({ kind: 'epic', members: [] })
+  })
+})
+
+describe('tasksInEntry', () => {
+  it('counts an epic with the tasks under it and a task as one', () => {
+    const rows = rowsOf(task('RK-1', { kind: 'EPIC' }), task('RK-2', { epicId: 'RK-1' as TaskId }), task('RK-3'))
+
+    expect(epicEntries(rows, noTitle).map(tasksInEntry)).toEqual([1, 2])
   })
 })

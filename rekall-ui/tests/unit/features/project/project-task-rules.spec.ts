@@ -1,133 +1,123 @@
 import { describe, expect, it } from 'vitest'
-import { taskRows } from '@/features/task/lib/task-rows'
-import { groupByProject, matchesQuery, rowsOfView, sortRows, viewCounts } from '@/features/project/lib/project-task-rules'
-import type { TaskRow } from '@/features/task/model/task-row'
-import type { ProjectId } from '@/model/branded'
-import { project, step, task } from './project-task-fixtures'
+import { matchesQuery, nextSort, rowsOfView, sortRows, viewCounts } from '@/features/project/lib/project-task-rules'
+import type { ListedTask, ProjectTaskSortKey } from '@/features/project/model/project-task-list'
+import { listed, step, task } from './project-task-fixtures'
 
-const vega = 'p1' as ProjectId
-const orion = 'p2' as ProjectId
-
-function rows(tokens: Record<string, number> = {}): TaskRow[] {
+function rows(tokens: Record<string, number> = {}): ListedTask[] {
   const tasks = [
     task('RK-1', { title: 'Plan the launch', stepCount: 2, updatedAt: '2026-09-01T10:00:00Z' }),
-    task('RK-2', { title: 'Write the docs', status: 'TODO', updatedAt: '2026-09-05T10:00:00Z' }),
-    task('RK-3', { title: 'Ship the build', status: 'DONE', updatedAt: '2026-09-03T10:00:00Z' }),
-    task('RK-4', { title: 'Fix the login', stepCount: 1, updatedAt: '2026-09-04T10:00:00Z' }),
-    task('RK-5', { title: 'Orion kickoff', projectId: orion, projectTitle: 'Orion', status: 'DONE', updatedAt: '2026-08-01T10:00:00Z' })
+    task('RK-2', { title: 'Write the docs', status: 'TODO', updatedAt: '2026-09-05T10:00:00Z', documentCount: 3, tagName: 'docs' }),
+    task('RK-3', { title: 'Ship the build', status: 'DONE', updatedAt: '2026-09-03T10:00:00Z', stepCount: 1, stepsDone: 1 }),
+    task('RK-4', { title: 'Fix the login', stepCount: 1, updatedAt: '2026-09-04T10:00:00Z', tagName: 'bug' }),
+    task('RK-5', { title: 'Archive the kickoff', status: 'DONE', updatedAt: '2026-08-01T10:00:00Z' })
   ]
   const steps = [step('s1', 'RK-1', 'CLAIMED'), step('s2', 'RK-1', 'CLAIMED'), step('s3', 'RK-4', 'RUNNING')]
-  return taskRows(tasks, steps, (id) => tokens[id] ?? 0)
+  return listed(tasks, steps, tokens)
 }
+
+const codes = (sorted: readonly ListedTask[]): string[] => sorted.map((row) => row.task.code)
 
 describe('rowsOfView', () => {
   it('lists what needs a review in Needs me', () => {
-    expect(rowsOfView(rows(), 'needs').map((row) => row.task.code)).toEqual(['RK-1'])
+    expect(codes(rowsOfView(rows(), 'needs'))).toEqual(['RK-1'])
   })
 
   it('lists the tasks a session works on in Running', () => {
-    expect(rowsOfView(rows(), 'running').map((row) => row.task.code)).toEqual(['RK-4'])
+    expect(codes(rowsOfView(rows(), 'running'))).toEqual(['RK-4'])
   })
 
   it('lists everything not filed in Open', () => {
-    expect(rowsOfView(rows(), 'open').map((row) => row.task.code)).toEqual(['RK-4', 'RK-2', 'RK-1'])
+    expect(codes(rowsOfView(rows(), 'open'))).toEqual(['RK-4', 'RK-2', 'RK-1'])
   })
 
   it('lists the finished tasks in Filed', () => {
-    expect(rowsOfView(rows(), 'filed').map((row) => row.task.code)).toEqual(['RK-5', 'RK-3'])
+    expect(codes(rowsOfView(rows(), 'filed'))).toEqual(['RK-5', 'RK-3'])
+  })
+
+  it('lists every task in All', () => {
+    expect(rowsOfView(rows(), 'all')).toHaveLength(5)
   })
 })
 
 describe('viewCounts', () => {
   it('counts review items in Needs me and tasks in the other tabs', () => {
-    expect(viewCounts(rows())).toEqual({ needs: 2, running: 1, open: 3, filed: 2 })
+    expect(viewCounts(rows())).toEqual({ needs: 2, running: 1, open: 3, filed: 2, all: 5 })
   })
 })
 
 describe('matchesQuery', () => {
-  it('matches a title or a code, in any case', () => {
-    const [first] = rowsOfView(rows(), 'needs')
+  const claimed = (): ListedTask => rowsOfView(rows(), 'needs')[0]!
 
-    expect(matchesQuery(first!, 'LAUNCH')).toBe(true)
-    expect(matchesQuery(first!, 'rk-1')).toBe(true)
+  it('matches a title or a code, in any case', () => {
+    expect(matchesQuery(claimed(), 'LAUNCH')).toBe(true)
+    expect(matchesQuery(claimed(), 'rk-1')).toBe(true)
+  })
+
+  it('matches the text of the step line', () => {
+    expect(matchesQuery(claimed(), 'step s1')).toBe(true)
   })
 
   it('needs every word of the query to appear', () => {
-    const [first] = rowsOfView(rows(), 'needs')
-
-    expect(matchesQuery(first!, 'plan launch')).toBe(true)
-    expect(matchesQuery(first!, 'plan docs')).toBe(false)
+    expect(matchesQuery(claimed(), 'plan launch')).toBe(true)
+    expect(matchesQuery(claimed(), 'plan docs')).toBe(false)
   })
 
   it('matches everything on a blank query', () => {
-    const [first] = rowsOfView(rows(), 'needs')
-
-    expect(matchesQuery(first!, '   ')).toBe(true)
+    expect(matchesQuery(claimed(), '   ')).toBe(true)
   })
 })
 
 describe('sortRows', () => {
-  const codes = (sorted: readonly TaskRow[]): string[] => sorted.map((row) => row.task.code)
+  const by = (key: ProjectTaskSortKey, descending: boolean, tokens: Record<string, number> = {}): string[] =>
+    codes(sortRows(rows(tokens), { key, descending }))
 
-  it('sorts by task, newest first', () => {
-    expect(codes(sortRows(rows(), 'task'))).toEqual(['RK-5', 'RK-4', 'RK-3', 'RK-2', 'RK-1'])
+  it('orders by task number both ways', () => {
+    expect(by('task', true)).toEqual(['RK-5', 'RK-4', 'RK-3', 'RK-2', 'RK-1'])
+    expect(by('task', false)).toEqual(['RK-1', 'RK-2', 'RK-3', 'RK-4', 'RK-5'])
   })
 
-  it('sorts by what needs you, the most first, newest first among equals', () => {
-    expect(codes(sortRows(rows(), 'needs'))).toEqual(['RK-1', 'RK-5', 'RK-4', 'RK-3', 'RK-2'])
+  it('orders by title', () => {
+    expect(by('title', false)[0]).toBe('RK-5')
   })
 
-  it('sorts by tokens, the most first', () => {
-    expect(codes(sortRows(rows({ 'RK-2': 50, 'RK-3': 900 }), 'tokens')).slice(0, 2)).toEqual(['RK-3', 'RK-2'])
+  it('orders by tag, the untagged first from A, newest first among equals', () => {
+    expect(by('tag', false)).toEqual(['RK-5', 'RK-3', 'RK-1', 'RK-4', 'RK-2'])
   })
 
-  it('sorts by last update, the latest first', () => {
-    expect(codes(sortRows(rows(), 'updated')).slice(0, 3)).toEqual(['RK-2', 'RK-4', 'RK-3'])
+  it('puts a running session first by status, then what awaits review', () => {
+    expect(by('status', true).slice(0, 2)).toEqual(['RK-4', 'RK-1'])
+  })
+
+  it('orders by the share of the plan handed in, tasks without steps last', () => {
+    expect(by('plan', true).slice(0, 2)).toEqual(['RK-3', 'RK-1'])
+  })
+
+  it('orders by notes', () => {
+    expect(by('notes', true)[0]).toBe('RK-2')
+  })
+
+  it('orders by tokens, the most first', () => {
+    expect(by('tokens', true, { 'RK-2': 50, 'RK-3': 900 }).slice(0, 2)).toEqual(['RK-3', 'RK-2'])
+  })
+
+  it('orders by time tracked', () => {
+    const timed = rows().map((row) => ({ ...row, trackedSeconds: row.task.code === 'RK-2' ? 60 : 0 }))
+
+    expect(codes(sortRows(timed, { key: 'time', descending: true }))[0]).toBe('RK-2')
+  })
+
+  it('orders by last update, the latest first', () => {
+    expect(by('updated', true).slice(0, 3)).toEqual(['RK-2', 'RK-4', 'RK-3'])
   })
 })
 
-describe('groupByProject', () => {
-  const projects = [project('p1', 'Vega'), project('p2', 'Orion')]
-
-  it('gathers the shown rows under their projects and folds the finished ones', () => {
-    const all = rows()
-
-    const groups = groupByProject(rowsOfView(all, 'open'), rowsOfView(all, 'filed'), projects, false)
-
-    expect(groups.map((group) => [group.projectId, group.rows.length, group.filed.length])).toEqual([[vega, 3, 1]])
+describe('nextSort', () => {
+  it('turns the key in use round', () => {
+    expect(nextSort({ key: 'tokens', descending: true }, 'tokens')).toEqual({ key: 'tokens', descending: false })
   })
 
-  it('leaves out a project with nothing shown, however many tasks it has filed', () => {
-    const all = rows()
-
-    const groups = groupByProject(rowsOfView(all, 'open'), rowsOfView(all, 'filed'), projects, false)
-
-    expect(groups.map((group) => group.projectId)).not.toContain(orion)
-  })
-
-  it('lists the finished tasks as rows when nothing is folded', () => {
-    const groups = groupByProject(rowsOfView(rows(), 'filed'), [], projects, false)
-
-    expect(groups.map((group) => [group.projectId, group.rows.length, group.filed.length])).toEqual([
-      [orion, 1, 0],
-      [vega, 1, 0]
-    ])
-  })
-
-  it('totals what needs the reader and the tokens of the whole project', () => {
-    const all = rows({ 'RK-1': 100, 'RK-3': 20 })
-
-    const [group] = groupByProject(rowsOfView(all, 'needs'), rowsOfView(all, 'filed'), projects, false)
-
-    expect(group).toMatchObject({ needs: 2, tokens: 120 })
-  })
-
-  it('puts a paused project after an active one', () => {
-    const paused = [project('p1', 'Vega', { status: 'PAUSED' }), project('p2', 'Orion')]
-    const all = rows()
-
-    const groups = groupByProject(sortRows(all, 'task'), [], paused, false)
-
-    expect(groups.map((group) => group.projectId)).toEqual([orion, vega])
+  it('starts a new key from A for text and from the most otherwise', () => {
+    expect(nextSort({ key: 'task', descending: true }, 'title')).toEqual({ key: 'title', descending: false })
+    expect(nextSort({ key: 'task', descending: false }, 'updated')).toEqual({ key: 'updated', descending: true })
   })
 })

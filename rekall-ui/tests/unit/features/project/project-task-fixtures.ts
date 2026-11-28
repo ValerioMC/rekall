@@ -1,5 +1,8 @@
 import type { Project, Task } from '@/features/catalog/model/catalog'
 import type { TaskStep, TaskStepState } from '@/features/steps/model/task-step'
+import { listedTasks } from '@/features/project/lib/listed-tasks'
+import type { ListedTask } from '@/features/project/model/project-task-list'
+import { taskRows } from '@/features/task/lib/task-rows'
 import type { CompanyId, ProjectId, TaskId, TaskStepId } from '@/model/branded'
 
 export function task(id: string, overrides: Partial<Task> = {}): Task {
@@ -96,4 +99,8 @@ export function project(id: string, title: string, overrides: Partial<Project> =
     updatedAt: '2026-09-20T10:00:00Z',
     ...overrides
   }
+}
+
+export function listed(tasks: readonly Task[], steps: readonly TaskStep[] = [], tokens: Record<string, number> = {}): ListedTask[] {
+  return listedTasks(taskRows(tasks, steps, (id) => tokens[id] ?? 0), steps, [], Date.parse('2026-09-20T12:00:00Z'))
 }
