@@ -63,23 +63,26 @@ describe('the actions on a ledger row', () => {
     expect(current.map((item) => item.text())).toEqual(['To do'])
   })
 
-  it('opens the task from the arrow on the row in one press', async () => {
+  it('opens the task from its title in one press, without opening the row', async () => {
     seed()
     const push = vi.spyOn(router, 'push').mockResolvedValue(undefined)
     const wrapper = await mountTasks()
 
-    await rowOf(wrapper, 'Write the docs').get('[data-testid="task-row-open"]').trigger('click')
+    await rowOf(wrapper, 'Write the docs').get('[data-testid="task-row-title"]').trigger('click', { button: 0 })
 
-    expect(push).toHaveBeenCalledWith({ name: 'task', params: { id: 'PR-1', tab: 'description' } })
+    expect(push).toHaveBeenCalledWith('/task/PR-1/description')
     expect(wrapper.find('[data-testid="task-peek"]').exists()).toBe(false)
   })
 
-  it('puts the open arrow at the start of the row, before the status mark', async () => {
+  it('opens the preview from the arrow at the start of the row', async () => {
     seed()
     const wrapper = await mountTasks()
     const row = rowOf(wrapper, 'Write the docs')
+    expect(row.element.firstElementChild).toBe(row.get('[data-testid="task-row-preview"]').element)
 
-    expect(row.element.firstElementChild).toBe(row.get('[data-testid="task-row-open"]').element)
+    await row.get('[data-testid="task-row-preview"]').trigger('click')
+
+    expect(wrapper.find('[data-testid="task-peek"]').exists()).toBe(true)
   })
 
   it('badges a quick task and no other', async () => {

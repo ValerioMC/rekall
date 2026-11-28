@@ -242,8 +242,8 @@ When the session writes its wrapup and the commit on claim did not fail, Rekall 
 itself. The task then shows **Quick** and **Auto-accepted** beside its title, and the wrapup, the
 commit, the tokens and the time are kept like any task's. A failed commit, or a wrapup you wrote by
 hand, leaves the task claimed for you to review. Accepting is never final: a revision of the description asks an
-auto-accepted task for another pass. **Hide quick tasks**, in the navigator and in a project's task
-list, keeps them out of the way; they are listed by default.
+auto-accepted task for another pass. In a project's task list the **Type** filter shows only quick
+tasks, or leaves them out when you tick the other types.
 
 ## Description review
 

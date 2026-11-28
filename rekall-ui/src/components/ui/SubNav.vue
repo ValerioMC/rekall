@@ -20,7 +20,7 @@ const active = defineModel<Id>({ required: true })
 </script>
 
 <template>
-  <div class="flex gap-0.5 border-b border-border" role="tablist" :aria-label="label" data-testid="sub-nav">
+  <div class="flex flex-wrap gap-0.5 border-b border-border" role="tablist" :aria-label="label" data-testid="sub-nav">
     <component
       :is="item.to ? RouterLink : 'button'"
       v-for="item in items"
@@ -44,8 +44,7 @@ const active = defineModel<Id>({ required: true })
       </span>
     </component>
     <template v-if="$slots.trailing">
-      <span class="flex-1" />
-      <div class="flex items-center gap-2 pb-1.5 pl-3">
+      <div class="ml-auto flex flex-wrap items-center justify-end gap-2 pb-1.5 pl-3">
         <slot name="trailing" />
       </div>
     </template>

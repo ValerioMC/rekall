@@ -1,29 +1,34 @@
-import { compareProjects } from '@/features/catalog/lib/project-group-order'
-import { newestFirst } from '@/features/catalog/model/task-code'
-import type { Project } from '@/features/catalog/model/catalog'
-import type { ProjectId } from '@/model/branded'
-import type { ProjectTaskCounts, TasksOfProject, ProjectTaskSort, ProjectTaskView } from '@/features/project/model/project-task-list'
-import type { TaskRow } from '@/features/task/model/task-row'
+import { compareText } from '@/features/catalog/lib/compare-text'
+import { newestFirst, oldestFirst } from '@/features/catalog/model/task-code'
+import type {
+  ListedTask,
+  ProjectTaskCounts,
+  ProjectTaskSort,
+  ProjectTaskSortKey,
+  ProjectTaskView
+} from '@/features/project/model/project-task-list'
+import type { TaskRow, TaskRowKind } from '@/features/task/model/task-row'
 
 const VIEW_RULES: Readonly<Record<ProjectTaskView, (row: TaskRow) => boolean>> = {
   needs: (row) => row.needs > 0,
   running: (row) => row.running,
   open: (row) => row.kind !== 'filed',
-  filed: (row) => row.kind === 'filed'
+  filed: (row) => row.kind === 'filed',
+  all: () => true
 }
 
 export function isInView(row: TaskRow, view: ProjectTaskView): boolean {
   return VIEW_RULES[view](row)
 }
 
-export function rowsOfView(rows: readonly TaskRow[], view: ProjectTaskView): TaskRow[] {
+export function rowsOfView<Row extends TaskRow>(rows: readonly Row[], view: ProjectTaskView): Row[] {
   return rows.filter((row) => isInView(row, view))
 }
 
-/** Every word of the query has to appear in the title or the code, whatever the case. */
-export function matchesQuery(row: TaskRow, query: string): boolean {
+/** Every word of the query has to appear in the title, the code or the step line, whatever the case. */
+export function matchesQuery(row: ListedTask, query: string): boolean {
   const words = query.toLowerCase().split(/\s+/).filter((word) => word.length > 0)
-  const haystack = `${row.task.title} ${row.task.code}`.toLowerCase()
+  const haystack = `${row.task.title} ${row.task.code} ${row.line.text}`.toLowerCase()
   return words.every((word) => haystack.includes(word))
 }
 
@@ -36,62 +41,47 @@ export function viewCounts(rows: readonly TaskRow[]): ProjectTaskCounts {
     needs: rows.reduce((sum, row) => sum + row.needs, 0),
     running: rowsOfView(rows, 'running').length,
     open: rowsOfView(rows, 'open').length,
-    filed: rowsOfView(rows, 'filed').length
+    filed: rowsOfView(rows, 'filed').length,
+    all: rows.length
   }
 }
 
-const SORTS: Readonly<Record<ProjectTaskSort, (a: TaskRow, b: TaskRow) => number>> = {
-  task: (a, b) => newestFirst(a.task, b.task),
-  needs: (a, b) => b.needs - a.needs,
-  tokens: (a, b) => b.tokens - a.tokens,
-  updated: (a, b) => b.task.updatedAt.localeCompare(a.task.updatedAt)
+const STATUS_RANK: Readonly<Record<TaskRowKind, number>> = {
+  filed: 0,
+  backlog: 1,
+  todo: 2,
+  blocked: 3,
+  progress: 4,
+  review: 5,
+  running: 6
 }
 
-/** A stable sort: rows the key does not tell apart stay newest first. */
-export function sortRows(rows: readonly TaskRow[], sort: ProjectTaskSort): TaskRow[] {
-  return [...rows].sort((a, b) => SORTS[sort](a, b) || newestFirst(a.task, b.task))
+function planShare(row: TaskRow): number {
+  return row.task.stepCount > 0 ? (row.task.stepsDone + row.claimedSteps) / row.task.stepCount : -1
 }
 
-function groupOf(shown: readonly TaskRow[], folded: readonly TaskRow[], project: Project | undefined): TasksOfProject {
-  const first = shown[0]!.task
-  return {
-    projectId: first.projectId,
-    projectTitle: first.projectTitle,
-    companyName: first.companyName,
-    status: project?.status ?? 'ACTIVE',
-    icon: project?.icon ?? 'folder',
-    iconImageVersion: project?.iconImageVersion ?? null,
-    rows: shown,
-    filed: folded,
-    needs: shown.reduce((sum, row) => sum + row.needs, 0),
-    tokens: [...shown, ...folded].reduce((sum, row) => sum + row.tokens, 0)
-  }
+const ASCENDING: Readonly<Record<ProjectTaskSortKey, (a: ListedTask, b: ListedTask) => number>> = {
+  task: (a, b) => oldestFirst(a.task, b.task),
+  title: (a, b) => compareText(a.task.title, b.task.title),
+  tag: (a, b) => compareText(a.task.tagName ?? '', b.task.tagName ?? ''),
+  status: (a, b) => STATUS_RANK[a.kind] - STATUS_RANK[b.kind],
+  plan: (a, b) => planShare(a) - planShare(b),
+  notes: (a, b) => a.task.documentCount - b.task.documentCount,
+  tokens: (a, b) => a.tokens - b.tokens,
+  time: (a, b) => a.trackedSeconds - b.trackedSeconds,
+  updated: (a, b) => a.task.updatedAt.localeCompare(b.task.updatedAt)
 }
 
-function bucketsByProject(rows: readonly TaskRow[]): Map<ProjectId, TaskRow[]> {
-  const buckets = new Map<ProjectId, TaskRow[]>()
-  for (const row of rows) {
-    const bucket = buckets.get(row.task.projectId)
-    if (bucket) bucket.push(row)
-    else buckets.set(row.task.projectId, [row])
-  }
-  return buckets
+const TEXT_SORT_KEYS: readonly ProjectTaskSortKey[] = ['title', 'tag']
+
+/** Pressing the key in use turns it round; a new key starts from A for text and from the most or latest otherwise. */
+export function nextSort(current: ProjectTaskSort, key: ProjectTaskSortKey): ProjectTaskSort {
+  if (current.key === key) return { key, descending: !current.descending }
+  return { key, descending: !TEXT_SORT_KEYS.includes(key) }
 }
 
-/**
- * The shown rows gathered under their projects in the navigator's project order. A project with
- * nothing shown has no group. `finished` are the project's filed rows, folded into one line under
- * its group; pass none when the view already lists them.
- */
-export function groupByProject(
-  shown: readonly TaskRow[],
-  finished: readonly TaskRow[],
-  projects: readonly Project[],
-  acrossCompanies: boolean
-): TasksOfProject[] {
-  const projectById = new Map(projects.map((project) => [project.id, project]))
-  const finishedByProject = bucketsByProject(finished)
-  return [...bucketsByProject(shown).entries()]
-    .map(([projectId, rows]) => groupOf(rows, finishedByProject.get(projectId) ?? [], projectById.get(projectId)))
-    .sort(compareProjects(acrossCompanies))
+/** Rows the key does not tell apart stay newest first, whichever way the key runs. */
+export function sortRows(rows: readonly ListedTask[], sort: ProjectTaskSort): ListedTask[] {
+  const direction = sort.descending ? -1 : 1
+  return [...rows].sort((a, b) => direction * ASCENDING[sort.key](a, b) || newestFirst(a.task, b.task))
 }

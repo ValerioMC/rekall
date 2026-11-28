@@ -66,7 +66,7 @@ Every screen is a page header, optional tabs and a body, and the body is always 
 
 The routes that exist today keep their paths: the redesign changes what a screen shows, not where it
 lives. `/` is no screen of its own: it goes to the project list, and `/review` and `/settings`
-are new. A ledger row, a card and the sheet open the task page at `/task/:id/description`; a note in view
+are new. A ledger row's title, a card and the sheet open the task page at `/task/:id/description`; a note in view
 is part of the path (`/task/:id/notes/:noteId`). `/console` hosts one full-size session, a terminal or a chat, and nothing else: the session key
 on a task's tab and a deep link show either there, and every way of opening a [chat](#the-full-size-chat) shows
 it there (the sessions list and **Watch session** float a terminal above the dock instead); a visit with
@@ -139,8 +139,7 @@ tab marked and is not added. A chat on no task marks its project and no task tab
 - **Where a project lands.** Pressing a project tab goes to the place last seen there, or to its
   task list when that task is no longer open. Closing the task in view goes to its neighbour in the
   same project (the one opened after it, else the one before it), else to the task list; the server
-  decides that so every client lands the same way. A ledger row marks a task already open with a
-  small dot beside its arrow.
+  decides that so every client lands the same way.
 - **Keys**, bare like the console's others, off in a dialog, in a field and with Cmd, Ctrl or Alt
   held: `1` to `9` open the n-th project of the bar, `[` and `]` step through the open tasks across
   projects and wrap, and the backtick flips to the previous place. The previous place is kept in
@@ -151,15 +150,21 @@ and a bottom taskbar, are not built.
 
 ## A project's tasks
 
-A project's Tasks page is one table, the ledger, of the project's tasks. The columns are
-Task (the title, with a copy-anchor button shown on hover), Status (a pill), Plan (the plan tube
-and done over total), Needs you, Notes, Tokens and Updated. The anchor chip is not on every row.
-Sorting is on Task, Needs you, Tokens and Updated.
+A project's Tasks page is one table, the ledger, of the project's tasks. The mockup
+`.impeccable/mocks/task-list/index.html` draws it. Task, Title, Status, Plan and Updated are always
+there, with a column of row actions; the rest appear as the list widens (`lib/task-columns.ts`):
+Tokens from 1100px of list, Tag from 1220px, Step or summary from 1420px, Notes and Time from
+1620px, Issue and PR from 1820px. A column no task of the project fills is left out, and the
+**View** menu takes any of these six away, saying why a ticked one is not on screen. **Step or
+summary** is one line (`lib/task-step-line.ts`): the running step, else the first claimed one, else
+the next open step (the one a flow stands on), else the first line of prose of the description.
+Every data column but Step or summary and Issue and PR orders the list from its head, and a second
+press turns the order round; ties stay newest first. The anchor chip is not on every row.
 
 An epic is a row of its own, drawn with the stacked-plates mark in the epic tone and a chevron that
 folds the tasks it gathers: they are listed under it, indented on a thin rail, and nowhere else,
 and its Plan column says how many there are and how many are done. A task whose epic is not
-listed with it (another tab, or the epic is filed) keeps its place and carries the epic's name as
+listed with it (another view, or a filter) keeps its place and carries the epic's name as
 a chip. The grouping is `features/project/lib/epic-entries.ts`; which epics are folded is kept in the
 project tasks store and not remembered.
 
@@ -171,32 +176,48 @@ The composer (`TaskComposer`) is the one way to start work: one line that grows 
 project's folder and a split key. The key starts a quick task with the saved provider. Its menu offers a provider for
 this run when both CLIs are installed. **Plan a task…** opens the New task dialog with the text
 as its title, as does `T`. With no folder the key is inert and says why, and planning still works.
-The views are sub-navigation tabs with counts,
-and at their right end the filter on title and anchor and a **View**
-menu (`ProjectTaskViewMenu`) with the density (Comfortable or Compact) and whether quick tasks show. The ledger lists 25 tasks a page (`lib/task-pagination.ts`, `ProjectTaskPager`): the pager under it says which
-tasks the page holds out of how many and goes back to the first page when the view, the filter or the sort
-changes. A
-finished task never fills the table: the ledger folds its `DONE` tasks into one `N filed` line
-that opens in place. The rules for which tasks a tab shows, the counts, the sort and the fold are
-pure functions in `features/project/lib/project-task-rules.ts`, over the rows `features/task/lib/task-rows.ts` builds. View
-and density are layout preferences kept in `localStorage` by `common/config/project-task-preferences.ts`;
-the sort and the filter are not.
+
+The views are sub-navigation tabs with counts: **Needs me**, **Running**, **Open**, **Filed** (the
+`DONE` tasks) and **All**. At their right end, wrapping under them when the window is narrow, are a
+search over title, code and step line, the **Status**, **Tag**, **Epic** and **Type** (Planned,
+Quick, Epic) filters, **Clear** while any of them narrows the list, and **View**. A filter takes
+any number of values, each shown with how many tasks of the view hold it under the search and the
+other filters (`lib/task-filters.ts`). Picking an epic lists it with its tasks. Filters are kept per
+project; the status filter is dropped when the view changes, and a tag or epic the project no longer
+has stops narrowing it.
+
+The ledger is paged (`lib/task-pagination.ts`, `ProjectTaskPager`): 25, 50 or 100 rows, an epic
+always on the page of its listed tasks, so a page can run short. The pager is pinned to the bottom of
+the window, says which tasks the page holds out of how many, and offers the first, last and
+neighbouring pages. A new view, search, filter, order or page size goes back to the first page;
+opening a task and coming back does not.
+
+The rules for views, counts, search and order are pure functions in
+`features/project/lib/project-task-rules.ts`, over the rows `features/task/lib/task-rows.ts` builds.
+`store/projectTasks.store.ts` lists and pages, `useTaskFilters` narrows and `useTaskLayout` holds how
+the list is drawn. The view, the density, the order, the page size, the columns taken away, the side
+preview and the filters are kept in `localStorage` by `common/config/project-task-preferences.ts`;
+the search text is not.
 
 **Needs me** counts claimed steps plus tasks handed in whole. Narrowed to one project, it counts that
 project's tasks, so a count never promises rows the table does not list; the menu badge, the header
 review segment and the Review queue count every project, and the tests hold them to each other.
 
-A row carries three actions that do not open it. The status pill is a menu (`TaskStatusMenu`, the
-same one the task page's properties bar uses): the pill says what the work is doing now, the menu
-marks the stored status, and a change keeps the row listed for a moment like an accept. The arrow
-at the end of the row opens the task page in one press, and the trash key that ends it deletes the
-task behind the same confirm the task page uses (`TaskDeleteButton`, which stays in the list). A quick
-task wears a `Quick` badge beside its title.
+A row's title opens the task page. The status pill is a menu (`TaskStatusMenu`, the same one the
+task page's properties bar uses): the pill says what the work is doing now, or how many claimed
+steps wait for review, the menu marks the stored status, and a change keeps the row listed for a
+moment like an accept. At the end of the row, shown on hover or focus, are the copy-anchor button
+and the trash key, which deletes the task behind the same confirm the task page uses
+(`TaskDeleteButton`, which stays in the list). A quick task wears a `Quick` badge beside its title.
 
-A row expands in place, one at a time, to its **peek**: the task's `/rk` anchor with copy, up to
-three claimed steps each with Send back and Accept, a task handed in whole with Accept task and
-Send back, Open task, and the session key (`OpenTerminalButton`, which reads Run here, or Working while
-a session runs). A person can clear a task's claims without leaving the list.
+The arrow at the start of a row, or a press anywhere else on it, opens its **peek**: the task's
+`/rk` anchor with copy, up to three claimed steps each with Send back and Accept, a task handed in
+whole with Accept task and Send back, Open task, and the session key (`OpenTerminalButton`, which
+reads Run here, or Working while a session runs). A person can clear a task's claims without leaving
+the list. On a list at least 1500px wide the peek is a pane beside the table (`ProjectTaskPreview`),
+under the task's status, title, tag, plan, epic and time: it shows the first task of the page until
+another row is pressed, and the columns share the width that is left. Switched off in **View**, or
+on a narrower list, the peek opens under its row, one at a time.
 
 Accepting stamps the step's seal in place and keeps the row listed for a moment, so the arrival is
 seen before the task leaves a tab it no longer belongs to; every count updates at once. The toast

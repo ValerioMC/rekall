@@ -8,7 +8,7 @@ const byTitle = (a: { readonly title: string }, b: { readonly title: string }): 
 
 /** The rows inside the company or project in scope; `visibleTasks` lists them by title. */
 export function useConsoleView(state: ConsoleState) {
-  const { companies, projects, tasks, scopeCompany, scopeProject, hideQuickTasks } = state
+  const { companies, projects, tasks, scopeCompany, scopeProject } = state
 
   const projectInScope = (project: Project): boolean =>
     (scopeCompany.value === null || project.companyId === scopeCompany.value) &&
@@ -28,9 +28,7 @@ export function useConsoleView(state: ConsoleState) {
   const isShelved = (task: Task): boolean =>
     archivedProjectIds.value.has(task.projectId) && scopeProject.value !== task.projectId
 
-  const scopedTasks = computed(() =>
-    tasks.value.filter((task) => inScope(task) && !isShelved(task) && !(hideQuickTasks.value && task.quick))
-  )
+  const scopedTasks = computed(() => tasks.value.filter((task) => inScope(task) && !isShelved(task)))
 
   const visibleTasks = computed(() =>
     [...scopedTasks.value].sort(byTitle)

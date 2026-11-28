@@ -7,8 +7,9 @@ import { installStorage } from '../../support/memoryStorage'
 
 let wrapper: VueWrapper | null = null
 
-function render(showsQuickTasks: boolean): VueWrapper {
-  wrapper = mount(ProjectTaskViewMenu, { props: { showsQuickTasks }, global: { plugins: [createPinia()] }, attachTo: document.body })
+async function renderOpen(): Promise<VueWrapper> {
+  wrapper = mount(ProjectTaskViewMenu, { attachTo: document.body })
+  await wrapper.get('[data-testid="task-view-trigger"]').trigger('click')
   return wrapper
 }
 
@@ -25,33 +26,40 @@ afterEach(() => {
 
 describe('the project tasks view menu', () => {
   it('stays closed until its key is pressed and closes on Escape', async () => {
-    const menu = render(false)
-    expect(menu.find('[data-testid="task-view-panel"]').exists()).toBe(false)
+    wrapper = mount(ProjectTaskViewMenu, { attachTo: document.body })
+    expect(wrapper.find('[data-testid="task-view-panel"]').exists()).toBe(false)
 
-    await menu.get('[data-testid="task-view-trigger"]').trigger('click')
-    expect(menu.find('[data-testid="task-view-panel"]').exists()).toBe(true)
+    await wrapper.get('[data-testid="task-view-trigger"]').trigger('click')
+    expect(wrapper.find('[data-testid="task-view-panel"]').exists()).toBe(true)
 
-    await menu.get('[data-testid="task-view-menu"]').trigger('keydown', { key: 'Escape' })
-    expect(menu.find('[data-testid="task-view-panel"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="task-view-menu"]').trigger('keydown', { key: 'Escape' })
+    expect(wrapper.find('[data-testid="task-view-panel"]').exists()).toBe(false)
   })
 
   it('sets the row density in the project tasks store', async () => {
-    const menu = render(false)
-    await menu.get('[data-testid="task-view-trigger"]').trigger('click')
+    const menu = await renderOpen()
 
     await menu.get('[data-testid="segment-compact"]').trigger('click')
 
     expect(useProjectTasksStore().density).toBe('compact')
   })
 
-  it('offers the quick-task filter only when there are quick tasks', async () => {
-    const withQuickTasks = render(true)
-    await withQuickTasks.get('[data-testid="task-view-trigger"]').trigger('click')
-    expect(withQuickTasks.find('[data-testid="hide-quick-tasks"]').exists()).toBe(true)
-    withQuickTasks.unmount()
+  it('turns the side preview off and says it needs more width', async () => {
+    const menu = await renderOpen()
 
-    const withoutQuickTasks = render(false)
-    await withoutQuickTasks.get('[data-testid="task-view-trigger"]').trigger('click')
-    expect(withoutQuickTasks.find('[data-testid="hide-quick-tasks"]').exists()).toBe(false)
+    await menu.get('[data-testid="task-side-preview"]').setValue(false)
+
+    expect(useProjectTasksStore().sidePreview).toBe(false)
+    expect(menu.text()).toContain('needs more width')
+  })
+
+  it('takes a column away and gives it back', async () => {
+    const menu = await renderOpen()
+
+    await menu.get('[data-testid="task-column-tokens"]').trigger('change')
+    expect(useProjectTasksStore().hiddenColumns.has('tokens')).toBe(true)
+
+    await menu.get('[data-testid="task-column-tokens"]').trigger('change')
+    expect(useProjectTasksStore().hiddenColumns.has('tokens')).toBe(false)
   })
 })
