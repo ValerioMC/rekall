@@ -5,6 +5,7 @@
 mod support;
 
 use std::fs;
+use std::path::{Path, PathBuf};
 
 use chrono::TimeDelta;
 use rekall_kernel::{Id, Instant};
@@ -366,11 +367,7 @@ async fn a_task_with_a_worktree_commits_on_its_branch_there_and_leaves_the_proje
     let project = world.project("vega", Some(&repo.path().to_string_lossy()), true).await;
     let task = world.task(&project, "report-builder").await;
     let step = world.step(&task, "Wire the export endpoint", 0, TaskStepState::Claimed).await;
-    let worktree = repo.path().parent().unwrap().join(format!("worktree-{}", task.id));
-    git(repo.path(), &["worktree", "add", "-q", "-b", "rekall/report-builder", &worktree.to_string_lossy()]);
-    let mut row = task.clone().into_active_model();
-    row.worktree_folder = sea_orm::ActiveValue::Set(Some(worktree.to_string_lossy().into_owned()));
-    row.update(world.db()).await.unwrap();
+    let worktree = attach_worktree(&world, repo.path(), &task).await;
     let tip_before = git(repo.path(), &["rev-parse", "HEAD"]);
     fs::write(worktree.join("export.ts"), "export").unwrap();
 
@@ -380,6 +377,77 @@ async fn a_task_with_a_worktree_commits_on_its_branch_there_and_leaves_the_proje
     assert_eq!(outcome.reference.unwrap().commit_hash, git(&worktree, &["rev-parse", "HEAD"]));
     assert_eq!(git(&worktree, &["rev-parse", "--abbrev-ref", "HEAD"]), "rekall/report-builder");
     assert_eq!(git(repo.path(), &["rev-parse", "HEAD"]), tip_before, "the project's own branch did not move");
+    git(repo.path(), &["worktree", "remove", "--force", &worktree.to_string_lossy()]);
+}
+
+async fn attach_worktree(world: &support::World, repo: &Path, task: &rekall_store::task::Model) -> PathBuf {
+    let worktree = repo.parent().unwrap().join(format!("worktree-{}", task.id));
+    let branch = format!("rekall/{}", task.label);
+    git(repo, &["worktree", "add", "-q", "-b", &branch, &worktree.to_string_lossy()]);
+    let mut row = task.clone().into_active_model();
+    row.worktree_folder = sea_orm::ActiveValue::Set(Some(worktree.to_string_lossy().into_owned()));
+    row.update(world.db()).await.unwrap();
+    worktree
+}
+
+#[tokio::test]
+async fn a_worktree_claim_commits_a_file_modified_before_the_step_started_and_leaves_the_tree_clean() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), true).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "Wire the export endpoint", 0, TaskStepState::Running).await;
+    let worktree = attach_worktree(&world, repo.path(), &task).await;
+    fs::write(worktree.join("seed.txt"), "edited after the last claim").unwrap();
+    world.services.step_snapshots.take(task.id, Some(step.id)).await;
+    fs::write(worktree.join("export.ts"), "export").unwrap();
+
+    let outcome = world.services.auto_commit.after_step_claim(task.id, step.id, None).await.unwrap();
+
+    assert_eq!(outcome.status, AutoCommitStatus::Committed);
+    assert_eq!(git(&worktree, &["show", "--name-only", "--format=", "HEAD"]), "export.ts\nseed.txt");
+    assert!(!outcome.describe().contains("Left out"));
+    assert!(!outcome.describe().contains("No snapshot"));
+    assert_eq!(git(&worktree, &["status", "--porcelain"]), "");
+    assert_eq!(snapshot_files(&world, task.id, Some(step.id)).await, None);
+    git(repo.path(), &["worktree", "remove", "--force", &worktree.to_string_lossy()]);
+}
+
+#[tokio::test]
+async fn a_worktree_claim_ignores_a_snapshot_already_kept_for_the_step() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), true).await;
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Running).await;
+    fs::write(repo.path().join("seed.txt"), "edited before").unwrap();
+    world.services.step_snapshots.take(task.id, Some(step.id)).await;
+    let worktree = attach_worktree(&world, repo.path(), &task).await;
+    fs::write(worktree.join("seed.txt"), "edited before").unwrap();
+
+    let outcome = world.services.auto_commit.after_step_claim(task.id, step.id, None).await.unwrap();
+
+    assert_eq!(outcome.status, AutoCommitStatus::Committed);
+    assert_eq!(git(&worktree, &["status", "--porcelain"]), "");
+    git(repo.path(), &["worktree", "remove", "--force", &worktree.to_string_lossy()]);
+}
+
+#[tokio::test]
+async fn the_wrapup_of_a_worktree_task_with_no_steps_commits_every_modified_file() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    let project = world.project("vega", Some(&repo.path().to_string_lossy()), true).await;
+    let task = world.task(&project, "fix-typo").await;
+    let worktree = attach_worktree(&world, repo.path(), &task).await;
+    fs::write(worktree.join("notes.txt"), "there before the work").unwrap();
+    world.services.step_snapshots.take(task.id, None).await;
+    fs::write(worktree.join("README.md"), "fixed").unwrap();
+
+    let outcome = world.services.auto_commit.after_wrapup(task.id, None).await.unwrap();
+
+    assert_eq!(outcome.status, AutoCommitStatus::Committed);
+    assert!(outcome.left_out.is_empty());
+    assert_eq!(git(&worktree, &["status", "--porcelain"]), "");
     git(repo.path(), &["worktree", "remove", "--force", &worktree.to_string_lossy()]);
 }
 

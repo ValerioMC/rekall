@@ -180,8 +180,12 @@ impl Model {
 
     /// Where this task's files are: its worktree while it has one, else the project's folder.
     pub fn work_folder<'a>(&'a self, project: &'a crate::project::Model) -> Option<&'a str> {
-        let own = self.worktree_folder.as_deref().filter(|folder| !rekall_kernel::jstr::is_blank(folder));
-        own.or_else(|| project.repo_folder.as_deref().filter(|folder| !rekall_kernel::jstr::is_blank(folder)))
+        self.own_worktree().or_else(|| project.repo_folder.as_deref().filter(|folder| !rekall_kernel::jstr::is_blank(folder)))
+    }
+
+    /// The checkout that belongs to this task alone, so whatever is modified there is its work.
+    pub fn own_worktree(&self) -> Option<&str> {
+        self.worktree_folder.as_deref().filter(|folder| !rekall_kernel::jstr::is_blank(folder))
     }
 
     pub fn is_epic(&self) -> bool {

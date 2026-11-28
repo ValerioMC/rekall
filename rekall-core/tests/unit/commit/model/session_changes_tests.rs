@@ -46,9 +46,18 @@ fn a_file_deleted_at_the_start_and_written_back_since_is_the_sessions() {
 }
 
 #[test]
-fn without_a_snapshot_everything_is_the_sessions() {
-    let split = SessionChanges::everything(vec![modified("a.txt"), modified("b.txt")]);
+fn without_a_snapshot_everything_is_the_sessions_and_it_says_so() {
+    let split = SessionChanges::without_snapshot(vec![modified("a.txt"), modified("b.txt")]);
 
     assert_eq!(split.own.len(), 2);
     assert!(split.left_out.is_empty());
+    assert!(split.snapshot_missing);
+}
+
+#[test]
+fn taking_everything_misses_no_snapshot() {
+    let split = SessionChanges::everything(vec![modified("a.txt")]);
+
+    assert_eq!(split.own.len(), 1);
+    assert!(!split.snapshot_missing);
 }

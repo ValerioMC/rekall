@@ -9,8 +9,8 @@ use crate::commit::{GitCommitter, GitRepositoryInspector};
 use crate::{in_write, load, Ctx};
 
 /// Remembers which files were already modified when a step, or a task with no steps, started
-/// running, so a later commit can tell them from the session's own work. Only auto-commit
-/// projects keep one. A failure is logged and never stops the work.
+/// running, so a later commit can tell them from the session's work. Kept only on auto-commit
+/// projects, for work in the shared project folder. A failure never stops the work.
 #[derive(Clone)]
 pub struct StepSnapshotService {
     ctx: Ctx,
@@ -37,7 +37,7 @@ impl StepSnapshotService {
                 return Ok(());
             };
             let project = load::project_of(tx.db(), &task).await?;
-            if !project.auto_commit {
+            if !project.auto_commit || task.own_worktree().is_some() {
                 return Ok(());
             }
             let status = self.inspector.inspect(task.work_folder(&project)).await;
