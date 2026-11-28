@@ -33,6 +33,7 @@ async fn every_route_of_the_console_answers_with_the_application_on_a_refresh() 
         "/connections",
         "/connections/7d1c",
         "/report",
+        "/provider-report",
         "/diagrams",
         "/security",
         "/claude",

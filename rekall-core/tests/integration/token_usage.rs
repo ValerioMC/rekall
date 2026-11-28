@@ -128,7 +128,7 @@ fn spent_at(task: &str, at: &str, output: u64) -> UnitUsage {
 }
 
 #[tokio::test]
-async fn a_tasks_spend_is_told_day_by_day_oldest_first_across_its_steps() {
+async fn a_tasks_spend_is_told_day_by_day_across_its_steps_and_providers() {
     let world = world().await;
     let project = world.project("vega", None, false).await;
     let task = world.task(&project, "report-builder").await;
@@ -140,11 +140,24 @@ async fn a_tasks_spend_is_told_day_by_day_oldest_first_across_its_steps() {
         spent_at("report-builder", "2026-10-01T22:00:00Z", 3),
     ];
     world.services.token_usage.record_session("s-1", 10, &session).await.unwrap();
+    let mut feed = world.services.ctx.events.subscribe();
+    world.services.token_usage.record_session(
+        &rekall_core::token::codex_session_key("s-2"), 10,
+        &[spent_at("report-builder", "2026-10-02T18:00:00Z", 7)],
+    ).await.unwrap();
 
     let days = world.services.token_usage.days().await.unwrap();
-    let shown: Vec<(String, i64)> = days.iter().map(|d| (d.day.to_string(), d.output_tokens)).collect();
-    assert_eq!(shown, [("2026-10-01T00:00:00Z".to_string(), 3), ("2026-10-02T00:00:00Z".to_string(), 10)]);
+    let shown: Vec<_> = days.iter().map(|d| (d.day.to_string(), d.provider, d.output_tokens)).collect();
+    use rekall_store::SessionProvider::{Claude, Codex};
+    assert_eq!(shown, [
+        ("2026-10-01T00:00:00Z".to_string(), Claude, 3),
+        ("2026-10-02T00:00:00Z".to_string(), Claude, 10),
+        ("2026-10-02T00:00:00Z".to_string(), Codex, 7),
+    ]);
     assert!(days.iter().all(|d| d.task_id == task.id));
+    let frame = feed.try_recv().unwrap();
+    let event = frame.downcast::<TokenUsageStreamEvent>().unwrap();
+    assert_eq!(event.days, days);
 }
 
 #[tokio::test]

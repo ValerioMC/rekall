@@ -1,5 +1,7 @@
 import { APP_LOCALE, formatDate } from '@/common/format/app-locale'
 export type ReportPeriod = 'week' | 'month'
+export type CalendarPeriod = ReportPeriod | 'year'
+type Calendar = 'local' | 'utc'
 
 export interface PeriodRange {
   readonly period: ReportPeriod
@@ -9,9 +11,20 @@ export interface PeriodRange {
   readonly label: string
 }
 
-function startOfWeek(date: Date): Date {
-  const mondayOffset = (date.getDay() + 6) % 7
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() - mondayOffset)
+function calendarDate(period: CalendarPeriod, anchor: Date, offset: number, calendar: Calendar): Date {
+  const utc = calendar === 'utc'
+  const year = utc ? anchor.getUTCFullYear() : anchor.getFullYear()
+  const month = utc ? anchor.getUTCMonth() : anchor.getMonth()
+  const day = utc ? anchor.getUTCDate() : anchor.getDate()
+  const monthOffset = period === 'year' ? 12 * offset - month : period === 'month' ? offset : 0
+  const dayOfMonth = period === 'week' ? day + offset : 1
+  return utc ? new Date(Date.UTC(year, month + monthOffset, dayOfMonth)) : new Date(year, month + monthOffset, dayOfMonth)
+}
+
+function startOfPeriod(period: CalendarPeriod, anchor: Date, calendar: Calendar): Date {
+  const weekday = calendar === 'utc' ? anchor.getUTCDay() : anchor.getDay()
+  const mondayOffset = (weekday + 6) % 7
+  return calendarDate(period, anchor, period === 'week' ? -mondayOffset : 0, calendar)
 }
 
 function daysBetween(start: Date, end: Date): Date[] {
@@ -27,14 +40,8 @@ function daysBetween(start: Date, end: Date): Date[] {
 }
 
 export function periodRange(period: ReportPeriod, anchor: Date): PeriodRange {
-  const start =
-    period === 'week'
-      ? startOfWeek(anchor)
-      : new Date(anchor.getFullYear(), anchor.getMonth(), 1)
-  const end =
-    period === 'week'
-      ? new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7)
-      : new Date(start.getFullYear(), start.getMonth() + 1, 1)
+  const start = startOfPeriod(period, anchor, 'local')
+  const end = shiftAnchor(period, start, 1)
   const days = daysBetween(start, end)
 
   return { period, start, end, days, label: label(period, start, days[days.length - 1]!) }
@@ -48,9 +55,15 @@ function label(period: ReportPeriod, start: Date, last: Date): string {
 }
 
 export function shiftAnchor(period: ReportPeriod, anchor: Date, delta: number): Date {
-  return period === 'week'
-    ? new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() + delta * 7)
-    : new Date(anchor.getFullYear(), anchor.getMonth() + delta, 1)
+  return calendarDate(period, anchor, period === 'week' ? delta * 7 : delta, 'local')
+}
+
+export function utcPeriodStart(period: CalendarPeriod, instant: string): string {
+  return startOfPeriod(period, new Date(instant), 'utc').toISOString().slice(0, 10)
+}
+
+export function shiftUtcPeriod(period: CalendarPeriod, start: string, delta: number): string {
+  return calendarDate(period, new Date(start), period === 'week' ? delta * 7 : delta, 'utc').toISOString().slice(0, 10)
 }
 
 export function isWithin(range: PeriodRange, date: Date): boolean {

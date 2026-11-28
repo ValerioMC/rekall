@@ -166,13 +166,14 @@ describe('the command palette', () => {
     const input = wrapper.get('[data-testid="palette-input"]')
     await input.setValue('report')
 
-    expect(wrapper.findAll('[role="option"]')).toHaveLength(2)
+    const matches = wrapper.findAll('[role="option"]')
+    expect(matches).toHaveLength(3)
+    expect(matches[1]!.text()).toContain('Time tracked')
     await input.trigger('keydown', { key: 'ArrowUp' })
 
     const selected = wrapper.findAll('[role="option"]').filter((option) => option.attributes('aria-selected') === 'true')
     expect(selected).toHaveLength(1)
-    expect(selected[0]!.text()).toContain('Report')
-    expect(selected[0]!.text()).toContain('Time tracked')
+    expect(selected[0]!.text()).toContain('Provider report')
     wrapper.unmount()
   })
 

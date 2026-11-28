@@ -58,9 +58,11 @@ session transcripts under `~/.claude/projects`, where every model call carries i
 | `TranscriptScanner` (rekall-infra) | Reads, every `rekall.claude.transcript-scan-seconds`, each session whose files have grown since `transcript_scan` last saw them; an unchanged transcript is never read twice. A line that does not parse is skipped, and a field in a shape the reader does not know reads as empty rather than losing the line's tokens |
 | `TokenUsageService` (rekall-core) | Resolves the anchors and replaces the session's `token_usage` rows whole, so a reread never double counts. A task that no longer resolves is dropped; a step that does not resolve leaves its tokens on the task, and deleting a step sets its rows' `step_id` to null for the same reason. A row is a session's spend on one task or step on one day (`spent_on`, midnight UTC), so a task's spend can be told day by day; migration `041` stamps old rows with the day they were read and clears `transcript_scan` so every transcript is read again with real days. A read that changes a task's tallies or days publishes a `token-usage` frame with all of them |
 
-The figure the console shows is output tokens, what the model generated; input, cache write and
+The task and project token chips show output tokens, what the model generated. Input, cache write and
 cache read are kept beside it and shown in the tooltip. `GET /api/token-usage` returns one tally per
-task and step, `GET /api/token-usage/daily` one entry per task and day, and `useTokenUsageStore`
+task, optional step and provider. `GET /api/token-usage/daily` and the `token-usage` event carry one
+daily entry per task, UTC day and provider. A session id starting with `codex:` identifies Codex.
+Task and project trends sum both providers on each day. `useTokenUsageStore`
 sums a project from its tasks in the browser, so no total is stored that could disagree with its
 parts. A task's header (`TaskTitleRow`) holds the name, its status flags, `CopyAnchorButton` and the
 token chip in the panes that still use it; on the task page the properties bar (`TaskRail`) holds

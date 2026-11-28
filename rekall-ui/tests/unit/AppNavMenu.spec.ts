@@ -7,6 +7,7 @@ import AppNavMenu from '@/components/console/AppNavMenu.vue'
 import { NAV_GROUPS, activeScreenIn, alertLabel, alertTone, screensOf } from '@/model/nav-tab'
 import { useVulnerabilityStore } from '@/features/vulnerability/store/vulnerability.store'
 import { useConsoleStore } from '@/stores/console.store'
+import { router as consoleRouter } from '@/router'
 import { exposure } from './features/vulnerability/fixtures'
 import { taskFixture } from './support/taskFixture'
 import type { Task } from '@/features/catalog/model/catalog'
@@ -61,6 +62,13 @@ describe('the screen menu', () => {
 
     expect(wrapper.get('[data-testid="nav-menu-label"]').text()).toBe('Exports')
     expect(NAV_GROUPS.find((group) => group.label === 'Library')?.screens.map((screen) => screen.to)).toEqual(['/diagrams', '/exports', '/claude'])
+  })
+
+  it('lists the Provider report beside Report under Time and resolves its route', async () => {
+    const { wrapper } = await mountMenu('/provider-report')
+    expect(wrapper.get('[data-testid="nav-menu-label"]').text()).toBe('Provider report')
+    expect(NAV_GROUPS.find((group) => group.label === 'Time')?.screens.map((screen) => screen.to)).toEqual(['/report', '/provider-report', '/calendar'])
+    expect(consoleRouter.resolve('/provider-report').name).toBe('provider-report')
   })
 
   it('closes on Escape and gives the focus back to its key', async () => {

@@ -55,6 +55,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     label: 'Time',
     screens: [
       { to: '/report', label: 'Report', hint: 'Time tracked, by period', routes: ['report'] },
+      { to: '/provider-report', label: 'Provider report', hint: 'Tokens and closures by provider', routes: ['provider-report'] },
       { to: '/calendar', label: 'Calendar', hint: 'Your work, day by day', routes: ['calendar'] }
     ]
   },

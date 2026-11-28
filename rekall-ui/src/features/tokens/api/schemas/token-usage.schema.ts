@@ -17,6 +17,7 @@ export const TokenTallyListSchema = z.array(TokenTallySchema)
 export const TokenDaySchema = z.object({
   taskId: z.string().uuid().transform(asTaskId),
   day: z.string().datetime().transform((instant) => instant.slice(0, 10)),
+  provider: z.enum(SESSION_PROVIDERS),
   inputTokens: z.number().int().nonnegative(),
   outputTokens: z.number().int().nonnegative(),
   cacheCreationTokens: z.number().int().nonnegative(),

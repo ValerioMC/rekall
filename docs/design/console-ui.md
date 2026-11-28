@@ -17,6 +17,20 @@ The company filter holds ids, and an empty selection means every company rather 
 chips are built from the unfiltered period, so narrowing to one client never removes the way back
 to the others.
 
+## Provider report
+
+`ProviderReportPage` reads the console catalog and token usage stores. `buildProviderReport`
+uses the tallies for all-time and per-task token totals, the daily entries for UTC periods, and
+the acceptance dates in the catalog for closures. A closed task uses its latest non-draft step
+acceptance date, or its own acceptance date when there is no step date. The task's tallies give
+its credit. A step's own tallies give its credit. Closures that have no date sit below the dated
+periods and contribute to the all-time figures.
+
+Overall has its own date selector and shows the full token breakdown in every range. The period
+ledger groups independently by week, month or year and keeps its column headings visible while
+you scroll. Selecting a row shows which tasks consumed tokens or closed in that period. Opening
+a task from that list goes to its description.
+
 ## Structure
 
 The console has no permanent task list and no fixed columns. A person moves between screens grouped
@@ -58,6 +72,7 @@ Every screen is a page header, optional tabs and a body, and the body is always 
 | `#/companies` | `/companies` | Companies |
 | `#/connections/:id` | `/connections/:id?` | Connections |
 | `#/time/report` | `/report` | Time report |
+| `.impeccable/mocks/provider-report/index.html` | `/provider-report` | Provider report |
 | `#/time/calendar` | `/calendar` | Calendar |
 | `#/library/diagrams` | `/diagrams` | Diagram gallery and viewer |
 | `#/library/claude` | `/claude` | Claude files |
@@ -79,7 +94,7 @@ Back and Forward precede the section menu and project switcher. The Rekall mark 
 
 The menu key in the header is three lines, the name of the screen on display, the alert total and a chevron
 (`AppNavMenu`, `nav-menu-label`); it opens every screen under its section:
-Review (Review), Projects (Projects, Companies, Connections), Time (Report, Calendar), Library
+Review (Review), Projects (Projects, Companies, Connections), Time (Report, Provider report, Calendar), Library
 (Diagrams, Claude files), Security and Settings. The review count rides on the Review entry, and the key's
 accessible label names the screen on display and sums every alert. ⌘K opens the search:
 a row of group tabs (All, Projects, Tasks, Notes, Go to, In the text), each with how many it found, over the

@@ -52,7 +52,7 @@ impl Assets {
 const CLIENT_ROUTES: &[&str] = &[
     "/", "/work", "/work/board", "/task/{*rest}", "/review", "/review/{*rest}", "/console", "/projects", "/projects/", "/projects/{*rest}", "/companies",
     "/companies/", "/companies/{*rest}", "/connections", "/connections/", "/connections/{*rest}", "/tasks", "/tasks/", "/tasks/{*rest}", "/search",
-    "/calendar", "/report", "/diagrams", "/security", "/claude", "/settings", "/settings/{*rest}",
+    "/calendar", "/report", "/provider-report", "/diagrams", "/security", "/claude", "/settings", "/settings/{*rest}",
 ];
 
 pub fn routes(assets: Assets) -> Router {
