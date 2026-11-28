@@ -127,15 +127,22 @@ impl TaskWorktreeService {
             return Ok(Release::NoWorktree);
         }
         let Some(project_folder) = project_folder else { return Ok(Release::NoWorktree) };
-        if let Some(folder) = self.registered_folder(&task, Path::new(&project_folder)).await? {
-            let worktree = Worktree { project_folder: PathBuf::from(project_folder), folder, branch: self.layout.branch_for(&task.label)? };
-            if self.host.status(&worktree).await?.has_unsaved_changes {
+        if let Some(worktree) = self.registered_worktree(&task, &project_folder).await? {
+            if self.host.status(&worktree).await?.has_unsaved_changes() {
                 return Ok(Release::KeptWithChanges);
             }
             self.host.remove(&worktree).await?;
         }
         self.name_on_task(task_id, None).await?;
         Ok(Release::Removed)
+    }
+
+    /// The files of the task's worktree no commit holds yet; none when it has no worktree.
+    pub async fn unsaved_files(&self, task_id: Id) -> Result<Vec<String>> {
+        let Site { task, project_folder, .. } = self.read(task_id).await?;
+        let Some(project_folder) = project_folder else { return Ok(Vec::new()) };
+        let Some(worktree) = self.registered_worktree(&task, &project_folder).await? else { return Ok(Vec::new()) };
+        Ok(self.host.status(&worktree).await?.unsaved_files)
     }
 
     /// Merges the task's branch into the project's main branch once its work is accepted (the
@@ -224,6 +231,11 @@ impl TaskWorktreeService {
         let Some(folder) = task.worktree_folder.as_deref().map(PathBuf::from).filter(|folder| folder.is_dir()) else { return Ok(None) };
         let listed = self.host.list(project_folder).await?;
         Ok(listed.iter().any(|worktree| worktree.folder == folder).then_some(folder))
+    }
+
+    async fn registered_worktree(&self, task: &rekall_store::task::Model, project_folder: &str) -> Result<Option<Worktree>> {
+        let Some(folder) = self.registered_folder(task, Path::new(project_folder)).await? else { return Ok(None) };
+        Ok(Some(Worktree { project_folder: PathBuf::from(project_folder), folder, branch: self.layout.branch_for(&task.label)? }))
     }
 
     async fn forget_missing_folders(&self) -> Result<()> {

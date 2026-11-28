@@ -258,10 +258,16 @@ supported tool requests that name protected credential locations on any project.
    the innermost registered project or task worktree. Preparation launches have no running-step
    lookup. The loopback request has a one-second timeout and uses the server port from the launch
    or the local configuration.
-3. `GuardService` decides whether to allow the event. Claude Code reads a refusal on standard error
+3. For a task in its own worktree whose work is all claimed and not yet accepted, on a project
+   that commits on claim, `GuardContextService` also asks `TaskWorktreeService` for the files git
+   holds uncommitted there (`lateChanges`). It reads git only in that state, and a worktree it
+   cannot read is reported as clean.
+4. `GuardService` decides whether to allow the event. Claude Code reads a refusal on standard error
    with exit code 2. Codex reads a structured tool denial or stop decision on standard output.
-   A stop refusal names the task anchor and step number. A follow-up stop with
-   `stop_hook_active` proceeds so the session can explain any blocker.
+   A stop is refused for a step still running, naming the task anchor and step number, or for
+   those uncommitted files, naming the first five, their count and the claim or wrapup that
+   commits them. A follow-up stop with `stop_hook_active` proceeds so the session can explain any
+   blocker.
 
 Protected references come from `rekall-infra::secret::protected_references`. They include
 `<rekall.home>/secrets.json`, `~/.claude/.credentials.json`, and the credential helper API prefix.

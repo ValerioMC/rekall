@@ -100,7 +100,7 @@ async fn after_a_restart_a_task_forgets_a_folder_that_is_gone_and_a_clean_orphan
 async fn an_orphan_with_unsaved_changes_is_left_alone() {
     let world = world().await;
     world.host.create(&world.project_folder, "rekall/orphan", &world.root.path().join("worktrees/vega/orphan"), "HEAD").await.unwrap();
-    world.host.leave_unsaved_changes("rekall/orphan");
+    world.host.leave_unsaved_files("rekall/orphan", &["notes.txt"]);
 
     world.service.reconcile().await.unwrap();
 
@@ -125,13 +125,24 @@ async fn releasing_a_worktree_with_unsaved_changes_leaves_it_as_it_was() {
     let world = world().await;
     let report = task_named(&world, "report").await;
     let folder = world.service.ensure(report).await.unwrap();
-    world.host.leave_unsaved_changes("rekall/report");
+    world.host.leave_unsaved_files("rekall/report", &["notes.txt"]);
 
     let released = world.service.release(report).await.unwrap();
 
     assert_eq!(released, Release::KeptWithChanges);
     assert!(folder.exists());
     assert_eq!(folder_of(&world, report).await, Some(folder.to_string_lossy().into_owned()));
+}
+
+#[tokio::test]
+async fn the_unsaved_files_of_a_tasks_worktree_are_named_and_a_task_without_one_has_none() {
+    let world = world().await;
+    let report = task_named(&world, "report").await;
+    world.service.ensure(report).await.unwrap();
+    world.host.leave_unsaved_files("rekall/report", &["notes.txt", "src/lib.rs"]);
+
+    assert_eq!(world.service.unsaved_files(report).await.unwrap(), vec!["notes.txt", "src/lib.rs"]);
+    assert!(world.service.unsaved_files(task_named(&world, "other").await).await.unwrap().is_empty());
 }
 
 #[tokio::test]
@@ -220,7 +231,7 @@ async fn a_branch_with_unsaved_work_in_its_worktree_is_not_merged() {
     let report = task_named(&world, "report").await;
     world.service.ensure(report).await.unwrap();
     world.host.leave_commits("rekall/report");
-    world.host.leave_unsaved_changes("rekall/report");
+    world.host.leave_unsaved_files("rekall/report", &["notes.txt"]);
 
     let merge = world.service.merge_accepted(report).await.unwrap();
 

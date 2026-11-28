@@ -124,7 +124,7 @@ impl TaskPullRequestService {
         };
         if let (Some(folder), Some(project_folder)) = (&landing.worktree_folder, &landing.project_folder) {
             let worktree = Worktree { folder: folder.into(), project_folder: project_folder.into(), branch: landing.branch.clone() };
-            if worktree.folder.is_dir() && self.worktrees.status(&worktree).await?.has_unsaved_changes {
+            if worktree.folder.is_dir() && self.worktrees.status(&worktree).await?.has_unsaved_changes() {
                 return self.refuse_merge(task_id, "The task worktree has unsaved changes. The branch stays open.".into()).await;
             }
         }

@@ -117,9 +117,9 @@ async fn the_status_tells_unsaved_changes_and_commits_ahead() {
     git(&worktree.folder, &["commit", "-q", "-m", "export"]);
     let committed = world.host.status(&worktree).await.unwrap();
 
-    assert_eq!((clean.has_unsaved_changes, clean.commits_ahead), (false, 0));
-    assert_eq!((unsaved.has_unsaved_changes, unsaved.commits_ahead), (true, 0));
-    assert_eq!((committed.has_unsaved_changes, committed.commits_ahead), (false, 1));
+    assert_eq!((clean.unsaved_files, clean.commits_ahead), (Vec::<String>::new(), 0));
+    assert_eq!((unsaved.unsaved_files, unsaved.commits_ahead), (vec!["export.txt".to_string()], 0));
+    assert_eq!((committed.unsaved_files, committed.commits_ahead), (Vec::<String>::new(), 1));
 }
 
 #[tokio::test]

@@ -7,6 +7,7 @@ fn context(auto_commit: bool) -> GuardContext {
         auto_commit,
         merge: None,
         running_step: None,
+        late_changes: None,
         protected_credential_references: vec![CREDENTIAL_FILE.into(), "/api/terminal/".into()],
     }
 }
@@ -124,4 +125,57 @@ fn merging_allows_only_the_designated_branch_operations() {
     }
     context.merge.as_mut().unwrap().pull_request = false;
     assert!(is_blocked(&GuardService::decide(&shell("git push origin rekall/ve-12"), &context)));
+}
+
+fn left_behind(files: &[&str], step_to_claim: Option<u32>) -> GuardContext {
+    let late_changes = crate::guard::GuardLateChanges {
+        task_anchor: "task:VE-12".into(),
+        files: files.iter().map(|file| file.to_string()).collect(),
+        step_to_claim,
+    };
+    GuardContext { late_changes: Some(late_changes), ..context(true) }
+}
+
+fn stop_reason(context: &GuardContext) -> String {
+    let GuardVerdict::Block { reason } = GuardService::decide(&GuardEvent::BeforeStop, context) else { panic!("expected a block") };
+    reason
+}
+
+#[test]
+fn stopping_with_uncommitted_files_after_the_last_claim_names_them_and_the_step_to_claim_again() {
+    let reason = stop_reason(&left_behind(&[".impeccable/config.json"], Some(2)));
+
+    assert!(reason.contains("1 uncommitted file: .impeccable/config.json."), "{reason}");
+    assert!(reason.contains("/rk task:VE-12 step:2 done"), "{reason}");
+    assert!(reason.contains("delete"), "{reason}");
+}
+
+#[test]
+fn a_task_with_no_steps_is_told_to_write_the_wrapup_again() {
+    let reason = stop_reason(&left_behind(&["a.txt", "b.txt"], None));
+
+    assert!(reason.contains("2 uncommitted files: a.txt, b.txt."), "{reason}");
+    assert!(reason.contains("/rk task:VE-12 wrapup"), "{reason}");
+    assert!(!reason.contains("step:"), "{reason}");
+}
+
+#[test]
+fn only_the_first_few_files_are_listed_and_the_rest_are_counted() {
+    let reason = stop_reason(&left_behind(&["a", "b", "c", "d", "e", "f", "g"], Some(1)));
+
+    assert!(reason.contains("7 uncommitted files: a, b, c, d, e and 2 more."), "{reason}");
+}
+
+#[test]
+fn leftover_files_do_not_block_a_project_that_does_not_commit_on_claim_or_a_clean_worktree() {
+    let without_auto_commit = GuardContext { auto_commit: false, ..left_behind(&["a.txt"], Some(1)) };
+
+    for context in [without_auto_commit, left_behind(&[], Some(1))] {
+        assert_eq!(GuardService::decide(&GuardEvent::BeforeStop, &context), GuardVerdict::Allow);
+    }
+}
+
+#[test]
+fn leftover_files_do_not_block_a_tool() {
+    assert_eq!(GuardService::decide(&shell("rm a.txt"), &left_behind(&["a.txt"], Some(1))), GuardVerdict::Allow);
 }

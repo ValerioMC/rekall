@@ -6,6 +6,7 @@ use crate::guard::model::guard_verdict::GuardVerdict;
 use crate::guard::rule::shell_command::{git_subcommands, is_resolution_command};
 
 const SUBCOMMANDS_REKALL_RUNS: [&str; 3] = ["commit", "push", "add"];
+const FILES_NAMED_IN_A_REFUSAL: usize = 5;
 
 /// Decides, from an event and the facts around it, whether an agent may go on. A command it
 /// cannot read is allowed: a guard that stumbles must not stop the work.
@@ -61,6 +62,10 @@ fn manual_git_refusal(command: &str, context: &GuardContext) -> Option<String> {
 }
 
 fn refusal_before_stop(context: &GuardContext) -> Option<String> {
+    unclaimed_step_refusal(context).or_else(|| late_changes_refusal(context))
+}
+
+fn unclaimed_step_refusal(context: &GuardContext) -> Option<String> {
     let step = context.running_step.as_ref()?;
     let number = step.number;
     let task = &step.task_anchor;
@@ -68,6 +73,33 @@ fn refusal_before_stop(context: &GuardContext) -> Option<String> {
         "Step {number} on {task} is still running and was never claimed. Claim it with `/rk {task} step:{number} done`, \
          or tell the user why it cannot be claimed."
     ))
+}
+
+fn late_changes_refusal(context: &GuardContext) -> Option<String> {
+    if !context.auto_commit {
+        return None;
+    }
+    let late = context.late_changes.as_ref().filter(|late| !late.files.is_empty())?;
+    let task = &late.task_anchor;
+    let claim_again = match late.step_to_claim {
+        Some(number) => format!("Claim step {number} again with `/rk {task} step:{number} done`"),
+        None => format!("Write the wrapup again with `/rk {task} wrapup`"),
+    };
+    Some(format!(
+        "All the work on {task} is claimed, but its worktree still holds {}. {claim_again} and Rekall commits them, \
+         or delete the ones that should not be kept.",
+        named_files(&late.files)
+    ))
+}
+
+fn named_files(files: &[String]) -> String {
+    let count = files.len();
+    let plural = if count == 1 { "" } else { "s" };
+    let mut named = files.iter().take(FILES_NAMED_IN_A_REFUSAL).cloned().collect::<Vec<_>>().join(", ");
+    if count > FILES_NAMED_IN_A_REFUSAL {
+        named.push_str(&format!(" and {} more", count - FILES_NAMED_IN_A_REFUSAL));
+    }
+    format!("{count} uncommitted file{plural}: {named}")
 }
 
 #[cfg(test)]

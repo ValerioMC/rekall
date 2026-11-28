@@ -15,7 +15,7 @@ use crate::worktree::{BranchReview, MergeOutcome, PushOutcome, Worktree, Worktre
 pub struct ScriptedWorktreeHost {
     worktrees: Mutex<Vec<Worktree>>,
     refused: Mutex<HashSet<String>>,
-    dirty: Mutex<HashSet<String>>,
+    dirty: Mutex<HashMap<String, Vec<String>>>,
     ahead: Mutex<HashSet<String>>,
     conflicting: Mutex<HashSet<String>>,
     merged: Mutex<Vec<String>>,
@@ -33,8 +33,9 @@ impl ScriptedWorktreeHost {
         self.refused.lock().expect("scripted host lock").insert(branch_name.to_string());
     }
 
-    pub fn leave_unsaved_changes(&self, branch_name: &str) {
-        self.dirty.lock().expect("scripted host lock").insert(branch_name.to_string());
+    pub fn leave_unsaved_files(&self, branch_name: &str, files: &[&str]) {
+        let files = files.iter().map(|file| file.to_string()).collect();
+        self.dirty.lock().expect("scripted host lock").insert(branch_name.to_string(), files);
     }
 
     pub fn leave_commits(&self, branch_name: &str) {
@@ -97,7 +98,7 @@ impl WorktreeHost for ScriptedWorktreeHost {
 
     async fn review_branch(&self, _: &Path, branch_name: &str, worktree_folder: Option<&Path>, _: &str) -> Result<Option<BranchReview>> {
         let known = self.worktrees.lock().expect("scripted host lock").iter().any(|worktree| worktree.branch == branch_name);
-        let dirty = self.dirty.lock().expect("scripted host lock").contains(branch_name);
+        let dirty = self.dirty.lock().expect("scripted host lock").contains_key(branch_name);
         let ahead = self.ahead.lock().expect("scripted host lock").contains(branch_name);
         let conflicting = self.conflicting.lock().expect("scripted host lock").contains(branch_name);
         Ok(known.then(|| BranchReview {
@@ -111,8 +112,8 @@ impl WorktreeHost for ScriptedWorktreeHost {
     }
 
     async fn status(&self, worktree: &Worktree) -> Result<WorktreeStatus> {
-        let dirty = self.dirty.lock().expect("scripted host lock").contains(&worktree.branch);
-        Ok(WorktreeStatus { has_unsaved_changes: dirty, commits_ahead: 0 })
+        let unsaved_files = self.dirty.lock().expect("scripted host lock").get(&worktree.branch).cloned().unwrap_or_default();
+        Ok(WorktreeStatus { unsaved_files, commits_ahead: 0 })
     }
 
     async fn merge_branch(&self, _: &Path, branch_name: &str, base: &str) -> Result<MergeOutcome> {

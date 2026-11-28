@@ -382,7 +382,7 @@ async fn accepting_a_task_whose_worktree_has_unsaved_changes_leaves_it_alone() {
     let task = world.task(&project, "one").await;
     let step = world.step(&task, "First", 0, TaskStepState::Claimed).await;
     let folder = worktrees.ensure(task.id).await.unwrap();
-    git.leave_unsaved_changes("rekall/one");
+    git.leave_unsaved_files("rekall/one", &["notes.txt"]);
     let _ = start_cleaner(&world, worktrees);
 
     world.services.steps.edit(step.id, StepEdit { done: Some(true), ..StepEdit::default() }).await.unwrap();

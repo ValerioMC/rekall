@@ -44,6 +44,7 @@ fn context_of(response: GuardContextResponse) -> GuardContext {
         auto_commit: response.auto_commit,
         merge: response.merge,
         running_step: response.running_step.map(|step| GuardRunningStep { number: step.number, task_anchor: step.task_anchor }),
+        late_changes: response.late_changes,
         protected_credential_references: response.protected_credential_references,
     }
 }

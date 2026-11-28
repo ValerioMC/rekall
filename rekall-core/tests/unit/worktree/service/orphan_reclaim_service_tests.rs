@@ -40,7 +40,8 @@ impl WorktreeHost for FakeHost {
 
     async fn status(&self, worktree: &Worktree) -> Result<WorktreeStatus> {
         let dirty = self.worktrees.iter().any(|(candidate, dirty)| candidate == worktree && *dirty);
-        Ok(WorktreeStatus { has_unsaved_changes: dirty, commits_ahead: 0 })
+        let unsaved_files = if dirty { vec!["notes.txt".to_string()] } else { Vec::new() };
+        Ok(WorktreeStatus { unsaved_files, commits_ahead: 0 })
     }
 }
 

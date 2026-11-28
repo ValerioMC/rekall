@@ -26,7 +26,7 @@ impl OrphanReclaimService {
             if active_branches.contains(&worktree.branch) {
                 continue;
             }
-            if self.host.status(&worktree).await?.has_unsaved_changes {
+            if self.host.status(&worktree).await?.has_unsaved_changes() {
                 warn!(branch = %worktree.branch, folder = %worktree.folder.display(), "Worktree left without a task still has unsaved changes");
                 report.kept_with_changes.push(worktree);
                 continue;

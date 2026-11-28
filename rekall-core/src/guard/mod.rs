@@ -8,6 +8,7 @@ mod service;
 
 pub use model::guard_context::GuardContext;
 pub use model::guard_event::GuardEvent;
+pub use model::guard_late_changes::GuardLateChanges;
 pub use model::guard_merge::GuardMerge;
 pub use model::guard_protection::{GuardProtection, GuardProtectionState};
 pub use port::guard_installer::GuardInstaller;

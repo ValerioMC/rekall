@@ -12,6 +12,8 @@ pub struct GuardContextResponse {
     #[serde(default)]
     pub merge: Option<rekall_core::guard::GuardMerge>,
     pub running_step: Option<RunningStepResponse>,
+    #[serde(default)]
+    pub late_changes: Option<rekall_core::guard::GuardLateChanges>,
     pub protected_credential_references: Vec<String>,
 }
 
@@ -22,6 +24,7 @@ impl From<GuardContextView> for GuardContextResponse {
             auto_commit: view.auto_commit,
             merge: view.merge,
             running_step: view.running_step.map(Into::into),
+            late_changes: view.late_changes,
             protected_credential_references: view.protected_credential_references,
         }
     }

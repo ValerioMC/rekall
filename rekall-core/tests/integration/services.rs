@@ -10,7 +10,8 @@ use std::path::{Path, PathBuf};
 use chrono::TimeDelta;
 use rekall_kernel::{Id, Instant};
 use rekall_store::TaskStepState;
-use rekall_core::commit::AutoCommitStatus;
+use rekall_core::commit::{AutoCommitStatus, StepClaim};
+use rekall_core::flow::RouteTarget;
 use rekall_core::component::ComponentReferences;
 use rekall_core::step::{NewStep, Staging, StepEdit};
 use rekall_core::timeentry::IDLE_AFTER;
@@ -449,6 +450,74 @@ async fn the_wrapup_of_a_worktree_task_with_no_steps_commits_every_modified_file
     assert!(outcome.left_out.is_empty());
     assert_eq!(git(&worktree, &["status", "--porcelain"]), "");
     git(repo.path(), &["worktree", "remove", "--force", &worktree.to_string_lossy()]);
+}
+
+fn claim<'a>(task: &'a rekall_store::task::Model, step: &'a str, outcome: Option<&'a str>) -> StepClaim<'a> {
+    StepClaim { project_label: None, task_code: &task.code, step, outcome, report: None, message: None }
+}
+
+#[tokio::test]
+async fn claiming_a_claimed_step_again_commits_the_late_file_stages_the_delivery_and_moves_nothing() {
+    let world = world().await;
+    let repo = ready_repo().await;
+    let mut project = world.project("vega", Some(&repo.path().to_string_lossy()), true).await;
+    project.pull_request_flow = true;
+    project.clone().into_active_model().reset_all().update(world.db()).await.unwrap();
+    let task = world.task(&project, "report-builder").await;
+    let step = world.step(&task, "First", 0, TaskStepState::Running).await;
+    let worktree = attach_worktree(&world, repo.path(), &task).await;
+    let (auto, flow) = (&world.services.auto_commit, &world.services.flow);
+    fs::write(worktree.join("export.ts"), "export").unwrap();
+    let (first, _) = auto.claim_step(flow, claim(&task, "1", None)).await.unwrap();
+    fs::write(worktree.join("config.json"), "late").unwrap();
+
+    let (again, outcome) = auto.claim_step(flow, claim(&task, "1", None)).await.unwrap();
+
+    assert_eq!(outcome.status, AutoCommitStatus::Committed);
+    assert_eq!(git(&worktree, &["show", "--name-only", "--format=", "HEAD"]), "config.json");
+    assert_eq!(git(&worktree, &["status", "--porcelain"]), "");
+    assert_eq!(outcome.reference.unwrap().step_id, Some(step.id));
+    assert_eq!(again.step.state, TaskStepState::Claimed);
+    assert_eq!(again.step.claimed_at, first.step.claimed_at);
+    let delivery = rekall_store::repository::task_pull_request::find_of_task(world.db(), task.id).await.unwrap().unwrap();
+    assert_eq!(delivery.delivery_version, 2);
+    git(repo.path(), &["worktree", "remove", "--force", &worktree.to_string_lossy()]);
+}
+
+#[tokio::test]
+async fn claiming_a_claimed_flow_step_again_adds_no_visit_and_follows_no_route() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "report-builder").await;
+    let build = world.step(&task, "Build", 0, TaskStepState::Open).await;
+    let deploy = world.step(&task, "Deploy", 1, TaskStepState::Open).await;
+    world.services.step_links.add(build.id, RouteTarget::Step(deploy.id), Some("built")).await.unwrap();
+    let (auto, flow) = (&world.services.auto_commit, &world.services.flow);
+    auto.claim_step(flow, claim(&task, "1", None)).await.unwrap();
+    auto.claim_step(flow, claim(&task, "2", None)).await.unwrap();
+    let visits_before = rekall_store::repository::step_visit::list_of_task(world.db(), task.id).await.unwrap();
+
+    let (again, _) = auto.claim_step(flow, claim(&task, "1", None)).await.unwrap();
+
+    assert!(again.route.is_none());
+    assert_eq!(rekall_store::repository::step_visit::list_of_task(world.db(), task.id).await.unwrap(), visits_before);
+    let deployed = rekall_store::repository::task_step::require(world.db(), deploy.id).await.unwrap();
+    assert_eq!(deployed.state, TaskStepState::Claimed);
+}
+
+#[tokio::test]
+async fn an_outcome_on_a_step_already_claimed_is_refused_because_nothing_moves() {
+    let world = world().await;
+    let project = world.project("vega", None, false).await;
+    let task = world.task(&project, "report-builder").await;
+    let build = world.step(&task, "Build", 0, TaskStepState::Open).await;
+    world.services.step_links.add(build.id, RouteTarget::End, Some("built")).await.unwrap();
+    let (auto, flow) = (&world.services.auto_commit, &world.services.flow);
+    auto.claim_step(flow, claim(&task, "1", None)).await.unwrap();
+
+    let refused = auto.claim_step(flow, claim(&task, "1", Some("built"))).await.unwrap_err().to_string();
+
+    assert!(refused.contains("already claimed"), "{refused}");
 }
 
 #[tokio::test]
