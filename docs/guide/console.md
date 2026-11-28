@@ -64,3 +64,27 @@ Every task row opens on the steps it closed inside the period, oldest first, wit
 
 The screen is built from the sessions the timer recorded. A session counts on the day it started; one still running counts up to now.
 
+## Provider report
+
+Open **Time → Provider report** for Claude Code and Codex figures across all companies and
+projects. **Overall** shows all time or a selected week, month or year. Tokens consumed adds
+input, cache write, cache read and output. A task's token chip shows output only, so its figure
+can be smaller.
+
+**By period** has its own Week, Month and Year control. Weeks run Monday through Sunday. Tokens
+and closures use UTC dates. Choose a row to see tasks that consumed tokens or closed in the
+period. For each task, compare its period tokens and all-time tokens, with a separate line for
+each provider that worked on it.
+
+Steps count as closed when accepted. Tasks count when they reach Done, using the latest step
+acceptance date or the task's own acceptance date. Epics are excluded from the task count.
+Closures without an acceptance date appear in **Date not recorded**, below the dated periods.
+Each closure goes to one of **Claude Code**, **Codex**, **Both**, or **Not recorded**, based on
+the token records for that step or task. A step accepted on an otherwise inactive task still
+counts in the period, while the task list follows task activity and task closures.
+
+Only sessions that followed a Rekall anchor contribute tokens. A task planned with one provider
+and built with the other receives **Both** credit. Each provider keeps its own tokens. Deleting
+a task removes its tokens and closures from the report. Older accepted tasks can carry the date of
+the update that gave them an acceptance record.
+

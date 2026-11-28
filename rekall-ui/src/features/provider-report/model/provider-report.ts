@@ -11,7 +11,7 @@ export const CLOSURE_CREDIT_LABEL: Readonly<Record<'BOTH' | 'NOT_RECORDED', stri
   NOT_RECORDED: 'Not recorded'
 }
 
-export type ReportTask = Pick<Task, 'id' | 'code' | 'title' | 'projectTitle' | 'companyName' | 'status' | 'kind' | 'acceptedAt'>
+export type ReportTask = Pick<Task, 'id' | 'code' | 'anchor' | 'title' | 'projectTitle' | 'companyName' | 'status' | 'kind' | 'acceptedAt'>
 export type ReportStep = Pick<TaskStep, 'id' | 'taskId' | 'state' | 'doneAt'>
 export type ProviderTokens = Readonly<Record<SessionProvider, TokenTotals>>
 export type ClosureCount = Readonly<{ tasks: number; steps: number }>

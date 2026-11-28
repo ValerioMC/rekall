@@ -9,7 +9,7 @@ import { asTaskId, asTaskStepId } from '@/model/branded'
 const spend = { inputTokens: 11, cacheCreationTokens: 23, cacheReadTokens: 37, outputTokens: 51 }
 
 function task(code: string, options: Partial<ReportTask> = {}): ReportTask {
-  return { id: asTaskId(code), code, title: code, companyName: 'Acme', projectTitle: 'Vega', kind: 'TASK', status: 'TODO', acceptedAt: null, ...options }
+  return { id: asTaskId(code), code, anchor: `task:${code}`, title: code, companyName: 'Acme', projectTitle: 'Vega', kind: 'TASK', status: 'TODO', acceptedAt: null, ...options }
 }
 
 function step(owner: ReportTask, id: string, doneAt: string, state: ReportStep['state'] = 'DONE'): ReportStep {
@@ -108,5 +108,18 @@ describe('provider report figures', () => {
     expect(periods.map((period) => [period.start, period.totalClosed.steps, period.tasks.length])).toEqual([
       ['2026-11-01', 1, 0], ['2026-10-01', 0, 0], ['2026-09-01', 0, 1]
     ])
+  })
+
+  it('counts closures without a recorded date and leaves them outside the UTC calendar', () => {
+    const closed = task('UNDATED', { status: 'DONE' })
+    const accepted = { ...step(closed, 'accepted', '2026-11-01T00:00:00Z'), doneAt: null }
+    const input = { tasks: [closed], steps: [accepted], tallies: [tally(closed, 'CLAUDE', accepted)], days: [] }
+    const { overall, periods } = buildProviderReport(input, 'month', '2026-11-01')
+
+    expect(overall.totalClosed).toEqual({ tasks: 1, steps: 1 })
+    expect(periods[0]?.totalClosed).toEqual({ tasks: 0, steps: 0 })
+    expect(periods.at(-1)).toMatchObject({
+      label: 'Date not recorded', totalClosed: { tasks: 1, steps: 1 }, tasks: [{ task: closed, closedAt: null }]
+    })
   })
 })

@@ -568,6 +568,7 @@ async fn a_refresh_on_any_ui_route_serves_the_application_and_an_unknown_api_pat
         format!("/projects/{random}"),
         "/tasks".into(),
         "/report".into(),
+        "/provider-report".into(),
         format!("/tasks/{random}"),
         "/search".into(),
         "/calendar".into(),

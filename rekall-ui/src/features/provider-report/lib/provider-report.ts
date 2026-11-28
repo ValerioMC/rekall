@@ -39,6 +39,8 @@ interface TaskHistory {
   readonly providers: readonly SessionProvider[]
 }
 
+type PeriodForDate = (date: string | null) => PeriodActivity
+
 export function tokensConsumed(tokens: TokenTotals): number {
   return tokens.input + tokens.cacheWrite + tokens.cacheRead + tokens.generated
 }
@@ -125,14 +127,14 @@ function recordLifetimeTokens(tallies: readonly TokenTally[], overall: TokenBuck
   return lifetime
 }
 
-function activityFor(period: PeriodActivity, taskId: TaskId, date: string): TaskActivity {
+function activityFor(period: PeriodActivity, taskId: TaskId, date: string | null): TaskActivity {
   const activity = period.tasks.get(taskId) ?? { tokens: emptyTokens(), stepsClosed: 0, included: false, latestAt: 0 }
-  activity.latestAt = Math.max(activity.latestAt, Date.parse(date))
+  if (date) activity.latestAt = Math.max(activity.latestAt, Date.parse(date))
   period.tasks.set(taskId, activity)
   return activity
 }
 
-function recordDays(days: readonly TokenDay[], taskId: TaskId, periodFor: (date: string) => PeriodActivity): void {
+function recordDays(days: readonly TokenDay[], taskId: TaskId, periodFor: PeriodForDate): void {
   for (const day of days) {
     const period = periodFor(day.day)
     const activity = activityFor(period, taskId, day.day)
@@ -144,10 +146,10 @@ function recordDays(days: readonly TokenDay[], taskId: TaskId, periodFor: (date:
 
 function recordStepClosures(
   steps: readonly ReportStep[], tallies: readonly TokenTally[], overall: ClosureBuckets,
-  periodFor: (date: string) => PeriodActivity
+  periodFor: PeriodForDate
 ): void {
   for (const step of steps) {
-    if (step.state !== 'DONE' || !step.doneAt) continue
+    if (step.state !== 'DONE') continue
     const credit = closureCredit(recordedProviders(tallies.filter((tally) => tally.stepId === step.id)))
     const period = periodFor(step.doneAt)
     overall[credit].steps++
@@ -156,8 +158,8 @@ function recordStepClosures(
   }
 }
 
-function recordTaskClosure(history: TaskHistory, overall: ClosureBuckets, periodFor: (date: string) => PeriodActivity): void {
-  if (!history.closedAt) return
+function recordTaskClosure(history: TaskHistory, overall: ClosureBuckets, periodFor: PeriodForDate): void {
+  if (history.task.kind === 'EPIC' || history.task.status !== 'DONE') return
   const credit = closureCredit(history.providers)
   const period = periodFor(history.closedAt)
   overall[credit].tasks++
@@ -186,7 +188,7 @@ function taskRows(period: PeriodActivity, historyByTask: ReadonlyMap<TaskId, Tas
 }
 
 function listPeriods(
-  grouping: CalendarPeriod, today: string, byStart: ReadonlyMap<string, PeriodActivity>,
+  grouping: CalendarPeriod, today: string, byStart: ReadonlyMap<string, PeriodActivity>, undated: PeriodActivity,
   historyByTask: ReadonlyMap<TaskId, TaskHistory>
 ): ProviderReportPeriod[] {
   const boundaries = [...byStart.keys(), utcPeriodStart(grouping, today)].sort()
@@ -196,6 +198,10 @@ function listPeriods(
     const activity = byStart.get(start) ?? newPeriod()
     periods.push({ start, label: periodLabel(grouping, start), ...figures(activity.tokens, activity.closures), tasks: taskRows(activity, historyByTask) })
   }
+  const missingDates = figures(undated.tokens, undated.closures)
+  if (missingDates.totalClosed.tasks || missingDates.totalClosed.steps) {
+    periods.push({ start: 'undated', label: 'Date not recorded', ...missingDates, tasks: taskRows(undated, historyByTask) })
+  }
   return periods
 }
 
@@ -203,12 +209,14 @@ export function buildProviderReport(input: ProviderReportInput, grouping: Calend
   const tokens = emptyTokens()
   const closures = emptyClosures()
   const byStart = new Map<string, PeriodActivity>()
+  const undated = newPeriod()
   const historyByTask = new Map<TaskId, TaskHistory>()
   const taskSteps = taskIndex(input.steps)
   const taskTallies = taskIndex(input.tallies)
   const taskDays = taskIndex(input.days)
 
-  function periodFor(date: string): PeriodActivity {
+  function periodFor(date: string | null): PeriodActivity {
+    if (date === null) return undated
     const start = utcPeriodStart(grouping, date)
     const period = byStart.get(start) ?? newPeriod()
     byStart.set(start, period)
@@ -227,5 +235,5 @@ export function buildProviderReport(input: ProviderReportInput, grouping: Calend
     recordStepClosures(steps, tallies, closures, periodFor)
     recordTaskClosure(history, closures, periodFor)
   }
-  return { overall: figures(tokens, closures), periods: listPeriods(grouping, today, byStart, historyByTask) }
+  return { overall: figures(tokens, closures), periods: listPeriods(grouping, today, byStart, undated, historyByTask) }
 }

@@ -40,6 +40,11 @@ export const router = createRouter({
       component: () => import('@/features/time/components/ReportPage.vue')
     },
     {
+      path: '/provider-report',
+      name: 'provider-report',
+      component: () => import('@/features/provider-report/components/ProviderReportPage.vue')
+    },
+    {
       path: '/diagrams',
       name: 'diagrams',
       component: () => import('@/features/diagram/components/DiagramsPage.vue')
