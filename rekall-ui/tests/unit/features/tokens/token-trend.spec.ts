@@ -4,6 +4,7 @@ import type { TaskId } from '@/model/branded'
 import type { TokenDay } from '@/features/tokens/model/token-usage'
 
 const day = (taskId: string, on: string, outputTokens: number): TokenDay => ({
+  provider: 'CLAUDE',
   taskId: taskId as TaskId,
   day: on,
   inputTokens: 0,
@@ -90,6 +91,12 @@ describe('chart helpers', () => {
 })
 
 describe('trendOf', () => {
+  it('adds both providers for a task on the same day', () => {
+    const days: TokenDay[] = [day('t1', '2026-10-04', 3), { ...day('t1', '2026-10-04', 4), provider: 'CODEX' }]
+
+    expect(taskTrend(days, T1, 'all', '2026-10-04').at(-1)).toEqual({ day: '2026-10-04', generated: 7, cumulative: 7 })
+  })
+
   it('adds up several tasks on the same day and ignores the rest', () => {
     const days = [day('t1', '2026-10-04', 3), day('t2', '2026-10-04', 4), day('t3', '2026-10-04', 100)]
 

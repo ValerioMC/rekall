@@ -21,3 +21,8 @@ const CODEX_SESSION_PREFIX: &str = "codex:";
 pub fn codex_session_key(session_id: &str) -> String {
     format!("{CODEX_SESSION_PREFIX}{session_id}")
 }
+
+fn session_provider(session_id: &str) -> rekall_store::SessionProvider {
+    use rekall_store::SessionProvider::{Claude, Codex};
+    if session_id.starts_with(CODEX_SESSION_PREFIX) { Codex } else { Claude }
+}

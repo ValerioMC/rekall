@@ -19,7 +19,7 @@ function tally(taskId: string, stepId: string | null, outputTokens: number): Tok
 }
 
 function day(taskId: string, on: string, outputTokens: number): TokenDay {
-  return { taskId: taskId as TaskId, day: on, inputTokens: 0, outputTokens, cacheCreationTokens: 0, cacheReadTokens: 0 }
+  return { taskId: taskId as TaskId, day: on, provider: 'CLAUDE', inputTokens: 0, outputTokens, cacheCreationTokens: 0, cacheReadTokens: 0 }
 }
 
 describe('the token usage store', () => {

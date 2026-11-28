@@ -19,6 +19,7 @@ const tally = (outputTokens: number): TokenTally => ({
 })
 
 const day = (on: string, outputTokens: number): TokenDay => ({
+  provider: 'CLAUDE',
   taskId: TASK.id,
   day: on,
   inputTokens: 0,

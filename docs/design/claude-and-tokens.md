@@ -60,7 +60,9 @@ session transcripts under `~/.claude/projects`, where every model call carries i
 
 The figure the console shows is output tokens, what the model generated; input, cache write and
 cache read are kept beside it and shown in the tooltip. `GET /api/token-usage` returns one tally per
-task and step, `GET /api/token-usage/daily` one entry per task and day, and `useTokenUsageStore`
+task, optional step and provider. `GET /api/token-usage/daily` and the `token-usage` event carry one
+daily entry per task, UTC day and provider. A session id starting with `codex:` identifies Codex.
+Task and project trends sum both providers on each day. `useTokenUsageStore`
 sums a project from its tasks in the browser, so no total is stored that could disagree with its
 parts. A task's header (`TaskTitleRow`) holds the name, its status flags, `CopyAnchorButton` and the
 token chip in the panes that still use it; on the task page the properties bar (`TaskRail`) holds

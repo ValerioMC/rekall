@@ -3,17 +3,19 @@ import type { Task } from '@/features/catalog/model/catalog'
 import { SESSION_PROVIDERS } from '@/features/claude/model/session-provider'
 import { NO_TOKENS, type ProviderTokenTally, type TokenDay, type TokenTally, type TokenTotals } from '@/features/tokens/model/token-usage'
 
-function summed(tallies: Iterable<TokenTally>): TokenTotals {
-  let totals = NO_TOKENS
-  for (const tally of tallies) {
-    totals = {
-      generated: totals.generated + tally.outputTokens,
-      input: totals.input + tally.inputTokens,
-      cacheWrite: totals.cacheWrite + tally.cacheCreationTokens,
-      cacheRead: totals.cacheRead + tally.cacheReadTokens
-    }
+type TokenSpend = Pick<TokenTally, 'outputTokens' | 'inputTokens' | 'cacheCreationTokens' | 'cacheReadTokens'>
+
+export function addTokenSpend(totals: TokenTotals, spend: TokenSpend): TokenTotals {
+  return {
+    generated: totals.generated + spend.outputTokens,
+    input: totals.input + spend.inputTokens,
+    cacheWrite: totals.cacheWrite + spend.cacheCreationTokens,
+    cacheRead: totals.cacheRead + spend.cacheReadTokens
   }
-  return totals
+}
+
+function summed(tallies: readonly TokenTally[]): TokenTotals {
+  return tallies.reduce(addTokenSpend, NO_TOKENS)
 }
 
 export function tokensByProvider(tallies: readonly TokenTally[]): ProviderTokenTally[] {

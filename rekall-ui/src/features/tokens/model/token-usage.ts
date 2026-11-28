@@ -12,10 +12,11 @@ export interface TokenTally {
   readonly cacheReadTokens: number
 }
 
-/** A task's tokens on one UTC day, `YYYY-MM-DD`, over all its steps and sessions. */
+/** A provider's tokens on one UTC day, `YYYY-MM-DD`, over all the task's steps. */
 export interface TokenDay {
   readonly taskId: TaskId
   readonly day: string
+  readonly provider: SessionProvider
   readonly inputTokens: number
   readonly outputTokens: number
   readonly cacheCreationTokens: number

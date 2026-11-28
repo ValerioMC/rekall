@@ -1,7 +1,7 @@
 use rekall_kernel::Id;
 use rekall_store::{token_usage, SessionProvider};
 
-use crate::token::CODEX_SESSION_PREFIX;
+use crate::token::session_provider;
 use serde::Serialize;
 
 /// A provider's tokens on one step or directly on a task.
@@ -22,7 +22,7 @@ impl TokenTallyView {
     pub fn summed(rows: &[token_usage::Model]) -> Vec<Self> {
         let mut tallies: Vec<Self> = Vec::new();
         for row in rows {
-            let provider = if row.session_id.starts_with(CODEX_SESSION_PREFIX) { SessionProvider::Codex } else { SessionProvider::Claude };
+            let provider = session_provider(&row.session_id);
             let at = match tallies.iter().position(|t| t.task_id == row.task_id && t.step_id == row.step_id && t.provider == provider) {
                 Some(at) => at,
                 None => {
