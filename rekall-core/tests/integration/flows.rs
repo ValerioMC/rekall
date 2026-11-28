@@ -253,7 +253,6 @@ async fn a_route_to_the_end_finishes_the_flow_with_its_outcome() {
     let pipeline = pipeline(&world).await;
     world.services.step_links.add(pipeline.test.id, RouteTarget::End, Some("passed")).await.unwrap();
 
-    claim(&world, "Test", Some("passed")).await;
     let finished = claim(&world, "Test", Some("passed")).await;
 
     let Some(FlowRoute::Ended { outcome }) = finished.route else { panic!("expected the flow to end") };

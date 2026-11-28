@@ -6,18 +6,16 @@ use rekall_core::claude::{Remaining, SessionKind, SessionProvider, TaskWorkServi
 use rekall_core::review::TaskReviewEvent;
 use rekall_core::step::StepStreamEvent;
 use rekall_core::worktree::{Merge, PullRequestLanding, Release, TaskPullRequestService, TaskWorktreeService};
-use rekall_core::{EventBus, PublishedEvent};
+use rekall_core::{named_uncommitted_files, EventBus, PublishedEvent};
 use rekall_kernel::Id;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{info, warn};
 
 const MERGE_SESSION_CLOSED: &str = "The branch is merged.";
 
-/// Opens the pull request of a task whose work is claimed, on a project with the pull request flow
-/// on. Merges a task's branch into the project and then takes its worktree away, once all of its work
-/// is accepted. A branch that conflicts gets a `merge` session that resolves it in the task's
-/// worktree; the merge is retried on every tick until it goes through. A merged task is closed. Unsaved changes and a
-/// merge git refuses are left alone and logged. The branch with its commits always stays.
+/// Opens the pull request of a claimed task, merges an accepted task's branch and removes its
+/// worktree. A conflict gets a `merge` session; it and a merge waiting for a clean worktree are
+/// retried on every tick. Rekall commits nothing here, and the local branch stays.
 pub struct WorktreeCleaner;
 
 impl WorktreeCleaner {
@@ -25,7 +23,7 @@ impl WorktreeCleaner {
     /// the conflicts being resolved every `check_every`.
     pub fn start(events: &EventBus, work: TaskWorkService, worktrees: TaskWorktreeService, pull_requests: TaskPullRequestService, terminals: Arc<dyn TerminalHost>, check_every: Duration) {
         let mut bus = events.subscribe();
-        let mut cleaner = Cleaner { work, worktrees, pull_requests, terminals, resolutions: HashMap::new() };
+        let mut cleaner = Cleaner { work, worktrees, pull_requests, terminals, resolutions: HashMap::new(), held_back: HashMap::new() };
         tokio::spawn(async move {
             let mut clock = tokio::time::interval_at(tokio::time::Instant::now() + check_every, check_every);
             loop {
@@ -59,6 +57,8 @@ struct Cleaner {
     pull_requests: TaskPullRequestService,
     terminals: Arc<dyn TerminalHost>,
     resolutions: HashMap<Id, Resolution>,
+    /// The uncommitted files last logged for each task, so a retry that finds the same ones stays quiet.
+    held_back: HashMap<Id, Vec<String>>,
 }
 
 impl Cleaner {
@@ -94,6 +94,7 @@ impl Cleaner {
             Ok(state) if state.remaining == Remaining::Accepted => self.bring_in(task_id).await,
             Ok(_) => {
                 self.resolutions.remove(&task_id);
+                self.held_back.remove(&task_id);
             }
             Err(failure) => warn!(%failure, %task_id, "Could not read a task to see whether its worktree can go"),
         }
@@ -113,6 +114,7 @@ impl Cleaner {
             }
             Ok(PullRequestLanding::NothingToMerge) => self.finish(task_id).await,
             Ok(PullRequestLanding::Conflicting { base }) => self.resolve_conflict(task_id, "the pull request conflicts with its base branch", TerminalMode::MergePullRequest { base }).await,
+            Ok(PullRequestLanding::KeptWithChanges(files)) => self.note_uncommitted_files(task_id, files),
             Ok(PullRequestLanding::Refused(reason)) => warn!(%reason, %task_id, "Accepted task's pull request was not merged; the worktree stays"),
             Err(failure) => warn!(%failure, %task_id, "Could not merge the pull request of an accepted task; it is tried again when the task moves"),
         }
@@ -126,17 +128,19 @@ impl Cleaner {
                 self.finish(task_id).await;
             }
             Ok(Merge::AlreadyMerged | Merge::NothingToMerge) => self.finish(task_id).await,
-            Ok(Merge::KeptWithChanges) => self.note_unsaved_changes(task_id),
+            Ok(Merge::KeptWithChanges(files)) => self.note_uncommitted_files(task_id, files),
             Ok(Merge::Conflicts(reason)) => self.resolve_conflict(task_id, &reason, TerminalMode::Merge).await,
             Ok(Merge::Refused(reason)) => warn!(%reason, %task_id, "Accepted task's branch was not merged; the worktree stays"),
             Err(failure) => warn!(%failure, %task_id, "Could not merge the branch of an accepted task"),
         }
     }
 
-    fn note_unsaved_changes(&self, task_id: Id) {
-        if !self.resolutions.contains_key(&task_id) {
-            info!(%task_id, "Accepted task's branch is not merged: its worktree has unsaved changes");
+    fn note_uncommitted_files(&mut self, task_id: Id, files: Vec<String>) {
+        if self.resolutions.contains_key(&task_id) || self.held_back.get(&task_id) == Some(&files) {
+            return;
         }
+        info!(%task_id, files = %named_uncommitted_files(&files), "Accepted task's branch is not merged: its worktree has uncommitted files");
+        self.held_back.insert(task_id, files);
     }
 
     async fn resolve_conflict(&mut self, task_id: Id, reason: &str, mode: TerminalMode) {
@@ -178,6 +182,7 @@ impl Cleaner {
     }
 
     async fn finish(&mut self, task_id: Id) {
+        self.held_back.remove(&task_id);
         if let Some(Resolution::Running(session_id)) = self.resolutions.remove(&task_id) {
             self.terminals.close(session_id, MERGE_SESSION_CLOSED).await;
         }

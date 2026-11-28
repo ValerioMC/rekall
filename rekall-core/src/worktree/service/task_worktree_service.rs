@@ -25,8 +25,8 @@ pub enum Merge {
     Merged,
     /// The branch holds nothing the project's `HEAD` lacks.
     AlreadyMerged,
-    /// The worktree has unsaved changes, so the branch is not the whole work yet.
-    KeptWithChanges,
+    /// The worktree holds these uncommitted files, so the branch is not the whole work yet; the merge is tried again until it is clean.
+    KeptWithChanges(Vec<String>),
     /// `merge-tree` says the branch conflicts with the project's `HEAD`; nothing was changed.
     Conflicts(String),
     /// git refused the merge; nothing was changed.
@@ -127,9 +127,8 @@ impl TaskWorktreeService {
             return Ok(Release::NoWorktree);
         }
         let Some(project_folder) = project_folder else { return Ok(Release::NoWorktree) };
-        if let Some(folder) = self.registered_folder(&task, Path::new(&project_folder)).await? {
-            let worktree = Worktree { project_folder: PathBuf::from(project_folder), folder, branch: self.layout.branch_for(&task.label)? };
-            if self.host.status(&worktree).await?.has_unsaved_changes {
+        if let Some(worktree) = self.registered_worktree(&task, &project_folder).await? {
+            if self.host.status(&worktree).await?.has_unsaved_changes() {
                 return Ok(Release::KeptWithChanges);
             }
             self.host.remove(&worktree).await?;
@@ -138,13 +137,28 @@ impl TaskWorktreeService {
         Ok(Release::Removed)
     }
 
+    /// The files of the task's worktree no commit holds yet; none when it has no worktree.
+    pub async fn unsaved_files(&self, task_id: Id) -> Result<Vec<String>> {
+        let Site { task, project_folder, .. } = self.read(task_id).await?;
+        let Some(project_folder) = project_folder else { return Ok(Vec::new()) };
+        let Some(worktree) = self.registered_worktree(&task, &project_folder).await? else { return Ok(Vec::new()) };
+        Ok(self.host.status(&worktree).await?.unsaved_files)
+    }
+
     /// Merges the task's branch into the project's main branch once its work is accepted (the
     /// folder's current branch when the project names none). A branch with unsaved work in its
     /// worktree, or one that conflicts, is left as it is.
     pub async fn merge_accepted(&self, task_id: Id) -> Result<Merge> {
+        let merge = self.bring_in(task_id).await?;
+        let waits = matches!(merge, Merge::KeptWithChanges(_));
+        in_write!(&self.ctx, |tx| repo::task::keep_merge_waiting(tx.db(), task_id, waits, self.ctx.now()).await)?;
+        Ok(merge)
+    }
+
+    async fn bring_in(&self, task_id: Id) -> Result<Merge> {
         let Some(review) = self.review_branch(task_id).await? else { return Ok(Merge::NothingToMerge) };
         if review.has_unsaved_changes {
-            return Ok(Merge::KeptWithChanges);
+            return Ok(Merge::KeptWithChanges(self.unsaved_files(task_id).await?));
         }
         if review.commits_ahead == 0 {
             return Ok(Merge::AlreadyMerged);
@@ -224,6 +238,11 @@ impl TaskWorktreeService {
         let Some(folder) = task.worktree_folder.as_deref().map(PathBuf::from).filter(|folder| folder.is_dir()) else { return Ok(None) };
         let listed = self.host.list(project_folder).await?;
         Ok(listed.iter().any(|worktree| worktree.folder == folder).then_some(folder))
+    }
+
+    async fn registered_worktree(&self, task: &rekall_store::task::Model, project_folder: &str) -> Result<Option<Worktree>> {
+        let Some(folder) = self.registered_folder(task, Path::new(project_folder)).await? else { return Ok(None) };
+        Ok(Some(Worktree { project_folder: PathBuf::from(project_folder), folder, branch: self.layout.branch_for(&task.label)? }))
     }
 
     async fn forget_missing_folders(&self) -> Result<()> {

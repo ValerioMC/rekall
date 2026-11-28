@@ -7,7 +7,7 @@ use crate::{in_write, load, text_rule, Ctx, Tx};
 
 /// A session's move through a task's steps, routed when the task is a flow: a start enters the
 /// step, a claim leaves it by its outcome and opens the step that outcome leads to. On a plain
-/// checklist it is the step move and nothing else.
+/// checklist it is the step move alone. Claiming a claimed step again moves nothing.
 #[derive(Clone)]
 pub struct FlowService {
     ctx: Ctx,
@@ -49,6 +49,10 @@ impl FlowService {
         let is_flow = self.links.is_flow_in(tx, task.id).await?;
         let outcome = outcome_for(is_flow, target, outcome)?;
         let report = report_for(is_flow, target, report)?;
+        let claimed_again = self.is_repeated_claim_in(tx, task.id, step_ref, target).await?;
+        if claimed_again {
+            refuse_route_of_repeated_claim(outcome.as_deref(), report.as_deref())?;
+        }
         let started = self.is_start_in(tx, task.id, step_ref, target).await?;
         let moved = self.steps.transition_in(tx, &task, step_ref, target).await?;
         let route = match (is_flow, target) {
@@ -56,7 +60,7 @@ impl FlowService {
                 self.visits.enter_in(tx, &moved).await?;
                 None
             }
-            (true, TaskStepState::Claimed) => Some(self.leave_by(tx, &moved, outcome.as_deref(), report).await?),
+            (true, TaskStepState::Claimed) if !claimed_again => Some(self.leave_by(tx, &moved, outcome.as_deref(), report).await?),
             _ => None,
         };
         self.steps.publish_in(tx, task.id).await?;
@@ -68,6 +72,13 @@ impl FlowService {
             return Ok(false);
         }
         Ok(load::resolve_step(tx.db(), task_id, step_ref).await?.state != TaskStepState::Running)
+    }
+
+    async fn is_repeated_claim_in(&self, tx: &Tx, task_id: Id, step_ref: Option<&str>, target: TaskStepState) -> Result<bool> {
+        if target != TaskStepState::Claimed {
+            return Ok(false);
+        }
+        Ok(load::resolve_step(tx.db(), task_id, step_ref).await?.state == TaskStepState::Claimed)
     }
 
     /// Forgets where the flow went: every visit is dropped and the counts start from zero. The
@@ -100,6 +111,15 @@ impl FlowService {
         self.visits.enter_in(tx, &next).await?;
         self.steps.view_in(tx, &next).await
     }
+}
+
+fn refuse_route_of_repeated_claim(outcome: Option<&str>, report: Option<&str>) -> Result<()> {
+    if outcome.is_none() && report.is_none() {
+        return Ok(());
+    }
+    Err(RekallError::illegal(
+        "That step is already claimed, so nothing moves: claim it again without an outcome or a report. Nothing was moved.",
+    ))
 }
 
 /// The outcome to route by, normalised. It belongs to a claim on a flow; anywhere else it would

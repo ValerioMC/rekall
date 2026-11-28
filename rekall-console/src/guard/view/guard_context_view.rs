@@ -8,5 +8,6 @@ pub struct GuardContextView {
     pub auto_commit: bool,
     pub merge: Option<rekall_core::guard::GuardMerge>,
     pub running_step: Option<RunningStepView>,
+    pub late_changes: Option<rekall_core::guard::GuardLateChanges>,
     pub protected_credential_references: Vec<String>,
 }

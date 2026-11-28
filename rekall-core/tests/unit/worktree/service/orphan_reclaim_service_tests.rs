@@ -34,13 +34,18 @@ impl WorktreeHost for FakeHost {
         unreachable!("reclaiming never merges")
     }
 
+    async fn origin_lacks_commits(&self, _: &Path, _: &str) -> Result<bool> {
+        unreachable!("reclaiming never pushes")
+    }
+
     async fn push_branch(&self, _: &Path, _: &str) -> Result<PushOutcome> {
         unreachable!("reclaiming never pushes")
     }
 
     async fn status(&self, worktree: &Worktree) -> Result<WorktreeStatus> {
         let dirty = self.worktrees.iter().any(|(candidate, dirty)| candidate == worktree && *dirty);
-        Ok(WorktreeStatus { has_unsaved_changes: dirty, commits_ahead: 0 })
+        let unsaved_files = if dirty { vec!["notes.txt".to_string()] } else { Vec::new() };
+        Ok(WorktreeStatus { unsaved_files, commits_ahead: 0 })
     }
 }
 

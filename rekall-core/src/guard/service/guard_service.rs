@@ -4,6 +4,7 @@ use crate::guard::model::guard_context::GuardContext;
 use crate::guard::model::guard_event::GuardEvent;
 use crate::guard::model::guard_verdict::GuardVerdict;
 use crate::guard::rule::shell_command::{git_subcommands, is_resolution_command};
+use crate::named_uncommitted_files;
 
 const SUBCOMMANDS_REKALL_RUNS: [&str; 3] = ["commit", "push", "add"];
 
@@ -61,12 +62,33 @@ fn manual_git_refusal(command: &str, context: &GuardContext) -> Option<String> {
 }
 
 fn refusal_before_stop(context: &GuardContext) -> Option<String> {
+    unclaimed_step_refusal(context).or_else(|| late_changes_refusal(context))
+}
+
+fn unclaimed_step_refusal(context: &GuardContext) -> Option<String> {
     let step = context.running_step.as_ref()?;
     let number = step.number;
     let task = &step.task_anchor;
     Some(format!(
         "Step {number} on {task} is still running and was never claimed. Claim it with `/rk {task} step:{number} done`, \
          or tell the user why it cannot be claimed."
+    ))
+}
+
+fn late_changes_refusal(context: &GuardContext) -> Option<String> {
+    if !context.auto_commit {
+        return None;
+    }
+    let late = context.late_changes.as_ref().filter(|late| !late.files.is_empty())?;
+    let task = &late.task_anchor;
+    let claim_again = match late.step_to_claim {
+        Some(number) => format!("Claim step {number} again with `/rk {task} step:{number} done`"),
+        None => format!("Write the wrapup again with `/rk {task} wrapup`"),
+    };
+    Some(format!(
+        "All the work on {task} is claimed, but its worktree still holds {}. {claim_again} and Rekall commits them, \
+         or delete the ones that should not be kept.",
+        named_uncommitted_files(&late.files)
     ))
 }
 

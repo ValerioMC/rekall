@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use rekall_core::commit::{run_git, run_git_with_environment, GitResult};
+use rekall_core::commit::{run_git, run_git_with_environment, GitCommitter, GitResult};
 use rekall_core::worktree::{parse_listing, BranchReview, MergeOutcome, PushOutcome, Worktree, WorktreeHost, WorktreeLayout, WorktreeStatus};
 use rekall_kernel::{RekallError, Result};
 use tracing::{debug, warn};
@@ -75,8 +75,11 @@ impl GitWorktreeHost {
     }
 
     async fn branch_exists(&self, project_folder: &Path, branch_name: &str) -> Result<bool> {
-        let reference = format!("refs/heads/{branch_name}");
-        let answer = run_git(project_folder, &["rev-parse", "--verify", "--quiet", &reference], None, READ_TIMEOUT).await?;
+        self.reference_exists(project_folder, &format!("refs/heads/{branch_name}")).await
+    }
+
+    async fn reference_exists(&self, project_folder: &Path, reference: &str) -> Result<bool> {
+        let answer = run_git(project_folder, &["rev-parse", "--verify", "--quiet", reference], None, READ_TIMEOUT).await?;
         Ok(answer.ok())
     }
 
@@ -154,7 +157,7 @@ impl WorktreeHost for GitWorktreeHost {
     }
 
     async fn status(&self, worktree: &Worktree) -> Result<WorktreeStatus> {
-        let changes = self.git(&worktree.folder, &["status", "--porcelain"], READ_TIMEOUT).await?;
+        let changes = GitCommitter.pending_changes(&worktree.folder).await?;
         let base = self.git(&worktree.project_folder, &["rev-parse", "HEAD"], READ_TIMEOUT).await?;
         let range = format!("{}..HEAD", base.output());
         let ahead = self.git(&worktree.folder, &["rev-list", "--count", &range], READ_TIMEOUT).await?;
@@ -162,7 +165,7 @@ impl WorktreeHost for GitWorktreeHost {
             .output()
             .parse()
             .map_err(|_| RekallError::illegal(format!("git did not answer a number of commits: '{}'.", ahead.output())))?;
-        Ok(WorktreeStatus { has_unsaved_changes: !changes.output().is_empty(), commits_ahead })
+        Ok(WorktreeStatus { unsaved_files: changes.into_iter().map(|change| change.path).collect(), commits_ahead })
     }
 
     async fn merge_branch(&self, project_folder: &Path, branch_name: &str, base: &str) -> Result<MergeOutcome> {
@@ -181,6 +184,17 @@ impl WorktreeHost for GitWorktreeHost {
         }
         let reason = [answer.error(), answer.output()].into_iter().find(|text| !text.is_empty()).unwrap_or("git refused the merge");
         Ok(MergeOutcome::Refused(reason.to_string()))
+    }
+
+    async fn origin_lacks_commits(&self, project_folder: &Path, branch_name: &str) -> Result<bool> {
+        self.layout.require_branch(branch_name)?;
+        let tracked = format!("refs/remotes/origin/{branch_name}");
+        if !self.reference_exists(project_folder, &tracked).await? {
+            return Ok(true);
+        }
+        let range = format!("{tracked}..refs/heads/{branch_name}");
+        let unsent = self.git(project_folder, &["rev-list", "--count", &range], READ_TIMEOUT).await?;
+        Ok(unsent.output() != "0")
     }
 
     async fn push_branch(&self, project_folder: &Path, branch_name: &str) -> Result<PushOutcome> {

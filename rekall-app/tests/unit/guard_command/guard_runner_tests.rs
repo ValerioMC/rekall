@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rekall_core::guard::GuardLateChanges;
 use rekall_http::guard::RunningStepResponse;
 
 use super::*;
@@ -21,6 +22,7 @@ fn context(auto_commit: bool, running_step_number: Option<u32>) -> FakeRekall {
         auto_commit,
         merge: None,
         running_step: running_step_number.map(|number| RunningStepResponse { number, task_anchor: "task:VE-12".into() }),
+        late_changes: None,
         protected_credential_references: vec![CREDENTIAL_FILE.into()],
     }))
 }
@@ -78,6 +80,23 @@ async fn a_second_stop_after_the_block_is_let_through_so_the_session_can_explain
     let input = r#"{"cwd":"/work/vega","hook_event_name":"Stop","stop_hook_active":true}"#;
 
     assert_eq!(run_claude(GuardMode::BeforeStop, input, &context(false, Some(3))).await, GuardOutcome::allow());
+}
+
+fn left_uncommitted(file: &str) -> FakeRekall {
+    let Ok(response) = context(true, None).0 else { unreachable!("the fake context answers") };
+    let late_changes = GuardLateChanges { task_anchor: "task:VE-12".into(), files: vec![file.into()], step_to_claim: Some(2) };
+    FakeRekall(Ok(GuardContextResponse { late_changes: Some(late_changes), ..response }))
+}
+
+#[tokio::test]
+async fn stopping_with_uncommitted_files_is_refused_once_and_names_them() {
+    let first = run_claude(GuardMode::BeforeStop, r#"{"cwd":"/work/vega","hook_event_name":"Stop"}"#, &left_uncommitted("config.json")).await;
+    let follow_up = r#"{"cwd":"/work/vega","hook_event_name":"Stop","stop_hook_active":true}"#;
+
+    assert_eq!(first.exit_code, 2);
+    let refusal = first.stderr.unwrap();
+    assert!(refusal.contains("config.json") && refusal.contains("step:2 done"), "{refusal}");
+    assert_eq!(run_claude(GuardMode::BeforeStop, follow_up, &left_uncommitted("config.json")).await, GuardOutcome::allow());
 }
 
 #[tokio::test]

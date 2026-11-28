@@ -44,6 +44,8 @@ pub struct Model {
     /// The git worktree the run queue gave the task; absent means it works in its project's folder.
     pub worktree_folder: Option<String>,
     pub last_work_provider: Option<crate::SessionProvider>,
+    /// The work is accepted and uncommitted files in the worktree are all that keeps its branch from being merged.
+    pub merge_awaits_clean_worktree: bool,
     /// The issue the project's task manager holds for this task: Jira's key, GitLab's `iid` or GitHub's number.
     pub created_at: Instant,
     pub updated_at: Instant,
@@ -136,6 +138,7 @@ impl Model {
             auto_accepted: false,
             worktree_folder: None,
             last_work_provider: None,
+            merge_awaits_clean_worktree: false,
             created_at: now,
             updated_at: now,
         }
@@ -180,8 +183,12 @@ impl Model {
 
     /// Where this task's files are: its worktree while it has one, else the project's folder.
     pub fn work_folder<'a>(&'a self, project: &'a crate::project::Model) -> Option<&'a str> {
-        let own = self.worktree_folder.as_deref().filter(|folder| !rekall_kernel::jstr::is_blank(folder));
-        own.or_else(|| project.repo_folder.as_deref().filter(|folder| !rekall_kernel::jstr::is_blank(folder)))
+        self.own_worktree().or_else(|| project.repo_folder.as_deref().filter(|folder| !rekall_kernel::jstr::is_blank(folder)))
+    }
+
+    /// The checkout that belongs to this task alone, so whatever is modified there is its work.
+    pub fn own_worktree(&self) -> Option<&str> {
+        self.worktree_folder.as_deref().filter(|folder| !rekall_kernel::jstr::is_blank(folder))
     }
 
     pub fn is_epic(&self) -> bool {

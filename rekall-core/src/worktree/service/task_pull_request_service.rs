@@ -5,7 +5,7 @@ use std::sync::Arc;
 use rekall_kernel::{jstr, Id, InternalFailure, RekallError, Result};
 use rekall_store::repository as repo;
 use rekall_store::task_pull_request::FAILURE_MAX_CHARACTERS;
-use rekall_store::{task, task_pull_request, TaskKind};
+use rekall_store::{task, task_pull_request, TaskKind, TaskStatus};
 use sea_orm::{ActiveModelTrait, IntoActiveModel, Set};
 use tracing::{info, warn};
 
@@ -15,7 +15,7 @@ use crate::connection::{PullRequest, PullRequestHost, PullRequestMerge, TaskTrac
 use crate::worktree::rule::request_noun::request_noun;
 use crate::worktree::PullRequestChanged;
 use crate::worktree::{pull_request_body, PullRequestLanding, PushOutcome, StepCommit, Worktree, WorktreeHost, WorktreeLayout};
-use crate::{in_read, in_write, load, Ctx};
+use crate::{in_read, in_write, load, named_uncommitted_files, Ctx, Tx};
 
 /// What a claimed task of a project with the pull request flow on needs sent to the remote.
 struct Claim {
@@ -81,20 +81,12 @@ impl TaskPullRequestService {
         }
     }
 
+    /// Tasks to retry before they move again: pull requests still to send or merge, and accepted branches, in the flow or not, waiting for a clean worktree.
     pub async fn retry_candidates(&self) -> Result<Vec<Id>> {
         in_read!(&self.ctx, |tx| {
             let mut candidates = Vec::new();
             for task in repo::task::list_with_worktree(tx.db()).await? {
-                let project = load::project_of(tx.db(), &task).await?;
-                if !project.pull_request_flow {
-                    continue;
-                }
-                let held = repo::task_pull_request::find_of_task(tx.db(), task.id).await?;
-                let work = TaskWorkService::read_in(&tx, task.id).await?;
-                if held.as_ref().is_some_and(|request| request.awaiting_push())
-                    || (held.as_ref().is_none_or(|request| request.number.is_none()) && has_claim(&work))
-                    || (work.remaining == Remaining::Accepted && task.status != rekall_store::TaskStatus::Done)
-                {
+                if is_due_for_retry(&tx, &task).await? {
                     candidates.push(task.id);
                 }
             }
@@ -106,10 +98,17 @@ impl TaskPullRequestService {
         self.keep_failure(task_id, Some(reason)).await
     }
 
-    /// Merges the accepted task's pull request with a merge commit, closes its issue and deletes its branch on the remote. A merge the
-    /// host turns down is kept on the task as the reason. A network error or a 5xx is an `Err`: the
-    /// pull request is untouched and the next move of the task tries again.
+    /// A refusal is kept on the task. A network error or 5xx is an `Err` that leaves the pull request untouched and the waiting flag as it was.
     pub async fn merge_accepted(&self, task_id: Id) -> Result<PullRequestLanding> {
+        let landed = self.land(task_id).await?;
+        if landed != PullRequestLanding::NotInFlow {
+            let waits = matches!(landed, PullRequestLanding::KeptWithChanges(_));
+            in_write!(&self.ctx, |tx| repo::task::keep_merge_waiting(tx.db(), task_id, waits, self.ctx.now()).await)?;
+        }
+        Ok(landed)
+    }
+
+    async fn land(&self, task_id: Id) -> Result<PullRequestLanding> {
         let Some(landing) = self.read_landing(task_id).await? else { return Ok(PullRequestLanding::NotInFlow) };
         let Some(held) = landing.pull_request.clone() else { return Ok(PullRequestLanding::NothingToMerge) };
         if held.merged_at.is_some() {
@@ -122,11 +121,9 @@ impl TaskPullRequestService {
             let reason = held.failure.unwrap_or_else(|| "No pull request was opened for this task.".to_string());
             return Ok(PullRequestLanding::Refused(reason));
         };
-        if let (Some(folder), Some(project_folder)) = (&landing.worktree_folder, &landing.project_folder) {
-            let worktree = Worktree { folder: folder.into(), project_folder: project_folder.into(), branch: landing.branch.clone() };
-            if worktree.folder.is_dir() && self.worktrees.status(&worktree).await?.has_unsaved_changes {
-                return self.refuse_merge(task_id, "The task worktree has unsaved changes. The branch stays open.".into()).await;
-            }
+        let uncommitted = self.uncommitted_files(&landing).await?;
+        if !uncommitted.is_empty() {
+            return self.keep_for_clean_worktree(task_id, uncommitted).await;
         }
         let pull_request = PullRequest { number, url: held.url.unwrap_or_default(), mergeability: Mergeability::Unknown };
         let endpoint = match self.tracker.endpoint_of_project(landing.project_id).await {
@@ -134,7 +131,34 @@ impl TaskPullRequestService {
             Ok(None) => return self.refuse_merge(task_id, "The project has no task manager to merge the pull request through.".to_string()).await,
             Err(failure) => return self.refuse_merge(task_id, failure.message().to_string()).await,
         };
+        if let Err(failure) = self.push_unsent_commits(&landing).await {
+            return self.refuse_merge(task_id, failure.message().to_string()).await;
+        }
         self.merge(task_id, &endpoint, &pull_request, &landing).await
+    }
+
+    async fn uncommitted_files(&self, landing: &Landing) -> Result<Vec<String>> {
+        let (Some(folder), Some(project_folder)) = (&landing.worktree_folder, &landing.project_folder) else { return Ok(Vec::new()) };
+        let worktree = Worktree { folder: folder.into(), project_folder: project_folder.into(), branch: landing.branch.clone() };
+        if !worktree.folder.is_dir() {
+            return Ok(Vec::new());
+        }
+        Ok(self.worktrees.status(&worktree).await?.unsaved_files)
+    }
+
+    async fn keep_for_clean_worktree(&self, task_id: Id, files: Vec<String>) -> Result<PullRequestLanding> {
+        let reason = format!("The task worktree has {}. The branch stays open until they are committed or removed.", named_uncommitted_files(&files));
+        self.keep_failure(task_id, Some(reason)).await?;
+        Ok(PullRequestLanding::KeptWithChanges(files))
+    }
+
+    /// A branch the remote moved ahead of, with nothing of its own to send, is not pushed: git would refuse it.
+    async fn push_unsent_commits(&self, landing: &Landing) -> Result<()> {
+        let Some(project_folder) = landing.project_folder.as_deref() else { return Ok(()) };
+        if self.worktrees.origin_lacks_commits(Path::new(project_folder), &landing.branch).await? {
+            self.push(project_folder, &landing.branch).await?;
+        }
+        Ok(())
     }
 
     async fn merge(&self, task_id: Id, endpoint: &TrackerEndpoint, pull_request: &PullRequest, landing: &Landing) -> Result<PullRequestLanding> {
@@ -231,7 +255,7 @@ impl TaskPullRequestService {
 
     async fn deliver(&self, claim: &Claim) -> Result<Option<PullRequest>> {
         let branch = self.layout.branch_for(&claim.task.label)?;
-        self.push(claim, &branch).await?;
+        self.push(&claim.project_folder, &branch).await?;
         if claim.held_number.is_some() {
             return Ok(None);
         }
@@ -243,8 +267,8 @@ impl TaskPullRequestService {
         opened.map(Some).map_err(|failure| RekallError::conflict(failure_message(&failure, &format!("open the {}", request_noun(endpoint.kind)))))
     }
 
-    async fn push(&self, claim: &Claim, branch: &str) -> Result<()> {
-        match self.worktrees.push_branch(Path::new(&claim.project_folder), branch).await? {
+    async fn push(&self, project_folder: &str, branch: &str) -> Result<()> {
+        match self.worktrees.push_branch(Path::new(project_folder), branch).await? {
             PushOutcome::Pushed | PushOutcome::UpToDate => Ok(()),
             PushOutcome::Refused(reason) => Err(RekallError::conflict(format!("The push of {branch} was refused: {reason}"))),
         }
@@ -302,6 +326,21 @@ impl TaskPullRequestService {
             Ok(())
         })
     }
+}
+
+async fn is_due_for_retry(tx: &Tx, task: &task::Model) -> Result<bool> {
+    let work = TaskWorkService::read_in(tx, task.id).await?;
+    let accepted = work.remaining == Remaining::Accepted;
+    if accepted && task.merge_awaits_clean_worktree {
+        return Ok(true);
+    }
+    if !load::project_of(tx.db(), task).await?.pull_request_flow {
+        return Ok(false);
+    }
+    let held = repo::task_pull_request::find_of_task(tx.db(), task.id).await?;
+    Ok(held.as_ref().is_some_and(|request| request.awaiting_push())
+        || (held.as_ref().is_none_or(|request| request.number.is_none()) && has_claim(&work))
+        || (accepted && task.status != TaskStatus::Done))
 }
 
 fn awaits_push(work: &TaskWork, held: Option<&task_pull_request::Model>) -> bool {

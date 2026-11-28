@@ -146,10 +146,8 @@ impl AutoCommitService {
         if pending.is_empty() {
             return Ok(AutoCommitOutcome::skipped(format!("nothing to commit in {shown}, so nothing was logged.")));
         }
-        let snapshot = self.snapshot_files(tx, task, step).await?;
-        let changes = self.sort_changes(folder, pending, snapshot.as_deref()).await?;
+        let changes = self.sort_changes(tx, task, step, folder, pending).await?;
         let left_out: Vec<String> = changes.left_out.iter().map(|change| change.path.clone()).collect();
-        let missing_snapshot = snapshot.is_none();
         if changes.own.is_empty() {
             return Ok(AutoCommitOutcome::skipped("nothing of this work to commit, so nothing was logged.".to_string())
                 .leaving_out(left_out));
@@ -160,7 +158,7 @@ impl AutoCommitService {
         info!(%hash, folder = %shown, task = %task.label, step = step.map(|s| s.title.as_str()).unwrap_or("-"), "Auto-committed");
         let logged = self.references.record_commit_in(tx, task.id, step.map(|s| s.id), Some(&hash), None).await?;
         let outcome = AutoCommitOutcome::committed(logged).leaving_out(left_out);
-        Ok(if missing_snapshot { outcome.without_snapshot() } else { outcome })
+        Ok(if changes.snapshot_missing { outcome.without_snapshot() } else { outcome })
     }
 
     async fn snapshot_files(
@@ -178,15 +176,20 @@ impl AutoCommitService {
 
     async fn sort_changes(
         &self,
+        tx: &Tx,
+        task: &task::Model,
+        step: Option<&task_step::Model>,
         folder: &Path,
         pending: Vec<PendingChange>,
-        snapshot: Option<&[(String, Option<String>)]>,
     ) -> Result<SessionChanges> {
-        let Some(snapshot) = snapshot else {
+        if task.own_worktree().is_some() {
             return Ok(SessionChanges::everything(pending));
+        }
+        let Some(snapshot) = self.snapshot_files(tx, task, step).await? else {
+            return Ok(SessionChanges::without_snapshot(pending));
         };
         let hashes = self.committer.content_hashes_of(folder, &pending).await?;
-        Ok(SessionChanges::split(pending, hashes, snapshot))
+        Ok(SessionChanges::split(pending, hashes, &snapshot))
     }
 
     async fn subject_of(&self, tx: &Tx, task: &task::Model, step: Option<&task_step::Model>) -> Result<Subject> {

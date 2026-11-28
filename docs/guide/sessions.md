@@ -98,6 +98,9 @@ then refresh their status in Settings. Start a fresh session after setup.
 - When a session stops with its task’s step still running, the hook gives the exact claim command,
   such as `/rk task:VE-12 step:2 done`. The provider can continue once. Preparation launches and
   sessions opened on a project folder without a task receive no step reminder.
+- When all the work of a task is claimed and not yet accepted, a stop in its worktree with
+  uncommitted files is refused once on a project where Rekall commits for you. The hook names the
+  files and the claim, or wrapup, that commits them.
 
 Rekall launches the provider with its existing permissions. The hooks let the action through if
 Rekall is unreachable or cannot read the event and log the failure to `<rekall.home>/guard.log`.
