@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Provider report · Rekall</title>
+  <link rel="icon" href="../../../rekall-ui/public/favicon.svg">
+  <style>
+    @font-face {
+      font-family: "Fira Sans";
+      font-weight: 400;
+      src: url("../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-400-normal.woff2") format("woff2");
+      font-display: swap;
+    }
+    @font-face {
+      font-family: "Fira Sans";
+      font-weight: 500;
+      src: url("../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-500-normal.woff2") format("woff2");
+      font-display: swap;
+    }
+    @font-face {
+      font-family: "Fira Sans";
+      font-weight: 600;
+      src: url("../../../rekall-ui/node_modules/@fontsource/fira-sans/files/fira-sans-latin-600-normal.woff2") format("woff2");
+      font-display: swap;
+    }
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 300 700;
+      src: url("../../../rekall-ui/node_modules/@fontsource-variable/fira-code/files/fira-code-latin-wght-normal.woff2") format("woff2");
+      font-display: swap;
+    }
+    :root {
+      color-scheme: dark;
+      --canvas: #0d1017;
+      --surface: #151922;
+      --raised: #1d2330;
+      --hover: #262d3c;
+      --border: #2a3243;
+      --strong-border: #3b4558;
+      --text: #f2f5f9;
+      --muted: #a3acba;
+      --subtle: #8c96a6;
+      --accent: #eaa43c;
+      --accent-strong: #ffd88e;
+      --anchor: #55c9ea;
+      --safe: #3ddc97;
+      --claude: #d97757;
+      --sans: "Fira Sans", ui-sans-serif, sans-serif;
+      --mono: "Fira Code", ui-monospace, monospace;
+      --caption: 11.5px;
+      --small: 12.5px;
+      --body: 13.5px;
+      --title: 15px;
+      --heading: 19px;
+      --display: 26px;
+      --control: 5px;
+      --card: 8px;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; background: var(--canvas); color: var(--text); font: var(--body)/1.4 var(--sans); }
+    ::selection { background: var(--accent-strong); color: var(--canvas); }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    h1, h2, p { margin: 0; }
+    h1 { font-size: var(--display); font-weight: 500; letter-spacing: -.02em; }
+    h2 { font-size: var(--heading); font-weight: 500; }
+    button { font: inherit; color: inherit; cursor: pointer; }
+    svg { vertical-align: middle; flex: none; }
+    .shell {
+      display: grid;
+      grid-template-columns: 1fr minmax(240px, min(34vw, 560px)) 1fr;
+      align-items: center;
+      gap: 16px;
+      height: 48px;
+      padding-inline: 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .shell-start, .menu-key, .search, .shell-end, .provider { display: flex; align-items: center; gap: 8px; }
+    .shell-start { gap: 12px; }
+    .shell-start img { display: block; }
+    .menu-key, .search { height: 32px; border: 1px solid var(--border); border-radius: var(--control); }
+    .menu-key { padding-inline: 10px; background: var(--raised); white-space: nowrap; }
+    .menu-key:hover { background: var(--hover); }
+    .search { padding-inline: 10px; color: var(--muted); background: var(--canvas); }
+    kbd { margin-left: auto; font: var(--caption) var(--mono); color: var(--subtle); }
+    .shell-end { justify-content: flex-end; font-size: var(--small); color: var(--subtle); }
+    #time-menu {
+      inset: 46px auto auto 52px;
+      width: 252px;
+      margin: 0;
+      padding: 6px;
+      color: var(--text);
+      background: var(--raised);
+      border: 1px solid var(--strong-border);
+      border-radius: var(--card);
+      box-shadow: 0 10px 22px -8px #000a;
+    }
+    .menu-group { padding: 6px 8px; color: var(--muted); font-size: var(--caption); }
+    .menu-item { display: block; width: 100%; padding: 6px 8px; }
+    button.menu-item { text-align: left; border: 0; border-radius: var(--control); background: var(--hover); }
+    button.menu-item:hover { color: var(--accent-strong); }
+    .menu-item small { display: block; color: var(--muted); font-size: var(--caption); }
+    main { padding: 24px 32px 32px; }
+    .page-heading { margin-bottom: 20px; }
+    .page-heading p { margin-top: 3px; color: var(--muted); }
+    section + section { margin-top: 22px; }
+    .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 32px; margin-bottom: 8px; }
+    .section-heading > p { color: var(--muted); font-size: var(--small); }
+    .ledger { border: 1px solid var(--border); border-radius: var(--card); background: var(--surface); }
+    table { width: 100%; border-spacing: 0; table-layout: fixed; font-variant-numeric: tabular-nums; }
+    th, td { padding: 8px 12px; text-align: left; vertical-align: middle; }
+    thead th { height: 34px; color: var(--muted); background: var(--raised); font-size: var(--small); font-weight: 500; }
+    thead tr:first-child th { border-bottom: 1px solid var(--border); }
+    thead tr:first-child th:first-child { border-top-left-radius: 7px; }
+    thead tr:first-child th:last-child { border-top-right-radius: 7px; }
+    tbody th { font-weight: 500; }
+    tbody tr + tr > *, table + p { border-top: 1px solid var(--border); }
+    .boundary { border-left: 1px solid var(--border); }
+    .align-end, .number { text-align: right; }
+    .number { font-family: var(--mono); white-space: nowrap; }
+    .zero, .dash { color: var(--subtle); }
+    .sum { background: var(--raised); font-weight: 500; }
+    .provider { white-space: nowrap; }
+    .provider.claude svg { color: var(--claude); }
+    .totals col:first-child { width: 14%; }
+    .totals col:nth-child(2), .totals col:nth-child(3) { width: 27%; }
+    .totals col:nth-child(n+4) { width: calc(32% / 3); }
+    .totals tbody th, .totals thead th { padding-left: 16px; }
+    .totals tbody td { font-size: var(--title); }
+    .totals .tokens > * { vertical-align: top; padding-block: 11px 12px; }
+    .totals .tokens th, .totals .tokens .dash { padding-top: 15px; }
+    .token-total { font: 500 var(--display)/1.2 var(--mono); letter-spacing: -.035em; }
+    .token-parts { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; max-width: 300px; margin: 9px 0 0; }
+    .token-parts div { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+    .token-parts dt { font-family: var(--sans); color: var(--muted); font-size: var(--caption); white-space: nowrap; }
+    .token-parts dd { margin: 0; font-size: var(--caption); }
+    .footnote { padding: 7px 16px; color: var(--muted); font-size: var(--small); }
+    .segmented { display: flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: var(--control); background: var(--surface); }
+    .segmented button { height: 26px; min-width: 60px; padding-inline: 10px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: var(--muted); font-size: var(--small); }
+    .segmented button:hover { color: var(--text); }
+    .segmented button[aria-pressed="true"] { color: var(--text); border-color: var(--strong-border); background: var(--hover); }
+    .period-table col:first-child { width: 19%; }
+    .period-table col:nth-child(2), .period-table col:nth-child(3) { width: calc(19% / 3); }
+    .period-table col:nth-child(n+4) { width: calc(43% / 6); }
+    .period-table thead tr:nth-child(2) th { height: 28px; border-bottom: 1px solid var(--border); padding-block: 4px; }
+    .period-table thead th[rowspan] { padding-left: 16px; }
+    .period-table tbody th { padding: 0; }
+    .period-table tbody td { height: 36px; padding-block: 6px; }
+    .period-table tbody tr:hover > * { background: var(--raised); }
+    .period-table tbody tr.selected > * { background: var(--hover); }
+    .period-key { display: flex; width: 100%; min-height: 35px; justify-content: space-between; align-items: center; gap: 4px; padding: 5px 8px 5px 15px; text-align: left; border: 0; border-left: 1px solid transparent; background: transparent; }
+    .period-key[aria-pressed="true"] { border-left-color: var(--accent); color: var(--accent-strong); }
+    .period-key:focus-visible { outline-offset: -2px; }
+    .period-key svg { color: var(--subtle); }
+    .period-key[aria-pressed="true"] svg { color: inherit; }
+    .tasks-table col:nth-child(1) { width: 9%; }
+    .tasks-table col:nth-child(3) { width: 13%; }
+    .tasks-table col:nth-child(4) { width: 11%; }
+    .tasks-table col:nth-child(5) { width: 12%; }
+    .tasks-table col:nth-child(6) { width: 9%; }
+    .tasks-table col:nth-child(7), .tasks-table col:nth-child(8) { width: 11%; }
+    .tasks-table th:first-child, .tasks-table td:first-child { padding-left: 16px; }
+    .tasks-table th:last-child, .tasks-table td:last-child { padding-right: 16px; }
+    .tasks-table tbody tr { height: 38px; }
+    .tasks-table tbody th { font-weight: 600; }
+    .task-code { color: var(--anchor); font: var(--small) var(--mono); white-space: nowrap; }
+    .task-provider, .project, .close-date { color: var(--muted); font-size: var(--small); }
+    .task-provider .provider { gap: 6px; }
+    .task-provider .provider + .provider, .task-token + .task-token { margin-top: 4px; }
+    .task-token { display: block; line-height: 17.5px; }
+    .task-token.period-tokens { font-weight: 500; }
+    .task-token.all-time { color: var(--muted); }
+    .close-date { white-space: nowrap; }
+    .close-date time { color: var(--safe); }
+    .empty { padding: 22px 16px 24px; text-align: center; }
+    .empty strong { font-size: var(--title); font-weight: 500; }
+    .empty p { margin-top: 4px; color: var(--muted); }
+    @media (max-width: 1120px) {
+      main { padding-inline: 24px; }
+      .token-parts { gap: 4px 8px; }
+      .period-table :is(th, td) { padding-inline: 8px; }
+      .period-table .period-key { padding-left: 12px; }
+      .tasks-table :is(th, td) { padding-inline: 8px; }
+      kbd { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="shell">
+    <div class="shell-start">
+      <img src="../../../rekall-ui/public/favicon.svg" alt="Rekall" width="24" height="24">
+      <button class="menu-key" type="button" popovertarget="time-menu">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4h11m-11 4h11m-11 4h11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Provider report
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="m3 4.5 3 3 3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <nav id="time-menu" popover aria-label="Time screens">
+        <div class="menu-group">Time</div>
+        <span class="menu-item">Report<small>Time tracked, by period</small></span>
+        <button class="menu-item" type="button" popovertarget="time-menu" popovertargetaction="hide" aria-current="page">Provider report<small>Tokens and closures by provider</small></button>
+        <span class="menu-item">Calendar<small>Your work, day by day</small></span>
+      </nav>
+    </div>
+    <div class="search" aria-hidden="true">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.3" stroke="currentColor" stroke-width="1.3"/><path d="m10.5 10.5 3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <span>Search or type an anchor</span><kbd>⌘K</kbd>
+    </div>
+    <div class="shell-end">Mockup · sample data</div>
+  </header>
+  <main>
+    <header class="page-heading">
+      <h1>Provider report</h1>
+      <p>Token usage and closures across all companies and projects.</p>
+    </header>
+    <section aria-labelledby="overall-title">
+      <div class="section-heading"><h2 id="overall-title">Overall</h2><p>All time</p></div>
+      <div class="ledger">
+        <table class="totals" aria-labelledby="overall-title">
+          <colgroup><col><col><col><col><col><col></colgroup>
+          <thead>
+            <tr><th scope="col">Measure</th><th scope="col" id="overall-claude" class="boundary"></th><th scope="col" id="overall-codex" class="boundary"></th><th scope="col" class="align-end boundary">Both</th><th scope="col" class="align-end">Not recorded</th><th scope="col" class="align-end boundary">Total</th></tr>
+          </thead>
+          <tbody id="overall-figures"></tbody>
+        </table>
+        <p class="footnote">Each closure counts once. Credit comes from the providers with recorded tokens on the task or step.</p>
+      </div>
+    </section>
+    <section aria-labelledby="period-title">
+      <div class="section-heading">
+        <h2 id="period-title">By period</h2>
+        <div class="segmented" role="group" aria-label="Period grouping">
+          <button type="button" data-group="week" aria-pressed="false">Week</button>
+          <button type="button" data-group="month" aria-pressed="true">Month</button>
+          <button type="button" data-group="year" aria-pressed="false">Year</button>
+        </div>
+      </div>
+      <div class="ledger">
+        <table class="period-table" aria-labelledby="period-title">
+          <colgroup><col></colgroup><colgroup span="3"></colgroup><colgroup span="3"></colgroup><colgroup span="2"></colgroup><colgroup span="2"></colgroup><colgroup span="2"></colgroup>
+          <thead>
+            <tr>
+              <th scope="col" rowspan="2">Period · UTC</th>
+              <th scope="colgroup" colspan="3" id="period-claude" class="boundary"></th>
+              <th scope="colgroup" colspan="3" id="period-codex" class="boundary"></th>
+              <th scope="colgroup" colspan="2" class="boundary">Both</th>
+              <th scope="colgroup" colspan="2" class="boundary">Not recorded</th>
+              <th scope="colgroup" colspan="2" class="boundary">Total closed</th>
+            </tr>
+            <tr>
+              <th scope="col" class="align-end boundary">Tokens</th><th scope="col" class="align-end">Tasks</th><th scope="col" class="align-end">Steps</th>
+              <th scope="col" class="align-end boundary">Tokens</th><th scope="col" class="align-end">Tasks</th><th scope="col" class="align-end">Steps</th>
+              <th scope="col" class="align-end boundary">Tasks</th><th scope="col" class="align-end">Steps</th>
+              <th scope="col" class="align-end boundary">Tasks</th><th scope="col" class="align-end">Steps</th>
+              <th scope="col" class="align-end boundary">Tasks</th><th scope="col" class="align-end">Steps</th>
+            </tr>
+          </thead>
+          <tbody id="period-figures"></tbody>
+        </table>
+      </div>
+    </section>
+    <section aria-labelledby="tasks-title">
+      <div class="section-heading" aria-live="polite"><h2 id="tasks-title"></h2><p id="task-count"></p></div>
+      <div class="ledger" id="period-tasks">
+        <table class="tasks-table" aria-labelledby="tasks-title">
+          <colgroup><col><col><col><col><col><col><col><col></colgroup>
+          <thead>
+            <tr><th scope="col">Code</th><th scope="col">Task</th><th scope="col">Project</th><th scope="col">Closed date</th><th scope="col">Provider</th><th scope="col" class="align-end">Steps closed</th><th scope="col" class="align-end">Period tokens</th><th scope="col" class="align-end">All-time tokens</th></tr>
+          </thead>
+          <tbody id="task-rows"></tbody>
+        </table>
+        <div class="empty" id="empty-period" hidden><strong>No activity in this period</strong><p>Choose another period to see its tasks.</p></div>
+      </div>
+    </section>
+  </main>
+  <template id="claude-mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z"/></svg></template>
+  <template id="codex-mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/></svg></template>
+  <script>
+    const providers = { claude: 'Claude Code', codex: 'Codex' };
+    const credits = ['claude', 'codex', 'both', 'unrecorded'];
+    const tokenKinds = ['Input', 'Cache write', 'Cache read', 'Output'];
+    const tasks = [
+      {
+        code: 'RV-128', title: 'Group queued work by provider', project: 'Bridge',
+        closed: '2026-11-24',
+        tokens: [['2026-11-24', 'claude', 760], ['2026-11-24', 'codex', 110], ['2026-10-29', 'claude', 14]],
+        steps: [['2026-11-24', 'claude', 3], ['2026-11-24', 'codex', 2], ['2026-11-24', 'both', 1]]
+      },
+      {
+        code: 'IN-47', title: 'Keep the project list in sync', project: 'Index',
+        tokens: [['2026-11-18', 'claude', 475]],
+        steps: [['2026-11-18', 'claude', 2]]
+      },
+      {
+        code: 'FK-31', title: 'Carry notes into the weekly export', project: 'Field Kit',
+        closed: '2026-11-13',
+        tokens: [['2026-11-13', 'codex', 90]],
+        steps: [['2026-11-13', 'codex', 2]]
+      },
+      {
+        code: 'IN-42', title: 'Review the project naming guide', project: 'Index',
+        closed: '2026-11-05',
+        tokens: [],
+        steps: [['2026-11-05', 'unrecorded', 1]]
+      },
+      {
+        code: 'RV-119', title: 'Reuse the task search keyboard shortcuts', project: 'Bridge',
+        closed: '2026-11-03',
+        tokens: [['2026-11-03', 'claude', 5]],
+        steps: [['2026-11-03', 'claude', 3]]
+      },
+      {
+        code: 'FK-24', title: 'Keep export filenames consistent', project: 'Field Kit',
+        closed: '2026-10-28',
+        tokens: [['2026-10-28', 'claude', 41]],
+        steps: [['2026-10-28', 'claude', 2]]
+      },
+      {
+        code: 'RV-87', title: 'Remember the last open project', project: 'Bridge',
+        closed: '2025-12-18',
+        tokens: [['2025-12-18', 'codex', 18]],
+        steps: [['2025-12-18', 'codex', 2]]
+      }
+    ];
+    const emptyExample = '2026-09-16';
+    const numberFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
+    const shortDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+    const longDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+    const monthDate = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    const groupButtons = [...document.querySelectorAll('[data-group]')];
+    const selectedByGroup = new Map();
+    const element = id => document.getElementById(id);
+
+    function periodKey(date, grouping) {
+      if (grouping === 'year') return `${date.slice(0, 4)}-01-01`;
+      if (grouping === 'month') return `${date.slice(0, 7)}-01`;
+      const monday = new Date(date);
+      monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
+      return monday.toISOString().slice(0, 10);
+    }
+
+    function periodName(key, grouping) {
+      if (grouping === 'year') return key.slice(0, 4);
+      if (grouping === 'month') return monthDate.format(new Date(key));
+      const monday = new Date(key);
+      const sunday = new Date(key);
+      sunday.setUTCDate(sunday.getUTCDate() + 6);
+      const start = monday.getUTCFullYear() === sunday.getUTCFullYear() ? shortDate : longDate;
+      return `${start.format(monday)} – ${longDate.format(sunday)}`;
+    }
+
+    function closureCredit(task) {
+      const usedProviders = [...new Set(task.tokens.map(([, provider]) => provider))];
+      if (usedProviders.length === 2) return 'both';
+      return usedProviders[0] ?? 'unrecorded';
+    }
+
+    function tokenBreakdown(rows) {
+      const parts = { claude: [0, 0, 0, 0], codex: [0, 0, 0, 0] };
+      for (const [, provider, millions] of rows) {
+        const total = millions * 1_000_000;
+        const shares = provider === 'claude' ? [.20, .10, .65, .05] : [.25, 0, .65, .10];
+        shares.forEach((share, index) => { parts[provider][index] += Math.round(total * share); });
+      }
+      return parts;
+    }
+
+    function taskRow(task, includesDate) {
+      const periodTokens = task.tokens.filter(([date]) => includesDate(date));
+      const stepsClosed = task.steps.filter(([date]) => includesDate(date));
+      const closed = task.closed && includesDate(task.closed);
+      if (!closed && periodTokens.length === 0) return null;
+      return {
+        task,
+        stepsClosed: sum(stepsClosed.map(([, , count]) => count)),
+        periodTokens: tokenBreakdown(periodTokens),
+        lifetimeTokens: tokenBreakdown(task.tokens)
+      };
+    }
+
+    function figuresOf(includesDate) {
+      const tokens = tokenBreakdown(tasks.flatMap(task => task.tokens.filter(([date]) => includesDate(date))));
+      const closures = Object.fromEntries(credits.map(credit => [credit, { tasks: 0, steps: 0 }]));
+      for (const task of tasks) {
+        if (task.closed && includesDate(task.closed)) closures[closureCredit(task)].tasks += 1;
+        for (const [date, credit, count] of task.steps) {
+          if (includesDate(date)) closures[credit].steps += count;
+        }
+      }
+      return {
+        tokens,
+        closures,
+        total: { tasks: sum(credits.map(credit => closures[credit].tasks)), steps: sum(credits.map(credit => closures[credit].steps)) },
+        rows: tasks.map(task => taskRow(task, includesDate)).filter(Boolean)
+      };
+    }
+
+    function periodsOf(grouping) {
+      const dates = tasks.flatMap(task => [task.closed, ...task.tokens.map(([date]) => date), ...task.steps.map(([date]) => date)]);
+      const keys = new Set([...dates.filter(Boolean), emptyExample].map(date => periodKey(date, grouping)));
+      return [...keys].sort().reverse().map(key => ({
+        key,
+        label: periodName(key, grouping),
+        ...figuresOf(date => periodKey(date, grouping) === key)
+      }));
+    }
+
+    function sum(values) {
+      return values.reduce((total, value) => total + value, 0);
+    }
+
+    function compactTokens(value) {
+      if (value >= 1_000_000) return `${numberFormat.format(value / 1_000_000)}M`;
+      if (value >= 1_000) return `${numberFormat.format(value / 1_000)}K`;
+      return numberFormat.format(value);
+    }
+
+    function providerMark(provider) {
+      return `<span class="provider ${provider}">${element(`${provider}-mark`).innerHTML}${providers[provider]}</span>`;
+    }
+
+    function numberCell(value, { tokens = false, className = '' } = {}) {
+      const display = tokens ? compactTokens(value) : numberFormat.format(value);
+      const exact = tokens ? ` title="${numberFormat.format(value)} tokens" data-tokens="${value}"` : '';
+      return `<td class="number ${value === 0 ? 'zero' : ''} ${className}"${exact}>${display}</td>`;
+    }
+
+    function tokenSummary(parts) {
+      const total = sum(parts);
+      return `<div class="token-total" title="${numberFormat.format(total)} tokens">${compactTokens(total)}</div>
+        <dl class="token-parts">${parts.map((value, index) => `
+          <div><dt>${tokenKinds[index]}</dt><dd class="number${value === 0 ? ' zero' : ''}" title="${numberFormat.format(value)} tokens">${compactTokens(value)}</dd></div>`).join('')}
+        </dl>`;
+    }
+
+    function renderOverall() {
+      const { tokens, closures, total } = figuresOf(() => true);
+      const combined = tokens.claude.map((value, index) => value + tokens.codex[index]);
+      element('overall-figures').innerHTML = `
+        <tr class="tokens">
+          <th scope="row">Tokens consumed</th>
+          <td class="boundary">${tokenSummary(tokens.claude)}</td>
+          <td class="boundary">${tokenSummary(tokens.codex)}</td>
+          <td class="number dash boundary" aria-label="Not applicable">—</td>
+          <td class="number dash" aria-label="Not applicable">—</td>
+          <td class="boundary sum"><div class="token-total align-end" title="${numberFormat.format(sum(combined))} tokens">${compactTokens(sum(combined))}</div></td>
+        </tr>
+        ${[['tasks', 'Tasks closed'], ['steps', 'Steps closed']].map(([metric, label]) => `
+          <tr><th scope="row">${label}</th>${credits.map(credit => numberCell(closures[credit][metric], { className: credit === 'unrecorded' ? '' : 'boundary' })).join('')}${numberCell(total[metric], { className: 'boundary sum' })}</tr>`).join('')}`;
+    }
+
+    function periodFigures(period) {
+      const { tokens, closures, total } = period;
+      return credits.map(credit => {
+        const tokenCell = Object.hasOwn(tokens, credit) ? numberCell(sum(tokens[credit]), { tokens: true, className: 'boundary' }) : '';
+        const taskCell = numberCell(closures[credit].tasks, { className: tokenCell ? '' : 'boundary' });
+        return tokenCell + taskCell + numberCell(closures[credit].steps);
+      }).join('') + numberCell(total.tasks, { className: 'boundary sum' }) + numberCell(total.steps, { className: 'sum' });
+    }
+
+    function taskTokenColumn(tokens, usedProviders, className) {
+      const values = usedProviders.length ? usedProviders.map(provider => sum(tokens[provider])) : [0];
+      return values.map(value => `<span class="task-token ${className}${value === 0 ? ' zero' : ''}" title="${numberFormat.format(value)} tokens" data-tokens="${value}">${compactTokens(value)}</span>`).join('');
+    }
+
+    function taskMarkup({ task, stepsClosed, periodTokens, lifetimeTokens }) {
+      const usedProviders = Object.keys(providers).filter(provider => sum(lifetimeTokens[provider]) > 0);
+      const providerNames = usedProviders.length ? usedProviders.map(providerMark).join('') : 'Not recorded';
+      const closedDate = task.closed ? `<time datetime="${task.closed}">${longDate.format(new Date(task.closed))}</time>` : 'Still open';
+      return `<tr data-task="${task.code}">
+        <td class="task-code">${task.code}</td><th scope="row">${task.title}</th><td class="project">${task.project}</td>
+        <td class="close-date">${closedDate}</td><td class="task-provider">${providerNames}</td>
+        ${numberCell(stepsClosed)}
+        <td class="number">${taskTokenColumn(periodTokens, usedProviders, 'period-tokens')}</td>
+        <td class="number">${taskTokenColumn(lifetimeTokens, usedProviders, 'all-time')}</td>
+      </tr>`;
+    }
+
+    function selectPeriod(period, grouping) {
+      selectedByGroup.set(grouping, period.key);
+      for (const key of document.querySelectorAll('.period-key')) {
+        const selected = key.dataset.period === period.key;
+        key.setAttribute('aria-pressed', String(selected));
+        key.closest('tr').classList.toggle('selected', selected);
+      }
+      element('tasks-title').textContent = `Tasks · ${period.label}`;
+      element('task-count').textContent = `${period.rows.length} ${period.rows.length === 1 ? 'task' : 'tasks'}`;
+      element('task-rows').innerHTML = period.rows.map(taskMarkup).join('');
+      element('period-tasks').querySelector('table').hidden = period.rows.length === 0;
+      element('empty-period').hidden = period.rows.length > 0;
+    }
+
+    function renderPeriods(grouping) {
+      const periods = periodsOf(grouping);
+      const selected = periods.find(period => period.key === selectedByGroup.get(grouping)) ?? periods[0];
+      for (const button of groupButtons) button.setAttribute('aria-pressed', String(button.dataset.group === grouping));
+      element('period-figures').innerHTML = periods.map(period => `
+        <tr><th scope="row"><button class="period-key" type="button" data-period="${period.key}" aria-controls="period-tasks">
+          <span>${period.label}</span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 4 4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button></th>${periodFigures(period)}</tr>`).join('');
+      for (const [index, button] of [...document.querySelectorAll('.period-key')].entries()) {
+        button.addEventListener('click', () => selectPeriod(periods[index], grouping));
+      }
+      selectPeriod(selected, grouping);
+    }
+
+    function startPreview() {
+      for (const provider of Object.keys(providers)) {
+        for (const table of ['overall', 'period']) element(`${table}-${provider}`).innerHTML = providerMark(provider);
+      }
+      for (const button of groupButtons) button.addEventListener('click', () => renderPeriods(button.dataset.group));
+      renderOverall();
+      renderPeriods('month');
+    }
+
+    startPreview();
+  </script>
+</body>
+</html>
