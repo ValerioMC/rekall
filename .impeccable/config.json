@@ -216,6 +216,24 @@
         ],
         "createdAt": "2026-11-27T12:57:35.465Z",
         "reason": "false positive: segmented control buttons fill the bordered container by design, and the mock toolbar text is vertically centred in a fixed 36px row (model triage, not user confirmed)"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/task-list/index.html"
+        ],
+        "createdAt": "2026-11-28T08:41:53.469Z",
+        "reason": "false positive: topbar, search, view tabs, composer and adherence strip are fixed-height flex rows with centred text, checked in renders; tabs sit on their rule by design (model triage, not user confirmed)"
+      },
+      {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/task-list/index.html"
+        ],
+        "createdAt": "2026-11-28T08:41:53.491Z",
+        "reason": "DESIGN.md Status Pill: running is indigo with a pulsing orb; it marks only the task a session is working on (model triage, not user confirmed)"
       }
     ]
   }
