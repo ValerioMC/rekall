@@ -509,10 +509,54 @@ mod pull_request_lifecycle {
         assert_eq!(git(&repository.project, &["rev-list", "--count", "main..rekall/report"]), "2");
     }
 
+    #[tokio::test]
+    async fn files_edited_between_and_after_the_claims_reach_the_merged_branch_and_leave_a_clean_worktree() {
+        let repository = world();
+        let remote = bare_remote_of(&repository);
+        git(&repository.project, &["push", "-q", "origin", "main"]);
+        let db = crate::support::world().await;
+        let project = db.project("vega", Some(&repository.project)).await;
+        let mut committing = project.clone().into_active_model();
+        committing.auto_commit = Set(true);
+        committing.update(db.db()).await.unwrap();
+        db.run_pull_request_flow(&project).await;
+        let task = db.task(&project, "report").await;
+        let steps = [db.step(&task, "First", 0, TaskStepState::Open).await, db.step(&task, "Second", 1, TaskStepState::Open).await];
+        let layout = WorktreeLayout::new(db.home.path().join("worktrees"));
+        let host = Arc::new(GitWorktreeHost::new(layout.clone()));
+        let worktrees = TaskWorktreeService::new(db.services.ctx.clone(), host.clone(), layout);
+        let checkout = worktrees.ensure(task.id).await.unwrap();
+        let pull_host = Arc::new(ScriptedPullRequestHost::new());
+        let pull_requests = db.pull_requests_over(host, pull_host.clone());
+        WorktreeCleaner::start(&db.events, db.services.task_work.clone(), worktrees.clone(), pull_requests, Arc::new(InMemoryTerminalHost::new()), Duration::from_millis(50));
+
+        claim(&db, &task, &checkout, "1", "first.txt").await;
+        fs::write(checkout.join("between.txt"), "between").unwrap();
+        claim(&db, &task, &checkout, "2", "second.txt").await;
+        fs::write(checkout.join("after.txt"), "after").unwrap();
+        assert_eq!(worktrees.unsaved_files(task.id).await.unwrap(), ["after.txt"]);
+        claim_again(&db, &task, "2").await;
+        assert!(worktrees.unsaved_files(task.id).await.unwrap().is_empty());
+        let mut done = repo::task::require(db.db(), task.id).await.unwrap().into_active_model();
+        done.status = Set(TaskStatus::Done);
+        done.update(db.db()).await.unwrap();
+        for step in steps {
+            db.services.steps.edit(step.id, StepEdit { done: Some(true), ..StepEdit::default() }).await.unwrap();
+        }
+
+        wait_for(|| async { !checkout.exists() }).await;
+        assert_eq!(pull_host.merged(), vec![1]);
+        assert_eq!(git(&remote, &["diff", "--name-only", "main", "rekall/report"]), "after.txt\nbetween.txt\nfirst.txt\nsecond.txt");
+    }
+
     async fn claim(db: &crate::support::World, task: &rekall_store::task::Model, checkout: &Path, step: &str, file: &str) {
         let moved = db.services.flow.transition(None, &task.code, Some(step), TaskStepState::Running, None, None).await.unwrap();
         db.services.step_snapshots.take(task.id, Some(moved.step.id)).await;
         fs::write(checkout.join(file), file).unwrap();
+        claim_again(db, task, step).await;
+    }
+
+    async fn claim_again(db: &crate::support::World, task: &rekall_store::task::Model, step: &str) {
         let (_, outcome) = db.services.auto_commit.claim_step(&db.services.flow, StepClaim {
             project_label: None, task_code: &task.code, step, outcome: None, report: None, message: None,
         }).await.unwrap();
