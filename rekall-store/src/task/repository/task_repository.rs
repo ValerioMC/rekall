@@ -1,9 +1,10 @@
-use rekall_kernel::{Id, RekallError};
+use rekall_kernel::{Id, Instant, RekallError};
 use crate::project;
 use crate::task::{Column, Entity, Model};
 use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, IntoActiveModel, QueryFilter, QueryOrder, Set};
 
 use crate::repository::{at_most_one, contains_ignore_case};
+use crate::stamped_update::update_if_changed;
 use crate::task_key::TaskKey;
 
 pub async fn find_by_id(db: &impl ConnectionTrait, id: Id) -> Result<Option<Model>, RekallError> {
@@ -75,6 +76,13 @@ pub async fn list_of_project(db: &impl ConnectionTrait, project_id: Id) -> Resul
         .order_by_asc(Column::Number)
         .all(db)
         .await?)
+}
+
+pub async fn keep_merge_waiting(db: &impl ConnectionTrait, id: Id, waits: bool, now: Instant) -> Result<(), RekallError> {
+    let before = require(db, id).await?;
+    let after = Model { merge_awaits_clean_worktree: waits, ..before.clone() };
+    update_if_changed(db, &before, after, now).await?;
+    Ok(())
 }
 
 /// The tasks that have a git worktree of their own, by label.

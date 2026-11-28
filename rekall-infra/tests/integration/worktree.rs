@@ -371,6 +371,29 @@ async fn a_branch_the_remote_holds_differently_is_refused_and_the_remote_is_left
 }
 
 #[tokio::test]
+async fn origin_lacks_commits_only_while_the_branch_holds_some_it_was_never_sent() {
+    let world = world();
+    bare_remote_of(&world);
+    let worktree = create(&world, "report").await;
+    let never_pushed = world.host.origin_lacks_commits(&world.project, &worktree.branch).await.unwrap();
+    world.host.push_branch(&world.project, &worktree.branch).await.unwrap();
+    let just_pushed = world.host.origin_lacks_commits(&world.project, &worktree.branch).await.unwrap();
+    commit_file(&worktree.folder, "later.txt");
+    let committed_since = world.host.origin_lacks_commits(&world.project, &worktree.branch).await.unwrap();
+    world.host.push_branch(&world.project, &worktree.branch).await.unwrap();
+    git(&worktree.folder, &["reset", "-q", "--hard", "HEAD~1"]);
+    let behind_origin = world.host.origin_lacks_commits(&world.project, &worktree.branch).await.unwrap();
+
+    assert_eq!((never_pushed, just_pushed, committed_since, behind_origin), (true, false, true, false));
+}
+
+fn commit_file(folder: &Path, name: &str) {
+    fs::write(folder.join(name), name).unwrap();
+    git(folder, &["add", name]);
+    git(folder, &["commit", "-q", "-m", name]);
+}
+
+#[tokio::test]
 async fn a_branch_outside_the_layout_is_never_pushed() {
     let world = world();
     bare_remote_of(&world);
@@ -390,10 +413,10 @@ mod pull_request_lifecycle {
     use rekall_core::commit::StepClaim;
     use rekall_core::connection::{PullRequestMerge, ScriptedPullRequestHost};
     use rekall_core::step::StepEdit;
-    use rekall_core::worktree::{PullRequestLanding, TaskWorktreeService};
+    use rekall_core::worktree::{Merge, PullRequestLanding, TaskPullRequestService, TaskWorktreeService};
     use rekall_infra::session::SessionHosts;
     use rekall_infra::worktree::WorktreeCleaner;
-    use rekall_store::{repository as repo, TaskStatus, TaskStepState};
+    use rekall_store::{repository as repo, task, task_step, TaskStatus, TaskStepState};
     use sea_orm::{ActiveModelTrait, IntoActiveModel, Set};
 
     #[tokio::test]
@@ -466,7 +489,7 @@ mod pull_request_lifecycle {
         }
         wait_for(|| async {
             repo::task_pull_request::find_of_task(db.db(), task.id).await.unwrap()
-                .and_then(|saved| saved.failure).is_some_and(|reason| reason.contains("unsaved changes"))
+                .and_then(|saved| saved.failure).is_some_and(|reason| reason.contains("1 uncommitted file: unsaved"))
         }).await;
         assert!(checkout.join("unsaved").exists());
         assert!(pull_host.merged().is_empty());
@@ -494,6 +517,133 @@ mod pull_request_lifecycle {
             project_label: None, task_code: &task.code, step, outcome: None, report: None, message: None,
         }).await.unwrap();
         assert_eq!(outcome.status, rekall_core::commit::AutoCommitStatus::Committed);
+    }
+
+    /// A claimed task with one commit in its worktree, on a project that merges through a pull request or locally.
+    struct Delivered {
+        repository: super::World,
+        db: crate::support::World,
+        task: task::Model,
+        step: task_step::Model,
+        checkout: PathBuf,
+        worktrees: TaskWorktreeService,
+        pull_requests: TaskPullRequestService,
+        pull_host: Arc<ScriptedPullRequestHost>,
+    }
+
+    impl Delivered {
+        async fn through_a_pull_request() -> Self {
+            let delivered = Self::claimed(true).await;
+            delivered.pull_requests.open_if_claimed(delivered.task.id).await.unwrap();
+            delivered
+        }
+
+        async fn merged_locally() -> Self {
+            Self::claimed(false).await
+        }
+
+        async fn claimed(pull_request_flow: bool) -> Self {
+            let repository = world();
+            let db = crate::support::world().await;
+            let project = db.project("vega", Some(&repository.project)).await;
+            if pull_request_flow {
+                bare_remote_of(&repository);
+                git(&repository.project, &["push", "-q", "origin", "main"]);
+                db.run_pull_request_flow(&project).await;
+            }
+            let task = db.task(&project, "report").await;
+            let step = db.step(&task, "First", 0, TaskStepState::Claimed).await;
+            let layout = WorktreeLayout::new(db.home.path().join("worktrees"));
+            let host = Arc::new(GitWorktreeHost::new(layout.clone()));
+            let worktrees = TaskWorktreeService::new(db.services.ctx.clone(), host.clone(), layout);
+            let checkout = worktrees.ensure(task.id).await.unwrap();
+            commit_file(&checkout, "export.txt");
+            let pull_host = Arc::new(ScriptedPullRequestHost::new());
+            let pull_requests = db.pull_requests_over(host, pull_host.clone());
+            Self { repository, db, task, step, checkout, worktrees, pull_requests, pull_host }
+        }
+
+        /// Marks the task done and accepts its step, with the cleaner watching.
+        async fn accept_as_done(&self) {
+            let terminals = Arc::new(InMemoryTerminalHost::new());
+            WorktreeCleaner::start(&self.db.events, self.db.services.task_work.clone(), self.worktrees.clone(), self.pull_requests.clone(), terminals, Duration::from_millis(50));
+            let mut done = repo::task::require(self.db.db(), self.task.id).await.unwrap().into_active_model();
+            done.status = Set(TaskStatus::Done);
+            done.update(self.db.db()).await.unwrap();
+            self.db.services.steps.edit(self.step.id, StepEdit { done: Some(true), ..StepEdit::default() }).await.unwrap();
+        }
+
+        async fn wait_for_failure(&self, expected: &str) {
+            wait_for(|| async {
+                repo::task_pull_request::find_of_task(self.db.db(), self.task.id).await.unwrap()
+                    .and_then(|saved| saved.failure).is_some_and(|reason| reason.contains(expected))
+            }).await;
+        }
+
+        async fn wait_until_waiting_for_a_clean_worktree(&self) {
+            wait_for(|| async { repo::task::require(self.db.db(), self.task.id).await.unwrap().merge_awaits_clean_worktree }).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn a_done_task_names_the_file_in_its_way_and_its_pull_request_merges_once_it_is_removed() {
+        let delivered = Delivered::through_a_pull_request().await;
+        fs::write(delivered.checkout.join("left.txt"), "left").unwrap();
+        delivered.accept_as_done().await;
+        delivered.wait_for_failure("1 uncommitted file: left.txt").await;
+        assert!(delivered.pull_host.merged().is_empty());
+        assert!(delivered.checkout.join("left.txt").exists());
+
+        fs::remove_file(delivered.checkout.join("left.txt")).unwrap();
+
+        wait_for(|| async { !delivered.checkout.exists() }).await;
+        assert_eq!(delivered.pull_host.merged(), vec![1]);
+    }
+
+    #[tokio::test]
+    async fn a_commit_made_by_hand_is_on_the_remote_when_the_pull_request_is_merged() {
+        let delivered = Delivered::through_a_pull_request().await;
+        fs::write(delivered.checkout.join("left.txt"), "left").unwrap();
+        delivered.accept_as_done().await;
+        delivered.wait_until_waiting_for_a_clean_worktree().await;
+
+        git(&delivered.checkout, &["add", "left.txt"]);
+        git(&delivered.checkout, &["commit", "-q", "-m", "by hand"]);
+        let by_hand = git(&delivered.checkout, &["rev-parse", "HEAD"]);
+
+        wait_for(|| async { !delivered.checkout.exists() }).await;
+        let remote = delivered.repository._folder.path().join("remote.git");
+        assert_eq!(git(&remote, &["rev-parse", "rekall/report"]), by_hand);
+        assert_eq!(delivered.pull_host.merged(), vec![1]);
+    }
+
+    #[tokio::test]
+    async fn a_merge_the_host_refuses_on_a_done_task_is_not_asked_again() {
+        let delivered = Delivered::through_a_pull_request().await;
+        delivered.pull_host.merge_answers_with(PullRequestMerge::Refused("Required status check is failing".into()));
+        delivered.accept_as_done().await;
+        delivered.wait_for_failure("Required status check is failing").await;
+
+        delivered.pull_host.merge_answers_with(PullRequestMerge::Merged);
+        tokio::time::sleep(Duration::from_millis(400)).await;
+
+        assert!(delivered.pull_host.merged().is_empty());
+        assert!(delivered.checkout.exists());
+    }
+
+    #[tokio::test]
+    async fn a_done_task_merges_its_branch_locally_once_the_file_in_its_way_is_removed() {
+        let delivered = Delivered::merged_locally().await;
+        fs::write(delivered.checkout.join("left.txt"), "left").unwrap();
+        delivered.accept_as_done().await;
+        delivered.wait_until_waiting_for_a_clean_worktree().await;
+        assert_eq!(delivered.worktrees.merge_accepted(delivered.task.id).await.unwrap(), Merge::KeptWithChanges(vec!["left.txt".into()]));
+        assert!(!delivered.repository.project.join("export.txt").exists());
+
+        fs::remove_file(delivered.checkout.join("left.txt")).unwrap();
+
+        wait_for(|| async { !delivered.checkout.exists() }).await;
+        assert!(delivered.repository.project.join("export.txt").exists());
     }
 
     async fn wait_for<Check: FnMut() -> Pending, Pending: Future<Output = bool>>(mut check: Check) {

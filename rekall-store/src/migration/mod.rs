@@ -75,6 +75,7 @@ mod m096_tracker_picture;
 mod m097_run_queue_provider;
 mod m098_task_branch_delivery;
 mod m099_run_queue_claude_options;
+mod m100_merge_waits_for_clean_worktree;
 mod migration_support;
 mod migrator;
 

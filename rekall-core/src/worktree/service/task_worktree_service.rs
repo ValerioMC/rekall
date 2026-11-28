@@ -25,8 +25,8 @@ pub enum Merge {
     Merged,
     /// The branch holds nothing the project's `HEAD` lacks.
     AlreadyMerged,
-    /// The worktree has unsaved changes, so the branch is not the whole work yet.
-    KeptWithChanges,
+    /// The worktree holds these uncommitted files, so the branch is not the whole work yet; the merge is tried again until it is clean.
+    KeptWithChanges(Vec<String>),
     /// `merge-tree` says the branch conflicts with the project's `HEAD`; nothing was changed.
     Conflicts(String),
     /// git refused the merge; nothing was changed.
@@ -149,9 +149,16 @@ impl TaskWorktreeService {
     /// folder's current branch when the project names none). A branch with unsaved work in its
     /// worktree, or one that conflicts, is left as it is.
     pub async fn merge_accepted(&self, task_id: Id) -> Result<Merge> {
+        let merge = self.bring_in(task_id).await?;
+        let waits = matches!(merge, Merge::KeptWithChanges(_));
+        in_write!(&self.ctx, |tx| repo::task::keep_merge_waiting(tx.db(), task_id, waits, self.ctx.now()).await)?;
+        Ok(merge)
+    }
+
+    async fn bring_in(&self, task_id: Id) -> Result<Merge> {
         let Some(review) = self.review_branch(task_id).await? else { return Ok(Merge::NothingToMerge) };
         if review.has_unsaved_changes {
-            return Ok(Merge::KeptWithChanges);
+            return Ok(Merge::KeptWithChanges(self.unsaved_files(task_id).await?));
         }
         if review.commits_ahead == 0 {
             return Ok(Merge::AlreadyMerged);

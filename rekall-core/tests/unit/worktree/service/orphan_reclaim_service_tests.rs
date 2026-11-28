@@ -34,6 +34,10 @@ impl WorktreeHost for FakeHost {
         unreachable!("reclaiming never merges")
     }
 
+    async fn origin_lacks_commits(&self, _: &Path, _: &str) -> Result<bool> {
+        unreachable!("reclaiming never pushes")
+    }
+
     async fn push_branch(&self, _: &Path, _: &str) -> Result<PushOutcome> {
         unreachable!("reclaiming never pushes")
     }

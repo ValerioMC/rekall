@@ -44,6 +44,7 @@ pub mod worktree;
 pub mod wrapup;
 
 mod ctx;
+mod file_list;
 mod load;
 mod project_ref;
 mod services;
@@ -51,6 +52,7 @@ mod text_rule;
 
 pub use ctx::{system_clock, Clock, Ctx};
 pub use events::{DomainEvent, EventBus, PublishedEvent, StreamEvent};
+pub use file_list::named_uncommitted_files;
 pub use project_ref::ProjectRef;
 pub use services::Services;
 pub use tx::Tx;

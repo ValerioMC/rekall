@@ -49,6 +49,10 @@ async fn task_named(world: &World, label: &str) -> Id {
     task.id
 }
 
+async fn waits_for_clean_worktree(world: &World, task_id: Id) -> bool {
+    task::Entity::find_by_id(task_id).one(&world.db).await.unwrap().unwrap().merge_awaits_clean_worktree
+}
+
 async fn folder_of(world: &World, task_id: Id) -> Option<String> {
     task::Entity::find_by_id(task_id).one(&world.db).await.unwrap().unwrap().worktree_folder
 }
@@ -235,8 +239,25 @@ async fn a_branch_with_unsaved_work_in_its_worktree_is_not_merged() {
 
     let merge = world.service.merge_accepted(report).await.unwrap();
 
-    assert_eq!(merge, Merge::KeptWithChanges);
+    assert_eq!(merge, Merge::KeptWithChanges(vec!["notes.txt".to_string()]));
     assert!(world.host.merged().is_empty());
+    assert!(waits_for_clean_worktree(&world, report).await);
+}
+
+#[tokio::test]
+async fn a_branch_stops_waiting_once_its_worktree_is_clean_and_it_merges() {
+    let world = world().await;
+    let report = task_named(&world, "report").await;
+    world.service.ensure(report).await.unwrap();
+    world.host.leave_commits("rekall/report");
+    world.host.leave_unsaved_files("rekall/report", &["notes.txt"]);
+    world.service.merge_accepted(report).await.unwrap();
+    world.host.commit_or_discard_files("rekall/report");
+
+    let merge = world.service.merge_accepted(report).await.unwrap();
+
+    assert_eq!(merge, Merge::Merged);
+    assert!(!waits_for_clean_worktree(&world, report).await);
 }
 
 #[tokio::test]

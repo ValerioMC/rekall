@@ -75,8 +75,11 @@ impl GitWorktreeHost {
     }
 
     async fn branch_exists(&self, project_folder: &Path, branch_name: &str) -> Result<bool> {
-        let reference = format!("refs/heads/{branch_name}");
-        let answer = run_git(project_folder, &["rev-parse", "--verify", "--quiet", &reference], None, READ_TIMEOUT).await?;
+        self.reference_exists(project_folder, &format!("refs/heads/{branch_name}")).await
+    }
+
+    async fn reference_exists(&self, project_folder: &Path, reference: &str) -> Result<bool> {
+        let answer = run_git(project_folder, &["rev-parse", "--verify", "--quiet", reference], None, READ_TIMEOUT).await?;
         Ok(answer.ok())
     }
 
@@ -181,6 +184,17 @@ impl WorktreeHost for GitWorktreeHost {
         }
         let reason = [answer.error(), answer.output()].into_iter().find(|text| !text.is_empty()).unwrap_or("git refused the merge");
         Ok(MergeOutcome::Refused(reason.to_string()))
+    }
+
+    async fn origin_lacks_commits(&self, project_folder: &Path, branch_name: &str) -> Result<bool> {
+        self.layout.require_branch(branch_name)?;
+        let tracked = format!("refs/remotes/origin/{branch_name}");
+        if !self.reference_exists(project_folder, &tracked).await? {
+            return Ok(true);
+        }
+        let range = format!("{tracked}..refs/heads/{branch_name}");
+        let unsent = self.git(project_folder, &["rev-list", "--count", &range], READ_TIMEOUT).await?;
+        Ok(unsent.output() != "0")
     }
 
     async fn push_branch(&self, project_folder: &Path, branch_name: &str) -> Result<PushOutcome> {

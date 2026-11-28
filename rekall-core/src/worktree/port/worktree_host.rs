@@ -32,6 +32,9 @@ pub trait WorktreeHost: Send + Sync {
     /// the project is left as it was.
     async fn merge_branch(&self, project_folder: &Path, branch_name: &str, base: &str) -> Result<MergeOutcome>;
 
+    /// Whether `branch_name` holds commits `origin` lacks, as of the last push or fetch. A branch never pushed does.
+    async fn origin_lacks_commits(&self, project_folder: &Path, branch_name: &str) -> Result<bool>;
+
     /// Pushes `branch_name` to the project's `origin` and sets it as the branch's upstream. A push
     /// the remote or git turns down is `Refused` with git's first lines, not an error; the message
     /// never carries a credential.

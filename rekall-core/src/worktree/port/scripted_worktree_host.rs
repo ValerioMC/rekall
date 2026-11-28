@@ -10,7 +10,8 @@ use crate::worktree::{BranchReview, MergeOutcome, PushOutcome, Worktree, Worktre
 /// A `WorktreeHost` that keeps its worktrees in memory and makes their folders on disk, for tests
 /// of what decides when to make one. `refuse` makes `create` fail for a branch; a branch can be
 /// scripted to hold commits or to conflict, and `merged` lists the branches merged and `bases` the branch each started from or went into.
-/// `refuse_push` makes pushes of a branch fail with a reason; a branch pushed twice is up to date the second time.
+/// `refuse_push` makes pushes of a branch fail with a reason; a branch pushed twice is up to date the second time,
+/// unless `commit_by_hand` gave it a commit `origin` lacks.
 #[derive(Default)]
 pub struct ScriptedWorktreeHost {
     worktrees: Mutex<Vec<Worktree>>,
@@ -21,6 +22,7 @@ pub struct ScriptedWorktreeHost {
     merged: Mutex<Vec<String>>,
     bases: Mutex<Vec<String>>,
     pushed: Mutex<Vec<String>>,
+    unsent: Mutex<HashSet<String>>,
     push_refusals: Mutex<HashMap<String, String>>,
 }
 
@@ -48,6 +50,18 @@ impl ScriptedWorktreeHost {
 
     pub fn resolve_conflict(&self, branch_name: &str) {
         self.conflicting.lock().expect("scripted host lock").remove(branch_name);
+    }
+
+    pub fn commit_by_hand(&self, branch_name: &str) {
+        self.unsent.lock().expect("scripted host lock").insert(branch_name.to_string());
+    }
+
+    pub fn commit_or_discard_files(&self, branch_name: &str) {
+        self.dirty.lock().expect("scripted host lock").remove(branch_name);
+    }
+
+    pub fn accept_push(&self, branch_name: &str) {
+        self.push_refusals.lock().expect("scripted host lock").remove(branch_name);
     }
 
     pub fn refuse_push(&self, branch_name: &str, reason: &str) {
@@ -123,13 +137,19 @@ impl WorktreeHost for ScriptedWorktreeHost {
         Ok(MergeOutcome::Merged)
     }
 
+    async fn origin_lacks_commits(&self, _: &Path, branch_name: &str) -> Result<bool> {
+        let pushed = self.pushed.lock().expect("scripted host lock").iter().any(|branch| branch == branch_name);
+        Ok(!pushed || self.unsent.lock().expect("scripted host lock").contains(branch_name))
+    }
+
     async fn push_branch(&self, _: &Path, branch_name: &str) -> Result<PushOutcome> {
         if let Some(reason) = self.push_refusals.lock().expect("scripted host lock").get(branch_name) {
             return Ok(PushOutcome::Refused(reason.clone()));
         }
+        let had_unsent = self.unsent.lock().expect("scripted host lock").remove(branch_name);
         let mut pushed = self.pushed.lock().expect("scripted host lock");
         if pushed.iter().any(|branch| branch == branch_name) {
-            return Ok(PushOutcome::UpToDate);
+            return Ok(if had_unsent { PushOutcome::Pushed } else { PushOutcome::UpToDate });
         }
         pushed.push(branch_name.to_string());
         Ok(PushOutcome::Pushed)

@@ -10,6 +10,8 @@ pub enum PullRequestLanding {
     NothingToMerge,
     /// The host says the pull request conflicts with `base`, the branch it targets.
     Conflicting { base: String },
+    /// The worktree holds these uncommitted files: nothing is sent to the host, and the merge is tried again until it is clean.
+    KeptWithChanges(Vec<String>),
     /// The host or the task's state turned the merge down; the reason stays on the task.
     Refused(String),
 }

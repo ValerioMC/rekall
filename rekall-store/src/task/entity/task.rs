@@ -44,6 +44,8 @@ pub struct Model {
     /// The git worktree the run queue gave the task; absent means it works in its project's folder.
     pub worktree_folder: Option<String>,
     pub last_work_provider: Option<crate::SessionProvider>,
+    /// The work is accepted and uncommitted files in the worktree are all that keeps its branch from being merged.
+    pub merge_awaits_clean_worktree: bool,
     /// The issue the project's task manager holds for this task: Jira's key, GitLab's `iid` or GitHub's number.
     pub created_at: Instant,
     pub updated_at: Instant,
@@ -136,6 +138,7 @@ impl Model {
             auto_accepted: false,
             worktree_folder: None,
             last_work_provider: None,
+            merge_awaits_clean_worktree: false,
             created_at: now,
             updated_at: now,
         }

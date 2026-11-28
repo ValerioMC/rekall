@@ -278,3 +278,99 @@ async fn a_refused_picture_stores_the_reason_and_opens_nothing() {
     assert!(world.host.opened().is_empty());
     assert!(world.stored(&task).await.unwrap().failure.unwrap().contains("could not take the picture login-3f9a1c2b.png"));
 }
+
+impl World {
+    /// An accepted task already set to done, with a pull request and a worktree folder of its own.
+    async fn done_task_in(&self, folder: &std::path::Path) -> task::Model {
+        let task = self.with_pull_request("report").await;
+        let mut done = repo::task::require(&self.ctx.db, task.id).await.unwrap().into_active_model();
+        done.status = sea_orm::Set(rekall_store::TaskStatus::Done);
+        done.worktree_folder = sea_orm::Set(Some(folder.to_string_lossy().into_owned()));
+        done.update(&self.ctx.db).await.unwrap()
+    }
+}
+
+#[tokio::test]
+async fn uncommitted_files_are_named_and_keep_the_host_out_of_it() {
+    let world = world(true).await;
+    let folder = tempfile::tempdir().unwrap();
+    let task = world.done_task_in(folder.path()).await;
+    world.git.leave_unsaved_files("rekall/report", &["notes.txt"]);
+
+    let landing = world.service.merge_accepted(task.id).await.unwrap();
+
+    assert_eq!(landing, PullRequestLanding::KeptWithChanges(vec!["notes.txt".into()]));
+    assert_eq!(world.stored(&task).await.unwrap().failure.as_deref(), Some("The task worktree has 1 uncommitted file: notes.txt. The branch stays open until they are committed or removed."));
+    assert!(world.host.merged().is_empty());
+    assert_eq!(world.service.retry_candidates().await.unwrap(), [task.id]);
+}
+
+#[tokio::test]
+async fn a_done_task_merges_once_its_worktree_is_clean_and_is_not_retried_after() {
+    let world = world(true).await;
+    let folder = tempfile::tempdir().unwrap();
+    let task = world.done_task_in(folder.path()).await;
+    world.git.leave_unsaved_files("rekall/report", &["notes.txt"]);
+    world.service.merge_accepted(task.id).await.unwrap();
+    world.git.commit_or_discard_files("rekall/report");
+
+    let landing = world.service.merge_accepted(task.id).await.unwrap();
+
+    assert_eq!(landing, PullRequestLanding::Merged);
+    assert!(world.service.retry_candidates().await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn a_host_refusal_on_a_done_task_is_not_retried() {
+    let world = world(true).await;
+    let folder = tempfile::tempdir().unwrap();
+    let task = world.done_task_in(folder.path()).await;
+    world.git.leave_unsaved_files("rekall/report", &["notes.txt"]);
+    world.service.merge_accepted(task.id).await.unwrap();
+    world.git.commit_or_discard_files("rekall/report");
+    world.host.merge_answers_with(PullRequestMerge::Refused("Required status check is failing".into()));
+
+    world.service.merge_accepted(task.id).await.unwrap();
+
+    assert!(world.service.retry_candidates().await.unwrap().is_empty());
+    assert!(world.stored(&task).await.unwrap().failure.unwrap().contains("Required status check is failing"));
+}
+
+#[tokio::test]
+async fn a_done_task_keeps_waiting_while_the_host_cannot_be_reached() {
+    let world = world(true).await;
+    let folder = tempfile::tempdir().unwrap();
+    let task = world.done_task_in(folder.path()).await;
+    world.git.leave_unsaved_files("rekall/report", &["notes.txt"]);
+    world.service.merge_accepted(task.id).await.unwrap();
+    world.git.commit_or_discard_files("rekall/report");
+    world.host.fail_with(TrackerFailure::Failed { reason: "it answered HTTP 502".into() });
+
+    assert!(world.service.merge_accepted(task.id).await.is_err());
+
+    assert_eq!(world.service.retry_candidates().await.unwrap(), [task.id]);
+}
+
+#[tokio::test]
+async fn a_refused_push_of_a_hand_commit_keeps_the_branch_open_with_the_reason() {
+    let world = world(true).await;
+    let task = world.with_pull_request("report").await;
+    world.git.commit_by_hand("rekall/report");
+    world.git.refuse_push("rekall/report", "remote: Permission denied");
+
+    let landing = world.service.merge_accepted(task.id).await.unwrap();
+
+    assert_eq!(landing, PullRequestLanding::Refused("The push of rekall/report was refused: remote: Permission denied".into()));
+    assert!(world.host.merged().is_empty());
+    world.git.accept_push("rekall/report");
+    assert_eq!(world.service.merge_accepted(task.id).await.unwrap(), PullRequestLanding::Merged);
+}
+
+#[tokio::test]
+async fn a_branch_with_nothing_to_send_is_merged_without_a_push() {
+    let world = world(true).await;
+    let task = world.with_pull_request("report").await;
+    world.git.refuse_push("rekall/report", "! [rejected] non-fast-forward");
+
+    assert_eq!(world.service.merge_accepted(task.id).await.unwrap(), PullRequestLanding::Merged);
+}
